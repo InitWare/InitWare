@@ -57,8 +57,8 @@ ACTION=="add", SUBSYSTEM=="net", KERNEL!="lo", RUN+="@rootlibexecdir@/systemd-sy
 # Pull in backlight save/restore for all backlight devices and
 # keyboard backlights
 
-SUBSYSTEM=="backlight", TAG+="systemd", ENV{SYSTEMD_WANTS}+="systemd-backlight@$name.service"
-SUBSYSTEM=="leds", KERNEL=="*kbd_backlight", TAG+="systemd", ENV{SYSTEMD_WANTS}+="systemd-backlight@$name.service"
+SUBSYSTEM=="backlight", TAG+="systemd", IMPORT{builtin}="path_id", ENV{SYSTEMD_WANTS}+="systemd-backlight@$name.service"
+SUBSYSTEM=="leds", KERNEL=="*kbd_backlight", TAG+="systemd", IMPORT{builtin}="path_id", ENV{SYSTEMD_WANTS}+="systemd-backlight@$name.service"
 
 # Asynchronously mount file systems implemented by these modules as
 # soon as they are loaded.
