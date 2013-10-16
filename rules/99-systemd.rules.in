@@ -53,12 +53,12 @@ ACTION=="add", SUBSYSTEM=="net", KERNEL!="lo", RUN+="@rootlibexecdir@/systemd-sy
 
 # Pull in backlight save/restore for all firmware backlight devices
 
-ACTION=="add", SUBSYSTEM=="backlight", ATTR{type}=="firmware", TAG+="systemd", ENV{SYSTEMD_WANTS}+="systemd-backlight@$name.service"
+SUBSYSTEM=="backlight", ATTR{type}=="firmware", TAG+="systemd", ENV{SYSTEMD_WANTS}+="systemd-backlight@$name.service"
 
 # Asynchronously mount file systems implemented by these modules as
 # soon as they are loaded.
 
-SUBSYSTEM=="module", KERNEL=="fuse", ACTION=="add", TAG+="systemd", ENV{SYSTEMD_WANTS}+="sys-fs-fuse-connections.mount"
-SUBSYSTEM=="module", KERNEL=="configfs", ACTION=="add", TAG+="systemd", ENV{SYSTEMD_WANTS}+="sys-kernel-config.mount"
+SUBSYSTEM=="module", KERNEL=="fuse", TAG+="systemd", ENV{SYSTEMD_WANTS}+="sys-fs-fuse-connections.mount"
+SUBSYSTEM=="module", KERNEL=="configfs", TAG+="systemd", ENV{SYSTEMD_WANTS}+="sys-kernel-config.mount"
 
 LABEL="systemd_end"
