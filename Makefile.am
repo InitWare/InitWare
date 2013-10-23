@@ -1130,6 +1130,7 @@ tests += \
 	test-unit-file \
 	test-utf8 \
 	test-util \
+	test-namespace \
 	test-date \
 	test-sleep \
 	test-replace-var \
@@ -1254,6 +1255,12 @@ test_util_CFLAGS = \
 	$(AM_CFLAGS)
 
 test_util_LDADD = \
+	libsystemd-core.la
+
+test_namespace_SOURCES = \
+	src/test/test-namespace.c
+
+test_namespace_LDADD = \
 	libsystemd-core.la
 
 test_hashmap_SOURCES = \
