@@ -724,7 +724,9 @@ libsystemd_shared_la_SOURCES = \
 	src/shared/boot-timestamps.c \
 	src/shared/refcnt.h \
 	src/shared/mkdir.c \
-	src/shared/mkdir.h
+	src/shared/mkdir.h \
+	src/shared/ptyfwd.c \
+	src/shared/ptyfwd.h
 
 #-------------------------------------------------------------------------------
 noinst_LTLIBRARIES += \
