@@ -43,9 +43,9 @@
 #include <sys/socket.h>
 #include <linux/netlink.h>
 
-#include <systemd/sd-daemon.h>
-#include <systemd/sd-bus.h>
-
+#include "sd-daemon.h"
+#include "sd-bus.h"
+#include "sd-id128.h"
 #include "log.h"
 #include "util.h"
 #include "mkdir.h"
@@ -56,13 +56,13 @@
 #include "strv.h"
 #include "path-util.h"
 #include "loopback-setup.h"
-#include "sd-id128.h"
 #include "dev-setup.h"
 #include "fdset.h"
 #include "build.h"
 #include "fileio.h"
 #include "bus-internal.h"
 #include "bus-message.h"
+#include "bus-error.h"
 #include "ptyfwd.h"
 
 #ifndef TTY_GID
@@ -966,8 +966,62 @@ static int register_machine(void) {
                         strempty(arg_directory),
                         !isempty(arg_slice), "Slice", "s", arg_slice);
         if (r < 0) {
-                log_error("Failed to register machine: %s", error.message ? error.message : strerror(-r));
+                log_error("Failed to register machine: %s", bus_error_message(&error, r));
                 return r;
+        }
+
+        return 0;
+}
+
+static int terminate_machine(pid_t pid) {
+        _cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
+        _cleanup_bus_message_unref_ sd_bus_message *reply = NULL;
+        _cleanup_bus_unref_ sd_bus *bus = NULL;
+        const char *path;
+        int r;
+
+        r = sd_bus_open_system(&bus);
+        if (r < 0) {
+                log_error("Failed to open system bus: %s", strerror(-r));
+                return r;
+        }
+
+        r = sd_bus_call_method(
+                        bus,
+                        "org.freedesktop.machine1",
+                        "/org/freedesktop/machine1",
+                        "org.freedesktop.machine1.Manager",
+                        "GetMachineByPID",
+                        &error,
+                        &reply,
+                        "u",
+                        (uint32_t) pid);
+        if (r < 0) {
+                /* Note that the machine might already have been
+                 * cleaned up automatically, hence don't consider it a
+                 * failure if we cannot get the machine object. */
+                log_debug("Failed to get machine: %s", bus_error_message(&error, r));
+                return 0;
+        }
+
+        r = sd_bus_message_read(reply, "o", &path);
+        if (r < 0) {
+                log_error("Failed to parse GetMachineByPID() reply: %s", bus_error_message(&error, r));
+                return r;
+        }
+
+        r = sd_bus_call_method(
+                        bus,
+                        "org.freedesktop.machine1",
+                        path,
+                        "org.freedesktop.machine1.Machine",
+                        "Terminate",
+                        &error,
+                        NULL,
+                        NULL);
+        if (r < 0) {
+                log_debug("Failed to terminate machine: %s", bus_error_message(&error, r));
+                return 0;
         }
 
         return 0;
@@ -1447,6 +1501,12 @@ int main(int argc, char *argv[]) {
 
                 if (saved_attr_valid)
                         tcsetattr(STDIN_FILENO, TCSANOW, &saved_attr);
+
+                /* Kill if it is not dead yet anyway */
+                terminate_machine(pid);
+
+                /* Redundant, but better safe than sorry */
+                kill(pid, SIGKILL);
 
                 k = wait_for_terminate(pid, &status);
                 if (k < 0) {
