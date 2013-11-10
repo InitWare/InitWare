@@ -172,7 +172,7 @@ static int button_handle(
                  * execute another one until the lid is opened/closed again */
                 b->lid_close_queued = false;
 
-        return r;
+        return 0;
 }
 
 int button_process(Button *b) {
