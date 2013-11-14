@@ -1743,6 +1743,10 @@ bootctl_LDADD = \
 
 bin_PROGRAMS += \
 	bootctl
+
+dist_zshcompletion_DATA += \
+	shell-completion/zsh/_bootctl
+
 endif
 
 # ------------------------------------------------------------------------------
