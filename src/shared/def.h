@@ -41,3 +41,16 @@
 #define LOWERCASE_LETTERS "abcdefghijklmnopqrstuvwxyz"
 #define UPPERCASE_LETTERS "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 #define LETTERS LOWERCASE_LETTERS UPPERCASE_LETTERS
+
+#ifdef HAVE_SPLIT_USR
+#define KBD_KEYMAP_DIRS                         \
+        "/usr/share/keymaps/\0"                 \
+        "/usr/share/kbd/keymaps/\0"             \
+        "/usr/lib/kbd/keymaps/\0"               \
+        "/lib/kbd/keymaps/\0"
+#else
+#define KBD_KEYMAP_DIRS                         \
+        "/usr/share/keymaps/\0"                 \
+        "/usr/share/kbd/keymaps/\0"             \
+        "/usr/lib/kbd/keymaps/\0"
+#endif

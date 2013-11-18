@@ -792,8 +792,114 @@ static int convert_vconsole_to_x11(DBusConnection *connection) {
         return 0;
 }
 
+static int find_converted_keymap(char **new_keymap) {
+        const char *dir;
+        _cleanup_free_ char *n;
+
+        if (state.x11_variant)
+                n = strjoin(state.x11_layout, "-", state.x11_variant, NULL);
+        else
+                n = strdup(state.x11_layout);
+        if (!n)
+                return -ENOMEM;
+
+        NULSTR_FOREACH(dir, KBD_KEYMAP_DIRS) {
+                _cleanup_free_ char *p = NULL, *pz = NULL;
+
+                p = strjoin(dir, "xkb/", n, ".map", NULL);
+                pz = strjoin(dir, "xkb/", n, ".map.gz", NULL);
+                if (!p || !pz)
+                        return -ENOMEM;
+
+                if (access(p, F_OK) == 0 || access(pz, F_OK) == 0) {
+                        *new_keymap = n;
+                        n = NULL;
+                        return 1;
+                }
+        }
+
+        return 0;
+}
+
+static int find_legacy_keymap(char **new_keymap) {
+        _cleanup_fclose_ FILE *f;
+        unsigned n = 0;
+        unsigned best_matching = 0;
+
+
+        f = fopen(SYSTEMD_KBD_MODEL_MAP, "re");
+        if (!f)
+                return -errno;
+
+        for (;;) {
+                _cleanup_strv_free_ char **a = NULL;
+                unsigned matching = 0;
+                int r;
+
+                r = read_next_mapping(f, &n, &a);
+                if (r < 0)
+                        return r;
+                if (r == 0)
+                        break;
+
+                /* Determine how well matching this entry is */
+                if (streq_ptr(state.x11_layout, a[1]))
+                        /* If we got an exact match, this is best */
+                        matching = 10;
+                else {
+                        size_t x;
+
+                        x = strcspn(state.x11_layout, ",");
+
+                        /* We have multiple X layouts, look for an
+                         * entry that matches our key with everything
+                         * but the first layout stripped off. */
+                        if (x > 0 &&
+                            strlen(a[1]) == x &&
+                            strneq(state.x11_layout, a[1], x))
+                                matching = 5;
+                        else  {
+                                size_t w;
+
+                                /* If that didn't work, strip off the
+                                 * other layouts from the entry, too */
+                                w = strcspn(a[1], ",");
+
+                                if (x > 0 && x == w &&
+                                    memcmp(state.x11_layout, a[1], x) == 0)
+                                        matching = 1;
+                        }
+                }
+
+                if (matching > 0 &&
+                    streq_ptr(state.x11_model, a[2])) {
+                        matching++;
+
+                        if (streq_ptr(state.x11_variant, a[3])) {
+                                matching++;
+
+                                if (streq_ptr(state.x11_options, a[4]))
+                                        matching++;
+                        }
+                }
+
+                /* The best matching entry so far, then let's save that */
+                if (matching > best_matching) {
+                        best_matching = matching;
+
+                        free(*new_keymap);
+                        *new_keymap = strdup(a[0]);
+                        if (!*new_keymap)
+                                return -ENOMEM;
+                }
+        }
+
+        return 0;
+}
+
 static int convert_x11_to_vconsole(DBusConnection *connection) {
         bool modified = false;
+        int r;
 
         assert(connection);
 
@@ -805,92 +911,16 @@ static int convert_x11_to_vconsole(DBusConnection *connection) {
 
                 free_data_x11();
         } else {
-                FILE *f;
-                unsigned n = 0;
-                unsigned best_matching = 0;
                 char *new_keymap = NULL;
 
-                f = fopen(SYSTEMD_KBD_MODEL_MAP, "re");
-                if (!f)
-                        return -errno;
-
-                for (;;) {
-                        char **a;
-                        unsigned matching = 0;
-                        int r;
-
-                        r = read_next_mapping(f, &n, &a);
-                        if (r < 0) {
-                                fclose(f);
+                r = find_converted_keymap(&new_keymap);
+                if (r < 0)
+                        return r;
+                else if (r == 0) {
+                        r = find_legacy_keymap(&new_keymap);
+                        if (r < 0)
                                 return r;
-                        }
-
-                        if (r == 0)
-                                break;
-
-                        /* Determine how well matching this entry is */
-                        if (streq_ptr(state.x11_layout, a[1]))
-                                /* If we got an exact match, this is best */
-                                matching = 10;
-                        else {
-                                size_t x;
-
-                                x = strcspn(state.x11_layout, ",");
-
-                                /* We have multiple X layouts, look
-                                 * for an entry that matches our key
-                                 * with the everything but the first
-                                 * layout stripped off. */
-                                if (x > 0 &&
-                                    strlen(a[1]) == x &&
-                                    strneq(state.x11_layout, a[1], x))
-                                        matching = 5;
-                                else  {
-                                        size_t w;
-
-                                        /* If that didn't work, strip
-                                         * off the other layouts from
-                                         * the entry, too */
-
-                                        w = strcspn(a[1], ",");
-
-                                        if (x > 0 && x == w &&
-                                            memcmp(state.x11_layout, a[1], x) == 0)
-                                                matching = 1;
-                                }
-                        }
-
-                        if (matching > 0 &&
-                            streq_ptr(state.x11_model, a[2])) {
-                                matching++;
-
-                                if (streq_ptr(state.x11_variant, a[3])) {
-                                        matching++;
-
-                                        if (streq_ptr(state.x11_options, a[4]))
-                                                matching++;
-                                }
-                        }
-
-                        /* The best matching entry so far, then let's
-                         * save that */
-                        if (matching > best_matching) {
-                                best_matching = matching;
-
-                                free(new_keymap);
-                                new_keymap = strdup(a[0]);
-
-                                if (!new_keymap) {
-                                        strv_free(a);
-                                        fclose(f);
-                                        return -ENOMEM;
-                                }
-                        }
-
-                        strv_free(a);
                 }
-
-                fclose(f);
 
                 if (!streq_ptr(state.vc_keymap, new_keymap)) {
                         free(state.vc_keymap);
@@ -907,7 +937,6 @@ static int convert_x11_to_vconsole(DBusConnection *connection) {
         if (modified) {
                 dbus_bool_t b;
                 DBusMessage *changed;
-                int r;
 
                 r = write_data_vconsole();
                 if (r < 0)
