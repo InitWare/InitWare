@@ -130,6 +130,7 @@ static int help(void) {
                "     --read-only           Mount the root directory read-only\n"
                "     --capability=CAP      In addition to the default, retain specified\n"
                "                           capability\n"
+               "     --drop-capability=CAP Drop the specified capability from the default set\n"
                "     --link-journal=MODE   Link up guest journal, one of no, auto, guest, host\n"
                "  -j                       Equivalent to --link-journal=host\n"
                "     --bind=PATH[:PATH]    Bind mount a file or directory from the host into\n"
@@ -148,6 +149,7 @@ static int parse_argv(int argc, char *argv[]) {
                 ARG_UUID,
                 ARG_READ_ONLY,
                 ARG_CAPABILITY,
+                ARG_DROP_CAPABILITY,
                 ARG_LINK_JOURNAL,
                 ARG_BIND,
                 ARG_BIND_RO
@@ -163,6 +165,7 @@ static int parse_argv(int argc, char *argv[]) {
                 { "uuid",            required_argument, NULL, ARG_UUID            },
                 { "read-only",       no_argument,       NULL, ARG_READ_ONLY       },
                 { "capability",      required_argument, NULL, ARG_CAPABILITY      },
+                { "drop-capability", required_argument, NULL, ARG_DROP_CAPABILITY },
                 { "link-journal",    required_argument, NULL, ARG_LINK_JOURNAL    },
                 { "bind",            required_argument, NULL, ARG_BIND            },
                 { "bind-ro",         required_argument, NULL, ARG_BIND_RO         },
@@ -247,7 +250,8 @@ static int parse_argv(int argc, char *argv[]) {
                         arg_read_only = true;
                         break;
 
-                case ARG_CAPABILITY: {
+                case ARG_CAPABILITY:
+                case ARG_DROP_CAPABILITY: {
                         char *state, *word;
                         size_t length;
 
@@ -266,7 +270,11 @@ static int parse_argv(int argc, char *argv[]) {
                                 }
 
                                 free(t);
-                                arg_retain |= 1ULL << (uint64_t) cap;
+
+                                if (c == ARG_CAPABILITY)
+                                        arg_retain |= 1ULL << (uint64_t) cap;
+                                else
+                                        arg_retain &= ~(1ULL << (uint64_t) cap);
                         }
 
                         break;
