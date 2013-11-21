@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
                 "[Mount]\n"
                 "Where=/boot\n"
                 "What=/dev/disk/by-partuuid/%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x\n"
-                "Options=umask=0077\n",
+                "Options=umask=0077,noauto\n",
                 SD_ID128_FORMAT_VAL(id));
 
         free(name);
