@@ -523,6 +523,7 @@ static int bus_manager_create_session(Manager *m, DBusMessage *message) {
                                 DBUS_TYPE_OBJECT_PATH, &path,
                                 DBUS_TYPE_STRING, &session->user->runtime_path,
                                 DBUS_TYPE_UNIX_FD, &fifo_fd,
+                                DBUS_TYPE_UINT32, &session->user->uid,
                                 DBUS_TYPE_STRING, &cseat,
                                 DBUS_TYPE_UINT32, &vtnr,
                                 DBUS_TYPE_BOOLEAN, &exists,
