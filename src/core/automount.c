@@ -776,8 +776,8 @@ static void automount_fd_event(Unit *u, int fd, uint32_t events, Watch *w) {
                         _cleanup_free_ char *p = NULL;
 
                         get_process_comm(packet.v5_packet.pid, &p);
-                        log_debug_unit(u->id,
-                                       "Got direct mount request on %s, triggered by %lu (%s)",
+                        log_info_unit(u->id,
+                                       "Got automount request for %s, triggered by %lu (%s)",
                                        a->where, (unsigned long) packet.v5_packet.pid, strna(p));
                 } else
                         log_debug_unit(u->id, "Got direct mount request on %s", a->where);
