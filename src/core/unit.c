@@ -1239,8 +1239,11 @@ int unit_reload(Unit *u) {
         if (state == UNIT_RELOADING)
                 return -EALREADY;
 
-        if (state != UNIT_ACTIVE)
+        if (state != UNIT_ACTIVE) {
+                log_warning_unit(u->id, "Unit %s cannot be reloaded because it is inactive.",
+                                 u->id);
                 return -ENOEXEC;
+        }
 
         if ((following = unit_following(u))) {
                 log_debug_unit(u->id, "Redirecting reload request from %s to %s.",
