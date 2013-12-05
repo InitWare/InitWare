@@ -275,8 +275,9 @@ static int device_update_unit(Manager *m, struct udev_device *dev, const char *p
                         }
                 }
 
-                wants = udev_device_get_property_value(dev, "SYSTEMD_WANTS");
-                if (wants) {
+                if (u->manager->running_as == SYSTEMD_SYSTEM &&
+                    (wants = udev_device_get_property_value(dev, "SYSTEMD_WANTS"))) {
+
                         char *state, *w;
                         size_t l;
 
