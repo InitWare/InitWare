@@ -629,12 +629,6 @@ int user_check_gc(User *u, bool drop_not_started) {
         if (u->slice_job || u->service_job)
                 return 1;
 
-        if (u->slice && manager_unit_is_active(u->manager, u->slice) != 0)
-                return 1;
-
-        if (u->service && manager_unit_is_active(u->manager, u->service) != 0)
-                return 1;
-
         return 0;
 }
 
