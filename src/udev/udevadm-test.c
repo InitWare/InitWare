@@ -52,7 +52,7 @@ static int adm_test(struct udev *udev, int argc, char *argv[])
                 {}
         };
 
-        log_debug("version %s\n", VERSION);
+        log_debug("version %s", VERSION);
 
         for (;;) {
                 int option;
@@ -74,7 +74,7 @@ static int adm_test(struct udev *udev, int argc, char *argv[])
                                 resolve_names = -1;
                         } else {
                                 fprintf(stderr, "resolve-names must be early, late or never\n");
-                                log_error("resolve-names must be early, late or never\n");
+                                log_error("resolve-names must be early, late or never");
                                 exit(EXIT_FAILURE);
                         }
                         break;
