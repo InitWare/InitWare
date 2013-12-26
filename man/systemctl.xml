@@ -250,7 +250,7 @@ systemctl start foo
           sleep state. Any user may take these locks and privileged
           users may override these locks. If any locks are taken,
           shutdown and sleep state requests will normally fail
-          (regardless if privileged or not) and a list of active locks
+          (regardless of whether privileged or not) and a list of active locks
           is printed. However, if <option>--ignore-inhibitors</option>
           is specified, the locks are ignored and not printed, and the
           operation attempted anyway, possibly requiring additional
@@ -445,7 +445,7 @@ systemctl start foo
           with identical immediate effects, however, since the latter
           is lost on reboot, the changes are lost too.</para>
 
-          <para>Similar, when used with
+          <para>Similarly, when used with
           <command>set-property</command>, make changes only
           temporarily, so that they are lost on the next
           reboot.</para>
