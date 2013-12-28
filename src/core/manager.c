@@ -1435,16 +1435,22 @@ static int manager_process_signal_fd(Manager *m) {
                 }
 
                 if (sfsi.ssi_pid > 0) {
-                        char *p = NULL;
+                        _cleanup_free_ char *p = NULL;
 
                         get_process_comm(sfsi.ssi_pid, &p);
 
-                        log_debug("Received SIG%s from PID %lu (%s).",
-                                  signal_to_string(sfsi.ssi_signo),
-                                  (unsigned long) sfsi.ssi_pid, strna(p));
-                        free(p);
+                        log_full(sfsi.ssi_signo == SIGCHLD ||
+                                 (sfsi.ssi_signo == SIGTERM && m->running_as == SYSTEMD_USER)
+                                 ? LOG_DEBUG : LOG_INFO,
+                                 "Received SIG%s from PID %lu (%s).",
+                                 signal_to_string(sfsi.ssi_signo),
+                                 (unsigned long) sfsi.ssi_pid, strna(p));
                 } else
-                        log_debug("Received SIG%s.", signal_to_string(sfsi.ssi_signo));
+                        log_full(sfsi.ssi_signo == SIGCHLD ||
+                                 (sfsi.ssi_signo == SIGTERM && m->running_as == SYSTEMD_USER)
+                                 ? LOG_DEBUG : LOG_INFO,
+                                 "Received SIG%s.",
+                                 signal_to_string(sfsi.ssi_signo));
 
                 switch (sfsi.ssi_signo) {
 
