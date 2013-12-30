@@ -3400,7 +3400,7 @@ static void service_notify_message(Unit *u, pid_t pid, char **tags) {
                 return;
         }
 
-        if (s->notify_access == NOTIFY_MAIN && pid != s->main_pid) {
+        if (s->notify_access == NOTIFY_MAIN && s->main_pid != 0 && pid != s->main_pid) {
                 log_warning_unit(u->id,
                                  "%s: Got notification message from PID %lu, but reception only permitted for PID %lu",
                                  u->id, (unsigned long) pid, (unsigned long) s->main_pid);
