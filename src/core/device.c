@@ -282,8 +282,7 @@ static int device_update_unit(Manager *m, struct udev_device *dev, const char *p
                         size_t l;
 
                         FOREACH_WORD_QUOTED(w, l, wants, state) {
-                                _cleanup_free_ char *e, *n = NULL;
-                                Unit *other;
+                                char *e, *n;
 
                                 e = strndup(w, l);
                                 if (!e) {
@@ -295,19 +294,12 @@ static int device_update_unit(Manager *m, struct udev_device *dev, const char *p
                                         r = -ENOMEM;
                                         goto fail;
                                 }
+                                free(e);
 
                                 r = unit_add_dependency_by_name(u, UNIT_WANTS, n, NULL, true);
+                                free(n);
                                 if (r < 0)
                                         goto fail;
-
-                                other = manager_get_unit(u->manager, n);
-                                if (!other || !unit_can_start(other))
-                                        continue;
-
-                                r = manager_add_job(u->manager, JOB_START, other, JOB_REPLACE, true, NULL, NULL);
-                                if (r < 0)
-                                        log_warning("Failed to add job %s/%s, ignoring: %s.",
-                                                    other->id, job_type_to_string(JOB_START), strerror(-r));
                         }
                 }
         }
