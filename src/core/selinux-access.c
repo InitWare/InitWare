@@ -374,8 +374,9 @@ int selinux_access_check(
                 goto finish;
         }
 
-        if (path) {
-                tclass = "service";
+
+        tclass = "service";
+        if (path && !strneq(path,"system", strlen("system"))) {
                 /* get the file context of the unit file */
                 r = getfilecon(path, &fcon);
                 if (r < 0) {
@@ -384,9 +385,9 @@ int selinux_access_check(
                         log_error("Failed to get security context on %s: %m",path);
                         goto finish;
                 }
-
         } else {
-                tclass = "system";
+                if (path)
+                        tclass = "system";
                 r = getcon(&fcon);
                 if (r < 0) {
                         dbus_set_error(error, DBUS_ERROR_ACCESS_DENIED, "Failed to get current context.");

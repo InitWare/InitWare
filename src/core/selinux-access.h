@@ -36,6 +36,18 @@ int selinux_access_check(DBusConnection *connection, DBusMessage *message, const
                 DBusConnection *_c = (connection);                      \
                 DBusMessage *_m = (message);                            \
                 dbus_error_init(&_error);                               \
+                _r = selinux_access_check(_c, _m, "system", (permission), &_error); \
+                if (_r < 0)                                             \
+                        return bus_send_error_reply(_c, _m, &_error, _r); \
+        } while (false)
+
+#define SELINUX_RUNTIME_UNIT_ACCESS_CHECK(connection, message, permission) \
+        do {                                                            \
+                DBusError _error;                                       \
+                int _r;                                                 \
+                DBusConnection *_c = (connection);                      \
+                DBusMessage *_m = (message);                            \
+                dbus_error_init(&_error);                               \
                 _r = selinux_access_check(_c, _m, NULL, (permission), &_error); \
                 if (_r < 0)                                             \
                         return bus_send_error_reply(_c, _m, &_error, _r); \
@@ -57,6 +69,7 @@ int selinux_access_check(DBusConnection *connection, DBusMessage *message, const
 #else
 
 #define SELINUX_ACCESS_CHECK(connection, message, permission) do { } while (false)
+#define SELINUX_RUNTIME_UNIT_ACCESS_CHECK(connection, message, permission) do { } while (false)
 #define SELINUX_UNIT_ACCESS_CHECK(unit, connection, message, permission) do { } while (false)
 
 #endif

@@ -1104,7 +1104,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 dbus_bool_t cleanup;
                 Snapshot *s;
 
-                SELINUX_ACCESS_CHECK(connection, message, "start");
+                SELINUX_RUNTIME_UNIT_ACCESS_CHECK(connection, message, "start");
 
                 if (!dbus_message_get_args(
                                     message,
@@ -1157,7 +1157,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                         return bus_send_error_reply(connection, message, &error, -ENOENT);
                 }
 
-                SELINUX_UNIT_ACCESS_CHECK(u, connection, message, "stop");
+                SELINUX_RUNTIME_UNIT_ACCESS_CHECK(connection, message, "stop");
                 snapshot_remove(SNAPSHOT(u));
 
                 reply = dbus_message_new_method_return(message);
@@ -1767,7 +1767,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 if (r < 0)
                         return bus_send_error_reply(connection, message, &error, r);
 
-                SELINUX_UNIT_ACCESS_CHECK(u, connection, message, "start");
+                SELINUX_RUNTIME_UNIT_ACCESS_CHECK(connection, message, "start");
 
                 if (u->load_state != UNIT_NOT_FOUND || set_size(u->dependencies[UNIT_REFERENCED_BY]) > 0) {
                         dbus_set_error(&error, BUS_ERROR_UNIT_EXISTS, "Unit %s already exists.", name);
