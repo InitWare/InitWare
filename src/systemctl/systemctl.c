@@ -4436,6 +4436,11 @@ static int enable_unit(DBusConnection *bus, char **args) {
         if (r < 0)
                 return r;
 
+        /* If the operation was fully executed by the SysV compat,
+         * let's finish early */
+        if (strv_isempty(mangled_names))
+                return 0;
+
         if (!bus || avoid_bus()) {
                 if (streq(verb, "enable")) {
                         r = unit_file_enable(arg_scope, arg_runtime, arg_root, mangled_names, arg_force, &changes, &n_changes);
