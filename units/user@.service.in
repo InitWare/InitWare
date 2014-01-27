@@ -14,5 +14,12 @@ User=%I
 PAMName=systemd-user
 Type=notify
 ExecStart=-@rootlibexecdir@/systemd --user
+# Apply same work around as apache's httpd until issues with user session
+# killing is fixed (currently problem is that the kill issued by systemd --user
+# is itself killed by systemd (PID1) before it can work which can lead to slow
+# shutdowns
+# http://thread.gmane.org/gmane.comp.sysutils.systemd.devel/16363
+ExecStop=/bin/kill -TERM ${MAINPID}
+KillSignal=SIGCONT
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%I/dbus/user_bus_socket
 Slice=user-%i.slice
