@@ -540,7 +540,7 @@ static int analyze_plot(DBusConnection *bus) {
             name.nodename, name.release, name.version, name.machine);
 
         svg("<g transform=\"translate(%.3f,100)\">\n", 20.0 + (SCALE_X * boot->firmware_time));
-        svg_graph_box(m, -boot->firmware_time, boot->finish_time);
+        svg_graph_box(m, -(double) boot->firmware_time, boot->finish_time);
 
         if (boot->firmware_time) {
                 svg_bar("firmware", -(double) boot->firmware_time, -(double) boot->loader_time, y);
@@ -589,7 +589,10 @@ static int analyze_plot(DBusConnection *bus) {
                 y++;
         }
 
+        svg("</g>\n");
+
         /* Legend */
+        svg("<g transform=\"translate(20,100)\">\n");
         y++;
         svg_bar("activating", 0, 300000, y);
         svg_text(true, 400000, y, "Activating");
