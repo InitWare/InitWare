@@ -1628,7 +1628,7 @@ struct udev_rules *udev_rules_new(struct udev *udev, int resolve_names)
                 log_error("failed to build config directory array");
                 return udev_rules_unref(rules);
         }
-        if (!path_strv_canonicalize(rules->dirs)) {
+        if (!path_strv_canonicalize_absolute(rules->dirs, NULL)) {
                 log_error("failed to canonicalize config directories\n");
                 return udev_rules_unref(rules);
         }
