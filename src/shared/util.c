@@ -427,7 +427,7 @@ char *split_quoted(const char *c, size_t *l, char **state) {
                 *state = (char*) e;
         }
 
-        return current;
+        return (char *) current;
 }
 
 int get_parent_of_pid(pid_t pid, pid_t *_ppid) {
