@@ -255,9 +255,9 @@
             <para>Execute a program to determine whether there
             is a match; the key is true if the program returns
             successfully. The device properties are made available to the
-            executed program in the environment. The program's stdout
-            is available in the RESULT key.</para>
-            <para>This can only be used for very short-running foreground tasks. For details
+            executed program in the environment. The program's STDOUT
+            is available in the <varname>RESULT</varname> key.</para>
+            <para>This can only be used for very short-running foreground tasks. For details,
             see <varname>RUN</varname>.</para>
           </listitem>
         </varlistentry>
@@ -265,8 +265,9 @@
         <varlistentry>
           <term><varname>RESULT</varname></term>
           <listitem>
-            <para>Match the returned string of the last PROGRAM call. This key can
-            be used in the same or in any later rule after a PROGRAM call.</para>
+            <para>Match the returned string of the last <varname>PROGRAM</varname> call.
+            This key can be used in the same or in any later rule after a
+            <varname>PROGRAM</varname> call.</para>
           </listitem>
         </varlistentry>
       </variablelist>
@@ -293,9 +294,10 @@
             example, the pattern string <literal>tty[SR]</literal>
             would match either <literal>ttyS</literal> or <literal>ttyR</literal>.
             Ranges are also supported via the <literal>-</literal> character.
-            For example, to match on the range of all digits, the pattern [0-9] could
-            be used. If the first character following the <literal>[</literal> is a
-            <literal>!</literal>, any characters not enclosed are matched.</para>
+            For example, to match on the range of all digits, the pattern
+            <literal>[0-9]</literal> could be used. If the first character
+            following the <literal>[</literal> is a <literal>!</literal>,
+            any characters not enclosed are matched.</para>
           </listitem>
         </varlistentry>
       </variablelist>
@@ -353,7 +355,8 @@
           <listitem>
             <para>Set a device property value. Property names with a leading <literal>.</literal>
             are neither stored in the database nor exported to events or
-            external tools (run by, say, the PROGRAM match key).</para>
+            external tools (run by, for example, the <varname>PROGRAM</varname>
+            match key).</para>
           </listitem>
         </varlistentry>
 
@@ -373,24 +376,26 @@
         <varlistentry>
           <term><varname>RUN{<replaceable>type</replaceable>}</varname></term>
           <listitem>
-            <para>Add a program to the list of programs to be executed after processing all the
-            rules for a specific event, depending on <literal>type</literal>:</para>
+            <para>Add a program to the list of programs to be executed after
+            processing all the rules for a specific event, depending on
+            <literal>type</literal>:</para>
             <variablelist>
               <varlistentry>
                 <term><literal>program</literal></term>
                 <listitem>
                   <para>Execute an external program specified as the assigned
-                  value. If no absolute path is given, the program is expected to live in
-                  /usr/lib/udev, otherwise the absolute path must be specified.</para>
-                  <para>This is the default if no <replaceable>type</replaceable> is
-                  specified.</para>
+                  value. If no absolute path is given, the program is expected
+                  to live in <filename>/usr/lib/udev</filename>; otherwise, the
+                  absolute path must be specified.</para>
+                  <para>This is the default if no <replaceable>type</replaceable>
+                  is specified.</para>
                 </listitem>
               </varlistentry>
               <varlistentry>
                 <term><literal>builtin</literal></term>
                 <listitem>
-                  <para>As <varname>program</varname>, but use one of the built-in programs rather
-                  than an external one.</para>
+                  <para>As <varname>program</varname>, but use one of the
+                  built-in programs rather than an external one.</para>
                 </listitem>
               </varlistentry>
             </variablelist>
@@ -399,7 +404,7 @@
             <para>This can only be used for very short-running foreground tasks. Running an
             event process for a long period of time may block all further events for
             this or a dependent device.</para>
-            <para>Starting daemons or other long running processes is not appropriate
+            <para>Starting daemons or other long-running processes is not appropriate
             for udev; the forked processes, detached or not, will be unconditionally
             killed after the event handling has finished.</para>
           </listitem>
@@ -408,14 +413,14 @@
         <varlistentry>
           <term><varname>LABEL</varname></term>
           <listitem>
-            <para>A named label to which a GOTO may jump.</para>
+            <para>A named label to which a <varname>GOTO</varname> may jump.</para>
           </listitem>
         </varlistentry>
 
         <varlistentry>
           <term><varname>GOTO</varname></term>
           <listitem>
-            <para>Jumps to the next LABEL with a matching name.</para>
+            <para>Jumps to the next <varname>LABEL</varname> with a matching name.</para>
           </listitem>
         </varlistentry>
 
@@ -518,21 +523,24 @@
               <varlistentry>
                 <term><option>static_node=</option></term>
                 <listitem>
-                  <para>Apply the permissions specified in this rule to the static device node with
-                  the specified name. Also, for every tag specified in this rule, create a symlink
+                  <para>Apply the permissions specified in this rule to the
+                  static device node with the specified name. Also, for every
+                  tag specified in this rule, create a symlink
                   in the directory
                   <filename>/run/udev/static_node-tags/<replaceable>tag</replaceable></filename>
-                  pointing at the static device node with the specified name. Static device node
-                  creation is performed by systemd-tmpfiles before systemd-udevd is started. The
-                  static nodes might not have a corresponding kernel device; they are used to
-                  trigger automatic kernel module loading when they are accessed.</para>
+                  pointing at the static device node with the specified name.
+                  Static device node creation is performed by systemd-tmpfiles
+                  before systemd-udevd is started. The static nodes might not
+                  have a corresponding kernel device; they are used to trigger
+                  automatic kernel module loading when they are accessed.</para>
                 </listitem>
               </varlistentry>
               <varlistentry>
                 <term><option>watch</option></term>
                 <listitem>
-                  <para>Watch the device node with inotify; when the node is closed after being opened for
-                  writing, a change uevent is synthesized.</para>
+                  <para>Watch the device node with inotify; when the node is
+                  closed after being opened for writing, a change uevent is
+                  synthesized.</para>
                 </listitem>
               </varlistentry>
               <varlistentry>
@@ -546,13 +554,15 @@
         </varlistentry>
       </variablelist>
 
-      <para>The <varname>NAME</varname>, <varname>SYMLINK</varname>, <varname>PROGRAM</varname>,
-      <varname>OWNER</varname>, <varname>GROUP</varname>, <varname>MODE</varname>  and  <varname>RUN</varname>
-      fields support simple string substitutions. The <varname>RUN</varname>
-      substitutions are performed after all rules have been processed, right before the program
-      is executed, allowing for the use of device properties set by earlier matching
-      rules. For all other fields, substitutions are performed while the individual rule is
-      being processed. The available substitutions are:</para>
+      <para>The <varname>NAME</varname>, <varname>SYMLINK</varname>,
+      <varname>PROGRAM</varname>, <varname>OWNER</varname>,
+      <varname>GROUP</varname>, <varname>MODE</varname>, and
+      <varname>RUN</varname> fields support simple string substitutions.
+      The <varname>RUN</varname> substitutions are performed after all rules
+      have been processed, right before the program is executed, allowing for
+      the use of device properties set by earlier matching rules. For all other
+      fields, substitutions are performed while the individual rule is being
+      processed. The available substitutions are:</para>
       <variablelist class='udev-directives'>
         <varlistentry>
           <term><option>$kernel</option>, <option>%k</option></term>
@@ -565,7 +575,8 @@
           <term><option>$number</option>, <option>%n</option></term>
           <listitem>
             <para>The kernel number for this device. For example,
-            <literal>sda3</literal> has kernel number <literal>3</literal>.</para>
+              <literal>sda3</literal> has kernel number <literal>3</literal>.
+            </para>
           </listitem>
         </varlistentry>
 
@@ -579,8 +590,9 @@
         <varlistentry>
           <term><option>$id</option>, <option>%b</option></term>
           <listitem>
-            <para>The name of the device matched while searching the devpath upwards for
-              <option>SUBSYSTEMS</option>, <option>KERNELS</option>, <option>DRIVERS</option> and <option>ATTRS</option>.
+            <para>The name of the device matched while searching the devpath
+              upwards for <option>SUBSYSTEMS</option>, <option>KERNELS</option>,
+              <option>DRIVERS</option>, and <option>ATTRS</option>.
             </para>
           </listitem>
         </varlistentry>
@@ -588,8 +600,10 @@
         <varlistentry>
           <term><option>$driver</option></term>
           <listitem>
-            <para>The driver name of the device matched while searching the devpath upwards for
-              <option>SUBSYSTEMS</option>, <option>KERNELS</option>, <option>DRIVERS</option> and <option>ATTRS</option>.
+            <para>The driver name of the device matched while searching the
+              devpath upwards for <option>SUBSYSTEMS</option>,
+              <option>KERNELS</option>, <option>DRIVERS</option>, and
+              <option>ATTRS</option>.
             </para>
           </listitem>
         </varlistentry>
@@ -598,12 +612,15 @@
           <term><option>$attr{<replaceable>file</replaceable>}</option>, <option>%s{<replaceable>file</replaceable>}</option></term>
           <listitem>
             <para>The value of a sysfs attribute found at the device where
-            all keys of the rule have matched. If the matching device does not have
-            such an attribute, and a previous KERNELS, SUBSYSTEMS, DRIVERS, or
-            ATTRS test selected a parent device, then the attribute from that
-            parent device is used.</para>
-            <para>If the attribute is a symlink, the last element of the symlink target is
-            returned as the value.</para>
+              all keys of the rule have matched. If the matching device does not
+              have such an attribute, and a previous <option>KERNELS</option>,
+              <option>SUBSYSTEMS</option>, <option>DRIVERS</option>, or
+              <option>ATTRS</option> test selected a parent device, then the
+              attribute from that parent device is used.
+            </para>
+            <para>If the attribute is a symlink, the last element of the
+              symlink target is returned as the value.
+            </para>
           </listitem>
         </varlistentry>
 
@@ -631,7 +648,8 @@
         <varlistentry>
           <term><option>$result</option>, <option>%c</option></term>
           <listitem>
-            <para>The string returned by the external program requested with PROGRAM.
+            <para>The string returned by the external program requested with
+            <varname>PROGRAM</varname>.
             A single part of the string, separated by a space character, may be selected
             by specifying the part number as an attribute: <literal>%c{N}</literal>.
             If the number is followed by the <literal>+</literal> character, this part plus all remaining parts
@@ -736,11 +754,13 @@
 
   <refsect1>
     <title>See Also</title>
-    <para><citerefentry>
+    <para>
+      <citerefentry>
         <refentrytitle>systemd-udevd.service</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
       <citerefentry>
         <refentrytitle>udevadm</refentrytitle><manvolnum>8</manvolnum>
-    </citerefentry></para>
+      </citerefentry>
+    </para>
   </refsect1>
 </refentry>
