@@ -1499,6 +1499,7 @@ int main(int argc, char *argv[]) {
                         else {
                                 chdir(home ? home : "/root");
                                 execle("/bin/bash", "-bash", NULL, (char**) envp);
+                                execle("/bin/sh", "-sh", NULL, (char**) envp);
                         }
 
                         log_error("execv() failed: %m");
