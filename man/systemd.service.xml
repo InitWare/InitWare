@@ -769,8 +769,8 @@ ExecStart=/bin/echo $ONE $TWO ${TWO}</programlisting>
 				exit statuses is merged. If the empty
 				string is assigned to this option, the
 				list is reset, all prior assignments
-				of this option will have no
-				effect.</para></listitem>
+                                of this option will have no
+                                effect.</para></listitem>
                         </varlistentry>
 
                         <varlistentry>
