@@ -962,9 +962,6 @@ int bus_unit_set_properties(
         assert(u);
         assert(iter);
 
-        if (u->transient)
-                mode &= UNIT_RUNTIME;
-
         /* We iterate through the array twice. First run we just check
          * if all passed data is valid, second run actually applies
          * it. This is to implement transaction-like behaviour without
