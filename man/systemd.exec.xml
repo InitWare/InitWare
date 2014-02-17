@@ -248,7 +248,7 @@
                                 <listitem><para>Controls the CPU
                                 affinity of the executed
                                 processes. Takes a space-separated
-                                list of CPU indexes. This option may
+                                list of CPU indices. This option may
                                 be specified more than once in which
                                 case the specificed CPU affinity masks
                                 are merged. If the empty string is
