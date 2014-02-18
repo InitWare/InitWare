@@ -43,6 +43,7 @@ static char **arg_property = NULL;
 static bool arg_all = false;
 static bool arg_full = false;
 static bool arg_no_pager = false;
+static bool arg_legend = true;
 static const char *arg_kill_who = NULL;
 static int arg_signal = SIGTERM;
 static enum transport {
@@ -90,10 +91,10 @@ static int list_machines(DBusConnection *bus, char **args, unsigned n) {
                 return -EIO;
         }
 
-        dbus_message_iter_recurse(&iter, &sub);
-
-        if (on_tty())
+        if (arg_legend)
                 printf("%-32s %-9s %-16s\n", "MACHINE", "CONTAINER", "SERVICE");
+
+        dbus_message_iter_recurse(&iter, &sub);
 
         while (dbus_message_iter_get_arg_type(&sub) != DBUS_TYPE_INVALID) {
                 const char *name, *class, *service, *object;
@@ -120,7 +121,7 @@ static int list_machines(DBusConnection *bus, char **args, unsigned n) {
                 dbus_message_iter_next(&sub);
         }
 
-        if (on_tty())
+        if (arg_legend)
                 printf("\n%u machines listed.\n", k);
 
         return 0;
@@ -559,10 +560,12 @@ static int help(void) {
                "     --kill-who=WHO      Who to send signal to\n"
                "  -l --full              Do not ellipsize output\n"
                "  -s --signal=SIGNAL     Which signal to send\n"
-               "     --no-ask-password   Don't prompt for password\n"
                "  -H --host=[USER@]HOST  Show information for remote host\n"
                "  -P --privileged        Acquire privileges before execution\n"
-               "     --no-pager          Do not pipe output into a pager\n\n"
+               "     --no-pager          Do not pipe output into a pager\n"
+               "     --no-legend         Do not show the headers and footers\n"
+               "     --no-ask-password   Don't prompt for password\n\n"
+
                "Commands:\n"
                "  list                   List running VMs and containers\n"
                "  status [NAME...]       Show VM/container status\n"
@@ -579,6 +582,7 @@ static int parse_argv(int argc, char *argv[]) {
         enum {
                 ARG_VERSION = 0x100,
                 ARG_NO_PAGER,
+                ARG_NO_LEGEND,
                 ARG_KILL_WHO,
                 ARG_NO_ASK_PASSWORD,
         };
@@ -590,6 +594,7 @@ static int parse_argv(int argc, char *argv[]) {
                 { "all",             no_argument,       NULL, 'a'                 },
                 { "full",            no_argument,       NULL, 'l'                 },
                 { "no-pager",        no_argument,       NULL, ARG_NO_PAGER        },
+                { "no-legend",       no_argument,       NULL, ARG_NO_LEGEND       },
                 { "kill-who",        required_argument, NULL, ARG_KILL_WHO        },
                 { "signal",          required_argument, NULL, 's'                 },
                 { "host",            required_argument, NULL, 'H'                 },
@@ -645,6 +650,10 @@ static int parse_argv(int argc, char *argv[]) {
                         arg_no_pager = true;
                         break;
 
+                case ARG_NO_LEGEND:
+                        arg_legend = false;
+                        break;
+
                 case ARG_NO_ASK_PASSWORD:
                         arg_ask_password = false;
                         break;
@@ -678,6 +687,9 @@ static int parse_argv(int argc, char *argv[]) {
                         return -EINVAL;
                 }
         }
+
+        if (!on_tty())
+                arg_legend = false;
 
         return 1;
 }
