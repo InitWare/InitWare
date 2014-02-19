@@ -335,7 +335,7 @@ _public_ PAM_EXTERN int pam_sm_open_session(
                         get_seat_from_display(display, NULL, &vtnr);
         }
 
-        if (seat && !streq(seat, "seat0")) {
+        if (seat && !streq(seat, "seat0") && vtnr != 0) {
                 pam_syslog(handle, LOG_DEBUG,
                       "Ignoring vtnr %d for %s which is not seat0", vtnr, seat);
                 vtnr = 0;
