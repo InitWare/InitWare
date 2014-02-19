@@ -2359,6 +2359,7 @@ _public_ int sd_journal_get_cutoff_realtime_usec(sd_journal *j, uint64_t *from, 
         Iterator i;
         JournalFile *f;
         bool first = true;
+        uint64_t fmin = 0, tmax = 0;
         int r;
 
         if (!j)
@@ -2382,18 +2383,19 @@ _public_ int sd_journal_get_cutoff_realtime_usec(sd_journal *j, uint64_t *from, 
                         continue;
 
                 if (first) {
-                        if (from)
-                                *from = fr;
-                        if (to)
-                                *to = t;
+                        fmin = fr;
+                        tmax = t;
                         first = false;
                 } else {
-                        if (from)
-                                *from = MIN(fr, *from);
-                        if (to)
-                                *to = MAX(t, *to);
+                        fmin = MIN(fr, fmin);
+                        tmax = MAX(t, tmax);
                 }
         }
+
+        if (from)
+                *from = fmin;
+        if (to)
+                *to = tmax;
 
         return first ? 0 : 1;
 }
