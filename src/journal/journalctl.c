@@ -64,7 +64,7 @@
 static OutputMode arg_output = OUTPUT_SHORT;
 static bool arg_pager_end = false;
 static bool arg_follow = false;
-static bool arg_full = true;
+static bool arg_full = false;
 static bool arg_all = false;
 static bool arg_no_pager = false;
 static int arg_lines = -1;
@@ -187,7 +187,7 @@ static int help(void) {
                "                                   short-precise, short-monotonic, verbose,\n"
                "                                   export, json, json-pretty, json-sse, cat)\n"
                "  -x --catalog             Add message explanations where available\n"
-               "     --no-full             Ellipsize fields\n"
+               "  -l --full                Do not ellipsize fields\n"
                "  -a --all                 Show all fields, including long and unprintable\n"
                "  -q --quiet               Do not show privilege warning\n"
                "     --no-pager            Do not pipe output into a pager\n"
@@ -224,7 +224,6 @@ static int parse_argv(int argc, char *argv[]) {
         enum {
                 ARG_VERSION = 0x100,
                 ARG_NO_PAGER,
-                ARG_NO_FULL,
                 ARG_NO_TAIL,
                 ARG_NEW_ID128,
                 ARG_LIST_BOOTS,
@@ -259,7 +258,6 @@ static int parse_argv(int argc, char *argv[]) {
                 { "output",         required_argument, NULL, 'o'                },
                 { "all",            no_argument,       NULL, 'a'                },
                 { "full",           no_argument,       NULL, 'l'                },
-                { "no-full",        no_argument,       NULL, ARG_NO_FULL        },
                 { "lines",          optional_argument, NULL, 'n'                },
                 { "no-tail",        no_argument,       NULL, ARG_NO_TAIL        },
                 { "new-id128",      no_argument,       NULL, ARG_NEW_ID128      },
@@ -349,10 +347,6 @@ static int parse_argv(int argc, char *argv[]) {
 
                 case 'l':
                         arg_full = true;
-                        break;
-
-                case ARG_NO_FULL:
-                        arg_full = false;
                         break;
 
                 case 'a':
@@ -1742,7 +1736,7 @@ int main(int argc, char *argv[]) {
 
                         flags =
                                 arg_all * OUTPUT_SHOW_ALL |
-                                arg_full * OUTPUT_FULL_WIDTH |
+                                (arg_full || !on_tty() || pager_have()) * OUTPUT_FULL_WIDTH |
                                 on_tty() * OUTPUT_COLOR |
                                 arg_catalog * OUTPUT_CATALOG;
 
