@@ -1691,20 +1691,20 @@ void mount_fd_event(Manager *m, int events) {
                 Mount *mount = MOUNT(u);
 
                 if (!mount->is_mounted) {
-                        /* This has just been unmounted. */
 
                         mount->from_proc_self_mountinfo = false;
 
                         switch (mount->state) {
 
                         case MOUNT_MOUNTED:
+                                /* This has just been unmounted by
+                                 * somebody else, follow the state
+                                 * change. */
                                 mount_enter_dead(mount, MOUNT_SUCCESS);
                                 break;
 
                         default:
-                                mount_set_state(mount, mount->state);
                                 break;
-
                         }
 
                 } else if (mount->just_mounted || mount->just_changed) {
@@ -1715,6 +1715,9 @@ void mount_fd_event(Manager *m, int events) {
 
                         case MOUNT_DEAD:
                         case MOUNT_FAILED:
+                                /* This has just been mounted by
+                                 * somebody else, follow the state
+                                 * change. */
                                 mount_enter_mounted(mount, MOUNT_SUCCESS);
                                 break;
 
