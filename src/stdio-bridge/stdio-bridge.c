@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
                 goto finish;
         }
 
-        r = sd_bus_set_address(a, "unix:path=/run/dbus/system_bus_socket");
+        r = sd_bus_set_address(a, "unix:path=/var/run/dbus/system_bus_socket");
         if (r < 0) {
                 log_error("Failed to set address to connect to: %s", strerror(-r));
                 goto finish;

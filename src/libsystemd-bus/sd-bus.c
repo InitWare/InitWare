@@ -972,8 +972,8 @@ int sd_bus_open_system(sd_bus **ret) {
                         goto fail;
         } else {
                 b->sockaddr.un.sun_family = AF_UNIX;
-                strncpy(b->sockaddr.un.sun_path, "/run/dbus/system_bus_socket", sizeof(b->sockaddr.un.sun_path));
-                b->sockaddr_size = offsetof(struct sockaddr_un, sun_path) + sizeof("/run/dbus/system_bus_socket") - 1;
+                strncpy(b->sockaddr.un.sun_path, "/var/run/dbus/system_bus_socket", sizeof(b->sockaddr.un.sun_path));
+                b->sockaddr_size = offsetof(struct sockaddr_un, sun_path) + strlen("/var/run/dbus/system_bus_socket");
         }
 
         b->bus_client = true;
