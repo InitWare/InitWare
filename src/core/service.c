@@ -1546,6 +1546,11 @@ static void service_set_state(Service *s, ServiceState state) {
                 s->control_command_id = _SERVICE_EXEC_COMMAND_INVALID;
         }
 
+        if (state == SERVICE_DEAD ||
+            state == SERVICE_FAILED ||
+            state == SERVICE_AUTO_RESTART)
+                unit_unwatch_all_pids(UNIT(s));
+
         if (state != SERVICE_START_PRE &&
             state != SERVICE_START &&
             state != SERVICE_START_POST &&
@@ -1661,8 +1666,14 @@ static int service_coldplug(Unit *u) {
                                         return r;
                         }
 
+                if (s->deserialized_state != SERVICE_DEAD &&
+                    s->deserialized_state != SERVICE_FAILED &&
+                    s->deserialized_state != SERVICE_AUTO_RESTART)
+                        unit_watch_all_pids(UNIT(s));
+
                 if (s->deserialized_state == SERVICE_START_POST ||
-                    s->deserialized_state == SERVICE_RUNNING)
+                    s->deserialized_state == SERVICE_RUNNING ||
+                    s->deserialized_state == SERVICE_RELOAD)
                         service_handle_watchdog(s);
 
                 service_set_state(s, s->deserialized_state);
@@ -1970,6 +1981,7 @@ static void service_enter_stop_post(Service *s, ServiceResult f) {
                 s->result = f;
 
         service_unwatch_control_pid(s);
+        unit_watch_all_pids(UNIT(s));
 
         s->control_command = s->exec_command[SERVICE_EXEC_STOP_POST];
         if (s->control_command) {
@@ -2009,6 +2021,8 @@ static void service_enter_signal(Service *s, ServiceState state, ServiceResult f
 
         if (f != SERVICE_SUCCESS)
                 s->result = f;
+
+        unit_watch_all_pids(UNIT(s));
 
         r = unit_kill_context(
                         UNIT(s),
@@ -2055,6 +2069,7 @@ static void service_enter_stop(Service *s, ServiceResult f) {
                 s->result = f;
 
         service_unwatch_control_pid(s);
+        unit_watch_all_pids(UNIT(s));
 
         s->control_command = s->exec_command[SERVICE_EXEC_STOP];
         if (s->control_command) {
@@ -2961,6 +2976,62 @@ fail:
         service_enter_signal(s, SERVICE_STOP_SIGTERM, SERVICE_FAILURE_RESOURCES);
 }
 
+static void service_notify_cgroup_empty_event(Unit *u) {
+        Service *s = SERVICE(u);
+
+        assert(u);
+
+        log_debug_unit(u->id, "%s: cgroup is empty", u->id);
+
+        switch (s->state) {
+
+                /* Waiting for SIGCHLD is usually more interesting,
+                 * because it includes return codes/signals. Which is
+                 * why we ignore the cgroup events for most cases,
+                 * except when we don't know pid which to expect the
+                 * SIGCHLD for. */
+
+        case SERVICE_START:
+        case SERVICE_START_POST:
+                /* If we were hoping for the daemon to write its PID file,
+                 * we can give up now. */
+                if (s->pid_file_pathspec) {
+                        log_warning_unit(u->id,
+                                         "%s never wrote its PID file. Failing.", UNIT(s)->id);
+                        service_unwatch_pid_file(s);
+                        if (s->state == SERVICE_START)
+                                service_enter_signal(s, SERVICE_FINAL_SIGTERM, SERVICE_FAILURE_RESOURCES);
+                        else
+                                service_enter_stop(s, SERVICE_FAILURE_RESOURCES);
+                }
+                break;
+
+        case SERVICE_RUNNING:
+                /* service_enter_running() will figure out what to do */
+                service_enter_running(s, SERVICE_SUCCESS);
+                break;
+
+        case SERVICE_STOP_SIGTERM:
+        case SERVICE_STOP_SIGKILL:
+
+                if (main_pid_good(s) <= 0 && !control_pid_good(s))
+                        service_enter_stop_post(s, SERVICE_SUCCESS);
+
+                break;
+
+        case SERVICE_STOP_POST:
+        case SERVICE_FINAL_SIGTERM:
+        case SERVICE_FINAL_SIGKILL:
+                if (main_pid_good(s) <= 0 && !control_pid_good(s))
+                        service_enter_dead(s, SERVICE_SUCCESS, true);
+
+                break;
+
+        default:
+                ;
+        }
+}
+
 static void service_sigchld_event(Unit *u, pid_t pid, int code, int status) {
         Service *s = SERVICE(u);
         ServiceResult f;
@@ -3229,6 +3300,18 @@ static void service_sigchld_event(Unit *u, pid_t pid, int code, int status) {
 
         /* Notify clients about changed exit status */
         unit_add_to_dbus_queue(u);
+
+        /* We got one SIGCHLD for the service, let's watch all
+         * processes that are now running of the service, and watch
+         * that. Among the PIDs we then watch will be children
+         * reassigned to us, which hopefully allows us to identify
+         * when all children are gone */
+        unit_tidy_watch_pids(u, s->main_pid, s->control_pid);
+        unit_watch_all_pids(u);
+
+        /* If the PID set is empty now, then let's finish this off */
+        if (set_isempty(u->pids))
+                service_notify_cgroup_empty_event(u);
 }
 
 static void service_timer_event(Unit *u, uint64_t elapsed, Watch* w) {
@@ -3329,61 +3412,6 @@ static void service_timer_event(Unit *u, uint64_t elapsed, Watch* w) {
 
         default:
                 assert_not_reached("Timeout at wrong time.");
-        }
-}
-
-static void service_notify_cgroup_empty_event(Unit *u) {
-        Service *s = SERVICE(u);
-
-        assert(u);
-
-        log_debug_unit(u->id, "%s: cgroup is empty", u->id);
-
-        switch (s->state) {
-
-                /* Waiting for SIGCHLD is usually more interesting,
-                 * because it includes return codes/signals. Which is
-                 * why we ignore the cgroup events for most cases,
-                 * except when we don't know pid which to expect the
-                 * SIGCHLD for. */
-
-        case SERVICE_START:
-        case SERVICE_START_POST:
-                /* If we were hoping for the daemon to write its PID file,
-                 * we can give up now. */
-                if (s->pid_file_pathspec) {
-                        log_warning_unit(u->id,
-                                         "%s never wrote its PID file. Failing.", UNIT(s)->id);
-                        service_unwatch_pid_file(s);
-                        if (s->state == SERVICE_START)
-                                service_enter_signal(s, SERVICE_FINAL_SIGTERM, SERVICE_FAILURE_RESOURCES);
-                        else
-                                service_enter_stop(s, SERVICE_FAILURE_RESOURCES);
-                }
-                break;
-
-        case SERVICE_RUNNING:
-                /* service_enter_running() will figure out what to do */
-                service_enter_running(s, SERVICE_SUCCESS);
-                break;
-
-        case SERVICE_STOP_SIGTERM:
-        case SERVICE_STOP_SIGKILL:
-
-                if (main_pid_good(s) <= 0 && !control_pid_good(s))
-                        service_enter_stop_post(s, SERVICE_SUCCESS);
-
-                break;
-
-        case SERVICE_FINAL_SIGTERM:
-        case SERVICE_FINAL_SIGKILL:
-                if (main_pid_good(s) <= 0 && !control_pid_good(s))
-                        service_enter_dead(s, SERVICE_SUCCESS, true);
-
-                break;
-
-        default:
-                ;
         }
 }
 

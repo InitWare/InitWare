@@ -30,6 +30,7 @@
 
 #define BUS_SCOPE_INTERFACE                                             \
         " <interface name=\"org.freedesktop.systemd1.Scope\">\n"        \
+        "  <method name=\"Abandon\"/>\n"                                \
         BUS_UNIT_CGROUP_INTERFACE                                       \
         "  <property name=\"Controller\" type=\"s\" access=\"read\"/>\n"\
         "  <property name=\"TimeoutStopUSec\" type=\"t\" access=\"read\"/>\n" \
@@ -66,19 +67,40 @@ static const BusProperty bus_scope_properties[] = {
 
 DBusHandlerResult bus_scope_message_handler(Unit *u, DBusConnection *c, DBusMessage *message) {
         Scope *s = SCOPE(u);
+        _cleanup_dbus_message_unref_ DBusMessage *reply = NULL;
 
-        const BusBoundProperties bps[] = {
+        SELINUX_UNIT_ACCESS_CHECK(u, c, message, "status");
+
+        if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Scope", "Abandon")) {
+                int r;
+
+                r = scope_abandon(s);
+                if (r < 0)
+                        log_error("Failed to mark scope %s as abandoned : %s", UNIT(s)->id, strerror(-r));
+
+                reply = dbus_message_new_method_return(message);
+                if (!reply)
+                        goto oom;
+        } else {
+                const BusBoundProperties bps[] = {
                 { "org.freedesktop.systemd1.Unit",  bus_unit_properties,           u },
                 { "org.freedesktop.systemd1.Scope", bus_unit_cgroup_properties,    u },
                 { "org.freedesktop.systemd1.Scope", bus_scope_properties,          s },
                 { "org.freedesktop.systemd1.Scope", bus_cgroup_context_properties, &s->cgroup_context },
                 { "org.freedesktop.systemd1.Scope", bus_kill_context_properties,   &s->kill_context   },
                 {}
-        };
+                };
 
-        SELINUX_UNIT_ACCESS_CHECK(u, c, message, "status");
+               return  bus_default_message_handler(c, message, INTROSPECTION, INTERFACES_LIST, bps);
+        }
 
-        return bus_default_message_handler(c, message, INTROSPECTION, INTERFACES_LIST, bps);
+        if (reply)
+                if (!bus_maybe_send_reply(c, message, reply))
+                        goto oom;
+
+        return DBUS_HANDLER_RESULT_HANDLED;
+oom:
+        return DBUS_HANDLER_RESULT_NEED_MEMORY;
 }
 
 static int bus_scope_set_transient_property(
@@ -102,10 +124,6 @@ static int bus_scope_set_transient_property(
                     dbus_message_iter_get_element_type(i) != DBUS_TYPE_UINT32)
                         return -EINVAL;
 
-                r = set_ensure_allocated(&s->pids, trivial_hash_func, trivial_compare_func);
-                if (r < 0)
-                        return r;
-
                 dbus_message_iter_recurse(i, &sub);
                 while (dbus_message_iter_get_arg_type(&sub) == DBUS_TYPE_UINT32) {
                         uint32_t pid;
@@ -116,7 +134,7 @@ static int bus_scope_set_transient_property(
                                 return -EINVAL;
 
                         if (mode != UNIT_CHECK) {
-                                r = set_put(s->pids, LONG_TO_PTR(pid));
+                                r = unit_watch_pid(UNIT(s), pid);
                                 if (r < 0 && r != -EEXIST)
                                         return r;
                         }
