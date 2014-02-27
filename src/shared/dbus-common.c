@@ -1428,3 +1428,45 @@ const char *bus_message_get_sender_with_fallback(DBusMessage *m) {
 
         return ":no-sender";
 }
+
+bool bus_service_name_is_valid(const char *p) {
+        const char *q;
+        bool dot, found_dot = false, unique;
+
+        if (isempty(p))
+                return false;
+
+        unique = p[0] == ':';
+
+        for (dot = true, q = unique ? p+1 : p; *q; q++)
+                if (*q == '.') {
+                        if (dot)
+                                return false;
+
+                        found_dot = dot = true;
+                } else {
+                        bool good;
+
+                        good =
+                                (*q >= 'a' && *q <= 'z') ||
+                                (*q >= 'A' && *q <= 'Z') ||
+                                ((!dot || unique) && *q >= '0' && *q <= '9') ||
+                                *q == '_' || *q == '-';
+
+                        if (!good)
+                                return false;
+
+                        dot = false;
+                }
+
+        if (q - p > 255)
+                return false;
+
+        if (dot)
+                return false;
+
+        if (!found_dot)
+                return false;
+
+        return true;
+}

@@ -31,10 +31,12 @@
 #define BUS_SCOPE_INTERFACE                                             \
         " <interface name=\"org.freedesktop.systemd1.Scope\">\n"        \
         BUS_UNIT_CGROUP_INTERFACE                                       \
+        "  <property name=\"Controller\" type=\"s\" access=\"read\"/>\n"\
         "  <property name=\"TimeoutStopUSec\" type=\"t\" access=\"read\"/>\n" \
         BUS_KILL_CONTEXT_INTERFACE                                      \
         BUS_CGROUP_CONTEXT_INTERFACE                                    \
         "  <property name=\"Result\" type=\"s\" access=\"read\"/>\n"    \
+        "  <signal name=\"RequestStop\"/>\n"                            \
         " </interface>\n"
 
 #define INTROSPECTION                                                   \
@@ -56,6 +58,7 @@ const char bus_scope_interface[] _introspect_("Scope") = BUS_SCOPE_INTERFACE;
 static DEFINE_BUS_PROPERTY_APPEND_ENUM(bus_scope_append_scope_result, scope_result, ScopeResult);
 
 static const BusProperty bus_scope_properties[] = {
+        { "Controller",             bus_property_append_string,    "s", offsetof(Scope, controller)        },
         { "TimeoutStopUSec",        bus_property_append_usec,      "t", offsetof(Scope, timeout_stop_usec) },
         { "Result",                 bus_scope_append_scope_result, "s", offsetof(Scope, result)            },
         {}
@@ -127,6 +130,31 @@ static int bus_scope_set_transient_property(
 
                 return 1;
 
+        } else if (streq(name, "Controller")) {
+                const char *controller;
+
+                if (dbus_message_iter_get_arg_type(i) != DBUS_TYPE_STRING)
+                        return -EINVAL;
+
+                dbus_message_iter_get_basic(i, &controller);
+
+                if (!isempty(controller) && !bus_service_name_is_valid(controller))
+                        return -EINVAL;
+
+                if (mode != UNIT_CHECK) {
+                        char *c = NULL;
+
+                        if (!isempty(controller)) {
+                                c = strdup(controller);
+                                if (!c)
+                                        return -ENOMEM;
+                        }
+
+                        free(s->controller);
+                        s->controller = c;
+                }
+
+                return 1;
         } else if (streq(name, "TimeoutStopUSec")) {
 
                 if (dbus_message_iter_get_arg_type(i) != DBUS_TYPE_UINT64)
@@ -186,4 +214,31 @@ int bus_scope_commit_properties(Unit *u) {
 
         unit_realize_cgroup(u);
         return 0;
+}
+
+int bus_scope_send_request_stop(Scope *s) {
+        _cleanup_dbus_message_unref_ DBusMessage *m = NULL;
+        _cleanup_free_ char *p = NULL;
+        int r;
+
+        assert(s);
+
+        if (!s->controller)
+                return 0;
+
+        p = unit_dbus_path(UNIT(s));
+        if (!p)
+                return -ENOMEM;
+
+        m = dbus_message_new_signal(p,
+                                    "org.freedesktop.systemd1.Scope",
+                                    "RequestStop");
+        if (!m)
+                return 0;
+
+        r = dbus_message_set_destination(m, s->controller);
+        if (!r)
+                return 0;
+
+        return dbus_connection_send(UNIT(s)->manager->api_bus, m, NULL);
 }

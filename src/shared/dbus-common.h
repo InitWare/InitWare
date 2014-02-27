@@ -242,5 +242,7 @@ const char *bus_message_get_sender_with_fallback(DBusMessage *m);
 
 void bus_message_unrefp(DBusMessage **reply);
 
+bool bus_service_name_is_valid(const char *p);
+
 #define _cleanup_dbus_message_unref_ __attribute__((cleanup(bus_message_unrefp)))
 #define _cleanup_dbus_error_free_ __attribute__((cleanup(dbus_error_free)))

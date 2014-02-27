@@ -64,6 +64,9 @@ static void scope_done(Unit *u) {
 
         cgroup_context_done(&s->cgroup_context);
 
+        free(s->controller);
+        s->controller = NULL;
+
         set_free(s->pids);
         s->pids = NULL;
 
@@ -198,6 +201,7 @@ static void scope_enter_dead(Scope *s, ScopeResult f) {
 }
 
 static void scope_enter_signal(Scope *s, ScopeState state, ScopeResult f) {
+        bool skip_signal = false;
         int r;
 
         assert(s);
@@ -205,13 +209,23 @@ static void scope_enter_signal(Scope *s, ScopeState state, ScopeResult f) {
         if (f != SCOPE_SUCCESS)
                 s->result = f;
 
-        r = unit_kill_context(
+        /* If we have a controller set let's ask the controller nicely
+         * to terminate the scope, instead of us going directly into
+         * SIGTERM beserk mode */
+        if (state == SCOPE_STOP_SIGTERM)
+                skip_signal = bus_scope_send_request_stop(s) > 0;
+
+        if (!skip_signal) {
+                r = unit_kill_context(
                         UNIT(s),
                         &s->kill_context,
                         state != SCOPE_STOP_SIGTERM,
                         -1, -1, false);
-        if (r < 0)
-                goto fail;
+
+                if (r < 0)
+                        goto fail;
+        } else
+                r = 1;
 
         if (r > 0) {
                 if (s->timeout_stop_usec > 0) {

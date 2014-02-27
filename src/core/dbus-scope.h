@@ -30,4 +30,6 @@ DBusHandlerResult bus_scope_message_handler(Unit *u, DBusConnection *c, DBusMess
 int bus_scope_set_property(Unit *u, const char *name, DBusMessageIter *i, UnitSetPropertiesMode mode, DBusError *error);
 int bus_scope_commit_properties(Unit *u);
 
+int bus_scope_send_request_stop(Scope *s);
+
 extern const char bus_scope_interface[];
