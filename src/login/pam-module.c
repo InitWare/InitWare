@@ -489,7 +489,7 @@ _public_ PAM_EXTERN int pam_sm_close_session(
                 int flags,
                 int argc, const char **argv) {
 
-        const void *p = NULL, *existing = NULL;
+        const void *existing = NULL;
         const char *id;
         DBusConnection *bus = NULL;
         DBusMessage *m = NULL, *reply = NULL;
@@ -546,12 +546,15 @@ _public_ PAM_EXTERN int pam_sm_close_session(
                 }
         }
 
+
+        /* Note that we are knowingly leaking the FIFO fd here. This
+         * way, logind can watch us die. If we closed it here it would
+         * not have any clue when that is completed. Given that one
+         * cannot really have multiple PAM sessions open from the same
+         * process this means we will leak one FD at max. */
         r = PAM_SUCCESS;
 
 finish:
-        pam_get_data(handle, "systemd.session-fd", &p);
-        if (p)
-                close_nointr(PTR_TO_INT(p) - 1);
 
         dbus_error_free(&error);
 

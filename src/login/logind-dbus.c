@@ -1746,13 +1746,7 @@ static DBusHandlerResult manager_message_handler(
                 if (!session)
                         return bus_send_error_reply(connection, message, &error, -ENOENT);
 
-                /* We use the FIFO to detect stray sessions where the
-                process invoking PAM dies abnormally. We need to make
-                sure that that process is not killed if at the clean
-                end of the session it closes the FIFO. Hence, with
-                this call explicitly turn off the FIFO logic, so that
-                the PAM code can finish clean up on its own */
-                session_remove_fifo(session);
+                session_release(session);
 
                 reply = dbus_message_new_method_return(message);
                 if (!reply)
@@ -2550,7 +2544,6 @@ int manager_start_scope(
                 const char *slice,
                 const char *description,
                 const char *after,
-                const char *kill_mode,
                 DBusError *error,
                 char **job) {
 
@@ -2617,18 +2610,6 @@ int manager_start_scope(
                     !dbus_message_iter_open_container(&sub3, DBUS_TYPE_ARRAY, "s", &sub4) ||
                     !dbus_message_iter_append_basic(&sub4, DBUS_TYPE_STRING, &after) ||
                     !dbus_message_iter_close_container(&sub3, &sub4) ||
-                    !dbus_message_iter_close_container(&sub2, &sub3) ||
-                    !dbus_message_iter_close_container(&sub, &sub2))
-                        return log_oom();
-        }
-
-        if (!isempty(kill_mode)) {
-                const char *kill_mode_property = "KillMode";
-
-                if (!dbus_message_iter_open_container(&sub, DBUS_TYPE_STRUCT, NULL, &sub2) ||
-                    !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &kill_mode_property) ||
-                    !dbus_message_iter_open_container(&sub2, DBUS_TYPE_VARIANT, "s", &sub3) ||
-                    !dbus_message_iter_append_basic(&sub3, DBUS_TYPE_STRING, &kill_mode) ||
                     !dbus_message_iter_close_container(&sub2, &sub3) ||
                     !dbus_message_iter_close_container(&sub, &sub2))
                         return log_oom();
@@ -2787,6 +2768,36 @@ int manager_stop_unit(Manager *manager, const char *unit, DBusError *error, char
                         return -ENOMEM;
 
                 *job = copy;
+        }
+
+        return 1;
+}
+
+int manager_abandon_scope(Manager *manager, const char *scope, DBusError *error) {
+        _cleanup_dbus_message_unref_ DBusMessage *reply = NULL;
+        _cleanup_free_ char *path = NULL;
+        int r;
+
+        assert(manager);
+        assert(scope);
+
+        path = unit_dbus_path_from_name(scope);
+        if (!path)
+                return -ENOMEM;
+
+        r = bus_method_call_with_reply(
+                manager->bus,
+                "org.freedesktop.systemd1",
+                path,
+                "org.freedesktop.systemd1.Scope",
+                "Abandon",
+                &reply,
+                error,
+                DBUS_TYPE_INVALID);
+
+        if (r < 0) {
+                log_error("Failed to abandon scope %s", scope);
+                return r;
         }
 
         return 1;

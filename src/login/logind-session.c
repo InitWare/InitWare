@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <sys/epoll.h>
 #include <fcntl.h>
+#include <sys/timerfd.h>
 
 #include <systemd/sd-id128.h>
 #include <systemd/sd-messages.h>
@@ -35,6 +36,8 @@
 #include "fileio.h"
 #include "dbus-common.h"
 #include "logind-session.h"
+
+#define RELEASE_SEC 20
 
 static unsigned devt_hash_func(const void *p) {
         uint64_t u = *(const dev_t*)p;
@@ -505,7 +508,6 @@ static int session_start_scope(Session *s) {
 
         if (!s->scope) {
                 _cleanup_free_ char *description = NULL;
-                const char *kill_mode;
                 char *scope, *job;
 
                 description = strjoin("Session ", s->id, " of user ", s->user->name, NULL);
@@ -516,9 +518,7 @@ static int session_start_scope(Session *s) {
                 if (!scope)
                         return log_oom();
 
-                kill_mode = manager_shall_kill(s->manager, s->user->name) ? "control-group" : "none";
-
-                r = manager_start_scope(s->manager, scope, s->leader, s->user->slice, description, "systemd-user-sessions.service", kill_mode, &error, &job);
+                r = manager_start_scope(s->manager, scope, s->leader, s->user->slice, description, "systemd-logind.service", &error, &job);
                 if (r < 0) {
                         log_error("Failed to start session scope %s: %s %s",
                                   scope, bus_error(&error, r), error.name);
@@ -579,22 +579,21 @@ int session_start(Session *s) {
 
         s->started = true;
 
-        /* Save session data */
+        /* Save data */
         session_save(s);
         user_save(s->user);
+        if (s->seat)
+                seat_save(s->seat);
 
+        /* Send signals */
         session_send_signal(s, true);
 
         if (s->seat) {
-                seat_save(s->seat);
-
                 if (s->seat->active == s)
                         seat_send_changed(s->seat, "Sessions\0ActiveSession\0");
                 else
                         seat_send_changed(s->seat, "Sessions\0");
         }
-
-        user_send_changed(s->user, "Sessions\0");
 
         return 0;
 }
@@ -611,15 +610,24 @@ static int session_stop_scope(Session *s) {
         if (!s->scope)
                 return 0;
 
-        r = manager_stop_unit(s->manager, s->scope, &error, &job);
-        if (r < 0) {
-                log_error("Failed to stop session scope: %s", bus_error(&error, r));
-                dbus_error_free(&error);
-                return r;
-        }
+        if (manager_shall_kill(s->manager, s->user->name)) {
+                r = manager_stop_unit(s->manager, s->scope, &error, &job);
+                if (r < 0) {
+                        log_error("Failed to stop session scope: %s", bus_error(&error, r));
+                        dbus_error_free(&error);
+                        return r;
+                }
 
-        free(s->scope_job);
-        s->scope_job = job;
+                free(s->scope_job);
+                s->scope_job = job;
+        } else {
+                r = manager_abandon_scope(s->manager, s->scope, &error);
+                if (r < 0) {
+                        log_error("Failed to abandon session scope: %s", bus_error(&error, r));
+                        dbus_error_free(&error);
+                        return r;
+                }
+        }
 
         return 0;
 }
@@ -644,6 +652,19 @@ static int session_unlink_x11_socket(Session *s) {
         return r < 0 ? -errno : 0;
 }
 
+static void session_close_timer_fd(Session *s) {
+        assert(s);
+
+        if (s->timer_fd <= 0)
+                return;
+
+        hashmap_remove(s->manager->timer_fds, INT_TO_PTR(s->timer_fd + 1));
+        epoll_ctl(s->manager->epoll_fd, EPOLL_CTL_DEL, s->timer_fd, NULL);
+
+        close_nointr(s->timer_fd);
+        s->timer_fd = -1;
+}
+
 int session_stop(Session *s) {
         int r;
 
@@ -652,10 +673,17 @@ int session_stop(Session *s) {
         if (!s->user)
                 return -ESTALE;
 
+        session_close_timer_fd(s);
+
+        /* We are going down, don't care about FIFOs anymore */
+        session_remove_fifo(s);
+
         /* Kill cgroup */
         r = session_stop_scope(s);
 
         session_save(s);
+
+        s->stopping = true;
 
         return r;
 }
@@ -678,6 +706,8 @@ int session_finalize(Session *s) {
                            "MESSAGE=Removed session %s.", s->id,
                            NULL);
 
+        session_close_timer_fd(s);
+
         /* Kill session devices */
         while ((sd = hashmap_first(s->devices)))
                 session_device_free(sd);
@@ -698,14 +728,62 @@ int session_finalize(Session *s) {
                 if (s->seat->active == s)
                         seat_set_active(s->seat, NULL);
 
-                seat_send_changed(s->seat, "Sessions\0");
                 seat_save(s->seat);
+                seat_send_changed(s->seat, "Sessions\0");
         }
 
-        user_send_changed(s->user, "Sessions\0");
         user_save(s->user);
+        user_send_changed(s->user, "Sessions\0");
 
         return r;
+}
+
+void session_release(Session *s) {
+        int r;
+
+        struct itimerspec its = { .it_value.tv_sec = RELEASE_SEC };
+        struct epoll_event ev = {};
+
+        assert(s);
+
+        if (!s->started || s->stopping)
+                return;
+
+        if (s->timer_fd >= 0)
+                return;
+
+        s->timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK|TFD_CLOEXEC);
+        if (s->timer_fd < 0) {
+                log_error("Failed to create session release timer fd");
+                goto out;
+        }
+
+        r = hashmap_put(s->manager->timer_fds, INT_TO_PTR(s->timer_fd + 1), s);
+        if (r < 0) {
+                log_error("Failed to store session release timer fd");
+                goto out;
+        }
+
+        ev.events = EPOLLONESHOT;
+        ev.data.u32 = FD_OTHER_BASE + s->timer_fd;
+
+        r = epoll_ctl(s->manager->epoll_fd, EPOLL_CTL_ADD, s->timer_fd, &ev);
+        if (r < 0) {
+                log_error("Failed to add session release timer fd to epoll instance");
+                goto out;
+        }
+
+        r = timerfd_settime(s->timer_fd, TFD_TIMER_ABSTIME, &its, NULL);
+        if (r < 0) {
+                log_error("Failed to arm timer : %m");
+                goto out;
+        }
+
+out:
+        if (s->timer_fd >= 0) {
+                close_nointr(s->timer_fd);
+                s->timer_fd = -1;
+        }
 }
 
 bool session_is_active(Session *s) {
@@ -904,8 +982,6 @@ void session_remove_fifo(Session *s) {
 }
 
 int session_check_gc(Session *s, bool drop_not_started) {
-        int r;
-
         assert(s);
 
         if (drop_not_started && !s->started)
@@ -915,11 +991,7 @@ int session_check_gc(Session *s, bool drop_not_started) {
                 return 0;
 
         if (s->fifo_fd >= 0) {
-                r = pipe_eof(s->fifo_fd);
-                if (r < 0)
-                        return r;
-
-                if (r == 0)
+                if (pipe_eof(s->fifo_fd) <= 0)
                         return 1;
         }
 
@@ -945,14 +1017,14 @@ void session_add_to_gc_queue(Session *s) {
 SessionState session_get_state(Session *s) {
         assert(s);
 
+        if (s->stopping || s->timer_fd >= 0)
+                return SESSION_CLOSING;
+
         if (s->closing)
                 return SESSION_CLOSING;
 
         if (s->scope_job)
                 return SESSION_OPENING;
-
-        if (s->fifo_fd < 0)
-                return SESSION_CLOSING;
 
         if (session_is_active(s))
                 return SESSION_ACTIVE;

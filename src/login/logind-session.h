@@ -98,11 +98,14 @@ struct Session {
         int fifo_fd;
         char *fifo_path;
 
+        int timer_fd;
+
         bool idle_hint;
         dual_timestamp idle_hint_timestamp;
 
         bool in_gc_queue:1;
         bool started:1;
+        bool stopping:1;
         bool closing:1;
 
         DBusMessage *create_message;
@@ -130,6 +133,7 @@ void session_remove_fifo(Session *s);
 int session_start(Session *s);
 int session_stop(Session *s);
 int session_finalize(Session *s);
+void session_release(Session *s);
 int session_save(Session *s);
 int session_load(Session *s);
 int session_kill(Session *s, KillWho who, int signo);

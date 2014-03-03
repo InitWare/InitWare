@@ -80,10 +80,11 @@ Manager *manager_new(void) {
         m->session_fds = hashmap_new(trivial_hash_func, trivial_compare_func);
         m->inhibitor_fds = hashmap_new(trivial_hash_func, trivial_compare_func);
         m->button_fds = hashmap_new(trivial_hash_func, trivial_compare_func);
+        m->timer_fds = hashmap_new(trivial_hash_func, trivial_compare_func);
 
         if (!m->devices || !m->seats || !m->sessions || !m->users || !m->inhibitors || !m->buttons || !m->busnames ||
             !m->user_units || !m->session_units ||
-            !m->session_fds || !m->inhibitor_fds || !m->button_fds) {
+            !m->session_fds || !m->inhibitor_fds || !m->button_fds || !m->timer_fds) {
                 manager_free(m);
                 return NULL;
         }
@@ -149,6 +150,7 @@ void manager_free(Manager *m) {
         hashmap_free(m->session_fds);
         hashmap_free(m->inhibitor_fds);
         hashmap_free(m->button_fds);
+        hashmap_free(m->timer_fds);
 
         if (m->console_active_fd >= 0)
                 close_nointr_nofail(m->console_active_fd);
@@ -620,6 +622,13 @@ static void manager_dispatch_other(Manager *m, int fd) {
                 return;
         }
 
+        s = hashmap_get(m->timer_fds, INT_TO_PTR(fd + 1));
+        if (s) {
+                assert(s->timer_fd == fd);
+                session_stop(s);
+                return;
+        }
+
         i = hashmap_get(m->inhibitor_fds, INT_TO_PTR(fd + 1));
         if (i) {
                 assert(i->fifo_fd == fd);
@@ -942,8 +951,12 @@ void manager_gc(Manager *m, bool drop_not_started) {
                 LIST_REMOVE(Session, gc_queue, m->session_gc_queue, session);
                 session->in_gc_queue = false;
 
-                if (session_check_gc(session, drop_not_started) == 0) {
+                /* First, if we are not closing yet, initiate stopping */
+                if (!session_check_gc(session, drop_not_started) &&
+                    session_get_state(session) != SESSION_CLOSING)
                         session_stop(session);
+
+                if (!session_check_gc(session, drop_not_started)) {
                         session_finalize(session);
                         session_free(session);
                 }
@@ -953,8 +966,11 @@ void manager_gc(Manager *m, bool drop_not_started) {
                 LIST_REMOVE(User, gc_queue, m->user_gc_queue, user);
                 user->in_gc_queue = false;
 
-                if (user_check_gc(user, drop_not_started) == 0) {
+                if (!user_check_gc(user, drop_not_started) &&
+                    user_get_state(user) != USER_CLOSING)
                         user_stop(user);
+
+                if (!user_check_gc(user, drop_not_started)) {
                         user_finalize(user);
                         user_free(user);
                 }
@@ -1032,6 +1048,7 @@ finish:
 
         return r;
 }
+
 int manager_startup(Manager *m) {
         int r;
         Seat *seat;
