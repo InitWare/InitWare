@@ -2224,7 +2224,6 @@ INSTALL_DIRS += \
 	$(sysconfdir)/udev/hwdb.d
 
 dist_udevrules_DATA += \
-	rules/99-systemd.rules \
 	rules/42-usb-hid-pm.rules \
 	rules/50-udev-default.rules \
 	rules/60-drm.rules \
@@ -2240,6 +2239,9 @@ dist_udevrules_DATA += \
 	rules/78-sound-card.rules \
 	rules/80-net-name-slot.rules \
 	rules/95-udev-late.rules
+
+nodist_udevrules_DATA += \
+	rules/99-systemd.rules
 
 dist_udevhwdb_DATA = \
 	hwdb/20-pci-vendor-model.hwdb \
