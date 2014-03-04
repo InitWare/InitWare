@@ -607,8 +607,7 @@ int config_parse_path(const char *unit,
         assert(data);
 
         if (!utf8_is_valid(rvalue)) {
-                log_syntax(unit, LOG_ERR, filename, line, EINVAL,
-                           "Path is not UTF-8 clean, ignoring assignment: %s", rvalue);
+                log_invalid_utf8(unit, LOG_ERR, filename, line, EINVAL, rvalue);
                 return 0;
         }
 
@@ -675,8 +674,7 @@ int config_parse_strv(const char *unit,
                         return log_oom();
 
                 if (!utf8_is_valid(n)) {
-                        log_syntax(unit, LOG_ERR, filename, line, EINVAL,
-                                   "String is not UTF-8 clean, ignoring: %s", rvalue);
+                        log_invalid_utf8(unit, LOG_ERR, filename, line, EINVAL, rvalue);
                         continue;
                 }
 
