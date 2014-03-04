@@ -2548,10 +2548,9 @@ int manager_start_scope(
                 DBusError *error,
                 char **job) {
 
-        const char *timeout_stop_property = "TimeoutStopUSec", *send_sighup_property = "SendSIGHUP", *pids_property = "PIDs", *after_property = "After";
+        const char *send_sighup_property = "SendSIGHUP", *pids_property = "PIDs", *after_property = "After";
         _cleanup_dbus_message_unref_ DBusMessage *m = NULL, *reply = NULL;
         DBusMessageIter iter, sub, sub2, sub3, sub4;
-        uint64_t timeout = 500 * USEC_PER_MSEC;
         dbus_bool_t send_sighup = true;
         const char *fail = "fail";
         uint32_t u;
@@ -2630,14 +2629,6 @@ int manager_start_scope(
          * currently. To make this less problematic, let's shorten the
          * stop timeout for sessions, so that we don't wait
          * forever. */
-
-        if (!dbus_message_iter_open_container(&sub, DBUS_TYPE_STRUCT, NULL, &sub2) ||
-            !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &timeout_stop_property) ||
-            !dbus_message_iter_open_container(&sub2, DBUS_TYPE_VARIANT, "t", &sub3) ||
-            !dbus_message_iter_append_basic(&sub3, DBUS_TYPE_UINT64, &timeout) ||
-            !dbus_message_iter_close_container(&sub2, &sub3) ||
-            !dbus_message_iter_close_container(&sub, &sub2))
-                return log_oom();
 
         /* Make sure that the session shells are terminated with
          * SIGHUP since bash and friends tend to ignore SIGTERM */
