@@ -1611,10 +1611,16 @@ void exec_context_tmp_dirs_done(ExecContext *c) {
                         c->tmp_dir ? c->var_tmp_dir : NULL,
                         NULL};
         char **dirp;
+        int r;
 
         for(dirp = dirs; *dirp; dirp++) {
                 log_debug("Spawning thread to nuke %s", *dirp);
-                asynchronous_job(remove_tmpdir_thread, *dirp);
+
+                r = asynchronous_job(remove_tmpdir_thread, *dirp);
+                if (r < 0) {
+                        log_warning("Failed to nuke %s: %s", *dirp, strerror(-r));
+                        free(*dirp);
+                }
         }
 
         c->tmp_dir = c->var_tmp_dir = NULL;
