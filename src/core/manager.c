@@ -2661,9 +2661,8 @@ void manager_run_generators(Manager *m) {
         argv[3] = m->generator_unit_path_late;
         argv[4] = NULL;
 
-        RUN_WITH_UMASK(0022) {
-                execute_directory(generator_path, d, (char**) argv);
-        }
+        RUN_WITH_UMASK(0022)
+                execute_directory(generator_path, d, DEFAULT_TIMEOUT_USEC, (char**) argv);
 
         trim_generator_dir(m, &m->generator_unit_path);
         trim_generator_dir(m, &m->generator_unit_path_early);
