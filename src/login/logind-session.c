@@ -682,10 +682,9 @@ int session_stop(Session *s) {
         /* Kill cgroup */
         r = session_stop_scope(s);
 
-        session_save(s);
-
         s->stopping = true;
 
+        session_save(s);
         return r;
 }
 
