@@ -1302,18 +1302,24 @@ static int bus_manager_do_shutdown_or_sleep(
                 r = verify_polkit(connection, message, action_multiple_sessions, interactive, NULL, error);
                 if (r < 0)
                         return r;
+                if (r == 0)
+                        return 1; /* No authorization for now, but the async polkit stuff will call us again when it has it */
         }
 
         if (blocked) {
                 r = verify_polkit(connection, message, action_ignore_inhibit, interactive, NULL, error);
                 if (r < 0)
                         return r;
+                if (r == 0)
+                        return 1; /* No authorization for now, but the async polkit stuff will call us again when it has it */
         }
 
         if (!multiple_sessions && !blocked) {
                 r = verify_polkit(connection, message, action, interactive, NULL, error);
                 if (r < 0)
                         return r;
+                if (r == 0)
+                        return 1; /* No authorization for now, but the async polkit stuff will call us again when it has it */
         }
 
         r = bus_manager_shutdown_or_sleep_now_or_later(m, unit_name, w, error);
