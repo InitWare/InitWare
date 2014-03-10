@@ -587,6 +587,7 @@ int session_start(Session *s) {
 
         /* Send signals */
         session_send_signal(s, true);
+        user_send_changed(s->user, "Sessions\0");
 
         if (s->seat) {
                 if (s->seat->active == s)
