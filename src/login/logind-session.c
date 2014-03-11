@@ -89,6 +89,7 @@ Session* session_new(Manager *m, const char *id) {
 
         s->manager = m;
         s->fifo_fd = -1;
+        s->timer_fd = -1;
 
         return s;
 }
