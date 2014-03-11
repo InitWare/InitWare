@@ -127,8 +127,8 @@ along with systemd; If not, see <http://www.gnu.org/licenses/>.
         <citerefentry><refentrytitle>systemd-suspend.service</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
         <citerefentry><refentrytitle>systemd-hibernate.service</refentrytitle><manvolnum>8</manvolnum></citerefentry>, or
         <citerefentry><refentrytitle>systemd-hybrid-sleep.service</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
-        More than one value can be specified by seperating
-        multiple values with commas. They will be tried
+        More than one value can be specified by separating
+        multiple values with whitespace. They will be tried
         in turn, until one is written without error. If
         neither suceeds, the operation will be aborted.
         </para></listitem>
@@ -145,8 +145,8 @@ along with systemd; If not, see <http://www.gnu.org/licenses/>.
         <citerefentry><refentrytitle>systemd-suspend.service</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
         <citerefentry><refentrytitle>systemd-hibernate.service</refentrytitle><manvolnum>8</manvolnum></citerefentry>, or
         <citerefentry><refentrytitle>systemd-hybrid-sleep.service</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
-        More than one value can be specified by seperating
-        multiple values with commas. They will be tried
+        More than one value can be specified by separating
+        multiple values with whitespace. They will be tried
         in turn, until one is written without error. If
         neither suceeds, the operation will be aborted.
         </para></listitem>
