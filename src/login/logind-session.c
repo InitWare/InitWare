@@ -686,7 +686,7 @@ int session_stop(Session *s) {
         s->stopping = true;
 
         session_save(s);
-        user_save(s);
+        user_save(s->user);
 
         return r;
 }
