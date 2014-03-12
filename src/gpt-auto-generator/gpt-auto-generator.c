@@ -255,7 +255,7 @@ static int enumerate_partitions(struct udev *udev, dev_t dev) {
 
         parent = udev_device_get_parent(d);
         if (!parent)
-                return log_oom();
+                return 0;
 
         r = udev_enumerate_add_match_parent(e, parent);
         if (r < 0)
