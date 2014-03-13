@@ -657,7 +657,7 @@ static int session_unlink_x11_socket(Session *s) {
 static void session_close_timer_fd(Session *s) {
         assert(s);
 
-        if (s->timer_fd <= 0)
+        if (s->timer_fd < 0)
                 return;
 
         hashmap_remove(s->manager->timer_fds, INT_TO_PTR(s->timer_fd + 1));
