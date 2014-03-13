@@ -1404,7 +1404,7 @@ int main(int argc, char *argv[]) {
                                         goto child_fail;
                                 }
 
-                                if (mkdir_safe_label(home, 0775, uid, gid) < 0) {
+                                if (mkdir_safe_label(home, 0775, uid, gid) < 0 && errno != EEXIST) {
                                         log_error("mkdir_safe_label() failed: %m");
                                         goto child_fail;
                                 }
