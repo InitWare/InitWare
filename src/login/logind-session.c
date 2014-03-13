@@ -782,6 +782,8 @@ void session_release(Session *s) {
                 goto out;
         }
 
+        return;
+
 out:
         if (s->timer_fd >= 0) {
                 close_nointr(s->timer_fd);
