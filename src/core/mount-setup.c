@@ -210,10 +210,10 @@ int mount_setup_early(void) {
 }
 
 int mount_cgroup_controllers(char ***join_controllers) {
-        int r;
-        char buf[LINE_MAX];
         _cleanup_set_free_free_ Set *controllers = NULL;
         _cleanup_fclose_ FILE *f;
+        char buf[LINE_MAX];
+        int r;
 
         /* Mount all available cgroup controllers that are built into the kernel. */
 
@@ -256,6 +256,7 @@ int mount_cgroup_controllers(char ***join_controllers) {
         }
 
         for (;;) {
+                _cleanup_free_ char *options = NULL, *controller = NULL, *where = NULL;
                 MountPoint p = {
                         .what = "cgroup",
                         .type = "cgroup",
@@ -263,7 +264,6 @@ int mount_cgroup_controllers(char ***join_controllers) {
                         .mode = MNT_IN_CONTAINER,
                 };
                 char ***k = NULL;
-                _cleanup_free_ char *options = NULL, *controller;
 
                 controller = set_steal_first(controllers);
                 if (!controller)
@@ -280,7 +280,7 @@ int mount_cgroup_controllers(char ***join_controllers) {
                         for (i = *k, j = *k; *i; i++) {
 
                                 if (!streq(*i, controller)) {
-                                        char _cleanup_free_ *t;
+                                        _cleanup_free_ char *t;
 
                                         t = set_remove(controllers, *i);
                                         if (!t) {
@@ -302,7 +302,11 @@ int mount_cgroup_controllers(char ***join_controllers) {
                         controller = NULL;
                 }
 
-                p.where = strappenda("/sys/fs/cgroup/", options);
+                where = strappend("/sys/fs/cgroup/", options);
+                if (!where)
+                        return log_oom();
+
+                p.where = where;
                 p.options = options;
 
                 r = mount_one(&p, true);
@@ -313,7 +317,11 @@ int mount_cgroup_controllers(char ***join_controllers) {
                         char **i;
 
                         for (i = *k; *i; i++) {
-                                char *t = strappenda("/sys/fs/cgroup/", *i);
+                                _cleanup_free_ char *t = NULL;
+
+                                t = strappend("/sys/fs/cgroup/", *i);
+                                if (!t)
+                                        return log_oom();
 
                                 r = symlink(options, t);
                                 if (r < 0 && errno != EEXIST) {
