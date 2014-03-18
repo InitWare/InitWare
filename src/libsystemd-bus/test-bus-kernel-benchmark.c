@@ -269,7 +269,7 @@ int main(int argc, char *argv[]) {
                 CPU_SET(0, &cpuset);
                 pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
 
-                close_nointr_nofail(bus_ref);
+                safe_close(bus_ref);
                 sd_bus_unref(b);
 
                 switch (mode) {

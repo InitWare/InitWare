@@ -110,7 +110,7 @@ void job_free(Job *j) {
                 assert(j->timer_watch.fd >= 0);
 
                 assert_se(epoll_ctl(j->manager->epoll_fd, EPOLL_CTL_DEL, j->timer_watch.fd, NULL) >= 0);
-                close_nointr_nofail(j->timer_watch.fd);
+                safe_close(j->timer_watch.fd);
         }
 
         while ((cl = j->bus_client_list)) {
@@ -899,8 +899,7 @@ int job_start_timer(Job *j) {
         return 0;
 
 fail:
-        if (fd >= 0)
-                close_nointr_nofail(fd);
+        safe_close(fd);
 
         return r;
 }
@@ -1054,7 +1053,7 @@ int job_deserialize(Job *j, FILE *f, FDSet *fds) {
                                 log_debug("Failed to parse job-timer-watch-fd value %s", v);
                         else {
                                 if (j->timer_watch.type == WATCH_JOB_TIMER)
-                                        close_nointr_nofail(j->timer_watch.fd);
+                                        safe_close(j->timer_watch.fd);
 
                                 j->timer_watch.type = WATCH_JOB_TIMER;
                                 j->timer_watch.fd = fdset_remove(fds, fd);

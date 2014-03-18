@@ -183,8 +183,7 @@ static int vt_allocate(int vtnr) {
 
         r = fd < 0 ? -errno : 0;
 
-        if (fd >= 0)
-                close_nointr_nofail(fd);
+        safe_close(fd);
 
         return r;
 }

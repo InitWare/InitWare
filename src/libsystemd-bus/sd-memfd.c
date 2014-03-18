@@ -88,7 +88,7 @@ void sd_memfd_free(sd_memfd *m) {
         if (m->f)
                 fclose(m->f);
         else
-                close_nointr_nofail(m->fd);
+                safe_close(m->fd);
 
         free(m);
 }

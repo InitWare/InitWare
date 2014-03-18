@@ -207,7 +207,7 @@ static int remove_marked_symlinks_fd(
 
         d = fdopendir(fd);
         if (!d) {
-                close_nointr_nofail(fd);
+                safe_close(fd);
                 return -errno;
         }
 
@@ -248,7 +248,7 @@ static int remove_marked_symlinks_fd(
 
                         p = path_make_absolute(de->d_name, path);
                         if (!p) {
-                                close_nointr_nofail(nfd);
+                                safe_close(nfd);
                                 return -ENOMEM;
                         }
 
@@ -348,7 +348,7 @@ static int remove_marked_symlinks(
                         r = q;
         } while (deleted);
 
-        close_nointr_nofail(fd);
+        safe_close(fd);
 
         return r;
 }
@@ -371,7 +371,7 @@ static int find_symlinks_fd(
 
         d = fdopendir(fd);
         if (!d) {
-                close_nointr_nofail(fd);
+                safe_close(fd);
                 return -errno;
         }
 
@@ -408,7 +408,7 @@ static int find_symlinks_fd(
 
                         p = path_make_absolute(de->d_name, path);
                         if (!p) {
-                                close_nointr_nofail(nfd);
+                                safe_close(nfd);
                                 return -ENOMEM;
                         }
 
@@ -1013,7 +1013,7 @@ static int unit_file_load(
 
         f = fdopen(fd, "re");
         if (!f) {
-                close_nointr_nofail(fd);
+                safe_close(fd);
                 return -ENOMEM;
         }
 

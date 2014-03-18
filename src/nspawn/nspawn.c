@@ -785,7 +785,7 @@ static int setup_kmsg(const char *dest, int kmsg_socket) {
         /* Store away the fd in the socket, so that it stays open as
          * long as we run the child */
         k = sendmsg(kmsg_socket, &mh, MSG_DONTWAIT|MSG_NOSIGNAL);
-        close_nointr_nofail(fd);
+        safe_close(fd);
 
         if (k < 0) {
                 log_error("Failed to send FIFO fd: %m");
@@ -1050,7 +1050,7 @@ static bool audit_enabled(void) {
 
         fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_AUDIT);
         if (fd >= 0) {
-                close_nointr_nofail(fd);
+                safe_close(fd);
                 return true;
         }
         return false;
@@ -1239,12 +1239,11 @@ int main(int argc, char *argv[]) {
                                 n_env ++;
 
                         /* Wait for the parent process to log our PID */
-                        close_nointr_nofail(pipefd[1]);
+                        safe_close(pipefd[1]);
                         fd_wait_for_event(pipefd[0], POLLHUP, -1);
-                        close_nointr_nofail(pipefd[0]);
+                        safe_close(pipefd[0]);
 
-                        close_nointr_nofail(master);
-                        master = -1;
+                        master = safe_close(master);
 
                         if (saved_attr_valid) {
                                 if (tcsetattr(STDIN_FILENO, TCSANOW, &raw_attr) < 0) {
@@ -1257,8 +1256,7 @@ int main(int argc, char *argv[]) {
                         close_nointr(STDOUT_FILENO);
                         close_nointr(STDERR_FILENO);
 
-                        close_nointr_nofail(kmsg_socket_pair[0]);
-                        kmsg_socket_pair[0] = -1;
+                        kmsg_socket_pair[0] = safe_close(kmsg_socket_pair[0]);
 
                         reset_all_signal_handlers();
 
@@ -1268,7 +1266,7 @@ int main(int argc, char *argv[]) {
                         k = open_terminal(console, O_RDWR);
                         if (k != STDIN_FILENO) {
                                 if (k >= 0) {
-                                        close_nointr_nofail(k);
+                                        safe_close(k);
                                         k = -EINVAL;
                                 }
 
@@ -1335,8 +1333,7 @@ int main(int argc, char *argv[]) {
                         if (setup_kmsg(arg_directory, kmsg_socket_pair[1]) < 0)
                                 goto child_fail;
 
-                        close_nointr_nofail(kmsg_socket_pair[1]);
-                        kmsg_socket_pair[1] = -1;
+                        kmsg_socket_pair[1] = safe_close(kmsg_socket_pair[1]);
 
                         if (setup_boot_id(arg_directory) < 0)
                                 goto child_fail;
@@ -1504,13 +1501,13 @@ int main(int argc, char *argv[]) {
                 }
 
                 log_info("Init process in the container running as PID %lu.", (unsigned long) pid);
-                close_nointr_nofail(pipefd[0]);
-                close_nointr_nofail(pipefd[1]);
+                safe_close(pipefd[0]);
+                safe_close(pipefd[1]);
 
                 /* Wait for the child process to establish cgroup hierarchy */
-                close_nointr_nofail(pipefd2[1]);
+                safe_close(pipefd2[1]);
                 fd_wait_for_event(pipefd2[0], POLLHUP, -1);
-                close_nointr_nofail(pipefd2[0]);
+                safe_close(pipefd2[0]);
 
                 fdset_free(fds);
                 fds = NULL;

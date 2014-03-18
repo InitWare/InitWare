@@ -285,7 +285,7 @@ int main(int argc, char *argv[]) {
                 if (pid == 0) {
                         /* Child */
 
-                        close_nointr_nofail(fd);
+                        safe_close(fd);
                         close_all_fds(NULL, 0);
 
                         execvp(argv[optind], argv + optind);

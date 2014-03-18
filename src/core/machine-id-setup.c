@@ -73,7 +73,7 @@ static int generate(char id[34]) {
         fd = open("/var/lib/dbus/machine-id", O_RDONLY|O_CLOEXEC|O_NOCTTY|O_NOFOLLOW);
         if (fd >= 0) {
                 k = loop_read(fd, id, 33, false);
-                close_nointr_nofail(fd);
+                safe_close(fd);
 
                 if (k == 33 && id[32] == '\n') {
 
@@ -118,7 +118,7 @@ static int generate(char id[34]) {
                         fd = open("/sys/class/dmi/id/product_uuid", O_RDONLY|O_CLOEXEC|O_NOCTTY|O_NOFOLLOW);
                         if (fd >= 0) {
                                 k = loop_read(fd, uuid, 36, false);
-                                close_nointr_nofail(fd);
+                                safe_close(fd);
 
                                 if (k >= 36) {
                                         r = shorten_uuid(id, uuid);
@@ -205,8 +205,7 @@ int machine_id_setup(void) {
                         return 0;
         }
 
-        close_nointr_nofail(fd);
-        fd = -1;
+        fd = safe_close(fd);
 
         /* Hmm, we couldn't write it? So let's write it to
          * /run/machine-id as a replacement */

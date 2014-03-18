@@ -460,7 +460,7 @@ static int vt_is_busy(int vtnr) {
         else
                 r = !!(vt_stat.v_state & (1 << vtnr));
 
-        close_nointr_nofail(fd);
+        safe_close(fd);
 
         return r;
 }

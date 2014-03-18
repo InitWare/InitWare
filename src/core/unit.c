@@ -1851,7 +1851,7 @@ int unit_watch_timer(Unit *u, clockid_t clock_id, bool relative, usec_t usec, Wa
 
 fail:
         if (ours)
-                close_nointr_nofail(fd);
+                safe_close(fd);
 
         return -errno;
 }
@@ -1868,7 +1868,7 @@ void unit_unwatch_timer(Unit *u, Watch *w) {
         assert(w->fd >= 0);
 
         assert_se(epoll_ctl(u->manager->epoll_fd, EPOLL_CTL_DEL, w->fd, NULL) >= 0);
-        close_nointr_nofail(w->fd);
+        safe_close(w->fd);
 
         w->fd = -1;
         w->type = WATCH_INVALID;

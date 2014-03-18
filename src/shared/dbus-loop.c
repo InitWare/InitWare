@@ -75,7 +75,7 @@ static dbus_bool_t add_watch(DBusWatch *watch, void *data) {
                         return FALSE;
 
                 if (epoll_ctl(PTR_TO_INT(data), EPOLL_CTL_ADD, e->fd, &ev) < 0) {
-                        close_nointr_nofail(e->fd);
+                        safe_close(e->fd);
                         return FALSE;
                 }
 
@@ -99,8 +99,7 @@ static void remove_watch(DBusWatch *watch, void *data) {
 
         assert_se(epoll_ctl(PTR_TO_INT(data), EPOLL_CTL_DEL, e->fd, NULL) >= 0);
 
-        if (e->fd_is_dupped)
-                close_nointr_nofail(e->fd);
+        safe_close(e->fd);
 }
 
 static void toggle_watch(DBusWatch *watch, void *data) {
@@ -167,8 +166,7 @@ static dbus_bool_t add_timeout(DBusTimeout *timeout, void *data) {
         return TRUE;
 
 fail:
-        if (e->fd >= 0)
-                close_nointr_nofail(e->fd);
+        safe_close(e->fd);
 
         free(e);
         return FALSE;
@@ -184,7 +182,7 @@ static void remove_timeout(DBusTimeout *timeout, void *data) {
                 return;
 
         assert_se(epoll_ctl(PTR_TO_INT(data), EPOLL_CTL_DEL, e->fd, NULL) >= 0);
-        close_nointr_nofail(e->fd);
+        safe_close(e->fd);
 }
 
 static void toggle_timeout(DBusTimeout *timeout, void *data) {
@@ -213,7 +211,7 @@ int bus_loop_open(DBusConnection *c) {
 
         if (!dbus_connection_set_watch_functions(c, add_watch, remove_watch, toggle_watch, INT_TO_PTR(fd), NULL) ||
             !dbus_connection_set_timeout_functions(c, add_timeout, remove_timeout, toggle_timeout, INT_TO_PTR(fd), NULL)) {
-                close_nointr_nofail(fd);
+                safe_close(fd);
                 return -ENOMEM;
         }
 

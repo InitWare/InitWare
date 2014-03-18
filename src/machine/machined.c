@@ -73,11 +73,8 @@ void manager_free(Manager *m) {
                 dbus_connection_unref(m->bus);
         }
 
-        if (m->bus_fd >= 0)
-                close_nointr_nofail(m->bus_fd);
-
-        if (m->epoll_fd >= 0)
-                close_nointr_nofail(m->epoll_fd);
+        safe_close(m->bus_fd);
+        safe_close(m->epoll_fd);
 
         free(m);
 }

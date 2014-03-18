@@ -1141,7 +1141,7 @@ static int setup_keys(void) {
         n = now(CLOCK_REALTIME);
         n /= arg_interval;
 
-        close_nointr_nofail(fd);
+        safe_close(fd);
         fd = mkostemp(k, O_WRONLY|O_CLOEXEC|O_NOCTTY);
         if (fd < 0) {
                 log_error("Failed to open %s: %m", k);
@@ -1240,8 +1240,7 @@ static int setup_keys(void) {
         r = 0;
 
 finish:
-        if (fd >= 0)
-                close_nointr_nofail(fd);
+        safe_close(fd);
 
         if (k) {
                 unlink(k);

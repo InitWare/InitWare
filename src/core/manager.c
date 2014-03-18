@@ -192,8 +192,7 @@ static int manager_watch_jobs_in_progress(Manager *m) {
         return 0;
 
 err:
-        if (m->jobs_in_progress_watch.fd >= 0)
-                close_nointr_nofail(m->jobs_in_progress_watch.fd);
+        safe_close(m->jobs_in_progress_watch.fd);
         watch_init(&m->jobs_in_progress_watch);
         return r;
 }
@@ -203,7 +202,7 @@ static void manager_unwatch_jobs_in_progress(Manager *m) {
                 return;
 
         assert_se(epoll_ctl(m->epoll_fd, EPOLL_CTL_DEL, m->jobs_in_progress_watch.fd, NULL) >= 0);
-        close_nointr_nofail(m->jobs_in_progress_watch.fd);
+        safe_close(m->jobs_in_progress_watch.fd);
         watch_init(&m->jobs_in_progress_watch);
         m->jobs_in_progress_iteration = 0;
 
@@ -306,8 +305,7 @@ static int manager_watch_idle_pipe(Manager *m) {
         return 0;
 
 err:
-        if (m->idle_pipe_watch.fd >= 0)
-                close_nointr_nofail(m->idle_pipe_watch.fd);
+        safe_close(m->idle_pipe_watch.fd);
         watch_init(&m->idle_pipe_watch);
         return r;
 }
@@ -349,7 +347,7 @@ static int manager_setup_time_change(Manager *m) {
 
         if (timerfd_settime(m->time_change_watch.fd, TFD_TIMER_ABSTIME|TFD_TIMER_CANCEL_ON_SET, &its, NULL) < 0) {
                 log_debug("Failed to set up TFD_TIMER_CANCEL_ON_SET, ignoring: %m");
-                close_nointr_nofail(m->time_change_watch.fd);
+                m->time_change_watch.fd = safe_close(m->time_change_watch.fd);
                 watch_init(&m->time_change_watch);
                 return 0;
         }
@@ -385,7 +383,7 @@ static int enable_special_signals(Manager *m) {
                 if (ioctl(fd, KDSIGACCEPT, SIGWINCH) < 0)
                         log_warning("Failed to enable kbrequest handling: %s", strerror(errno));
 
-                close_nointr_nofail(fd);
+                safe_close(fd);
         }
 
         return 0;
@@ -747,16 +745,11 @@ void manager_free(Manager *m) {
         hashmap_free(m->watch_pids2);
         hashmap_free(m->watch_bus);
 
-        if (m->epoll_fd >= 0)
-                close_nointr_nofail(m->epoll_fd);
-        if (m->signal_watch.fd >= 0)
-                close_nointr_nofail(m->signal_watch.fd);
-        if (m->notify_watch.fd >= 0)
-                close_nointr_nofail(m->notify_watch.fd);
-        if (m->time_change_watch.fd >= 0)
-                close_nointr_nofail(m->time_change_watch.fd);
-        if (m->jobs_in_progress_watch.fd >= 0)
-                close_nointr_nofail(m->jobs_in_progress_watch.fd);
+        safe_close(m->epoll_fd);
+        safe_close(m->signal_watch.fd);
+        safe_close(m->notify_watch.fd);
+        safe_close(m->time_change_watch.fd);
+        safe_close(m->jobs_in_progress_watch.fd);
 
         free(m->notify_socket);
 
@@ -1770,7 +1763,7 @@ static int process_event(Manager *m, struct epoll_event *ev) {
                 /* Restart the watch */
                 epoll_ctl(m->epoll_fd, EPOLL_CTL_DEL, m->time_change_watch.fd,
                           NULL);
-                close_nointr_nofail(m->time_change_watch.fd);
+                safe_close(m->time_change_watch.fd);
                 watch_init(&m->time_change_watch);
                 manager_setup_time_change(m);
 
@@ -2050,8 +2043,7 @@ void manager_send_unit_plymouth(Manager *m, Unit *u) {
         }
 
 finish:
-        if (fd >= 0)
-                close_nointr_nofail(fd);
+        safe_close(fd);
 
         free(message);
 }

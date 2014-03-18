@@ -414,7 +414,7 @@ static void close_kdbus_msg(sd_bus *bus, struct kdbus_msg *k) {
                 if (d->type == KDBUS_MSG_FDS)
                         close_many(d->fds, (d->size - offsetof(struct kdbus_item, fds)) / sizeof(int));
                 else if (d->type == KDBUS_MSG_PAYLOAD_MEMFD)
-                        close_nointr_nofail(d->memfd.fd);
+                        safe_close(d->memfd.fd);
         }
 }
 
@@ -687,7 +687,7 @@ int bus_kernel_create(const char *name, char **s) {
                 return -ENOMEM;
 
         if (ioctl(fd, KDBUS_CMD_BUS_MAKE, make) < 0) {
-                close_nointr_nofail(fd);
+                safe_close(fd);
                 free(p);
                 return -errno;
         }
@@ -742,7 +742,7 @@ static void close_and_munmap(int fd, void *address, size_t size) {
         if (size > 0)
                 assert_se(munmap(address, PAGE_ALIGN(size)) >= 0);
 
-        close_nointr_nofail(fd);
+        safe_close(fd);
 }
 
 void bus_kernel_push_memfd(sd_bus *bus, int fd, void *address, size_t size) {

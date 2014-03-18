@@ -258,7 +258,7 @@ static void fifo_free(Fifo *f) {
                 if (f->server)
                         epoll_ctl(f->server->epoll_fd, EPOLL_CTL_DEL, f->fd, NULL);
 
-                close_nointr_nofail(f->fd);
+                safe_close(f->fd);
         }
 
         free(f);
@@ -270,8 +270,7 @@ static void server_done(Server *s) {
         while (s->fifos)
                 fifo_free(s->fifos);
 
-        if (s->epoll_fd >= 0)
-                close_nointr_nofail(s->epoll_fd);
+        safe_close(s->epoll_fd);
 
         if (s->bus) {
                 dbus_connection_flush(s->bus);

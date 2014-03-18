@@ -407,7 +407,7 @@ int server_open_dev_kmsg(Server *s) {
 }
 
 int server_open_kernel_seqnum(Server *s) {
-        int fd;
+        _cleanup_close_ int fd;
         uint64_t *p;
 
         assert(s);
@@ -424,18 +424,15 @@ int server_open_kernel_seqnum(Server *s) {
 
         if (posix_fallocate(fd, 0, sizeof(uint64_t)) < 0) {
                 log_error("Failed to allocate sequential number file, ignoring: %m");
-                close_nointr_nofail(fd);
                 return 0;
         }
 
         p = mmap(NULL, sizeof(uint64_t), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
         if (p == MAP_FAILED) {
                 log_error("Failed to map sequential number file, ignoring: %m");
-                close_nointr_nofail(fd);
                 return 0;
         }
 
-        close_nointr_nofail(fd);
         s->kernel_seqnum = p;
 
         return 0;

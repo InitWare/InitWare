@@ -147,7 +147,7 @@ static dbus_bool_t bus_add_watch(DBusWatch *bus_watch, void *data) {
                 }
 
                 if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, w->fd, &ev) < 0) {
-                        close_nointr_nofail(w->fd);
+                        safe_close(w->fd);
                         free(w);
                         return FALSE;
                 }
@@ -174,8 +174,7 @@ static void bus_remove_watch(DBusWatch *bus_watch, void *data) {
         assert(w->type == WATCH_DBUS_WATCH);
         assert_se(epoll_ctl(m->epoll_fd, EPOLL_CTL_DEL, w->fd, NULL) >= 0);
 
-        if (w->fd_is_dupped)
-                close_nointr_nofail(w->fd);
+        safe_close(w->fd);
 
         free(w);
 }
@@ -263,8 +262,7 @@ static dbus_bool_t bus_add_timeout(DBusTimeout *timeout, void *data) {
         return TRUE;
 
 fail:
-        if (w->fd >= 0)
-                close_nointr_nofail(w->fd);
+        safe_close(w->fd);
 
         free(w);
         return FALSE;
@@ -284,7 +282,7 @@ static void bus_remove_timeout(DBusTimeout *timeout, void *data) {
         assert(w->type == WATCH_DBUS_TIMEOUT);
 
         assert_se(epoll_ctl(m->epoll_fd, EPOLL_CTL_DEL, w->fd, NULL) >= 0);
-        close_nointr_nofail(w->fd);
+        safe_close(w->fd);
         free(w);
 }
 

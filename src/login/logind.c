@@ -152,8 +152,7 @@ void manager_free(Manager *m) {
         hashmap_free(m->button_fds);
         hashmap_free(m->timer_fds);
 
-        if (m->console_active_fd >= 0)
-                close_nointr_nofail(m->console_active_fd);
+        safe_close(m->console_active_fd);
 
         if (m->udev_seat_monitor)
                 udev_monitor_unref(m->udev_seat_monitor);
@@ -173,17 +172,10 @@ void manager_free(Manager *m) {
                 dbus_connection_unref(m->bus);
         }
 
-        if (m->bus_fd >= 0)
-                close_nointr_nofail(m->bus_fd);
-
-        if (m->epoll_fd >= 0)
-                close_nointr_nofail(m->epoll_fd);
-
-        if (m->reserve_vt_fd >= 0)
-                close_nointr_nofail(m->reserve_vt_fd);
-
-        if (m->idle_action_fd >= 0)
-                close_nointr_nofail(m->idle_action_fd);
+        safe_close(m->bus_fd);
+        safe_close(m->epoll_fd);
+        safe_close(m->reserve_vt_fd);
+        safe_close(m->idle_action_fd);
 
         strv_free(m->kill_only_users);
         strv_free(m->kill_exclude_users);
@@ -1041,10 +1033,7 @@ int manager_dispatch_idle_action(Manager *m) {
         return 0;
 
 finish:
-        if (m->idle_action_fd >= 0) {
-                close_nointr_nofail(m->idle_action_fd);
-                m->idle_action_fd = -1;
-        }
+        m->idle_action_fd = safe_close(m->idle_action_fd);
 
         return r;
 }

@@ -327,7 +327,7 @@ void stdout_stream_free(StdoutStream *s) {
                 if (s->server)
                         epoll_ctl(s->server->epoll_fd, EPOLL_CTL_DEL, s->fd, NULL);
 
-                close_nointr_nofail(s->fd);
+                safe_close(s->fd);
         }
 
 #ifdef HAVE_SELINUX
@@ -359,13 +359,13 @@ int stdout_stream_new(Server *s) {
 
         if (s->n_stdout_streams >= STDOUT_STREAMS_MAX) {
                 log_warning("Too many stdout streams, refusing connection.");
-                close_nointr_nofail(fd);
+                safe_close(fd);
                 return 0;
         }
 
         stream = new0(StdoutStream, 1);
         if (!stream) {
-                close_nointr_nofail(fd);
+                safe_close(fd);
                 return log_oom();
         }
 

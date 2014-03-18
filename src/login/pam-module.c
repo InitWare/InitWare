@@ -478,8 +478,7 @@ finish:
         if (reply)
                 dbus_message_unref(reply);
 
-        if (session_fd >= 0)
-                close_nointr_nofail(session_fd);
+        safe_close(session_fd);
 
         return r;
 }

@@ -68,7 +68,7 @@ static void message_free_part(sd_bus_message *m, struct bus_body_part *part) {
                         if (part->mapped > 0)
                                 assert_se(munmap(part->data, part->mapped) == 0);
 
-                        close_nointr_nofail(part->memfd);
+                        safe_close(part->memfd);
                 }
 
         } else if (part->munmap_this)
@@ -1482,8 +1482,7 @@ int message_append_basic(sd_bus_message *m, char type, const void *p, const void
         return 0;
 
 fail:
-        if (fd >= 0)
-                close_nointr_nofail(fd);
+        safe_close(fd);
 
         return r;
 }

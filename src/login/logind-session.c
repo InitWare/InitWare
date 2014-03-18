@@ -375,8 +375,7 @@ int session_load(Session *s) {
                    trigger the EOF. */
 
                 fd = session_create_fifo(s);
-                if (fd >= 0)
-                        close_nointr_nofail(fd);
+                safe_close(fd);
         }
 
         if (realtime) {
@@ -972,8 +971,7 @@ void session_remove_fifo(Session *s) {
         if (s->fifo_fd >= 0) {
                 assert_se(hashmap_remove(s->manager->session_fds, INT_TO_PTR(s->fifo_fd + 1)) == s);
                 assert_se(epoll_ctl(s->manager->epoll_fd, EPOLL_CTL_DEL, s->fifo_fd, NULL) == 0);
-                close_nointr_nofail(s->fifo_fd);
-                s->fifo_fd = -1;
+                s->fifo_fd = safe_close(s->fifo_fd);
 
                 session_save(s);
                 user_save(s->user);

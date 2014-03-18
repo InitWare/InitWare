@@ -150,9 +150,7 @@ void path_spec_unwatch(PathSpec *s, Unit *u) {
                 return;
 
         unit_unwatch_fd(u, &s->watch);
-
-        close_nointr_nofail(s->inotify_fd);
-        s->inotify_fd = -1;
+        s->inotify_fd = safe_close(s->inotify_fd);
 }
 
 int path_spec_fd_event(PathSpec *s, uint32_t events) {

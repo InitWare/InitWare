@@ -258,8 +258,7 @@ int inhibitor_load(Inhibitor *i) {
                 int fd;
 
                 fd = inhibitor_create_fifo(i);
-                if (fd >= 0)
-                        close_nointr_nofail(fd);
+                safe_close(fd);
         }
 
 finish:
@@ -323,8 +322,7 @@ void inhibitor_remove_fifo(Inhibitor *i) {
         if (i->fifo_fd >= 0) {
                 assert_se(hashmap_remove(i->manager->inhibitor_fds, INT_TO_PTR(i->fifo_fd + 1)) == i);
                 assert_se(epoll_ctl(i->manager->epoll_fd, EPOLL_CTL_DEL, i->fifo_fd, NULL) == 0);
-                close_nointr_nofail(i->fifo_fd);
-                i->fifo_fd = -1;
+                i->fifo_fd = safe_close(i->fifo_fd);
         }
 
         if (i->fifo_path) {

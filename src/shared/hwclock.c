@@ -62,7 +62,7 @@ int hwclock_get_time(struct tm *tm) {
          * to confused mktime(). */
         tm->tm_isdst = -1;
 
-        close_nointr_nofail(fd);
+        safe_close(fd);
 
         return err;
 }
@@ -80,7 +80,7 @@ int hwclock_set_time(const struct tm *tm) {
         if (ioctl(fd, RTC_SET_TIME, tm) < 0)
                 err = -errno;
 
-        close_nointr_nofail(fd);
+        safe_close(fd);
 
         return err;
 }

@@ -138,6 +138,6 @@ int socket_address_listen(
 
 fail:
         r = -errno;
-        close_nointr_nofail(fd);
+        safe_close(fd);
         return r;
 }

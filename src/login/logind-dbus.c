@@ -795,7 +795,7 @@ static int bus_manager_inhibit(
                 goto fail;
         }
 
-        close_nointr_nofail(fifo_fd);
+        safe_close(fifo_fd);
         *_reply = reply;
         reply = NULL;
 
@@ -807,8 +807,7 @@ fail:
         if (i)
                 inhibitor_free(i);
 
-        if (fifo_fd >= 0)
-                close_nointr_nofail(fifo_fd);
+        safe_close(fifo_fd);
 
         return r;
 }

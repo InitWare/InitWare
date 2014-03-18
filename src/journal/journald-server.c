@@ -1638,26 +1638,13 @@ void server_done(Server *s) {
 
         hashmap_free(s->user_journals);
 
-        if (s->epoll_fd >= 0)
-                close_nointr_nofail(s->epoll_fd);
-
-        if (s->signal_fd >= 0)
-                close_nointr_nofail(s->signal_fd);
-
-        if (s->syslog_fd >= 0)
-                close_nointr_nofail(s->syslog_fd);
-
-        if (s->native_fd >= 0)
-                close_nointr_nofail(s->native_fd);
-
-        if (s->stdout_fd >= 0)
-                close_nointr_nofail(s->stdout_fd);
-
-        if (s->dev_kmsg_fd >= 0)
-                close_nointr_nofail(s->dev_kmsg_fd);
-
-        if (s->sync_timer_fd >= 0)
-                close_nointr_nofail(s->sync_timer_fd);
+        safe_close(s->epoll_fd);
+        safe_close(s->signal_fd);
+        safe_close(s->syslog_fd);
+        safe_close(s->native_fd);
+        safe_close(s->stdout_fd);
+        safe_close(s->dev_kmsg_fd);
+        safe_close(s->sync_timer_fd);
 
         if (s->rate_limit)
                 journal_rate_limit_free(s->rate_limit);

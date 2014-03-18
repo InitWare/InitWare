@@ -92,8 +92,7 @@ static void unmount_autofs(Automount *a) {
         automount_send_ready(a, -EHOSTDOWN);
 
         unit_unwatch_fd(UNIT(a), &a->pipe_watch);
-        close_nointr_nofail(a->pipe_fd);
-        a->pipe_fd = -1;
+        a->pipe_fd = safe_close(a->pipe_fd);
 
         /* If we reload/reexecute things we keep the mount point
          * around */
@@ -311,8 +310,7 @@ static int open_dev_autofs(Manager *m) {
 
         init_autofs_dev_ioctl(&param);
         if (ioctl(m->dev_autofs_fd, AUTOFS_DEV_IOCTL_VERSION, &param) < 0) {
-                close_nointr_nofail(m->dev_autofs_fd);
-                m->dev_autofs_fd = -1;
+                m->dev_autofs_fd = safe_close(m->dev_autofs_fd);
                 return -errno;
         }
 
@@ -412,8 +410,9 @@ static int autofs_send_ready(int dev_autofs_fd, int ioctl_fd, uint32_t token, in
 }
 
 int automount_send_ready(Automount *a, int status) {
-        int ioctl_fd, r;
+        _cleanup_close_ int ioctl_fd = -1;
         unsigned token;
+        int r;
 
         assert(a);
         assert(status <= 0);
@@ -422,10 +421,8 @@ int automount_send_ready(Automount *a, int status) {
                 return 0;
 
         ioctl_fd = open_ioctl_fd(UNIT(a)->manager->dev_autofs_fd, a->where, a->dev_id);
-        if (ioctl_fd < 0) {
-                r = ioctl_fd;
-                goto fail;
-        }
+        if (ioctl_fd < 0)
+                return ioctl_fd;
 
         if (status)
                 log_debug_unit(UNIT(a)->id, "Sending failure: %s", strerror(-status));
@@ -451,18 +448,15 @@ int automount_send_ready(Automount *a, int status) {
                         r = k;
         }
 
-fail:
-        if (ioctl_fd >= 0)
-                close_nointr_nofail(ioctl_fd);
-
         return r;
 }
 
 static void automount_enter_waiting(Automount *a) {
+        _cleanup_close_ int ioctl_fd = -1;
         int p[2] = { -1, -1 };
         char name[32], options[128];
         bool mounted = false;
-        int r, ioctl_fd = -1, dev_autofs_fd;
+        int r, dev_autofs_fd;
         struct stat st;
 
         assert(a);
@@ -501,8 +495,7 @@ static void automount_enter_waiting(Automount *a) {
 
         mounted = true;
 
-        close_nointr_nofail(p[1]);
-        p[1] = -1;
+        p[1] = safe_close(p[1]);
 
         if (stat(a->where, &st) < 0) {
                 r = -errno;
@@ -529,8 +522,7 @@ static void automount_enter_waiting(Automount *a) {
          * the direct mount will not receive events from the
          * kernel. */
 
-        close_nointr_nofail(ioctl_fd);
-        ioctl_fd = -1;
+        ioctl_fd = safe_close(ioctl_fd);
 
         r = unit_watch_fd(UNIT(a), p[0], EPOLLIN, &a->pipe_watch);
         if (r < 0)
@@ -544,10 +536,7 @@ static void automount_enter_waiting(Automount *a) {
         return;
 
 fail:
-        assert_se(close_pipe(p) == 0);
-
-        if (ioctl_fd >= 0)
-                close_nointr_nofail(ioctl_fd);
+        close_pipe(p);
 
         if (mounted)
                 repeat_unmount(a->where);
@@ -716,9 +705,7 @@ static int automount_deserialize_item(Unit *u, const char *key, const char *valu
                 if (safe_atoi(value, &fd) < 0 || fd < 0 || !fdset_contains(fds, fd))
                         log_debug_unit(u->id, "Failed to parse pipe-fd value %s", value);
                 else {
-                        if (a->pipe_fd >= 0)
-                                close_nointr_nofail(a->pipe_fd);
-
+                        safe_close(a->pipe_fd);
                         a->pipe_fd = fdset_remove(fds, fd);
                 }
         } else
@@ -811,8 +798,7 @@ fail:
 static void automount_shutdown(Manager *m) {
         assert(m);
 
-        if (m->dev_autofs_fd >= 0)
-                close_nointr_nofail(m->dev_autofs_fd);
+        m->dev_autofs_fd = safe_close(m->dev_autofs_fd);
 }
 
 static void automount_reset_failed(Unit *u) {
