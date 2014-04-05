@@ -411,12 +411,9 @@ static int parse_proc_cmdline_word(const char *word) {
         } else if (streq(word, "quiet"))
                 arg_show_status = false;
         else if (streq(word, "debug")) {
-                /* Log to kmsg, the journal socket will fill up before the
-                 * journal is started and tools running during that time
-                 * will block with every log message for for 60 seconds,
-                 * before they give up. */
                 log_set_max_level(LOG_DEBUG);
-                log_set_target(LOG_TARGET_KMSG);
+                if (detect_container(NULL) > 0)
+                        log_set_target(LOG_TARGET_KMSG);
         } else if (!in_initrd()) {
                 unsigned i;
 
