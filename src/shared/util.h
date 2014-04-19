@@ -22,6 +22,7 @@
 ***/
 
 #include <alloca.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <time.h>
 #include <sys/time.h>
@@ -776,3 +777,8 @@ static inline void qsort_safe(void *base, size_t nmemb, size_t size,
                 qsort(base, nmemb, size, compar);
         }
 }
+
+union file_handle_union {
+  struct file_handle handle;
+  char padding[sizeof(struct file_handle) + MAX_HANDLE_SZ];
+};
