@@ -1070,6 +1070,9 @@ int job_coldplug(Job *j) {
                 .events = EPOLLIN,
         };
 
+        if (j->state == JOB_WAITING)
+                job_add_to_run_queue(j);
+
         if (j->timer_watch.type != WATCH_JOB_TIMER)
                 return 0;
 
