@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <sys/reboot.h>
 
+#include "async.h"
 #include "manager.h"
 #include "unit.h"
 #include "service.h"
@@ -222,7 +223,7 @@ static void service_close_socket_fd(Service *s) {
         if (s->socket_fd < 0)
                 return;
 
-        s->socket_fd = safe_close(s->socket_fd);
+        s->socket_fd = asynchronous_close(s->socket_fd);
 }
 
 static void service_connection_unref(Service *s) {
@@ -2793,7 +2794,7 @@ static int service_deserialize_item(Unit *u, const char *key, const char *value,
                         log_debug_unit(u->id, "Failed to parse socket-fd value %s", value);
                 else {
 
-                        safe_close(s->socket_fd);
+                        asynchronous_close(s->socket_fd);
                         s->socket_fd = fdset_remove(fds, fd);
                 }
         } else if (streq(key, "main-exec-status-pid")) {
