@@ -76,7 +76,7 @@ DBusHandlerResult bus_scope_message_handler(Unit *u, DBusConnection *c, DBusMess
 
                 r = scope_abandon(s);
                 if (r < 0)
-                        log_error("Failed to mark scope %s as abandoned : %s", UNIT(s)->id, strerror(-r));
+                        log_debug("Failed to mark scope %s as abandoned : Scope is not running", UNIT(s)->id);
 
                 reply = dbus_message_new_method_return(message);
                 if (!reply)
