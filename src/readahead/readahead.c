@@ -40,7 +40,7 @@ static int help(void) {
         printf("%s [OPTIONS...] collect [DIRECTORY]\n\n"
                "Collect read-ahead data on early boot.\n\n"
                "  -h --help                 Show this help\n"
-               "     --max-files=INT        Maximum number of files to read ahead\n"
+               "     --files-max=INT        Maximum number of files to read ahead\n"
                "     --file-size-max=BYTES  Maximum size of files to read ahead\n"
                "     --timeout=USEC         Maximum time to spend collecting data\n\n\n",
                program_invocation_short_name);
