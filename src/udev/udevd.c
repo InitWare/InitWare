@@ -272,7 +272,7 @@ static void worker_new(struct event *event)
                 for (;;) {
                         struct udev_event *udev_event;
                         struct worker_message msg;
-                        int err;
+                        int err = 0;
 
                         log_debug("seq %llu running\n", udev_device_get_seqnum(dev));
                         udev_event = udev_event_new(dev);
