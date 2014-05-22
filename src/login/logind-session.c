@@ -202,7 +202,6 @@ int session_save(Session *s) {
 
         if (s->scope)
                 fprintf(f, "SCOPE=%s\n", s->scope);
-
         if (s->scope_job)
                 fprintf(f, "SCOPE_JOB=%s\n", s->scope_job);
 
@@ -218,14 +217,41 @@ int session_save(Session *s) {
         if (s->display)
                 fprintf(f, "DISPLAY=%s\n", s->display);
 
-        if (s->remote_host)
-                fprintf(f, "REMOTE_HOST=%s\n", s->remote_host);
+        if (s->remote_host) {
+                _cleanup_free_ char *escaped;
 
-        if (s->remote_user)
-                fprintf(f, "REMOTE_USER=%s\n", s->remote_user);
+                escaped = cescape(s->remote_host);
+                if (!escaped) {
+                        r = -ENOMEM;
+                        goto finish;
+                }
 
-        if (s->service)
-                fprintf(f, "SERVICE=%s\n", s->service);
+                fprintf(f, "REMOTE_HOST=%s\n", escaped);
+        }
+
+        if (s->remote_user) {
+                _cleanup_free_ char *escaped;
+
+                escaped = cescape(s->remote_user);
+                if (!escaped) {
+                        r = -ENOMEM;
+                        goto finish;
+                }
+
+                fprintf(f, "REMOTE_USER=%s\n", escaped);
+        }
+
+        if (s->service) {
+                _cleanup_free_ char *escaped;
+
+                escaped = cescape(s->service);
+                if (!escaped) {
+                        r = -ENOMEM;
+                        goto finish;
+                }
+
+                fprintf(f, "SERVICE=%s\n", escaped);
+        }
 
         if (s->seat && seat_has_vts(s->seat))
                 fprintf(f, "VTNR=%i\n", s->vtnr);
