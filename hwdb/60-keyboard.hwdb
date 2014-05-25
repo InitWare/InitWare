@@ -140,6 +140,9 @@ keyboard:dmi:bvn*:bvr*:bd*:svnASUS:pn*
 keyboard:name:Asus WMI hotkeys:dmi:bvn*:bvr*:bd*:svnASUS*:pn*:pvr*
  KEYBOARD_KEY_6b=f21		# Touchpad Toggle
 
+keyboard:name:Eee PC WMI hotkeys:dmi:bvn*:bvr*:bd*:svnASUS*:pn*:pvr*
+ KEYBOARD_KEY_6b=f21                                    # Touchpad Toggle
+
 ###########################################################
 # BenQ
 ###########################################################
