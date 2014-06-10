@@ -230,6 +230,8 @@ int label_socket_set(const char *label) {
 void label_context_clear(void) {
 
 #ifdef HAVE_SELINUX
+        PROTECT_ERRNO;
+
         if (!use_selinux())
                 return;
 
@@ -240,6 +242,8 @@ void label_context_clear(void) {
 void label_socket_clear(void) {
 
 #ifdef HAVE_SELINUX
+        PROTECT_ERRNO;
+
         if (!use_selinux())
                 return;
 
