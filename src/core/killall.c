@@ -167,7 +167,7 @@ static int killall(int sig, Set *pids) {
                         continue;
 
                 if (sig == SIGKILL) {
-                        _cleanup_free_ char *s;
+                        _cleanup_free_ char *s = NULL;
 
                         get_process_comm(pid, &s);
                         log_notice("Sending SIGKILL to PID %lu (%s).", (unsigned long) pid, strna(s));
