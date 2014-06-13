@@ -567,7 +567,7 @@ int unit_file_mask(
                 unsigned *n_changes) {
 
         char **i;
-        _cleanup_free_ char *prefix;
+        _cleanup_free_ char *prefix = NULL;
         int r;
 
         assert(scope >= 0);
