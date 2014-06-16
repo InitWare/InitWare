@@ -334,7 +334,7 @@ char *unit_name_path_unescape(const char *f) {
 }
 
 bool unit_name_is_template(const char *n) {
-        const char *p;
+        const char *p, *e;
 
         assert(n);
 
@@ -342,11 +342,15 @@ bool unit_name_is_template(const char *n) {
         if (!p)
                 return false;
 
-        return p[1] == '.';
+        e = strrchr(p+1, '.');
+        if (!e)
+                return false;
+
+        return e == p + 1;
 }
 
 bool unit_name_is_instance(const char *n) {
-        const char *p;
+        const char *p, *e;
 
         assert(n);
 
@@ -354,7 +358,11 @@ bool unit_name_is_instance(const char *n) {
         if (!p)
                 return false;
 
-        return p[1] != '.';
+        e = strrchr(p+1, '.');
+        if (!e)
+                return false;
+
+        return e > p + 1;
 }
 
 char *unit_name_replace_instance(const char *f, const char *i) {
