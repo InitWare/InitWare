@@ -1208,6 +1208,8 @@ static int socket_spawn(Socket *s, ExecCommand *c, pid_t *_pid) {
                        UNIT(s)->id,
                        NULL,
                        &pid);
+        if (r < 0)
+                goto fail;
 
         strv_free(argv);
         if (r < 0)
