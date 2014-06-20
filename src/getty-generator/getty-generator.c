@@ -77,7 +77,7 @@ static int add_serial_getty(const char *tty) {
 
         log_debug("Automatically adding serial getty for /dev/%s.", tty);
 
-        n = unit_name_replace_instance("serial-getty@.service", tty);
+        n = unit_name_from_path_instance("serial-getty", tty, ".service");
         if (!n)
                 return log_oom();
 
