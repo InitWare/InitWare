@@ -1763,7 +1763,7 @@ UnitFileState unit_file_get_state(
 
 int unit_file_query_preset(UnitFileScope scope, const char *name) {
         _cleanup_strv_free_ char **files = NULL;
-        char **i;
+        char **p;
         int r;
 
         assert(scope >= 0);
@@ -1791,10 +1791,10 @@ int unit_file_query_preset(UnitFileScope scope, const char *name) {
         if (r < 0)
                 return r;
 
-        STRV_FOREACH(i, files) {
+        STRV_FOREACH(p, files) {
                 _cleanup_fclose_ FILE *f;
 
-                f = fopen(*i, "re");
+                f = fopen(*p, "re");
                 if (!f) {
                         if (errno == ENOENT)
                                 continue;
