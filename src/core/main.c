@@ -1748,7 +1748,7 @@ finish:
         if (reexecute) {
                 const char **args;
                 unsigned i, args_size;
-                sigset_t ss, o_ss;
+                sigset_t ss;
 
                 /* Close and disarm the watchdog, so that the new
                  * instance can reinitialize it, but doesn't get
@@ -1834,8 +1834,10 @@ finish:
 
                 /* reenable any blocked signals, especially important
                  * if we switch from initial ramdisk to init=... */
-                sigemptyset(&ss);
-                sigprocmask(SIG_SETMASK, &ss, &o_ss);
+                reset_all_signal_handlers();
+
+                assert_se(sigemptyset(&ss) == 0);
+                assert_se(sigprocmask(SIG_SETMASK, &ss, NULL) == 0);
 
                 if (switch_root_init) {
                         args[0] = switch_root_init;
@@ -1855,8 +1857,6 @@ finish:
                         log_error("Failed to execute /bin/sh, giving up: %m");
                 } else
                         log_warning("Failed to execute /sbin/init, giving up: %m");
-
-                sigprocmask(SIG_SETMASK, &o_ss, NULL);
         }
 
         if (serialization)
