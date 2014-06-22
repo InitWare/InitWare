@@ -861,12 +861,18 @@ int transaction_add_job_and_dependencies(
         }
 
         if (type != JOB_STOP && unit->load_state == UNIT_ERROR) {
-                dbus_set_error(e, BUS_ERROR_LOAD_FAILED,
-                               "Unit %s failed to load: %s. "
-                               "See system logs and 'systemctl status %s' for details.",
-                               unit->id,
-                               strerror(-unit->load_error),
-                               unit->id);
+                if (unit->load_error == -ENOENT)
+                        dbus_set_error(e, BUS_ERROR_LOAD_FAILED,
+                                       "Unit %s failed to load: %s.",
+                                       unit->id,
+                                       strerror(-unit->load_error));
+                else
+                        dbus_set_error(e, BUS_ERROR_LOAD_FAILED,
+                                       "Unit %s failed to load: %s. "
+                                       "See system logs and 'systemctl status %s' for details.",
+                                       unit->id,
+                                       strerror(-unit->load_error),
+                                       unit->id);
                 return -EINVAL;
         }
 
