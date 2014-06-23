@@ -30,6 +30,7 @@
 #include "virt.h"
 #include "strv.h"
 #include "fileio.h"
+#include "path-util.h"
 
 static const char *arg_dest = "/tmp";
 static bool arg_enabled = true;
@@ -137,14 +138,17 @@ static int create_disk(
                         if (uu == NULL)
                                 return log_oom();
 
-                        if (is_device_path(uu)) {
-                                _cleanup_free_ char *dd = unit_name_from_path(uu, ".device");
-                                if (dd == NULL)
-                                        return log_oom();
+                        if (!path_equal(uu, "/dev/null")) {
 
-                                fprintf(f, "After=%1$s\nRequires=%1$s\n", dd);
-                        } else
-                                fprintf(f, "RequiresMountsFor=%s\n", password);
+                                if (is_device_path(uu)) {
+                                        _cleanup_free_ char *dd = unit_name_from_path(uu, ".device");
+                                        if (dd == NULL)
+                                                return log_oom();
+
+                                        fprintf(f, "After=%1$s\nRequires=%1$s\n", dd);
+                                } else
+                                        fprintf(f, "RequiresMountsFor=%s\n", password);
+                        }
                 }
         }
 
