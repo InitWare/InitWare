@@ -24,8 +24,8 @@
 #include <string.h>
 #include <lzma.h>
 
-#include "macro.h"
 #include "compress.h"
+#include "macro.h"
 
 bool compress_blob(const void *src, uint64_t src_size, void *dst, uint64_t *dst_size) {
         lzma_ret ret;
@@ -40,12 +40,12 @@ bool compress_blob(const void *src, uint64_t src_size, void *dst, uint64_t *dst_
          * compressed result is longer than the original */
 
         ret = lzma_easy_buffer_encode(LZMA_PRESET_DEFAULT, LZMA_CHECK_NONE, NULL,
-                                      src, src_size, dst, &out_pos, *dst_size);
+                                      src, src_size, dst, &out_pos, src_size);
         if (ret != LZMA_OK)
                 return false;
 
         /* Is it actually shorter? */
-        if (out_pos == *dst_size)
+        if (out_pos == src_size)
                 return false;
 
         *dst_size = out_pos;
