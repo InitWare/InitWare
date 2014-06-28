@@ -18,7 +18,6 @@ ConditionDirectoryNotEmpty=|/lib/tmpfiles.d
 ConditionDirectoryNotEmpty=|/usr/local/lib/tmpfiles.d
 ConditionDirectoryNotEmpty=|/etc/tmpfiles.d
 ConditionDirectoryNotEmpty=|/run/tmpfiles.d
-RefuseManualStart=yes
 RefuseManualStop=yes
 
 [Service]
