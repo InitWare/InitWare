@@ -28,6 +28,13 @@
 #include "macro.h"
 
 bool compress_blob(const void *src, uint64_t src_size, void *dst, uint64_t *dst_size) {
+        static const lzma_options_lzma opt = {
+                1u << 20u, NULL, 0, LZMA_LC_DEFAULT, LZMA_LP_DEFAULT,
+                LZMA_PB_DEFAULT, LZMA_MODE_FAST, 128, LZMA_MF_HC3, 4};
+        static const lzma_filter filters[2] = {
+                {LZMA_FILTER_LZMA2, (lzma_options_lzma*) &opt},
+                {LZMA_VLI_UNKNOWN, NULL}
+        };
         lzma_ret ret;
         size_t out_pos = 0;
 
@@ -39,8 +46,11 @@ bool compress_blob(const void *src, uint64_t src_size, void *dst, uint64_t *dst_
         /* Returns false if we couldn't compress the data or the
          * compressed result is longer than the original */
 
-        ret = lzma_easy_buffer_encode(LZMA_PRESET_DEFAULT, LZMA_CHECK_NONE, NULL,
-                                      src, src_size, dst, &out_pos, src_size);
+        if (src_size < 80)
+                return -ENOBUFS;
+
+        ret = lzma_stream_buffer_encode((lzma_filter*) filters, LZMA_CHECK_NONE, NULL,
+                                        src, src_size, dst, &out_pos, src_size - 1);
         if (ret != LZMA_OK)
                 return false;
 
