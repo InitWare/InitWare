@@ -340,7 +340,6 @@ systemd_analyze_LDADD = \
 
 dist_bashcompletion_DATA = \
 	shell-completion/bash/journalctl \
-	shell-completion/bash/systemctl \
 	shell-completion/bash/systemd-analyze \
 	shell-completion/bash/systemd-cat \
 	shell-completion/bash/systemd-cgls \
@@ -352,8 +351,10 @@ dist_bashcompletion_DATA = \
 	shell-completion/bash/udevadm \
 	shell-completion/bash/kernel-install
 
+nodist_bashcompletion_DATA = \
+	shell-completion/bash/systemctl
+
 dist_zshcompletion_DATA = \
-	shell-completion/zsh/_systemctl \
 	shell-completion/zsh/_journalctl \
 	shell-completion/zsh/_udevadm \
 	shell-completion/zsh/_kernel-install \
@@ -363,6 +364,17 @@ dist_zshcompletion_DATA = \
 	shell-completion/zsh/_sd_hosts_or_user_at_host \
 	shell-completion/zsh/_systemd-delta \
 	shell-completion/zsh/_systemd
+
+nodist_zshcompletion_DATA = \
+	shell-completion/zsh/_systemctl
+
+EXTRA_DIST += \
+	shell-completion/bash/systemctl.in \
+	shell-completion/zsh/_systemctl.in
+
+CLEANFILES += \
+	$(nodist_bashcompletion_DATA) \
+	$(nodist_zshcompletion_DATA)
 
 dist_sysctl_DATA = \
 	sysctl.d/50-default.conf
@@ -4292,6 +4304,9 @@ src/core/macros.%: src/core/macros.%.in Makefile
 	$(SED_PROCESS)
 
 src/%.policy.in: src/%.policy.in.in Makefile
+	$(SED_PROCESS)
+
+shell-completion/%: shell-completion/%.in
 	$(SED_PROCESS)
 
 %.rules: %.rules.in Makefile
