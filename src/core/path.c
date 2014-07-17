@@ -95,7 +95,8 @@ int path_spec_watch(PathSpec *s, Unit *u) {
                                 break;
                         }
 
-                        log_warning("Failed to add watch on %s: %m", s->path);
+                        log_warning("Failed to add watch on %s: %s", s->path,
+                                    errno == ENOSPC ? "too many watches" : strerror(-r));
                         r = -errno;
                         if (cut)
                                 *cut = tmp;
