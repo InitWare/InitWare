@@ -1236,13 +1236,14 @@ static int set_log_level(DBusConnection *bus, char **args) {
         assert(bus);
         assert(args);
 
+        dbus_error_init(&error);
+
         if (strv_length(args) != 1) {
                 log_error("This command expects one argument only.");
                 return -E2BIG;
         }
 
         value = args[0];
-        dbus_error_init(&error);
 
         m = dbus_message_new_method_call("org.freedesktop.systemd1",
                                          "/org/freedesktop/systemd1",
