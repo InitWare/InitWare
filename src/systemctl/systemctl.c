@@ -865,6 +865,10 @@ static int list_unit_files(DBusConnection *bus, char **args) {
                 }
 
                 n_units = hashmap_size(h);
+
+                if (n_units == 0)
+                        return 0;
+
                 units = new(UnitFileList, n_units);
                 if (!units) {
                         unit_file_list_free(h);
