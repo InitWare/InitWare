@@ -19,7 +19,6 @@
 /systemd-sysctl.service
 /systemd-ask-password-console.service
 /rescue.service
-/rescue.service.m4
 /systemd-ask-password-wall.service
 /systemd-quotacheck.service
 /quotaon.service
