@@ -1240,7 +1240,7 @@ int main(int argc, char *argv[])
                                 break;
 
                         /* timeout at exit for workers to finish */
-                        timeout = 30 * 1000;
+                        timeout = 180 * 1000;
                 } else if (udev_list_node_is_empty(&event_list) && !children) {
                         /* we are idle */
                         timeout = -1;
@@ -1278,7 +1278,7 @@ int main(int argc, char *argv[])
                                 if (worker->state != WORKER_RUNNING)
                                         continue;
 
-                                if ((now(CLOCK_MONOTONIC) - worker->event_start_usec) > 30 * 1000 * 1000) {
+                                if ((now(CLOCK_MONOTONIC) - worker->event_start_usec) > 180 * 1000 * 1000) {
                                         log_error("worker [%u] %s timeout; kill it\n", worker->pid,
                                             worker->event ? worker->event->devpath : "<idle>");
                                         kill(worker->pid, SIGKILL);
