@@ -816,7 +816,7 @@ int manager_coldplug(Manager *m) {
 
 static void manager_build_unit_path_cache(Manager *m) {
         char **i;
-        _cleanup_free_ DIR *d = NULL;
+        _cleanup_closedir_ DIR *d = NULL;
         int r;
 
         assert(m);
