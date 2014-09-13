@@ -1191,8 +1191,11 @@ int config_parse_timer(const char *unit,
         }
 
         v = new0(TimerValue, 1);
-        if (!v)
+        if (!v) {
+                if (c)
+                        free(c);
                 return log_oom();
+        }
 
         v->base = b;
         v->clock_id = id;
