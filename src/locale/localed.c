@@ -776,8 +776,10 @@ static int convert_vconsole_to_x11(DBusConnection *connection) {
                 int r;
 
                 r = write_data_x11();
-                if (r < 0)
+                if (r < 0) {
                         log_error("Failed to set X11 keyboard layout: %s", strerror(-r));
+                        return r;
+                }
 
                 log_info("Changed X11 keyboard layout to '%s' model '%s' variant '%s' options '%s'",
                          strempty(state.x11_layout),
@@ -807,14 +809,14 @@ static int convert_vconsole_to_x11(DBusConnection *connection) {
         return 0;
 }
 
-static int find_converted_keymap(char **new_keymap) {
+static int find_converted_keymap(const char *x11_layout, const char *x11_variant, char **new_keymap) {
         const char *dir;
         _cleanup_free_ char *n;
 
-        if (state.x11_variant)
-                n = strjoin(state.x11_layout, "-", state.x11_variant, NULL);
+        if (x11_variant)
+                n = strjoin(x11_layout, "-", x11_variant, NULL);
         else
-                n = strdup(state.x11_layout);
+                n = strdup(x11_layout);
         if (!n)
                 return -ENOMEM;
 
@@ -845,7 +847,7 @@ static int find_legacy_keymap(char **new_keymap) {
         _cleanup_fclose_ FILE *f;
         unsigned n = 0;
         unsigned best_matching = 0;
-
+        int r;
 
         f = fopen(SYSTEMD_KBD_MODEL_MAP, "re");
         if (!f)
@@ -854,7 +856,6 @@ static int find_legacy_keymap(char **new_keymap) {
         for (;;) {
                 _cleanup_strv_free_ char **a = NULL;
                 unsigned matching = 0;
-                int r;
 
                 r = read_next_mapping(f, &n, &a);
                 if (r < 0)
@@ -912,6 +913,25 @@ static int find_legacy_keymap(char **new_keymap) {
                 }
         }
 
+        if (best_matching < 10 && state.x11_layout) {
+                /* The best match is only the first part of the X11
+                 * keymap. Check if we have a converted map which
+                 * matches just the first layout.
+                 */
+                char *l, *v = NULL, *converted;
+
+                l = strndupa(state.x11_layout, strcspn(state.x11_layout, ","));
+                if (state.x11_variant)
+                        v = strndupa(state.x11_variant, strcspn(state.x11_variant, ","));
+                r = find_converted_keymap(l, v, &converted);
+                if (r < 0)
+                        return r;
+                if (r > 0) {
+                        free(*new_keymap);
+                        *new_keymap = converted;
+                }
+        }
+
         return 0;
 }
 
@@ -931,7 +951,7 @@ static int convert_x11_to_vconsole(DBusConnection *connection) {
         } else {
                 char *new_keymap = NULL;
 
-                r = find_converted_keymap(&new_keymap);
+                r = find_converted_keymap(state.x11_layout, state.x11_variant, &new_keymap);
                 if (r < 0)
                         return r;
                 else if (r == 0) {
