@@ -145,6 +145,12 @@ static int free_and_set(char **s, const char *v) {
         return 0;
 }
 
+static bool startswith_comma(const char *s, const char *prefix) {
+        const char *t;
+
+        return s && (t = startswith(s, prefix)) && (*t == ',');
+}
+
 static void free_data_locale(void) {
         int p;
 
@@ -861,26 +867,18 @@ static int find_legacy_keymap(char **new_keymap) {
                         /* If we got an exact match, this is best */
                         matching = 10;
                 else {
-                        size_t x;
-
-                        x = strcspn(state.x11_layout, ",");
-
                         /* We have multiple X layouts, look for an
                          * entry that matches our key with everything
                          * but the first layout stripped off. */
-                        if (x > 0 &&
-                            strlen(a[1]) == x &&
-                            strneq(state.x11_layout, a[1], x))
+                        if (startswith_comma(state.x11_layout, a[1]))
                                 matching = 5;
                         else  {
-                                size_t w;
+                                char *x;
 
                                 /* If that didn't work, strip off the
                                  * other layouts from the entry, too */
-                                w = strcspn(a[1], ",");
-
-                                if (x > 0 && x == w &&
-                                    memcmp(state.x11_layout, a[1], x) == 0)
+                                x = strndupa(a[1], strcspn(a[1], ","));
+                                if (startswith_comma(state.x11_layout, x))
                                         matching = 1;
                         }
                 }
