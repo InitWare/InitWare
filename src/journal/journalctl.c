@@ -168,7 +168,7 @@ static int help(void) {
                "     --system              Show only the system journal\n"
                "     --user                Show only the user journal for the current user\n"
                "     --since=DATE          Start showing entries on or newer than the specified date\n"
-               "     --until=DATE          Stop showing entries on or older than the specified date\n"
+               "     --until=DATE          Stop showing entries on or newer than the specified date\n"
                "  -c --cursor=CURSOR       Start showing entries from the specified cursor\n"
                "     --after-cursor=CURSOR Start showing entries from after the specified cursor\n"
                "     --show-cursor         Print the cursor after all the entries\n"
