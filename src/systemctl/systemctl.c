@@ -277,8 +277,10 @@ static int compare_unit_info(const void *a, const void *b) {
 static bool output_show_unit(const struct unit_info *u) {
         const char *dot;
 
-        if (!strv_isempty(arg_states))
-                return strv_contains(arg_states, u->load_state) || strv_contains(arg_states, u->sub_state) || strv_contains(arg_states, u->active_state);
+        if (!strv_isempty(arg_states)) {
+                if (!strv_contains(arg_states, u->load_state) && !strv_contains(arg_states, u->sub_state) && !strv_contains(arg_states, u->active_state))
+                        return false;
+        }
 
         return (!arg_types || ((dot = strrchr(u->id, '.')) &&
                                strv_find(arg_types, dot+1))) &&
