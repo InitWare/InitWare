@@ -49,7 +49,7 @@ struct udev_event *udev_event_new(struct udev_device *dev)
         udev_list_init(udev, &event->run_list, false);
         event->fd_signal = -1;
         event->birth_usec = now(CLOCK_MONOTONIC);
-        event->timeout_usec = 30 * 1000 * 1000;
+        event->timeout_usec = 180 * 1000 * 1000;
         return event;
 }
 

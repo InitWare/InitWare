@@ -45,7 +45,7 @@
 #include "libudev-private.h"
 #include "log.h"
 
-#define COMMAND_TIMEOUT_MSEC (30 * 1000)
+#define COMMAND_TIMEOUT_MSEC (180 * 1000)
 
 static int disk_scsi_inquiry_command(int      fd,
                                      void    *buf,
