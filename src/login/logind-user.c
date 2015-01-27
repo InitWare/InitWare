@@ -351,6 +351,7 @@ static int user_start_slice(User *u) {
                         dbus_error_free(&error);
 
                         free(slice);
+                        return r;
                 } else {
                         u->slice = slice;
 
