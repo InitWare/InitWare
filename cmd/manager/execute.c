@@ -1080,11 +1080,13 @@ int exec_spawn(ExecCommand *command,
                         NULL);
         free(line);
 
+#ifdef Sys_Plat_Linux
         if (context->private_tmp && !context->tmp_dir && !context->var_tmp_dir) {
                 r = setup_tmpdirs(unit_id, &context->tmp_dir, &context->var_tmp_dir);
                 if (r < 0)
                         return r;
         }
+#endif
 
         pid = fork();
         if (pid < 0)

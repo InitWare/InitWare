@@ -122,3 +122,4 @@ add_library(internal INTERFACE)
 target_include_directories(internal INTERFACE head head/systemd)
 
 add_subdirectory(lib)
+add_subdirectory(cmd)
