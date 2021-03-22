@@ -39,7 +39,7 @@ enum UnitType {
         UNIT_PATH,
         UNIT_SLICE,
         UNIT_SCOPE,
-#ifdef Sys_Plat_Linux        
+#ifdef Sys_Plat_Linux
         UNIT_DEVICE,
         UNIT_MOUNT,
         UNIT_AUTOMOUNT,

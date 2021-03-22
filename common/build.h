@@ -21,6 +21,8 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "compat.h"
+
 #ifdef HAVE_PAM
 #define _PAM_FEATURE_ "+PAM"
 #else

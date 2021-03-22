@@ -35,6 +35,18 @@
         "  <property name=\"" prefix "Code\" type=\"i\" access=\"read\"/>\n" \
         "  <property name=\"" prefix "Status\" type=\"i\" access=\"read\"/>\n"
 
+#ifdef Sys_Plat_Linux
+#define LinLimits \
+        "  <property name=\"LimitLOCKS\" type=\"t\" access=\"read\"/>\n" \
+        "  <property name=\"LimitSIGPENDING\" type=\"t\" access=\"read\"/>\n" \
+        "  <property name=\"LimitMSGQUEUE\" type=\"t\" access=\"read\"/>\n" \
+        "  <property name=\"LimitNICE\" type=\"t\" access=\"read\"/>\n" \
+        "  <property name=\"LimitRTPRIO\" type=\"t\" access=\"read\"/>\n" \
+        "  <property name=\"LimitRTTIME\" type=\"t\" access=\"read\"/>\n"
+#else
+#define LinLimits
+#endif
+
 #define BUS_EXEC_CONTEXT_INTERFACE                                      \
         "  <property name=\"Environment\" type=\"as\" access=\"read\"/>\n" \
         "  <property name=\"EnvironmentFiles\" type=\"a(sb)\" access=\"read\"/>\n" \
@@ -49,12 +61,7 @@
         "  <property name=\"LimitAS\" type=\"t\" access=\"read\"/>\n"   \
         "  <property name=\"LimitNPROC\" type=\"t\" access=\"read\"/>\n" \
         "  <property name=\"LimitMEMLOCK\" type=\"t\" access=\"read\"/>\n" \
-        "  <property name=\"LimitLOCKS\" type=\"t\" access=\"read\"/>\n" \
-        "  <property name=\"LimitSIGPENDING\" type=\"t\" access=\"read\"/>\n" \
-        "  <property name=\"LimitMSGQUEUE\" type=\"t\" access=\"read\"/>\n" \
-        "  <property name=\"LimitNICE\" type=\"t\" access=\"read\"/>\n" \
-        "  <property name=\"LimitRTPRIO\" type=\"t\" access=\"read\"/>\n" \
-        "  <property name=\"LimitRTTIME\" type=\"t\" access=\"read\"/>\n" \
+        LinLimits \
         "  <property name=\"WorkingDirectory\" type=\"s\" access=\"read\"/>\n" \
         "  <property name=\"RootDirectory\" type=\"s\" access=\"read\"/>\n" \
         "  <property name=\"OOMScoreAdjust\" type=\"i\" access=\"read\"/>\n" \

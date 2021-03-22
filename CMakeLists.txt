@@ -126,7 +126,7 @@ check_function_exists(__secure_getenv Have___secure_getenv)
 set(Use_capabilities FALSE CACHE BOOL "Use POSIX capabilities")
 
 add_library(internal INTERFACE)
-target_include_directories(internal INTERFACE head head/systemd)
+target_include_directories(internal INTERFACE common head head/systemd)
 
 add_subdirectory(lib)
 add_subdirectory(cmd)

@@ -38,11 +38,14 @@
 static pid_t pager_pid = 0;
 
 _noreturn_ static void pager_fallback(void) {
+#ifdef Sys_Plat_Linux
         ssize_t n;
         do {
                 n = splice(STDIN_FILENO, NULL, STDOUT_FILENO, NULL, 64*1024, 0);
         } while (n > 0);
-        if (n < 0) {
+        if (n < 0) 
+#endif
+        {
                 log_error("Internal pager failed: %m");
                 _exit(EXIT_FAILURE);
         }
