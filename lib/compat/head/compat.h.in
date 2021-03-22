@@ -1,6 +1,8 @@
 #ifndef COMPAT_H_IN_
 #define COMPAT_H_IN_
 
+#include <errno.h>
+
 #cmakedefine Sys_Plat_Linux
 #cmakedefine Sys_Plat_BSD
 #cmakedefine Sys_Plat_FreeBSD
@@ -9,21 +11,40 @@
 #cmakedefine Sys_Plat_OpenBSD
 #cmakedefine Sys_Plat_HPUX
 
+#cmakedefine Have_asm_types_h
+#cmakedefine Have_linux_netlink_h
+#cmakedefine Have_linux_sched_h
 #cmakedefine Have_sys_endian_h
+#cmakedefine Have_sys_procctl_h
+#cmakedefine Have_sys_prctl_h
+#cmakedefine Have_sys_statvfs_h
 #cmakedefine Have_sys_sysmacros_h
+#cmakedefine Have sys_vfs_h
+#cmakedefine Have_alloca_h
 #cmakedefine Have_endian_h
 #cmakedefine Have_malloc_h
+#cmakedefine Have_mntent_h
 #cmakedefine Have_mqueue_h
+
+#cmakedefine Have___compar_fn_t
 
 #cmakedefine Have_waitid
 #cmakedefine Have_posix_fallocate
+#cmakedefine Have_get_current_dir_name
+#cmakedefine Have_program_invocation_short_name
 #cmakedefine Have_mempcpy
+#cmakedefine Have___secure_getenv
+#cmakedefine Have_secure_getenv
+
+#cmakedefine Use_capabilities
 
 #define PACKAGE_NAME "@PACKAGE_NAME@"
 #define PACKAGE_VERSION "@PACKAGE_VERSION@"
 #define PACKAGE_STRING "@PACKAGE_STRING@"
 
 #define DISTRIBUTION "@DISTRIBUTION@"
+
+#define PKGSYSCONFDIR "@pkgsysconfdir@"
 
 #define SYSTEM_CONFIG_FILE "@SYSTEM_CONFIG_FILE@"
 #define SYSTEM_CONFIG_UNIT_PATH "@SYSTEM_CONFIG_UNIT_PATH@"
@@ -35,12 +56,44 @@
 #define USER_DATA_UNIT_PATH "@USER_DATA_UNIT_PATH@"
 #define USER_GENERATOR_PATH "@USER_GENERATOR_PATH@"
 
-#define SYSTEMD_BINARY_PATH "@SYSTEMSERVICESD_BINARY_PATH@"
-#define SYSTEMD_CGROUP_AGENT_PATH "@SYS_CGROUP_AGENT_PATH"
-#define SYSTEMD_SHUTDOWN_BINARY_PATH "@SYS_SHUTDOWN_BINARY_PATH@"
-#define SYSTEMD_TTY_ASK_PASSWORD_AGENT_BINARY_PATH "@SYS_TTY_ASK_PASSWORD_AGENT_BINARY_PATH@"
-#define SYSTEMD_STDIO_BRIDGE_BINARY_PATH "@SYS_STDIO_BRIDGE_BINARY_PATH@"
+#define SYSTEMD_BINARY_PATH "@SYSTEMD_BINARY_PATH@"
+#define SYSTEMD_CGROUP_AGENT_PATH "@SYSTEMD_CGROUP_AGENT_PATH"
+#define SYSTEMD_SHUTDOWN_BINARY_PATH "@SYSTEMD_SHUTDOWN_BINARY_PATH@"
+#define SYSTEMD_TTY_ASK_PASSWORD_AGENT_BINARY_PATH "@SYSTEMD_TTY_ASK_PASSWORD_AGENT_BINARY_PATH@"
+#define SYSTEMD_STDIO_BRIDGE_BINARY_PATH "@SYSTEMD_STDIO_BRIDGE_BINARY_PATH@"
 
 #define POLKIT_AGENT_BINARY_PATH "@POLKIT_AGENT_BINARY_PATH@"
+
+#ifdef Sys_Plat_FreeBSD
+#        define _PATH_UTMPX "/var/run/utx.active"
+#endif
+
+#ifndef Have___compar_fn_t
+typedef int (*__compar_fn_t)(const void *, const void *);
+#endif
+
+#ifndef Have_program_invocation_short_name
+#        define program_invocation_short_name getprogname()
+#endif
+
+#ifndef Have_get_current_dir_name
+#        define get_current_dir_name() getcwd(NULL, 0)
+#endif
+
+#ifndef ETIME
+#        define ETIME ETIMEDOUT
+#else
+#        define Have_ETIME
+#endif
+
+#ifdef Sys_Plat_Linux
+#        define Dgram_Credpass_Linux
+#elif defined(Sys_Plat_NetBSD)
+#        define Dgram_Credpass_NetBSD
+#elif defined(Sys_Plat_FreeBSD)
+#        define Dgram_Credpass_FreeBSD
+#else
+#        define Dgram_Credpass_None
+#endif
 
 #endif

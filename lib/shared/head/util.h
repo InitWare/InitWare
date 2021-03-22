@@ -21,29 +21,35 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <alloca.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include <inttypes.h>
-#include <time.h>
-#include <sys/time.h>
+#include <limits.h>
+#include <locale.h>
+#include <sched.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <signal.h>
-#include <sched.h>
-#include <limits.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <sys/resource.h>
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
-#include <locale.h>
-#include <mntent.h>
 
+#include "compat.h"
 #include "macro.h"
 #include "time-util.h"
+
+#ifdef Have_alloca_h
+#        include <alloca.h>
+#endif
+#ifdef Have_mntent_h
+#        include <mntent.h>
+#endif
 
 union dirent_storage {
         struct dirent de;
@@ -375,8 +381,6 @@ int rm_rf_dangerous(const char *path, bool only_dirs, bool delete_root, bool hon
 
 int pipe_eof(int fd);
 
-cpu_set_t* cpu_set_malloc(unsigned *ncpus);
-
 int status_vprintf(const char *status, bool ellipse, bool ephemeral, const char *format, va_list ap) _printf_attr_(4,0);
 int status_printf(const char *status, bool ellipse, bool ephemeral, const char *format, ...) _printf_attr_(4,5);
 int status_welcome(void);
@@ -576,8 +580,7 @@ static inline void umaskp(mode_t *u) {
 
 DEFINE_TRIVIAL_CLEANUP_FUNC(FILE*, fclose);
 DEFINE_TRIVIAL_CLEANUP_FUNC(FILE*, pclose);
-DEFINE_TRIVIAL_CLEANUP_FUNC(DIR*, closedir);
-DEFINE_TRIVIAL_CLEANUP_FUNC(FILE*, endmntent);
+DEFINE_TRIVIAL_CLEANUP_FUNC(DIR *, closedir);
 
 #define _cleanup_free_ _cleanup_(freep)
 #define _cleanup_close_ _cleanup_(closep)
@@ -586,7 +589,11 @@ DEFINE_TRIVIAL_CLEANUP_FUNC(FILE*, endmntent);
 #define _cleanup_fclose_ _cleanup_(fclosep)
 #define _cleanup_pclose_ _cleanup_(pclosep)
 #define _cleanup_closedir_ _cleanup_(closedirp)
-#define _cleanup_endmntent_ _cleanup_(endmntentp)
+
+#ifdef Have_mntent_h
+DEFINE_TRIVIAL_CLEANUP_FUNC(FILE *, endmntent);
+#        define _cleanup_endmntent_ _cleanup_(endmntentp)
+#endif
 
 _malloc_  _alloc_(1, 2) static inline void *malloc_multiply(size_t a, size_t b) {
         if (_unlikely_(b == 0 || a > ((size_t) -1) / b))
@@ -792,7 +799,11 @@ static inline void qsort_safe(void *base, size_t nmemb, size_t size,
         }
 }
 
+#ifdef Sys_Plat_Linux
+cpu_set_t *cpu_set_malloc(unsigned *ncpus);
+
 union file_handle_union {
   struct file_handle handle;
   char padding[sizeof(struct file_handle) + MAX_HANDLE_SZ];
 };
+#endif

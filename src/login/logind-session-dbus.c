@@ -384,7 +384,7 @@ static DBusHandlerResult session_message_dispatch(
                                 return bus_send_error_reply(connection, message, &error, -EINVAL);
                 }
 
-                if (signo <= 0 || signo >= _NSIG)
+                if (signo <= 0 || signo >= NSIG)
                         return bus_send_error_reply(connection, message, &error, -EINVAL);
 
                 r = session_kill(s, who, signo);

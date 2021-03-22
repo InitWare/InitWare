@@ -19,17 +19,17 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/types.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/prctl.h>
-#include <signal.h>
 #include <fcntl.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
+#include "compat.h"
 #include "log.h"
-#include "util.h"
 #include "spawn-ask-password-agent.h"
+#include "util.h"
 
 static pid_t agent_pid = 0;
 

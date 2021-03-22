@@ -214,7 +214,9 @@ int bus_error_from_errno(sd_bus_error *e, int error) {
                 break;
 
         case -ETIMEDOUT:
+#ifdef Have_ETIME
         case -ETIME:
+#endif
                 sd_bus_error_set_const(e, "org.freedesktop.DBus.Error.Timeout", "Timed out");
                 break;
 

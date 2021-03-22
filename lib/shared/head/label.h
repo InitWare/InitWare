@@ -21,9 +21,10 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/types.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 
 int label_init(const char *prefix);
 void label_finish(void);

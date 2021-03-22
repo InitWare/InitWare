@@ -192,6 +192,7 @@ int socket_address_parse(SocketAddress *a, const char *s) {
         return 0;
 }
 
+#ifdef Have_netlink_h
 int socket_address_parse_netlink(SocketAddress *a, const char *s) {
         int family;
         unsigned group = 0;
@@ -219,6 +220,7 @@ int socket_address_parse_netlink(SocketAddress *a, const char *s) {
 
         return 0;
 }
+#endif
 
 int socket_address_verify(const SocketAddress *a) {
         assert(a);
@@ -272,6 +274,7 @@ int socket_address_verify(const SocketAddress *a) {
 
                 return 0;
 
+#ifdef Have_linux_netlink_h
         case AF_NETLINK:
 
                 if (a->size != sizeof(struct sockaddr_nl))
@@ -281,6 +284,7 @@ int socket_address_verify(const SocketAddress *a) {
                         return -EINVAL;
 
                 return 0;
+#endif
 
         default:
                 return -EAFNOSUPPORT;
@@ -363,6 +367,8 @@ int socket_address_print(const SocketAddress *a, char **p) {
                 return 0;
         }
 
+#ifdef Have_linux_netlink_h
+
         case AF_NETLINK: {
                 _cleanup_free_ char *sfamily = NULL;
 
@@ -375,6 +381,7 @@ int socket_address_print(const SocketAddress *a, char **p) {
 
                 return 0;
         }
+#endif
 
         default:
                 return -EINVAL;
@@ -442,6 +449,7 @@ bool socket_address_equal(const SocketAddress *a, const SocketAddress *b) {
 
                 break;
 
+#ifdef Have_linux_netlink_h
         case AF_NETLINK:
 
                 if (a->protocol != b->protocol)
@@ -451,6 +459,7 @@ bool socket_address_equal(const SocketAddress *a, const SocketAddress *b) {
                         return false;
 
                 break;
+#endif
 
         default:
                 /* Cannot compare, so we assume the addresses are different */
@@ -474,6 +483,7 @@ bool socket_address_is(const SocketAddress *a, const char *s, int type) {
         return socket_address_equal(a, &b);
 }
 
+#ifdef Have_linux_netlink_h
 bool socket_address_is_netlink(const SocketAddress *a, const char *s) {
         struct SocketAddress b;
 
@@ -485,6 +495,7 @@ bool socket_address_is_netlink(const SocketAddress *a, const char *s) {
 
         return socket_address_equal(a, &b);
 }
+#endif
 
 const char* socket_address_get_path(const SocketAddress *a) {
         assert(a);
@@ -604,6 +615,7 @@ int make_socket_fd(const char* address, int flags) {
         return fd;
 }
 
+#ifdef Have_linux_netlink_h
 static const char* const netlink_family_table[] = {
         [NETLINK_ROUTE] = "route",
         [NETLINK_FIREWALL] = "firewall",
@@ -625,6 +637,7 @@ static const char* const netlink_family_table[] = {
 };
 
 DEFINE_STRING_TABLE_LOOKUP_WITH_FALLBACK(netlink_family, int, INT_MAX);
+#endif
 
 static const char* const socket_address_bind_ipv6_only_table[_SOCKET_ADDRESS_BIND_IPV6_ONLY_MAX] = {
         [SOCKET_ADDRESS_DEFAULT] = "default",

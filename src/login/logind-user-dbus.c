@@ -259,7 +259,7 @@ static DBusHandlerResult user_message_dispatch(
                                     DBUS_TYPE_INVALID))
                         return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                if (signo <= 0 || signo >= _NSIG)
+                if (signo <= 0 || signo >= NSIG)
                         return bus_send_error_reply(connection, message, &error, -EINVAL);
 
                 r = user_kill(u, signo);

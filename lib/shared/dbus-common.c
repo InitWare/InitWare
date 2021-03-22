@@ -37,6 +37,7 @@
 #include "strv.h"
 
 int bus_check_peercred(DBusConnection *c) {
+#ifdef Sys_Plat_Linux
         int fd;
         struct ucred ucred;
         socklen_t l;
@@ -58,6 +59,9 @@ int bus_check_peercred(DBusConnection *c) {
 
         if (ucred.uid != 0 && ucred.uid != geteuid())
                 return -EPERM;
+#else
+        unimplemented();
+#endif
 
         return 1;
 }
@@ -593,8 +597,9 @@ int bus_property_append_uint32(DBusMessageIter *i, const char *property, void *d
         /* Let's ensure that pid_t, mode_t, uid_t, gid_t are actually
          * 32bit, and hence this function can be used for
          * pid_t/mode_t/uid_t/gid_t */
+        /* Let's not, Lennart! That's a baseless assumption. */
         assert_cc(sizeof(uint32_t) == sizeof(pid_t));
-        assert_cc(sizeof(uint32_t) == sizeof(mode_t));
+        // assert_cc(sizeof(uint32_t) == sizeof(mode_t));
         assert_cc(sizeof(uint32_t) == sizeof(unsigned));
         assert_cc(sizeof(uint32_t) == sizeof(uid_t));
         assert_cc(sizeof(uint32_t) == sizeof(gid_t));
@@ -613,6 +618,17 @@ int bus_property_append_int32(DBusMessageIter *i, const char *property, void *da
         assert_cc(sizeof(int32_t) == sizeof(int));
 
         if (!dbus_message_iter_append_basic(i, DBUS_TYPE_INT32, data))
+                return -ENOMEM;
+
+        return 0;
+}
+
+int bus_property_append_uint16(DBusMessageIter *i, const char *property, void *data) {
+        assert(i);
+        assert(property);
+        assert(data);
+
+        if (!dbus_message_iter_append_basic(i, DBUS_TYPE_UINT16, data))
                 return -ENOMEM;
 
         return 0;
@@ -697,7 +713,9 @@ const char *bus_errno_to_dbus(int error) {
                 return DBUS_ERROR_FILE_EXISTS;
 
         case -ETIMEDOUT:
+#ifdef Have_ETIME
         case -ETIME:
+#endif
                 return DBUS_ERROR_TIMEOUT;
 
         case -EIO:

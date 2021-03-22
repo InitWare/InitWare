@@ -1873,7 +1873,7 @@ static DBusHandlerResult manager_message_handler(
                                 return bus_send_error_reply(connection, message, &error, -EINVAL);
                 }
 
-                if (signo <= 0 || signo >= _NSIG)
+                if (signo <= 0 || signo >= NSIG)
                         return bus_send_error_reply(connection, message, &error, -EINVAL);
 
                 session = hashmap_get(m->sessions, name);
@@ -1901,7 +1901,7 @@ static DBusHandlerResult manager_message_handler(
                                     DBUS_TYPE_INVALID))
                         return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                if (signo <= 0 || signo >= _NSIG)
+                if (signo <= 0 || signo >= NSIG)
                         return bus_send_error_reply(connection, message, &error, -EINVAL);
 
                 user = hashmap_get(m->users, ULONG_TO_PTR((unsigned long) uid));

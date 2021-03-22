@@ -28,7 +28,7 @@ The following platforms are supported:
 
 
 To build InitWare, a full installation (including development libraries and
-headers) is required of at least the following components:
+headers) is required of at least 8the following components:
 
 - a C toolchain supporting GNU C extensions, e.g. GNU CC or LLVM/Clang
 - CMake 3.9+

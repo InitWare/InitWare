@@ -19,15 +19,14 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/types.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/prctl.h>
-#include <signal.h>
-#include <fcntl.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/poll.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "log.h"
 #include "util.h"

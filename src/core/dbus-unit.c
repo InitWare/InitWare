@@ -433,7 +433,7 @@ static DBusHandlerResult bus_unit_message_dispatch(Unit *u, DBusConnection *conn
                                 return bus_send_error_reply(connection, message, &error, -EINVAL);
                 }
 
-                if (signo <= 0 || signo >= _NSIG)
+                if (signo <= 0 || signo >= NSIG)
                         return bus_send_error_reply(connection, message, &error, -EINVAL);
 
                 SELINUX_UNIT_ACCESS_CHECK(u, connection, message, "stop");

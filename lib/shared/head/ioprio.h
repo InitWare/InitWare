@@ -1,6 +1,10 @@
 #ifndef IOPRIO_H
 #define IOPRIO_H
 
+#include "compat.h"
+
+#ifdef Sys_Plat_Linux
+
 /* This is minimal version of Linux' linux/ioprio.h header file, which
  * is licensed GPL2 */
 
@@ -53,5 +57,7 @@ static inline int ioprio_get(int which, int who)
 {
         return syscall(__NR_ioprio_get, which, who);
 }
+
+#endif
 
 #endif

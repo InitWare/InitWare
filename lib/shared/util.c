@@ -29,33 +29,28 @@
 #include <syslog.h>
 #include <sched.h>
 #include <sys/resource.h>
-#include <linux/sched.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <sys/ioctl.h>
-#include <linux/vt.h>
-#include <linux/tiocl.h>
 #include <termios.h>
 #include <stdarg.h>
 #include <sys/inotify.h>
 #include <sys/poll.h>
 #include <libgen.h>
 #include <ctype.h>
-#include <sys/prctl.h>
 #include <sys/utsname.h>
 #include <pwd.h>
+#include <netinet/in.h>
 #include <netinet/ip.h>
-#include <linux/kd.h>
 #include <dlfcn.h>
 #include <sys/wait.h>
 #include <sys/time.h>
+#include <sys/mount.h>
 #include <glob.h>
 #include <grp.h>
 #include <sys/mman.h>
-#include <sys/vfs.h>
-#include <linux/magic.h>
 #include <limits.h>
 #include <langinfo.h>
 #include <locale.h>
@@ -75,11 +70,51 @@
 #include "fileio.h"
 #include "device-nodes.h"
 
+#ifdef Have_sys_prctl_h
+#include <sys/prctl.h>
+#endif
+#ifdef Have_sys_procctl_h
+#include <sys/procctl.h>
+#endif
+
+#ifdef Have_sys_statvfs_h
+#include <sys/statvfs.h>
+#endif
+
+#ifdef Have_sys_vfs_h
+#include <sys/vfs.h>
+#endif
+
+#ifdef Sys_Plat_Linux
+#include <linux/kd.h>
+#include <linux/magic.h>
+#include <linux/sched.h>
+#include <linux/vt.h>
+#include <linux/tiocl.h>
+#endif
+
+#ifndef HOST_NAME_MAX
+#define HOST_NAME_MAX 255
+#endif
+
 int saved_argc = 0;
 char **saved_argv = NULL;
 
 static volatile unsigned cached_columns = 0;
 static volatile unsigned cached_lines = 0;
+
+int exit_with_parent()
+{
+#ifdef PR_SET_PDEATHSIG
+        return prctl(PR_SET_PDEATHSIG, SIGTERM) < 0
+#elif defined(PROC_PDEATHSIG_CTL)
+        const int sig = SIGTERM;
+        return procctl (P_PID, 0, PROC_PDEATHSIG_CTL, (void*) &sig);
+#else
+        unimplemented();
+        return 0;
+#endif
+}
 
 size_t page_size(void) {
         static __thread size_t pgsz = 0;
@@ -925,7 +960,7 @@ int readlink_and_canonicalize(const char *p, char **r) {
 int reset_all_signal_handlers(void) {
         int sig;
 
-        for (sig = 1; sig < _NSIG; sig++) {
+        for (sig = 1; sig < NSIG; sig++) {
                 struct sigaction sa = {
                         .sa_handler = SIG_DFL,
                         .sa_flags = SA_RESTART,
@@ -1649,6 +1684,7 @@ bool fstype_is_network(const char *fstype) {
 }
 
 int chvt(int vt) {
+#ifdef Sys_Plat_Linux
         _cleanup_close_ int fd;
 
         fd = open_terminal("/dev/tty0", O_RDWR|O_NOCTTY|O_CLOEXEC);
@@ -1669,6 +1705,9 @@ int chvt(int vt) {
 
         if (ioctl(fd, VT_ACTIVATE, vt) < 0)
                 return -errno;
+#else
+        unimplemented();
+#endif
 
         return 0;
 }
@@ -1796,12 +1835,14 @@ int reset_terminal_fd(int fd, bool switch_to_text) {
         /* Disable exclusive mode, just in case */
         ioctl(fd, TIOCNXCL);
 
+#ifdef Sys_Plat_Linux
         /* Switch to text mode */
         if (switch_to_text)
                 ioctl(fd, KDSETMODE, KD_TEXT);
 
         /* Enable console unicode mode */
         ioctl(fd, KDSKBMODE, K_UNICODE);
+#endif
 
         if (tcgetattr(fd, &termios) < 0) {
                 r = -errno;
@@ -1812,8 +1853,16 @@ int reset_terminal_fd(int fd, bool switch_to_text) {
          * hardware is set up we don't touch assuming that somebody
          * else will do that for us */
 
-        termios.c_iflag &= ~(IGNBRK | BRKINT | ISTRIP | INLCR | IGNCR | IUCLC);
-        termios.c_iflag |= ICRNL | IMAXBEL | IUTF8;
+        termios.c_iflag &= ~(IGNBRK | BRKINT | ISTRIP | INLCR | IGNCR
+#ifdef IUCLC
+        | IUCLC
+#endif
+);
+        termios.c_iflag |= ICRNL | IMAXBEL
+#ifdef IUTF8
+        | IUTF8
+#endif
+        ;
         termios.c_oflag |= ONLCR;
         termios.c_cflag |= CREAD;
         termios.c_lflag = ISIG | ICANON | IEXTEN | ECHO | ECHOE | ECHOK | ECHOCTL | ECHOPRT | ECHOKE;
@@ -2517,10 +2566,14 @@ void rename_process(const char name[8]) {
          * "systemd"). If you pass a longer string it will be
          * truncated */
 
+#ifdef Have_sys_prctl_h
         prctl(PR_SET_NAME, name);
+#endif
 
+#ifdef Have_program_invocation_name
         if (program_invocation_name)
                 strncpy(program_invocation_name, name, strlen(program_invocation_name));
+#endif
 
         if (saved_argc > 0) {
                 int i;
@@ -2828,7 +2881,11 @@ int rm_rf_children_dangerous(int fd, bool only_dirs, bool honour_sticky, struct 
                                 continue;
 
                         subdir_fd = openat(fd, de->d_name,
-                                           O_RDONLY|O_NONBLOCK|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW|O_NOATIME);
+                                           O_RDONLY|O_NONBLOCK|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW
+#ifdef O_NOATIME
+                                           |O_NOATIME
+#endif
+                                           );
                         if (subdir_fd < 0) {
                                 if (ret == 0 && errno != ENOENT)
                                         ret = -errno;
@@ -2860,10 +2917,15 @@ int rm_rf_children_dangerous(int fd, bool only_dirs, bool honour_sticky, struct 
 }
 
 _pure_ static int is_temporary_fs(struct statfs *s) {
+#ifdef Sys_Plat_Linux
         assert(s);
         return
                 F_TYPE_EQUAL(s->f_type, TMPFS_MAGIC) ||
                 F_TYPE_EQUAL(s->f_type, RAMFS_MAGIC);
+#else
+        unimplemented();
+        return false;
+#endif
 }
 
 int rm_rf_children(int fd, bool only_dirs, bool honour_sticky, struct stat *root_dev) {
@@ -2902,7 +2964,11 @@ static int rm_rf_internal(const char *path, bool only_dirs, bool delete_root, bo
                 return -EPERM;
         }
 
-        fd = open(path, O_RDONLY|O_NONBLOCK|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW|O_NOATIME);
+        fd = open(path, O_RDONLY|O_NONBLOCK|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW
+#ifdef O_NOATIME
+        |O_NOATIME
+#endif
+        );
         if (fd < 0) {
 
                 if (errno != ENOTDIR)
@@ -2995,6 +3061,7 @@ int fchmod_and_fchown(int fd, mode_t mode, uid_t uid, gid_t gid) {
         return 0;
 }
 
+#ifdef Sys_Plat_Linux
 cpu_set_t* cpu_set_malloc(unsigned *ncpus) {
         cpu_set_t *r;
         unsigned n = 1024;
@@ -3022,6 +3089,7 @@ cpu_set_t* cpu_set_malloc(unsigned *ncpus) {
                 n *= 2;
         }
 }
+#endif
 
 int status_vprintf(const char *status, bool ellipse, bool ephemeral, const char *format, va_list ap) {
         static const char status_indent[] = "         "; /* "[" STATUS "] " */
@@ -3785,7 +3853,7 @@ void execute_directory(const char *directory, DIR *d, usec_t timeout, char *argv
                 assert_se(sigemptyset(&ss) == 0);
                 assert_se(sigprocmask(SIG_SETMASK, &ss, NULL) == 0);
 
-                assert_se(prctl(PR_SET_PDEATHSIG, SIGTERM) == 0);
+                assert_se(exit_with_parent() == 0);
 
                 if (!d) {
                         d = _d = opendir(directory);
@@ -3823,7 +3891,7 @@ void execute_directory(const char *directory, DIR *d, usec_t timeout, char *argv
                         } else if (pid == 0) {
                                 char *_argv[2];
 
-                                assert_se(prctl(PR_SET_PDEATHSIG, SIGTERM) == 0);
+                                assert_se(exit_with_parent() == 0);
 
                                 if (!argv) {
                                         _argv[0] = path;
@@ -4055,10 +4123,14 @@ int fopen_temporary(const char *path, FILE **_f, char **_temp_path) {
 }
 
 int terminal_vhangup_fd(int fd) {
+#ifdef Sys_Plat_Linux
         assert(fd >= 0);
 
         if (ioctl(fd, TIOCVHANGUP) < 0)
                 return -errno;
+#else
+        unimplemented();
+#endif
 
         return 0;
 }
@@ -4074,6 +4146,7 @@ int terminal_vhangup(const char *name) {
 }
 
 int vt_disallocate(const char *name) {
+#ifdef Sys_Plat_Linux
         int fd, r;
         unsigned u;
 
@@ -4138,6 +4211,9 @@ int vt_disallocate(const char *name) {
                    "\033[3J", /* clear screen including scrollback, requires Linux 2.6.40 */
                    10, false);
         safe_close(fd);
+#else
+        unimplemented();
+#endif
 
         return 0;
 }
@@ -4713,6 +4789,7 @@ int file_is_priv_sticky(const char *p) {
                 (st.st_mode & S_ISVTX);
 }
 
+#ifdef Sys_Plat_Linux
 static const char *const ioprio_class_table[] = {
         [IOPRIO_CLASS_NONE] = "none",
         [IOPRIO_CLASS_RT] = "realtime",
@@ -4721,6 +4798,7 @@ static const char *const ioprio_class_table[] = {
 };
 
 DEFINE_STRING_TABLE_LOOKUP_WITH_FALLBACK(ioprio_class, int, INT_MAX);
+#endif
 
 static const char *const sigchld_code_table[] = {
         [CLD_EXITED] = "exited",
@@ -4771,6 +4849,7 @@ static const char *const log_level_table[] = {
 
 DEFINE_STRING_TABLE_LOOKUP_WITH_FALLBACK(log_level, int, LOG_DEBUG);
 
+#ifdef Sys_Plat_Linux
 static const char* const sched_policy_table[] = {
         [SCHED_OTHER] = "other",
         [SCHED_BATCH] = "batch",
@@ -4780,6 +4859,7 @@ static const char* const sched_policy_table[] = {
 };
 
 DEFINE_STRING_TABLE_LOOKUP_WITH_FALLBACK(sched_policy, int, INT_MAX);
+#endif
 
 static const char* const rlimit_table[] = {
         [RLIMIT_CPU] = "LimitCPU",
@@ -4792,12 +4872,14 @@ static const char* const rlimit_table[] = {
         [RLIMIT_AS] = "LimitAS",
         [RLIMIT_NPROC] = "LimitNPROC",
         [RLIMIT_MEMLOCK] = "LimitMEMLOCK",
+#ifdef Sys_Plat_Linux
         [RLIMIT_LOCKS] = "LimitLOCKS",
         [RLIMIT_SIGPENDING] = "LimitSIGPENDING",
         [RLIMIT_MSGQUEUE] = "LimitMSGQUEUE",
         [RLIMIT_NICE] = "LimitNICE",
         [RLIMIT_RTPRIO] = "LimitRTPRIO",
         [RLIMIT_RTTIME] = "LimitRTTIME"
+#endif
 };
 
 DEFINE_STRING_TABLE_LOOKUP(rlimit, int);
@@ -4806,7 +4888,9 @@ static const char* const ip_tos_table[] = {
         [IPTOS_LOWDELAY] = "low-delay",
         [IPTOS_THROUGHPUT] = "throughput",
         [IPTOS_RELIABILITY] = "reliability",
+#ifdef IPTOS_LOWCOST
         [IPTOS_LOWCOST] = "low-cost",
+#endif
 };
 
 DEFINE_STRING_TABLE_LOOKUP_WITH_FALLBACK(ip_tos, int, 0xff);
@@ -4843,7 +4927,9 @@ static const char *const __signal_table[] = {
         [SIGPROF] = "PROF",
         [SIGWINCH] = "WINCH",
         [SIGIO] = "IO",
+#ifdef SIGPWR
         [SIGPWR] = "PWR",
+#endif
         [SIGSYS] = "SYS"
 };
 
@@ -4880,7 +4966,7 @@ int signal_from_string(const char *s) {
         }
         if (safe_atou(s, &u) >= 0) {
                 signo = (int) u + offset;
-                if (signo > 0 && signo < _NSIG)
+                if (signo > 0 && signo < NSIG)
                         return signo;
         }
         return -1;
@@ -4992,9 +5078,10 @@ int fd_inc_sndbuf(int fd, size_t n) {
                 return 0;
 
         /* If we have the privileges we will ignore the kernel limit. */
-
         value = (int) n;
+#ifdef SO_SNDBUFFORCE
         if (setsockopt(fd, SOL_SOCKET, SO_SNDBUFFORCE, &value, sizeof(value)) < 0)
+#endif
                 if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &value, sizeof(value)) < 0)
                         return -errno;
 
@@ -5012,7 +5099,9 @@ int fd_inc_rcvbuf(int fd, size_t n) {
         /* If we have the privileges we will ignore the kernel limit. */
 
         value = (int) n;
+#ifdef SO_RCVBUFFORCE
         if (setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &value, sizeof(value)) < 0)
+#endif
                 if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &value, sizeof(value)) < 0)
                         return -errno;
         return 1;
@@ -5046,7 +5135,7 @@ int fork_agent(pid_t *pid, const int except[], unsigned n_except, const char *pa
         /* In the child:
          *
          * Make sure the agent goes away when the parent dies */
-        if (prctl(PR_SET_PDEATHSIG, SIGTERM) < 0)
+        if (exit_with_parent() < 0)
                 _exit(EXIT_FAILURE);
 
         /* Check whether our parent died before we were able
@@ -5230,6 +5319,7 @@ bool in_initrd(void) {
 }
 
 void warn_melody(void) {
+#ifdef Sys_Plat_Linux
         _cleanup_close_ int fd = -1;
 
         fd = open("/dev/console", O_WRONLY|O_CLOEXEC|O_NOCTTY);
@@ -5248,6 +5338,9 @@ void warn_melody(void) {
         usleep(125*USEC_PER_MSEC);
 
         ioctl(fd, KIOCSOUND, 0);
+#else
+        unimplemented();
+#endif
 }
 
 int make_console_stdio(void) {

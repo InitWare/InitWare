@@ -91,7 +91,7 @@
                                 handlers to their default. This is
                                 best done by iterating through the
                                 available signals up to the limit of
-                                _NSIG and resetting them to
+                                NSIG and resetting them to
                                 <constant>SIG_DFL</constant>.</para></listitem>
 
                                 <listitem><para>Reset the signal mask

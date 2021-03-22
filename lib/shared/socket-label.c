@@ -81,21 +81,27 @@ int socket_address_listen(
         }
 
         if (socket_address_family(a) == AF_INET || socket_address_family(a) == AF_INET6) {
+#ifdef SO_BINDTODEVICE
                 if (bind_to_device)
                         if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, bind_to_device, strlen(bind_to_device)+1) < 0)
                                 goto fail;
+#endif
 
+#ifdef IP_FREEBIND
                 if (free_bind) {
                         one = 1;
                         if (setsockopt(fd, IPPROTO_IP, IP_FREEBIND, &one, sizeof(one)) < 0)
                                 log_warning("IP_FREEBIND failed: %m");
                 }
+#endif
 
+#ifdef IP_TRANSPARENT
                 if (transparent) {
                         one = 1;
                         if (setsockopt(fd, IPPROTO_IP, IP_TRANSPARENT, &one, sizeof(one)) < 0)
                                 log_warning("IP_TRANSPARENT failed: %m");
                 }
+#endif
         }
 
         one = 1;

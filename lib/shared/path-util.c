@@ -30,12 +30,13 @@
 #include <dirent.h>
 #include <sys/statvfs.h>
 
-#include "macro.h"
-#include "util.h"
+#include "compat.h"
 #include "log.h"
-#include "strv.h"
-#include "path-util.h"
+#include "macro.h"
 #include "missing.h"
+#include "path-util.h"
+#include "strv.h"
+#include "util.h"
 
 bool path_is_absolute(const char *p) {
         return p[0] == '/';
@@ -363,7 +364,7 @@ bool path_equal(const char *a, const char *b) {
 }
 
 int path_is_mount_point(const char *t, bool allow_symlink) {
-
+#ifdef Sys_Plat_Linux
         union file_handle_union h = {
                 .handle.handle_bytes = MAX_HANDLE_SZ
         };
@@ -436,6 +437,10 @@ fallback:
                 return -errno;
 
         return a.st_dev != b.st_dev;
+#else
+        unimplemented();
+        return false;
+#endif
 }
 
 int path_is_read_only_fs(const char *path) {

@@ -144,11 +144,16 @@ int bus_property_append_size(DBusMessageIter *i, const char *property, void *dat
 int bus_property_append_ul(DBusMessageIter *i, const char *property, void *data);
 int bus_property_append_long(DBusMessageIter *i, const char *property, void *data);
 
+#define bus_append_unsigned_by_sizeof(type)                       \
+        (sizeof(type) == 8         ? bus_property_append_uint64 : \
+                 sizeof(type) == 4 ? bus_property_append_uint32 : \
+                 sizeof(type) == 2 ? bus_property_append_uint16 : \
+                                     NULL)
 #define bus_property_append_int bus_property_append_int32
 #define bus_property_append_pid bus_property_append_uint32
 #define bus_property_append_uid bus_property_append_uint32
 #define bus_property_append_gid bus_property_append_uint32
-#define bus_property_append_mode bus_property_append_uint32
+#define bus_property_append_mode bus_append_unsigned_by_sizeof(mode_t)
 #define bus_property_append_unsigned bus_property_append_uint32
 #define bus_property_append_usec bus_property_append_uint64
 

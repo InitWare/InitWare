@@ -28,12 +28,13 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <linux/oom.h>
-#include <linux/input.h>
 
 #include "compat.h"
 
 #ifdef Sys_Plat_Linux
+
+#include <linux/oom.h>
+#include <linux/input.h>
 
 #ifdef HAVE_AUDIT
 #include <libaudit.h>
@@ -285,6 +286,7 @@ static inline pid_t gettid(void) {
 #endif
 
 #if !HAVE_DECL_NAME_TO_HANDLE_AT
+/*
 struct file_handle {
         unsigned int handle_bytes;
         int handle_type;
@@ -293,15 +295,7 @@ struct file_handle {
 
 static inline int name_to_handle_at(int fd, const char *name, struct file_handle *handle, int *mnt_id, int flags) {
         return syscall(__NR_name_to_handle_at, fd, name, handle, mnt_id, flags);
-}
-#endif
-
-#ifndef HAVE_SECURE_GETENV
-#  ifdef HAVE___SECURE_GETENV
-#    define secure_getenv __secure_getenv
-#  else
-#    error neither secure_getenv nor __secure_getenv are available
-#  endif
+}*/
 #endif
 
 #ifndef CIFS_MAGIC_NUMBER

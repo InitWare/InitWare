@@ -21,24 +21,32 @@
   You should have received a copy of the GNU Lesser General Public License
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
+
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
+#include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-#include <endian.h>
-#include <byteswap.h>
-#include <assert.h>
-#include <limits.h>
-#include <unistd.h>
-#include <stdint.h>
-#include <stdbool.h>
 #include <sys/stat.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "time-dst.h"
 #include "util.h"
+
+#ifdef Have_sys_endian_h
+#        include <sys/endian.h>
+#elif defined(Have_endian_h)
+#        include <byteswap.h>
+#        include <endian.h>
+#else
+#        error
+#endif
 
 /*
  * If tzh_version is '2' or greater, the above is followed by a second instance

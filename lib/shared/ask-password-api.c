@@ -277,11 +277,13 @@ static int create_socket(char **name) {
                 goto fail;
         }
 
+#ifdef SO_PASSCRED
         if (setsockopt(fd, SOL_SOCKET, SO_PASSCRED, &one, sizeof(one)) < 0) {
                 r = -errno;
                 log_error("SO_PASSCRED failed: %m");
                 goto fail;
         }
+#endif
 
         c = strdup(sa.un.sun_path);
         if (!c) {
@@ -409,7 +411,9 @@ int ask_password_agent(
                 struct ucred *ucred;
                 union {
                         struct cmsghdr cmsghdr;
+#ifdef Dgram_Credpass_Linux
                         uint8_t buf[CMSG_SPACE(sizeof(struct ucred))];
+#endif
                 } control;
                 ssize_t n;
                 int k;
@@ -477,6 +481,7 @@ int ask_password_agent(
                         continue;
                 }
 
+#ifdef Dgram_Credpass_Linux
                 if (msghdr.msg_controllen < CMSG_LEN(sizeof(struct ucred)) ||
                     control.cmsghdr.cmsg_level != SOL_SOCKET ||
                     control.cmsghdr.cmsg_type != SCM_CREDENTIALS ||
@@ -490,6 +495,7 @@ int ask_password_agent(
                         log_warning("Got request from unprivileged user. Ignoring.");
                         continue;
                 }
+#endif
 
                 if (passphrase[0] == '+') {
                         char **l;

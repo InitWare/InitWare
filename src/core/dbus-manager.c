@@ -764,7 +764,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                                 return bus_send_error_reply(connection, message, &error, -EINVAL);
                 }
 
-                if (signo <= 0 || signo >= _NSIG)
+                if (signo <= 0 || signo >= NSIG)
                         return bus_send_error_reply(connection, message, &error, -EINVAL);
 
                 u = manager_get_unit(m, name);

@@ -398,7 +398,7 @@ static DBusHandlerResult manager_message_handler(
                                 return bus_send_error_reply(connection, message, &error, -EINVAL);
                 }
 
-                if (signo <= 0 || signo >= _NSIG)
+                if (signo <= 0 || signo >= NSIG)
                         return bus_send_error_reply(connection, message, &error, -EINVAL);
 
                 machine = hashmap_get(m->machines, name);

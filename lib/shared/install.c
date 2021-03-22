@@ -25,19 +25,20 @@
 #include <string.h>
 #include <fnmatch.h>
 
-#include "util.h"
-#include "mkdir.h"
+#include "compat.h"
+#include "conf-files.h"
+#include "conf-parser.h"
 #include "hashmap.h"
-#include "set.h"
-#include "path-util.h"
+#include "install-printf.h"
+#include "install.h"
+#include "mkdir.h"
 #include "path-lookup.h"
+#include "path-util.h"
+#include "set.h"
+#include "specifier.h"
 #include "strv.h"
 #include "unit-name.h"
-#include "install.h"
-#include "conf-parser.h"
-#include "conf-files.h"
-#include "specifier.h"
-#include "install-printf.h"
+#include "util.h"
 
 typedef struct {
         Hashmap *will_install;

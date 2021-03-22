@@ -21,10 +21,11 @@
 
 #include <stdio.h>
 
+#include "compat.h"
 #include "conf-parser.h"
-#include "sleep-config.h"
 #include "fileio.h"
 #include "log.h"
+#include "sleep-config.h"
 #include "strv.h"
 #include "util.h"
 

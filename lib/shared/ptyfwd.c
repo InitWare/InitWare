@@ -39,7 +39,7 @@ int process_pty(int master, sigset_t *mask, pid_t kill_pid, int signo) {
         assert(master >= 0);
         assert(mask);
         assert(kill_pid == 0 || kill_pid > 1);
-        assert(signo >= 0 && signo < _NSIG);
+        assert(signo >= 0 && signo < NSIG);
 
         fd_nonblock(STDIN_FILENO, 1);
         fd_nonblock(STDOUT_FILENO, 1);

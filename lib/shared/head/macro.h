@@ -59,12 +59,14 @@
 #define ALIGN4(l) (((l) + 3) & ~3)
 #define ALIGN8(l) (((l) + 7) & ~7)
 
-#if __SIZEOF_POINTER__ == 8
-#define ALIGN(l) ALIGN8(l)
-#elif __SIZEOF_POINTER__ == 4
-#define ALIGN(l) ALIGN4(l)
-#else
-#error "Wut? Pointers are neither 4 nor 8 bytes long?"
+#ifndef ALIGN
+#        if __SIZEOF_POINTER__ == 8
+#                define ALIGN(l) ALIGN8(l)
+#        elif __SIZEOF_POINTER__ == 4
+#                define ALIGN(l) ALIGN4(l)
+#        else
+#                error "Wut? Pointers are neither 4 nor 8 bytes long?"
+#        endif
 #endif
 
 #define ALIGN_PTR(p) ((void*) ALIGN((unsigned long) p))
@@ -306,5 +308,8 @@ do {                                                                    \
         _found;                                                         \
         })
 
+
+#define unimplemented() fprintf(stderr, "%s: unimplemented\n", __PRETTY_FUNCTION__)
+#define unimplemented_msg(...) fprintf(stderr, "%s: unimplemented: ", __VA_ARGS__)
 
 #include "log.h"

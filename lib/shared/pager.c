@@ -19,16 +19,21 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/types.h>
 #include <fcntl.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <sys/prctl.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "pager.h"
 #include "util.h"
 #include "macro.h"
+
+#ifdef Have_sys_prctl_h
+#        include <sys/prctl.h>
+#elif defined(Have_sys_procctl_h)
+#        include <sys/procctl.h>
+#endif
 
 static pid_t pager_pid = 0;
 
@@ -91,8 +96,16 @@ int pager_open(bool jump_to_end) {
                         setenv("LESS", "FRSXMK", 1);
 
                 /* Make sure the pager goes away when the parent dies */
+#ifdef PR_SET_PDEATHSIG
                 if (prctl(PR_SET_PDEATHSIG, SIGTERM) < 0)
                         _exit(EXIT_FAILURE);
+#elif defined(PROC_PDEATHSIG_CTL)
+                const int sig = SIGTERM;
+                if (procctl(P_PID, 0, PROC_PDEATHSIG_CTL, (void *) &sig) < 0)
+                        _exit(EXIT_FAILURE);
+#else
+                unimplemented_msg("child will not exit with parent");
+#endif
 
                 /* Check whether our parent died before we were able
                  * to set the death signal */
