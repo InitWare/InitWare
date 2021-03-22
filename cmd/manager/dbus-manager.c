@@ -22,21 +22,24 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "dbus.h"
-#include "log.h"
-#include "dbus-manager.h"
-#include "strv.h"
-#include "bus-errors.h"
 #include "build.h"
+#include "bus-errors.h"
 #include "dbus-common.h"
-#include "install.h"
-#include "selinux-access.h"
-#include "watchdog.h"
-#include "hwclock.h"
-#include "path-util.h"
+#include "dbus-manager.h"
 #include "dbus-unit.h"
-#include "virt.h"
+#include "dbus.h"
 #include "env-util.h"
+#include "install.h"
+#include "log.h"
+#include "path-util.h"
+#include "strv.h"
+#include "virt.h"
+#include "selinux-access.h"
+
+#ifdef Sys_Plat_Linux
+#        include "hwclock.h"
+#        include "watchdog.h"
+#endif
 
 #define BUS_MANAGER_INTERFACE_BEGIN                                     \
         " <interface name=\"org.freedesktop.systemd1.Manager\">\n"
@@ -345,8 +348,10 @@ static int bus_manager_append_tainted(DBusMessageIter *i, const char *property, 
         if (access("/proc/cgroups", F_OK) < 0)
                 e = stpcpy(e, "cgroups-missing:");
 
+#ifdef Sys_Plat_Linux
         if (hwclock_is_localtime() > 0)
                 e = stpcpy(e, "local-hwclock:");
+#endif
 
         /* remove the last ':' */
         if (e != buf)
@@ -548,6 +553,7 @@ static int bus_manager_send_unit_files_changed(Manager *m) {
         return r;
 }
 
+#ifdef Sys_Plat_Linux
 static int bus_manager_set_runtime_watchdog_usec(DBusMessageIter *i, const char *property, void *data) {
         uint64_t *t = data;
 
@@ -558,6 +564,7 @@ static int bus_manager_set_runtime_watchdog_usec(DBusMessageIter *i, const char 
 
         return watchdog_set_timeout(t);
 }
+#endif
 
 static const char systemd_property_string[] =
         PACKAGE_STRING "\0"
@@ -604,8 +611,10 @@ static const BusProperty bus_manager_properties[] = {
         { "UnitPath",                    bus_property_append_strv,       "as", offsetof(Manager, lookup_paths.unit_path),       true },
         { "DefaultStandardOutput",       bus_manager_append_exec_output, "s",  offsetof(Manager, default_std_output)            },
         { "DefaultStandardError",        bus_manager_append_exec_output, "s",  offsetof(Manager, default_std_error)             },
+#ifdef Sys_Plat_Linux
         { "RuntimeWatchdogUSec",         bus_property_append_usec,       "t",  offsetof(Manager, runtime_watchdog),             false, bus_manager_set_runtime_watchdog_usec },
         { "ShutdownWatchdogUSec",        bus_property_append_usec,       "t",  offsetof(Manager, shutdown_watchdog),            false, bus_property_set_usec },
+#endif
         { "Virtualization",              bus_manager_append_virt,        "s",  0,                                               },
         { NULL, }
 };
@@ -671,7 +680,9 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                                     DBUS_TYPE_INVALID))
                         return bus_send_error_reply(connection, message, &error, -EINVAL);
 
+#ifdef Use_CGroups
                 u = manager_get_unit_by_pid(m, (pid_t) pid);
+#endif
                 if (!u) {
                         dbus_set_error(&error, BUS_ERROR_NO_SUCH_UNIT, "No unit for PID %lu is loaded.", (unsigned long) pid);
                         return bus_send_error_reply(connection, message, &error, -ENOENT);

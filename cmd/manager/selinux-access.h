@@ -21,7 +21,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <dbus.h>
+#include <dbus/dbus.h>
 
 void selinux_access_free(void);
 

@@ -104,6 +104,7 @@ int fdset_remove(FDSet *s, int fd) {
 }
 
 int fdset_new_fill(FDSet **_s) {
+#ifdef Have_Linprocfs
         DIR *d;
         struct dirent *de;
         int r = 0;
@@ -157,6 +158,10 @@ finish:
                 set_free(MAKE_SET(s));
 
         return r;
+#else
+        unimplemented();
+        return -ENOTSUP;
+#endif
 }
 
 int fdset_cloexec(FDSet *fds, bool b) {

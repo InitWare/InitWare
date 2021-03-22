@@ -23,13 +23,6 @@ $1.User,                         config_parse_unit_string_printf,    0,         
 $1.Group,                        config_parse_unit_string_printf,    0,                             offsetof($1, exec_context.group)
 $1.SupplementaryGroups,          config_parse_strv,                  0,                             offsetof($1, exec_context.supplementary_groups)
 $1.Nice,                         config_parse_exec_nice,             0,                             offsetof($1, exec_context)
-$1.OOMScoreAdjust,               config_parse_exec_oom_score_adjust, 0,                             offsetof($1, exec_context)
-$1.IOSchedulingClass,            config_parse_exec_io_class,         0,                             offsetof($1, exec_context)
-$1.IOSchedulingPriority,         config_parse_exec_io_priority,      0,                             offsetof($1, exec_context)
-$1.CPUSchedulingPolicy,          config_parse_exec_cpu_sched_policy, 0,                             offsetof($1, exec_context)
-$1.CPUSchedulingPriority,        config_parse_exec_cpu_sched_prio,   0,                             offsetof($1, exec_context)
-$1.CPUSchedulingResetOnFork,     config_parse_bool,                  0,                             offsetof($1, exec_context.cpu_sched_reset_on_fork)
-$1.CPUAffinity,                  config_parse_exec_cpu_affinity,     0,                             offsetof($1, exec_context)
 $1.UMask,                        config_parse_mode,                  0,                             offsetof($1, exec_context.umask)
 $1.Environment,                  config_parse_environ,               0,                             offsetof($1, exec_context.environment)
 $1.EnvironmentFile,              config_parse_unit_env_file,         0,                             offsetof($1, exec_context.environment_files)
@@ -37,19 +30,27 @@ $1.StandardInput,                config_parse_input,                 0,         
 $1.StandardOutput,               config_parse_output,                0,                             offsetof($1, exec_context.std_output)
 $1.StandardError,                config_parse_output,                0,                             offsetof($1, exec_context.std_error)
 $1.TTYPath,                      config_parse_unit_path_printf,      0,                             offsetof($1, exec_context.tty_path)
-$1.TTYReset,                     config_parse_bool,                  0,                             offsetof($1, exec_context.tty_reset)
-$1.TTYVHangup,                   config_parse_bool,                  0,                             offsetof($1, exec_context.tty_vhangup)
-$1.TTYVTDisallocate,             config_parse_bool,                  0,                             offsetof($1, exec_context.tty_vt_disallocate)
 $1.SyslogIdentifier,             config_parse_unit_string_printf,    0,                             offsetof($1, exec_context.syslog_identifier)
 $1.SyslogFacility,               config_parse_facility,              0,                             offsetof($1, exec_context.syslog_priority)
 $1.SyslogLevel,                  config_parse_level,                 0,                             offsetof($1, exec_context.syslog_priority)
 $1.SyslogLevelPrefix,            config_parse_bool,                  0,                             offsetof($1, exec_context.syslog_level_prefix)
+m4_ifdef(`Sys_Plat_Linux',
+`$1.OOMScoreAdjust,               config_parse_exec_oom_score_adjust, 0,                             offsetof($1, exec_context)
+$1.IOSchedulingClass,            config_parse_exec_io_class,         0,                             offsetof($1, exec_context)
+$1.IOSchedulingPriority,         config_parse_exec_io_priority,      0,                             offsetof($1, exec_context)
+$1.CPUSchedulingPolicy,          config_parse_exec_cpu_sched_policy, 0,                             offsetof($1, exec_context)
+$1.CPUSchedulingPriority,        config_parse_exec_cpu_sched_prio,   0,                             offsetof($1, exec_context)
+$1.CPUSchedulingResetOnFork,     config_parse_bool,                  0,                             offsetof($1, exec_context.cpu_sched_reset_on_fork)
+$1.CPUAffinity,                  config_parse_exec_cpu_affinity,     0,                             offsetof($1, exec_context)
+$1.TTYReset,                     config_parse_bool,                  0,                             offsetof($1, exec_context.tty_reset)
+$1.TTYVHangup,                   config_parse_bool,                  0,                             offsetof($1, exec_context.tty_vhangup)
+$1.TTYVTDisallocate,             config_parse_bool,                  0,                             offsetof($1, exec_context.tty_vt_disallocate)
 $1.Capabilities,                 config_parse_exec_capabilities,     0,                             offsetof($1, exec_context)
 $1.SecureBits,                   config_parse_exec_secure_bits,      0,                             offsetof($1, exec_context)
 $1.CapabilityBoundingSet,        config_parse_bounding_set,          0,                             offsetof($1, exec_context.capability_bounding_set_drop)
 $1.TimerSlackNSec,               config_parse_nsec,                  0,                             offsetof($1, exec_context.timer_slack_nsec)
 $1.NoNewPrivileges,              config_parse_bool,                  0,                             offsetof($1, exec_context.no_new_privileges)
-$1.SystemCallFilter,             config_parse_syscall_filter,        0,                             offsetof($1, exec_context)
+$1.SystemCallFilter,             config_parse_syscall_filter,        0,                             offsetof($1, exec_context)')m4_dnl
 $1.LimitCPU,                     config_parse_limit,                 RLIMIT_CPU,                    offsetof($1, exec_context.rlimit)
 $1.LimitFSIZE,                   config_parse_limit,                 RLIMIT_FSIZE,                  offsetof($1, exec_context.rlimit)
 $1.LimitDATA,                    config_parse_limit,                 RLIMIT_DATA,                   offsetof($1, exec_context.rlimit)
@@ -60,7 +61,8 @@ $1.LimitNOFILE,                  config_parse_limit,                 RLIMIT_NOFI
 $1.LimitAS,                      config_parse_limit,                 RLIMIT_AS,                     offsetof($1, exec_context.rlimit)
 $1.LimitNPROC,                   config_parse_limit,                 RLIMIT_NPROC,                  offsetof($1, exec_context.rlimit)
 $1.LimitMEMLOCK,                 config_parse_limit,                 RLIMIT_MEMLOCK,                offsetof($1, exec_context.rlimit)
-$1.LimitLOCKS,                   config_parse_limit,                 RLIMIT_LOCKS,                  offsetof($1, exec_context.rlimit)
+m4_ifdef(`Sys_Plat_Linux',
+`$1.LimitLOCKS,                   config_parse_limit,                 RLIMIT_LOCKS,                  offsetof($1, exec_context.rlimit)
 $1.LimitSIGPENDING,              config_parse_limit,                 RLIMIT_SIGPENDING,             offsetof($1, exec_context.rlimit)
 $1.LimitMSGQUEUE,                config_parse_limit,                 RLIMIT_MSGQUEUE,               offsetof($1, exec_context.rlimit)
 $1.LimitNICE,                    config_parse_limit,                 RLIMIT_NICE,                   offsetof($1, exec_context.rlimit)
@@ -71,7 +73,7 @@ $1.ReadOnlyDirectories,          config_parse_path_strv,             0,         
 $1.InaccessibleDirectories,      config_parse_path_strv,             0,                             offsetof($1, exec_context.inaccessible_dirs)
 $1.PrivateTmp,                   config_parse_bool,                  0,                             offsetof($1, exec_context.private_tmp)
 $1.PrivateNetwork,               config_parse_bool,                  0,                             offsetof($1, exec_context.private_network)
-$1.MountFlags,                   config_parse_exec_mount_flags,      0,                             offsetof($1, exec_context)
+$1.MountFlags,                   config_parse_exec_mount_flags,      0,                             offsetof($1, exec_context)')m4_dnl
 $1.TCPWrapName,                  config_parse_unit_string_printf,    0,                             offsetof($1, exec_context.tcpwrap_name)
 $1.PAMName,                      config_parse_unit_string_printf,    0,                             offsetof($1, exec_context.pam_name)
 $1.IgnoreSIGPIPE,                config_parse_bool,                  0,                             offsetof($1, exec_context.ignore_sigpipe)
@@ -84,6 +86,7 @@ $1.KillMode,                     config_parse_kill_mode,             0,         
 $1.KillSignal,                   config_parse_kill_signal,           0,                             offsetof($1, kill_context.kill_signal)'
 )m4_dnl
 m4_define(`CGROUP_CONTEXT_CONFIG_ITEMS',
+m4_ifdef(`Use_CGroups',
 `$1.Slice,                       config_parse_unit_slice,            0,                             0
 $1.CPUAccounting,                config_parse_bool,                  0,                             offsetof($1, cgroup_context.cpu_accounting)
 $1.CPUShares,                    config_parse_cpu_shares,            0,                             offsetof($1, cgroup_context)
@@ -96,7 +99,7 @@ $1.BlockIOWeight,                config_parse_blockio_weight,        0,         
 $1.BlockIODeviceWeight,          config_parse_blockio_device_weight, 0,                             offsetof($1, cgroup_context)
 $1.BlockIOReadBandwidth,         config_parse_blockio_bandwidth,     0,                             offsetof($1, cgroup_context)
 $1.BlockIOWriteBandwidth,        config_parse_blockio_bandwidth,     0,                             offsetof($1, cgroup_context)'
-)m4_dnl
+))m4_dnl
 Unit.Description,                config_parse_unit_string_printf,    0,                             offsetof(Unit, description)
 Unit.Documentation,              config_parse_documentation,         0,                             offsetof(Unit, documentation)
 Unit.SourcePath,                 config_parse_path,                  0,                             offsetof(Unit, source_path)

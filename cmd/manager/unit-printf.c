@@ -134,7 +134,7 @@ static int specifier_cgroup_root(char specifier, void *data, void *userdata, cha
         int r;
 
         assert(u);
-
+#ifdef Sys_Plat_Linux
         slice = unit_slice_name(u);
         if (specifier == 'R' || !slice)
                 n = strdup(u->manager->cgroup_root);
@@ -151,6 +151,8 @@ static int specifier_cgroup_root(char specifier, void *data, void *userdata, cha
         }
 
         *ret = n;
+#endif
+
         return 0;
 }
 

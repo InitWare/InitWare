@@ -31,7 +31,6 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <fcntl.h>
-#include <sys/prctl.h>
 #include <sys/mount.h>
 
 #ifdef HAVE_VALGRIND_VALGRIND_H
@@ -61,8 +60,6 @@
 #include "sd-daemon.h"
 #include "sd-messages.h"
 
-#include "mount-setup.h"
-#include "loopback-setup.h"
 #ifdef HAVE_KMOD
 #include "kmod-setup.h"
 #endif
@@ -72,6 +69,18 @@
 #include "ima-setup.h"
 #include "fileio.h"
 #include "smack-setup.h"
+
+#ifdef Have_sys_prctl_h
+#include <sys/prctl.h>
+#endif
+#ifdef Have_sys_procctl_h
+#include <sys/procctl.h>
+#endif
+
+#ifdef Sys_Plat_Linux
+#include "mount-setup.h"
+#include "loopback-setup.h"
+#endif
 
 static enum {
         ACTION_RUN,
@@ -102,7 +111,7 @@ static unsigned arg_default_start_limit_burst = DEFAULT_START_LIMIT_BURST;
 static usec_t arg_runtime_watchdog = 0;
 static usec_t arg_shutdown_watchdog = 10 * USEC_PER_MINUTE;
 static char **arg_default_environment = NULL;
-static struct rlimit *arg_default_rlimit[RLIMIT_NLIMITS] = {};
+static struct rlimit *arg_default_rlimit[RLIM_NLIMITS] = {};
 static uint64_t arg_capability_bounding_set_drop = 0;
 static nsec_t arg_timer_slack_nsec = (nsec_t) -1;
 
@@ -458,7 +467,7 @@ DEFINE_SETTER(config_parse_target, log_set_target_from_string, "target")
 DEFINE_SETTER(config_parse_color, log_show_color_from_string, "color" )
 DEFINE_SETTER(config_parse_location, log_show_location_from_string, "location")
 
-
+#ifdef Sys_Plat_Linux
 static int config_parse_cpu_affinity2(const char *unit,
                                       const char *filename,
                                       unsigned line,
@@ -513,6 +522,7 @@ static int config_parse_cpu_affinity2(const char *unit,
 
         return 0;
 }
+#endif
 
 static void strv_free_free(char ***l) {
         char ***i;
@@ -639,8 +649,6 @@ static int parse_config_file(void) {
                 { "Manager", "DumpCore",              config_parse_bool,         0, &arg_dump_core           },
                 { "Manager", "CrashShell",            config_parse_bool,         0, &arg_crash_shell         },
                 { "Manager", "ShowStatus",            config_parse_bool,         0, &arg_show_status         },
-                { "Manager", "CrashChVT",             config_parse_int,          0, &arg_crash_chvt          },
-                { "Manager", "CPUAffinity",           config_parse_cpu_affinity2, 0, NULL                    },
                 { "Manager", "DefaultStandardOutput", config_parse_output,       0, &arg_default_std_output  },
                 { "Manager", "DefaultStandardError",  config_parse_output,       0, &arg_default_std_error   },
                 { "Manager", "DefaultTimeoutStartSec", config_parse_sec,         0, &arg_default_timeout_start_usec },
@@ -649,10 +657,14 @@ static int parse_config_file(void) {
                 { "Manager", "DefaultStartLimitInterval", config_parse_sec,      0, &arg_default_start_limit_interval },
                 { "Manager", "DefaultStartLimitBurst", config_parse_unsigned,    0, &arg_default_start_limit_burst },
                 { "Manager", "JoinControllers",       config_parse_join_controllers, 0, &arg_join_controllers },
+#ifdef Sys_Plat_Linux
+                { "Manager", "CrashChVT",             config_parse_int,          0, &arg_crash_chvt          },
+                { "Manager", "CPUAffinity",           config_parse_cpu_affinity2, 0, NULL                    },
                 { "Manager", "RuntimeWatchdogSec",    config_parse_sec,          0, &arg_runtime_watchdog    },
                 { "Manager", "ShutdownWatchdogSec",   config_parse_sec,          0, &arg_shutdown_watchdog   },
                 { "Manager", "CapabilityBoundingSet", config_parse_bounding_set, 0, &arg_capability_bounding_set_drop },
                 { "Manager", "TimerSlackNSec",        config_parse_nsec,         0, &arg_timer_slack_nsec    },
+#endif
                 { "Manager", "DefaultEnvironment",    config_parse_environ,      0, &arg_default_environment },
                 { "Manager", "DefaultLimitCPU",       config_parse_limit,        0, &arg_default_rlimit[RLIMIT_CPU]},
                 { "Manager", "DefaultLimitFSIZE",     config_parse_limit,        0, &arg_default_rlimit[RLIMIT_FSIZE]},
@@ -664,12 +676,14 @@ static int parse_config_file(void) {
                 { "Manager", "DefaultLimitAS",        config_parse_limit,        0, &arg_default_rlimit[RLIMIT_AS]},
                 { "Manager", "DefaultLimitNPROC",     config_parse_limit,        0, &arg_default_rlimit[RLIMIT_NPROC]},
                 { "Manager", "DefaultLimitMEMLOCK",   config_parse_limit,        0, &arg_default_rlimit[RLIMIT_MEMLOCK]},
+#ifdef Sys_Plat_Linux
                 { "Manager", "DefaultLimitLOCKS",     config_parse_limit,        0, &arg_default_rlimit[RLIMIT_LOCKS]},
                 { "Manager", "DefaultLimitSIGPENDING",config_parse_limit,        0, &arg_default_rlimit[RLIMIT_SIGPENDING]},
                 { "Manager", "DefaultLimitMSGQUEUE",  config_parse_limit,        0, &arg_default_rlimit[RLIMIT_MSGQUEUE]},
                 { "Manager", "DefaultLimitNICE",      config_parse_limit,        0, &arg_default_rlimit[RLIMIT_NICE]},
                 { "Manager", "DefaultLimitRTPRIO",    config_parse_limit,        0, &arg_default_rlimit[RLIMIT_RTPRIO]},
                 { "Manager", "DefaultLimitRTTIME",    config_parse_limit,        0, &arg_default_rlimit[RLIMIT_RTTIME]},
+#endif
                 { NULL, NULL, NULL, 0, NULL }
         };
 
@@ -1269,8 +1283,12 @@ int main(int argc, char *argv[]) {
            called 'init'. After a subsequent reexecution we are then
            called 'systemd'. That is confusing, hence let's call us
            systemd right-away. */
+#ifdef Have_program_invocation_short_name
         program_invocation_short_name = systemd;
+#endif
+#ifdef Have_sys_prctl_h
         prctl(PR_SET_NAME, systemd);
+#endif
 
         saved_argv = argv;
         saved_argc = argc;
@@ -1293,9 +1311,11 @@ int main(int argc, char *argv[]) {
                         initrd_timestamp = userspace_timestamp;
 
                 if (!skip_setup) {
+#ifdef Sys_Plat_Linux
                         mount_setup_early();
                         if (selinux_setup(&loaded_policy) < 0)
                                 goto finish;
+#endif
                         if (ima_setup() < 0)
                                 goto finish;
                         if (smack_setup() < 0)
@@ -1306,6 +1326,7 @@ int main(int argc, char *argv[]) {
                         goto finish;
 
                 if (!skip_setup) {
+#ifdef Sys_Plat_Linux
                         if (hwclock_is_localtime() > 0) {
                                 int min;
 
@@ -1331,6 +1352,8 @@ int main(int argc, char *argv[]) {
                                 if (r < 0)
                                         log_error("Failed to set the kernel's timezone, ignoring: %s", strerror(-r));
                         }
+#else
+#endif
                 }
 
                 /* Set the default for later on, but don't actually
@@ -1382,7 +1405,9 @@ int main(int argc, char *argv[]) {
         /* Mount /proc, /sys and friends, so that /proc/cmdline and
          * /proc/$PID/fd is available. */
         if (getpid() == 1) {
+#ifdef Sys_Plat_Linux
                 r = mount_setup(loaded_policy);
+#endif
                 if (r < 0)
                         goto finish;
         }
@@ -1413,11 +1438,10 @@ int main(int argc, char *argv[]) {
         if (arg_running_as == SYSTEMD_USER &&
             arg_action == ACTION_RUN &&
             sd_booted() <= 0) {
-                log_error("Trying to run as user instance, but the system has not been booted with systemd.");
-                goto finish;
+                log_warning("Trying to run as user instance, but the system has not been booted with systemd.");
         }
 
-        if (arg_running_as == SYSTEMD_SYSTEM &&
+        if (arg_running_as == SYSTEMD_SYSTEM && 
             arg_action == ACTION_RUN &&
             running_in_chroot() > 0) {
                 log_error("Cannot be run in a chroot() environment.");
@@ -1447,8 +1471,7 @@ int main(int argc, char *argv[]) {
         /* Remember open file descriptors for later deserialization */
         r = fdset_new_fill(&fds);
         if (r < 0) {
-                log_error("Failed to allocate fd set: %s", strerror(-r));
-                goto finish;
+                log_warning("Failed to fill fd set: %s", strerror(-r));
         } else
                 fdset_cloexec(fds, true);
 
@@ -1478,7 +1501,9 @@ int main(int argc, char *argv[]) {
         if (getpid() == 1) {
                 install_crash_handler();
 
+#ifdef Sys_Plat_Linux
                 r = mount_cgroup_controllers(arg_join_controllers);
+#endif
                 if (r < 0)
                         goto finish;
         }
@@ -1507,16 +1532,24 @@ int main(int argc, char *argv[]) {
 #endif
                 hostname_setup();
                 machine_id_setup();
+
+#ifdef Sys_Plat_Linux
                 loopback_setup();
 
                 test_mtab();
-                test_usr();
                 test_cgroups();
+
+#endif
+
+                test_usr();
         }
 
+#ifdef Sys_Plat_Linux
         if (arg_running_as == SYSTEMD_SYSTEM && arg_runtime_watchdog > 0)
                 watchdog_set_timeout(&arg_runtime_watchdog);
+#endif
 
+#ifdef Sys_Plat_Linux
         if (arg_timer_slack_nsec != (nsec_t) -1)
                 if (prctl(PR_SET_TIMERSLACK, arg_timer_slack_nsec) < 0)
                         log_error("Failed to adjust timer slack: %m");
@@ -1533,15 +1566,24 @@ int main(int argc, char *argv[]) {
                         goto finish;
                 }
         }
+#endif
 
         if (arg_running_as == SYSTEMD_USER) {
                 /* Become reaper of our children */
-                if (prctl(PR_SET_CHILD_SUBREAPER, 1) < 0) {
+                if (
+#ifdef Have_sys_prctl_h
+                        prctl(PR_SET_CHILD_SUBREAPER, 1) 
+#elif defined(Have_sys_procctl_h)
+                procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, 0)
+#endif        
+                < 0) {
                         log_warning("Failed to make us a subreaper: %m");
                         if (errno == EINVAL)
                                 log_info("Perhaps the kernel version is too old (< 3.4?)");
                 }
+
         }
+
 
         if (arg_running_as == SYSTEMD_SYSTEM)
                 bump_rlimit_nofile(&saved_rlimit_nofile);
@@ -1737,7 +1779,7 @@ finish:
         if (m)
                 manager_free(m);
 
-        for (j = 0; j < RLIMIT_NLIMITS; j++)
+        for (j = 0; j < RLIM_NLIMITS; j++)
                 free(arg_default_rlimit[j]);
 
         free(arg_default_unit);
@@ -1754,7 +1796,9 @@ finish:
                 /* Close and disarm the watchdog, so that the new
                  * instance can reinitialize it, but doesn't get
                  * rebooted while we do that */
+#ifdef Sys_Plat_Linux
                 watchdog_close(true);
+#endif
 
                 /* Reset the RLIMIT_NOFILE to the kernel default, so
                  * that the new systemd can pass the kernel default to
@@ -1769,9 +1813,11 @@ finish:
                          * deserializing. */
                         broadcast_signal(SIGTERM, false);
 
+#ifdef Sys_Plat_Linux
                         /* And switch root */
                         r = switch_root(switch_root_dir);
                         if (r < 0)
+#endif
                                 log_error("Failed to switch root, ignoring: %s", strerror(-r));
                 }
 
@@ -1801,9 +1847,11 @@ finish:
                         args[i++] = sfd;
                         args[i++] = NULL;
 
+#ifdef Sys_Plat_Linux
                         /* do not pass along the environment we inherit from the kernel or initrd */
                         if (switch_root_dir)
                                 clearenv();
+#endif
 
                         assert(i <= args_size);
                         execv(args[0], (char* const*) args);
@@ -1883,6 +1931,7 @@ finish:
                 };
                 char **env_block;
 
+#ifdef Sys_Plat_Linux
                 if (arm_reboot_watchdog && arg_shutdown_watchdog > 0) {
                         char e[32];
 
@@ -1907,6 +1956,8 @@ finish:
                  * signals anyway */
                 if (detect_container(NULL) <= 0)
                         cg_uninstall_release_agent(SYSTEMD_CGROUP_CONTROLLER);
+#endif
+
 
                 execve(SYSTEMD_SHUTDOWN_BINARY_PATH, (char **) command_line, env_block);
                 free(env_block);

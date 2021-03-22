@@ -54,14 +54,16 @@ const UnitVTable * const unit_vtable[_UNIT_TYPE_MAX] = {
         [UNIT_TIMER] = &timer_vtable,
         [UNIT_SOCKET] = &socket_vtable,
         [UNIT_TARGET] = &target_vtable,
+        [UNIT_SNAPSHOT] = &snapshot_vtable,
+        [UNIT_PATH] = &path_vtable,
+        [UNIT_SLICE] = &slice_vtable,
+        [UNIT_SCOPE] = &scope_vtable,
+#ifdef Sys_Plat_Linux
         [UNIT_DEVICE] = &device_vtable,
         [UNIT_MOUNT] = &mount_vtable,
         [UNIT_AUTOMOUNT] = &automount_vtable,
-        [UNIT_SNAPSHOT] = &snapshot_vtable,
         [UNIT_SWAP] = &swap_vtable,
-        [UNIT_PATH] = &path_vtable,
-        [UNIT_SLICE] = &slice_vtable,
-        [UNIT_SCOPE] = &scope_vtable
+#endif
 };
 
 Unit *unit_new(Manager *m, size_t size) {
@@ -1491,8 +1493,10 @@ void unit_notify(Unit *u, UnitActiveState os, UnitActiveState ns, bool reload_su
                         u->active_exit_timestamp = ts;
         }
 
+#ifdef Sys_Plat_Linux
         if (UNIT_IS_INACTIVE_OR_FAILED(ns))
                 unit_destroy_cgroup(u);
+#endif
 
         /* Note that this doesn't apply to RemainAfterExit services exiting
          * sucessfully, since there's no change of state in that case. Which is
@@ -1618,7 +1622,9 @@ void unit_notify(Unit *u, UnitActiveState os, UnitActiveState ns, bool reload_su
                     !UNIT_IS_ACTIVE_OR_RELOADING(os) &&
                     m->n_reloading <= 0) {
                         /* Write audit record if we have just finished starting up */
+#ifdef AUDIT_SERVICE_START
                         manager_send_unit_audit(m, u, AUDIT_SERVICE_START, true);
+#endif
                         u->in_audit = true;
                 }
 
@@ -1638,6 +1644,7 @@ void unit_notify(Unit *u, UnitActiveState os, UnitActiveState ns, bool reload_su
                         /* Hmm, if there was no start record written
                          * write it now, so that we always have a nice
                          * pair */
+#ifdef AUDIT_SERVICE_START
                         if (!u->in_audit) {
                                 manager_send_unit_audit(m, u, AUDIT_SERVICE_START, ns == UNIT_INACTIVE);
 
@@ -1646,6 +1653,7 @@ void unit_notify(Unit *u, UnitActiveState os, UnitActiveState ns, bool reload_su
                         } else
                                 /* Write audit record if we have just finished shutting down */
                                 manager_send_unit_audit(m, u, AUDIT_SERVICE_STOP, ns == UNIT_INACTIVE);
+#endif
 
                         u->in_audit = false;
                 }
@@ -1764,6 +1772,7 @@ void unit_unwatch_all_pids(Unit *u) {
 }
 
 static int unit_watch_pids_in_path(Unit *u, const char *path) {
+#ifdef Sys_Plat_Linux
         _cleanup_closedir_ DIR *d = NULL;
         _cleanup_fclose_ FILE *f = NULL;
         int ret = 0, r;
@@ -1812,6 +1821,10 @@ static int unit_watch_pids_in_path(Unit *u, const char *path) {
                 ret = r;
 
         return ret;
+#else
+        unimplemented();
+        return 0;
+#endif
 }
 
 
@@ -2190,6 +2203,7 @@ char *unit_dbus_path(Unit *u) {
 }
 
 char *unit_default_cgroup_path(Unit *u) {
+#ifdef Sys_Plat_Linux
         _cleanup_free_ char *escaped = NULL, *slice = NULL;
         int r;
 
@@ -2212,6 +2226,10 @@ char *unit_default_cgroup_path(Unit *u) {
                 return strjoin(u->manager->cgroup_root, "/", slice, "/", escaped, NULL);
         else
                 return strjoin(u->manager->cgroup_root, "/", escaped, NULL);
+#else
+        unimplemented();
+        return 0;
+#endif
 }
 
 int unit_add_default_slice(Unit *u) {
@@ -2798,6 +2816,7 @@ int unit_kill_common(
                                 r = -errno;
 
         if (who == KILL_ALL && u->cgroup_path) {
+#ifdef Sys_Plat_Linux
                 _cleanup_set_free_ Set *pid_set = NULL;
                 int q;
 
@@ -2809,6 +2828,9 @@ int unit_kill_common(
                 q = cg_kill_recursive(SYSTEMD_CGROUP_CONTROLLER, u->cgroup_path, signo, false, true, false, pid_set);
                 if (q < 0 && q != -EAGAIN && q != -ESRCH && q != -ENOENT)
                         r = q;
+#else
+                unimplemented_msg("kill by cgroup");
+#endif
         }
 
         return r;
@@ -2904,7 +2926,7 @@ int unit_exec_context_defaults(Unit *u, ExecContext *c) {
         assert(c);
 
         /* This only copies in the ones that need memory */
-        for (i = 0; i < RLIMIT_NLIMITS; i++)
+        for (i = 0; i < RLIM_NLIMITS; i++)
                 if (u->manager->rlimit[i] && !c->rlimit[i]) {
                         c->rlimit[i] = newdup(struct rlimit, u->manager->rlimit[i], 1);
                         if (!c->rlimit[i])
@@ -3184,6 +3206,7 @@ int unit_kill_context(
         }
 
         if (c->kill_mode == KILL_CONTROL_GROUP && u->cgroup_path) {
+#ifdef Sys_Plat_Linux
                 _cleanup_set_free_ Set *pid_set = NULL;
 
                 /* Exclude the main/control pids from being killed via the cgroup */
@@ -3207,6 +3230,9 @@ int unit_kill_context(
                                 cg_kill_recursive(SYSTEMD_CGROUP_CONTROLLER, u->cgroup_path, SIGHUP, true, true, false, pid_set);
                         }
                 }
+#else
+                unimplemented_msg("kill cg recursively");
+#endif
         }
 
         return wait_for_exit;

@@ -21,10 +21,10 @@
 
 #include <errno.h>
 
+#include "dbus-common.h"
+#include "dbus-job.h"
 #include "dbus.h"
 #include "log.h"
-#include "dbus-job.h"
-#include "dbus-common.h"
 #include "selinux-access.h"
 
 #define BUS_JOB_INTERFACE                                             \

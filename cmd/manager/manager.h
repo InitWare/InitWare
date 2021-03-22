@@ -243,7 +243,7 @@ struct Manager {
         usec_t default_start_limit_interval;
         unsigned default_start_limit_burst;
 
-        struct rlimit *rlimit[RLIMIT_NLIMITS];
+        struct rlimit *rlimit[RLIM_NLIMITS];
 
         /* non-zero if we are reloading or reexecuting, */
         int n_reloading;

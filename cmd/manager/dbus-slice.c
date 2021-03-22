@@ -21,11 +21,11 @@
 
 #include <errno.h>
 
-#include "dbus-unit.h"
-#include "dbus-common.h"
 #include "dbus-cgroup.h"
+#include "dbus-common.h"
+#include "dbus-unit.h"
 #include "selinux-access.h"
-#include "dbus-slice.h"
+
 
 #define BUS_SLICE_INTERFACE                                             \
         " <interface name=\"org.freedesktop.systemd1.Slice\">\n"        \
@@ -54,8 +54,10 @@ DBusHandlerResult bus_slice_message_handler(Unit *u, DBusConnection *c, DBusMess
 
         const BusBoundProperties bps[] = {
                 { "org.freedesktop.systemd1.Unit",  bus_unit_properties,           u },
+#ifdef Use_CGroups
                 { "org.freedesktop.systemd1.Slice", bus_unit_cgroup_properties,    u },
                 { "org.freedesktop.systemd1.Slice", bus_cgroup_context_properties, &s->cgroup_context },
+#endif
                 {}
         };
 
@@ -78,7 +80,12 @@ int bus_slice_set_property(
         assert(u);
         assert(i);
 
+#ifdef Use_CGroup
         r = bus_cgroup_set_property(u, &s->cgroup_context, name, i, mode, error);
+#else
+        unimplemented_msg("bus_cgroup_set_property\n");
+        r = -ENOTSUP;
+#endif
         if (r != 0)
                 return r;
 
@@ -88,6 +95,8 @@ int bus_slice_set_property(
 int bus_slice_commit_properties(Unit *u) {
         assert(u);
 
+#ifdef Use_CGroups
         unit_realize_cgroup(u);
+#endif
         return 0;
 }

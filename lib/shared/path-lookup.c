@@ -76,17 +76,23 @@ static char** user_dirs(
 
         const char * const config_unit_paths[] = {
                 USER_CONFIG_UNIT_PATH,
+#ifdef Use_CompatSystemd
                 "/etc/systemd/user",
                 "/run/systemd/user",
+#endif
                 NULL
         };
 
         const char * const data_unit_paths[] = {
+#ifdef Use_CompatSystemd
                 "/usr/local/lib/systemd/user",
                 "/usr/local/share/systemd/user",
+#endif
                 USER_DATA_UNIT_PATH,
+#ifdef Use_CompatSystemd
                 "/usr/lib/systemd/user",
                 "/usr/share/systemd/user",
+#endif
                 NULL
         };
 

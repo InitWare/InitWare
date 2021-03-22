@@ -142,7 +142,9 @@ static void service_init(Unit *u) {
 
         exec_context_init(&s->exec_context);
         kill_context_init(&s->kill_context);
+#ifdef Sys_Plat_Linux
         cgroup_context_init(&s->cgroup_context);
+#endif
 
         RATELIMIT_INIT(s->start_limit,
                        u->manager->default_start_limit_interval,
@@ -292,7 +294,9 @@ static void service_done(Unit *u) {
         free(s->status_text);
         s->status_text = NULL;
 
+#ifdef Use_CGroups
         cgroup_context_done(&s->cgroup_context);
+#endif
         exec_context_done(&s->exec_context, manager_is_reloading_or_reexecuting(u->manager));
         exec_command_free_array(s->exec_command, _SERVICE_EXEC_COMMAND_MAX);
         s->control_command = NULL;
@@ -1492,7 +1496,12 @@ static int service_search_main_pid(Service *s) {
 
         assert(s->main_pid <= 0);
 
+#ifdef Sys_Plat_Linux
         pid = unit_search_main_pid(UNIT(s));
+#else
+        unimplemented_msg("search main PID");
+        pid = -1;
+#endif
         if (pid <= 0)
                 return -ENOENT;
 
@@ -1588,10 +1597,12 @@ static void service_set_state(Service *s, ServiceState state) {
         if (state == SERVICE_STOP || state == SERVICE_STOP_SIGTERM)
                 service_stop_watchdog(s);
 
+#ifdef Sys_Plat_Linux
         /* For the inactive states unit_notify() will trim the cgroup,
          * but for exit we have to do that ourselves... */
         if (state == SERVICE_EXITED && UNIT(s)->manager->n_reloading <= 0)
                 unit_destroy_cgroup(UNIT(s));
+#endif
 
         /* For remain_after_exit services, let's see if we can "release" the
          * hold on the console, since unit_notify() only does that in case of
@@ -1789,7 +1800,9 @@ static int service_spawn(
         assert(c);
         assert(_pid);
 
+#ifdef Use_CGroup
         unit_realize_cgroup(UNIT(s));
+#endif
 
         if (pass_fds ||
             s->exec_context.std_input == EXEC_INPUT_SOCKET ||
@@ -1856,11 +1869,13 @@ static int service_spawn(
                 goto fail;
         }
 
+#ifdef Sys_Plat_Linux
         if (is_control && UNIT(s)->cgroup_path) {
                 path = strappenda(UNIT(s)->cgroup_path, "/control");
                 cg_create(SYSTEMD_CGROUP_CONTROLLER, path);
         } else
                 path = UNIT(s)->cgroup_path;
+#endif
 
         r = exec_spawn(c,
                        argv,
@@ -1871,8 +1886,10 @@ static int service_spawn(
                        apply_chroot,
                        apply_tty_stdin,
                        UNIT(s)->manager->confirm_spawn,
+#ifdef Sys_Plat_Linux
                        UNIT(s)->manager->cgroup_supported,
                        path,
+#endif
                        UNIT(s)->id,
                        s->type == SERVICE_IDLE ? UNIT(s)->manager->idle_pipe : NULL,
                        &pid);
@@ -1927,6 +1944,7 @@ _pure_ static int control_pid_good(Service *s) {
 }
 
 static int cgroup_good(Service *s) {
+#ifdef Sys_Plat_Linux
         int r;
 
         assert(s);
@@ -1939,6 +1957,10 @@ static int cgroup_good(Service *s) {
                 return r;
 
         return !r;
+#else
+        unimplemented();
+        return true;
+#endif
 }
 
 static void service_enter_dead(Service *s, ServiceResult f, bool allow_restart) {
@@ -2176,6 +2198,7 @@ fail:
 }
 
 static void service_kill_control_processes(Service *s) {
+#ifdef Sys_Plat_Linux
         char *p;
 
         if (!UNIT(s)->cgroup_path)
@@ -2183,6 +2206,9 @@ static void service_kill_control_processes(Service *s) {
 
         p = strappenda(UNIT(s)->cgroup_path, "/control");
         cg_kill_recursive(SYSTEMD_CGROUP_CONTROLLER, p, SIGKILL, true, true, true, NULL);
+#else
+        unimplemented();
+#endif
 }
 
 static void service_enter_start(Service *s) {

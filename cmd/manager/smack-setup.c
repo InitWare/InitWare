@@ -21,17 +21,16 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/vfs.h>
-#include <fcntl.h>
-#include <sys/types.h>
 #include <dirent.h>
-#include <sys/mount.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mount.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "macro.h"
 #include "smack-setup.h"
@@ -39,10 +38,13 @@
 #include "log.h"
 #include "label.h"
 
+#ifdef Have_sys_vfs_h
+#        include <sys/vfs.h>
+#endif
+
 #define SMACK_CONFIG "/etc/smack/accesses.d/"
 #define CIPSO_CONFIG "/etc/smack/cipso.d/"
 
-#ifdef HAVE_SMACK
 
 static int write_rules(const char* dstpath, const char* srcdir) {
         _cleanup_fclose_ FILE *dst = NULL;
@@ -113,7 +115,6 @@ static int write_rules(const char* dstpath, const char* srcdir) {
        return r;
 }
 
-#endif
 
 int smack_setup(void) {
 

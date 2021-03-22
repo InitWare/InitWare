@@ -21,16 +21,16 @@
 
 #include <errno.h>
 
-#include "dbus.h"
-#include "log.h"
-#include "dbus-unit.h"
 #include "bus-errors.h"
-#include "dbus-common.h"
-#include "selinux-access.h"
 #include "cgroup-util.h"
-#include "strv.h"
-#include "path-util.h"
+#include "dbus-common.h"
+#include "dbus-unit.h"
+#include "dbus.h"
 #include "fileio.h"
+#include "log.h"
+#include "path-util.h"
+#include "strv.h"
+#        include "selinux-access.h"
 
 const char bus_unit_interface[] _introspect_("Unit") = BUS_UNIT_INTERFACE;
 
@@ -1092,6 +1092,8 @@ const BusProperty bus_unit_properties[] = {
 
 const BusProperty bus_unit_cgroup_properties[] = {
         { "Slice",                bus_unit_append_slice,              "s", 0 },
+#ifdef Use_CGroup
         { "ControlGroup",         bus_property_append_string,         "s", offsetof(Unit, cgroup_path),                                true },
+#endif
         {}
 };

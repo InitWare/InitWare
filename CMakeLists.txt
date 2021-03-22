@@ -82,12 +82,18 @@ set(SYSTEMD_STDIO_BRIDGE_BINARY_PATH
 #todo: find
 set(POLKIT_AGENT_BINARY_PATH ${CMAKE_INSTALL_FULL_BINDIR}/pkttyagent)
 
+set(NOTIFY_SOCKET "/run/InitWare/notify")
+# for SysD "@/org/freedesktop/systemd1/notify"
+
 if(NOT Sys_Plat_Linux)
 pkg_check_modules(EPoll REQUIRED IMPORTED_TARGET epoll-shim)
 pkg_check_modules(INotify REQUIRED IMPORTED_TARGET libinotify)
 set(EPoll_Compat_Libs PkgConfig::EPoll PkgConfig::INotify)
 endif()
 pkg_check_modules (DBus REQUIRED IMPORTED_TARGET dbus-1)
+
+find_package (Threads REQUIRED)
+
 
 check_include_file(asm/types.h Have_asm_types_h)
 check_include_file(linux/netlink.h Have_linux_netlink_h)
@@ -107,6 +113,7 @@ check_include_file(mqueue.h Have_mqueue_h)
 
 list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE")
 
+check_symbol_exists(environ "unistd.h" Have_environ)
 check_symbol_exists(waitid "sys/wait.h" Have_waitid)
 check_symbol_exists(posix_fallocate "fcntl.h" Have_posix_fallocate)
 check_symbol_exists(get_current_dir_name "unistd.h" Have_get_current_dir_name)

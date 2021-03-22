@@ -19,9 +19,8 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <errno.h>
 #include <dbus/dbus.h>
-#include <sys/prctl.h>
+#include <errno.h>
 
 #include "dbus-execute.h"
 #include "missing.h"
@@ -30,6 +29,10 @@
 #include "dbus-common.h"
 #include "syscall-list.h"
 #include "fileio.h"
+
+#ifdef Have_sys_prctl_h
+#        include <sys/prctl.h>
+#endif
 
 static DEFINE_BUS_PROPERTY_APPEND_ENUM(bus_execute_append_input, exec_input, ExecInput);
 static DEFINE_BUS_PROPERTY_APPEND_ENUM(bus_execute_append_output, exec_output, ExecOutput);
@@ -66,6 +69,26 @@ static int bus_execute_append_env_files(DBusMessageIter *i, const char *property
         return 0;
 }
 
+static int bus_execute_append_nice(DBusMessageIter *i, const char *property, void *data) {
+        ExecContext *c = data;
+        int32_t n;
+
+        assert(i);
+        assert(property);
+        assert(c);
+
+        if (c->nice_set)
+                n = c->nice;
+        else
+                n = getpriority(PRIO_PROCESS, 0);
+
+        if (!dbus_message_iter_append_basic(i, DBUS_TYPE_INT32, &n))
+                return -ENOMEM;
+
+        return 0;
+}
+
+#ifdef Sys_Plat_Linux
 static int bus_execute_append_oom_score_adjust(DBusMessageIter *i, const char *property, void *data) {
         ExecContext *c = data;
         int32_t n;
@@ -84,25 +107,6 @@ static int bus_execute_append_oom_score_adjust(DBusMessageIter *i, const char *p
                         safe_atoi(t, &n);
                 }
         }
-
-        if (!dbus_message_iter_append_basic(i, DBUS_TYPE_INT32, &n))
-                return -ENOMEM;
-
-        return 0;
-}
-
-static int bus_execute_append_nice(DBusMessageIter *i, const char *property, void *data) {
-        ExecContext *c = data;
-        int32_t n;
-
-        assert(i);
-        assert(property);
-        assert(c);
-
-        if (c->nice_set)
-                n = c->nice;
-        else
-                n = getpriority(PRIO_PROCESS, 0);
 
         if (!dbus_message_iter_append_basic(i, DBUS_TYPE_INT32, &n))
                 return -ENOMEM;
@@ -218,6 +222,36 @@ static int bus_execute_append_timer_slack_nsec(DBusMessageIter *i, const char *p
         return 0;
 }
 
+
+static int bus_execute_append_syscall_filter(DBusMessageIter *i, const char *property, void *data) {
+        ExecContext *c = data;
+        dbus_bool_t b;
+        DBusMessageIter sub;
+
+        assert(i);
+        assert(property);
+        assert(c);
+
+        if (!dbus_message_iter_open_container(i, DBUS_TYPE_ARRAY, "u", &sub))
+                return -ENOMEM;
+
+        if (c->syscall_filter)
+                b = dbus_message_iter_append_fixed_array(
+                        &sub, DBUS_TYPE_UINT32, &c->syscall_filter, (syscall_max() + 31) >> 4);
+        else
+                b = dbus_message_iter_append_fixed_array(&sub, DBUS_TYPE_UINT32, &c->syscall_filter, 0);
+
+        if (!b)
+                return -ENOMEM;
+
+        if (!dbus_message_iter_close_container(i, &sub))
+                return -ENOMEM;
+
+        return 0;
+}
+#endif
+
+#ifdef Use_capabilities
 static int bus_execute_append_capability_bs(DBusMessageIter *i, const char *property, void *data) {
         ExecContext *c = data;
         uint64_t normal, inverted;
@@ -263,6 +297,7 @@ static int bus_execute_append_capabilities(DBusMessageIter *i, const char *prope
 
         return 0;
 }
+#endif
 
 static int bus_execute_append_rlimits(DBusMessageIter *i, const char *property, void *data) {
         ExecContext *c = data;
@@ -346,32 +381,6 @@ int bus_execute_append_command(DBusMessageIter *i, const char *property, void *d
         return 0;
 }
 
-static int bus_execute_append_syscall_filter(DBusMessageIter *i, const char *property, void *data) {
-        ExecContext *c = data;
-        dbus_bool_t b;
-        DBusMessageIter sub;
-
-        assert(i);
-        assert(property);
-        assert(c);
-
-        if (!dbus_message_iter_open_container(i, DBUS_TYPE_ARRAY, "u", &sub))
-                return -ENOMEM;
-
-        if (c->syscall_filter)
-                b = dbus_message_iter_append_fixed_array(&sub, DBUS_TYPE_UINT32, &c->syscall_filter, (syscall_max() + 31) >> 4);
-        else
-                b = dbus_message_iter_append_fixed_array(&sub, DBUS_TYPE_UINT32, &c->syscall_filter, 0);
-
-        if (!b)
-                return -ENOMEM;
-
-        if (!dbus_message_iter_close_container(i, &sub))
-                return -ENOMEM;
-
-        return 0;
-}
-
 const BusProperty bus_exec_context_properties[] = {
         { "Environment",              bus_property_append_strv,             "as", offsetof(ExecContext, environment),            true },
         { "EnvironmentFiles",         bus_execute_append_env_files,      "a(sb)", offsetof(ExecContext, environment_files),      true },
@@ -394,43 +403,53 @@ const BusProperty bus_exec_context_properties[] = {
         { "LimitRTTIME",              bus_execute_append_rlimits,            "t", 0 },
         { "WorkingDirectory",         bus_property_append_string,            "s", offsetof(ExecContext, working_directory),      true },
         { "RootDirectory",            bus_property_append_string,            "s", offsetof(ExecContext, root_directory),         true },
-        { "OOMScoreAdjust",           bus_execute_append_oom_score_adjust,   "i", 0 },
         { "Nice",                     bus_execute_append_nice,               "i", 0 },
+#ifdef Sys_Plat_Linux
+        { "OOMScoreAdjust",           bus_execute_append_oom_score_adjust,   "i", 0 },
         { "IOScheduling",             bus_execute_append_ioprio,             "i", 0 },
         { "CPUSchedulingPolicy",      bus_execute_append_cpu_sched_policy,   "i", 0 },
         { "CPUSchedulingPriority",    bus_execute_append_cpu_sched_priority, "i", 0 },
         { "CPUAffinity",              bus_execute_append_affinity,          "ay", 0 },
         { "TimerSlackNSec",           bus_execute_append_timer_slack_nsec,   "t", 0 },
         { "CPUSchedulingResetOnFork", bus_property_append_bool,              "b", offsetof(ExecContext, cpu_sched_reset_on_fork)      },
+
+        { "TTYReset",                 bus_property_append_bool,              "b", offsetof(ExecContext, tty_reset)                    },
+        { "TTYVHangup",               bus_property_append_bool,              "b", offsetof(ExecContext, tty_vhangup)                  },
+        { "TTYVTDisallocate",         bus_property_append_bool,              "b", offsetof(ExecContext, tty_vt_disallocate)           },
+
+        { "PrivateTmp",               bus_property_append_bool,              "b", offsetof(ExecContext, private_tmp)                  },
+        { "PrivateNetwork",           bus_property_append_bool,              "b", offsetof(ExecContext, private_network)              },
+
+        { "ReadWriteDirectories",     bus_property_append_strv,             "as", offsetof(ExecContext, read_write_dirs),        true },
+        { "ReadOnlyDirectories",      bus_property_append_strv,             "as", offsetof(ExecContext, read_only_dirs),         true },
+        { "InaccessibleDirectories",  bus_property_append_strv,             "as", offsetof(ExecContext, inaccessible_dirs),      true },
+
+        { "SystemCallFilter",         bus_execute_append_syscall_filter,    "au", 0                                                   },
+        { "NoNewPrivileges",          bus_property_append_bool,              "b", offsetof(ExecContext, no_new_privileges)            },
+#endif
         { "NonBlocking",              bus_property_append_bool,              "b", offsetof(ExecContext, non_blocking)                 },
         { "StandardInput",            bus_execute_append_input,              "s", offsetof(ExecContext, std_input)                    },
         { "StandardOutput",           bus_execute_append_output,             "s", offsetof(ExecContext, std_output)                   },
         { "StandardError",            bus_execute_append_output,             "s", offsetof(ExecContext, std_error)                    },
         { "TTYPath",                  bus_property_append_string,            "s", offsetof(ExecContext, tty_path),               true },
-        { "TTYReset",                 bus_property_append_bool,              "b", offsetof(ExecContext, tty_reset)                    },
-        { "TTYVHangup",               bus_property_append_bool,              "b", offsetof(ExecContext, tty_vhangup)                  },
-        { "TTYVTDisallocate",         bus_property_append_bool,              "b", offsetof(ExecContext, tty_vt_disallocate)           },
         { "SyslogPriority",           bus_property_append_int,               "i", offsetof(ExecContext, syslog_priority)              },
         { "SyslogIdentifier",         bus_property_append_string,            "s", offsetof(ExecContext, syslog_identifier),      true },
         { "SyslogLevelPrefix",        bus_property_append_bool,              "b", offsetof(ExecContext, syslog_level_prefix)          },
-        { "Capabilities",             bus_execute_append_capabilities,       "s", 0 },
+#ifdef Use_Capabilities
+#ifdef Sys_Plat_Linux
         { "SecureBits",               bus_property_append_int,               "i", offsetof(ExecContext, secure_bits)                  },
+#endif
+        { "Capabilities",             bus_execute_append_capabilities,       "s", 0 },
         { "CapabilityBoundingSet",    bus_execute_append_capability_bs,      "t", offsetof(ExecContext, capability_bounding_set_drop) },
+#endif
         { "User",                     bus_property_append_string,            "s", offsetof(ExecContext, user),                   true },
         { "Group",                    bus_property_append_string,            "s", offsetof(ExecContext, group),                  true },
         { "SupplementaryGroups",      bus_property_append_strv,             "as", offsetof(ExecContext, supplementary_groups),   true },
         { "TCPWrapName",              bus_property_append_string,            "s", offsetof(ExecContext, tcpwrap_name),           true },
         { "PAMName",                  bus_property_append_string,            "s", offsetof(ExecContext, pam_name),               true },
-        { "ReadWriteDirectories",     bus_property_append_strv,             "as", offsetof(ExecContext, read_write_dirs),        true },
-        { "ReadOnlyDirectories",      bus_property_append_strv,             "as", offsetof(ExecContext, read_only_dirs),         true },
-        { "InaccessibleDirectories",  bus_property_append_strv,             "as", offsetof(ExecContext, inaccessible_dirs),      true },
         { "MountFlags",               bus_property_append_ul,                "t", offsetof(ExecContext, mount_flags)                  },
-        { "PrivateTmp",               bus_property_append_bool,              "b", offsetof(ExecContext, private_tmp)                  },
-        { "PrivateNetwork",           bus_property_append_bool,              "b", offsetof(ExecContext, private_network)              },
         { "SameProcessGroup",         bus_property_append_bool,              "b", offsetof(ExecContext, same_pgrp)                    },
         { "UtmpIdentifier",           bus_property_append_string,            "s", offsetof(ExecContext, utmp_id),                true },
         { "IgnoreSIGPIPE",            bus_property_append_bool,              "b", offsetof(ExecContext, ignore_sigpipe)               },
-        { "NoNewPrivileges",          bus_property_append_bool,              "b", offsetof(ExecContext, no_new_privileges)            },
-        { "SystemCallFilter",         bus_execute_append_syscall_filter,    "au", 0                                                   },
         {}
 };

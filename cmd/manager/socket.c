@@ -89,7 +89,9 @@ static void socket_init(Unit *u) {
         s->exec_context.std_output = u->manager->default_std_output;
         s->exec_context.std_error = u->manager->default_std_error;
         kill_context_init(&s->kill_context);
+#ifdef Sys_Plat_Linux
         cgroup_context_init(&s->cgroup_context);
+#endif
 
         s->control_command_id = _SOCKET_EXEC_COMMAND_INVALID;
 }
@@ -130,7 +132,9 @@ static void socket_done(Unit *u) {
         socket_free_ports(s);
 
         exec_context_done(&s->exec_context, manager_is_reloading_or_reexecuting(u->manager));
+#ifdef Sys_Plat_Linux
         cgroup_context_init(&s->cgroup_context);
+#endif
 
         exec_command_free_array(s->exec_command, _SOCKET_EXEC_COMMAND_MAX);
         s->control_command = NULL;
@@ -391,8 +395,10 @@ static int socket_load(Unit *u) {
 
 _const_ static const char* listen_lookup(int family, int type) {
 
+#ifdef Have_linux_netlink_h
         if (family == AF_NETLINK)
                 return "ListenNetlink";
+#endif
 
         if (type == SOCK_STREAM)
                 return "ListenStream";
@@ -653,6 +659,7 @@ static int instance_from_socket(int fd, unsigned nr, char **instance) {
         }
 
         case AF_UNIX: {
+#ifdef SO_PEERCRED
                 struct ucred ucred;
 
                 l = sizeof(ucred);
@@ -665,6 +672,7 @@ static int instance_from_socket(int fd, unsigned nr, char **instance) {
                              (unsigned long) ucred.pid,
                              (unsigned long) ucred.uid) < 0)
                         return -ENOMEM;
+#endif
 
                 break;
         }
@@ -715,42 +723,55 @@ static void socket_apply_socket_options(Socket *s, int fd) {
                         log_warning_unit(UNIT(s)->id, "SO_BROADCAST failed: %m");
         }
 
+#ifdef SO_PASSCRED
         if (s->pass_cred) {
                 int one = 1;
                 if (setsockopt(fd, SOL_SOCKET, SO_PASSCRED, &one, sizeof(one)) < 0)
                         log_warning_unit(UNIT(s)->id, "SO_PASSCRED failed: %m");
         }
+#endif
 
+#ifdef SO_PASSSEC
         if (s->pass_sec) {
                 int one = 1;
                 if (setsockopt(fd, SOL_SOCKET, SO_PASSSEC, &one, sizeof(one)) < 0)
                         log_warning_unit(UNIT(s)->id, "SO_PASSSEC failed: %m");
         }
+#endif
 
+#ifdef SO_PRIORITY
         if (s->priority >= 0)
                 if (setsockopt(fd, SOL_SOCKET, SO_PRIORITY, &s->priority, sizeof(s->priority)) < 0)
                         log_warning_unit(UNIT(s)->id, "SO_PRIORITY failed: %m");
+#endif
 
         if (s->receive_buffer > 0) {
                 int value = (int) s->receive_buffer;
 
                 /* We first try with SO_RCVBUFFORCE, in case we have the perms for that */
 
+#ifdef SO_RCVBUFFORCE
                 if (setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &value, sizeof(value)) < 0)
+#endif
                         if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &value, sizeof(value)) < 0)
                                 log_warning_unit(UNIT(s)->id, "SO_RCVBUF failed: %m");
         }
 
         if (s->send_buffer > 0) {
                 int value = (int) s->send_buffer;
+
+#ifdef SO_SNDBUFFORCE
                 if (setsockopt(fd, SOL_SOCKET, SO_SNDBUFFORCE, &value, sizeof(value)) < 0)
+#endif
                         if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &value, sizeof(value)) < 0)
                                 log_warning_unit(UNIT(s)->id, "SO_SNDBUF failed: %m");
         }
 
+#ifdef SO_MARK
         if (s->mark >= 0)
                 if (setsockopt(fd, SOL_SOCKET, SO_MARK, &s->mark, sizeof(s->mark)) < 0)
                         log_warning_unit(UNIT(s)->id, "SO_MARK failed: %m");
+#endif
 
         if (s->ip_tos >= 0)
                 if (setsockopt(fd, IPPROTO_IP, IP_TOS, &s->ip_tos, sizeof(s->ip_tos)) < 0)
@@ -773,9 +794,11 @@ static void socket_apply_socket_options(Socket *s, int fd) {
                                          "IP_TTL/IPV6_UNICAST_HOPS failed: %m");
         }
 
+#ifdef SOL_TCP
         if (s->tcp_congestion)
                 if (setsockopt(fd, SOL_TCP, TCP_CONGESTION, s->tcp_congestion, strlen(s->tcp_congestion)+1) < 0)
                         log_warning_unit(UNIT(s)->id, "TCP_CONGESTION failed: %m");
+#endif
 
         if (s->reuseport) {
                 int b = s->reuseport;
@@ -801,7 +824,11 @@ static void socket_apply_fifo_options(Socket *s, int fd) {
         assert(fd >= 0);
 
         if (s->pipe_size > 0)
+#ifdef F_SETPIPE_SZ
                 if (fcntl(fd, F_SETPIPE_SZ, s->pipe_size) < 0)
+#else
+                (errno = ENOENT) &&
+#endif
                         log_warning_unit(UNIT(s)->id,
                                          "F_SETPIPE_SZ: %m");
 
@@ -912,6 +939,7 @@ fail:
         return r;
 }
 
+#ifdef Use_MQ
 static int mq_address_create(
                 const char *path,
                 mode_t mq_mode,
@@ -969,6 +997,7 @@ fail:
         safe_close(fd);
         return r;
 }
+#endif
 
 static int socket_open_fds(Socket *s) {
         SocketPort *p;
@@ -1035,6 +1064,7 @@ static int socket_open_fds(Socket *s) {
                                 goto rollback;
 
                         socket_apply_fifo_options(s, p->fd);
+#ifdef Use_MQ
                 } else if (p->type == SOCKET_MQUEUE) {
 
                         if ((r = mq_address_create(
@@ -1044,6 +1074,7 @@ static int socket_open_fds(Socket *s) {
                                              s->mq_msgsize,
                                              &p->fd)) < 0)
                                 goto rollback;
+#endif
                 } else
                         assert_not_reached("Unknown port type");
         }
@@ -1199,7 +1230,9 @@ static int socket_spawn(Socket *s, ExecCommand *c, pid_t *_pid) {
         assert(c);
         assert(_pid);
 
+#ifdef Sys_Plat_Linux
         unit_realize_cgroup(UNIT(s));
+#endif
 
         r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, s->timeout_usec, &s->timer_watch);
         if (r < 0)
@@ -1218,8 +1251,10 @@ static int socket_spawn(Socket *s, ExecCommand *c, pid_t *_pid) {
                        true,
                        true,
                        UNIT(s)->manager->confirm_spawn,
+#ifdef Sys_Plat_Linux
                        UNIT(s)->manager->cgroup_supported,
                        UNIT(s)->cgroup_path,
+#endif
                        UNIT(s)->id,
                        NULL,
                        &pid);
@@ -1839,9 +1874,11 @@ static int socket_serialize(Unit *u, FILE *f, FDSet *fds) {
                         if (r < 0)
                                 return r;
 
+#ifdef Have_linux_netlink_h
                         if (socket_address_family(&p->address) == AF_NETLINK)
                                 unit_serialize_item_format(u, f, "netlink", "%i %s", copy, t);
                         else
+#endif
                                 unit_serialize_item_format(u, f, "socket", "%i %i %s", copy, p->address.type, t);
                         free(t);
                 } else if (p->type == SOCKET_SPECIAL)
@@ -1992,6 +2029,7 @@ static int socket_deserialize_item(Unit *u, const char *key, const char *value, 
                         }
                 }
 
+#ifdef Have_linux_netlink_h
         } else if (streq(key, "netlink")) {
                 int fd, skip = 0;
                 SocketPort *p;
@@ -2010,6 +2048,7 @@ static int socket_deserialize_item(Unit *u, const char *key, const char *value, 
                                 p->fd = fdset_remove(fds, fd);
                         }
                 }
+#endif
         } else if (streq(key, "tmp-dir")) {
                 char *t;
 
@@ -2084,8 +2123,10 @@ const char* socket_port_type_to_string(SocketPort *p) {
                                 case SOCK_DGRAM: return "Datagram";
                                 case SOCK_SEQPACKET: return "SequentialPacket";
                                 case SOCK_RAW:
+#ifdef Have_linux_netlink_h
                                         if (socket_address_family(&p->address) == AF_NETLINK)
                                                 return "Netlink";
+#endif
                                 default: return "Invalid";
                         }
                 case SOCKET_SPECIAL: return "Special";

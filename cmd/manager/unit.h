@@ -462,14 +462,16 @@ DEFINE_CAST(SOCKET, Socket);
 DEFINE_CAST(TIMER, Timer);
 DEFINE_CAST(SERVICE, Service);
 DEFINE_CAST(TARGET, Target);
-DEFINE_CAST(DEVICE, Device);
-DEFINE_CAST(MOUNT, Mount);
-DEFINE_CAST(AUTOMOUNT, Automount);
 DEFINE_CAST(SNAPSHOT, Snapshot);
-DEFINE_CAST(SWAP, Swap);
 DEFINE_CAST(PATH, Path);
 DEFINE_CAST(SLICE, Slice);
 DEFINE_CAST(SCOPE, Scope);
+#ifdef Sys_Plat_Linux
+DEFINE_CAST(DEVICE, Device);
+DEFINE_CAST(MOUNT, Mount);
+DEFINE_CAST(AUTOMOUNT, Automount);
+DEFINE_CAST(SWAP, Swap);
+#endif
 
 Unit *unit_new(Manager *m, size_t size);
 void unit_free(Unit *u);

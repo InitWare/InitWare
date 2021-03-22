@@ -28,6 +28,7 @@
 
 #cmakedefine Have___compar_fn_t
 
+#cmakedefine Have_environ
 #cmakedefine Have_waitid
 #cmakedefine Have_posix_fallocate
 #cmakedefine Have_get_current_dir_name
@@ -64,12 +65,22 @@
 
 #define POLKIT_AGENT_BINARY_PATH "@POLKIT_AGENT_BINARY_PATH@"
 
+#define NOTIFY_SOCKET "@NOTIFY_SOCKET@"
+
 #ifdef Sys_Plat_FreeBSD
 #        define _PATH_UTMPX "/var/run/utx.active"
 #endif
 
 #ifndef Have___compar_fn_t
 typedef int (*__compar_fn_t)(const void *, const void *);
+#endif
+
+#ifndef Have_environ
+extern char **environ;
+#endif
+
+#ifndef Have_secure_getenv
+#        define secure_getenv getenv
 #endif
 
 #ifndef Have_program_invocation_short_name
@@ -80,10 +91,19 @@ typedef int (*__compar_fn_t)(const void *, const void *);
 #        define get_current_dir_name() getcwd(NULL, 0)
 #endif
 
+#ifndef EBADR
+#        define EBADR EBADF
+#endif
+
 #ifndef ETIME
 #        define ETIME ETIMEDOUT
 #else
 #        define Have_ETIME
+#endif
+
+#ifdef Sys_Plat_Linux
+#        define Use_CGroups
+#        define Use_Linprocfs
 #endif
 
 #ifdef Sys_Plat_Linux
@@ -94,6 +114,34 @@ typedef int (*__compar_fn_t)(const void *, const void *);
 #        define Dgram_Credpass_FreeBSD
 #else
 #        define Dgram_Credpass_None
+#endif
+
+#ifndef strndupa
+/* from: */
+/*
+ * Author: Christian Storm
+ * Copyright (C) 2018, Siemens AG
+ *
+ * SPDX-License-Identifier:     GPL-2.0-or-later
+ */
+
+/*
+ * Define char *strndupa(const char *s, size_t n)
+ * for, e.g., musl (https://www.musl-libc.org/)
+ * which does not bother to implement this function.
+ */
+#        define strndupa(s, n)                                   \
+                (__extension__({                                 \
+                        const char *__in = (s);                  \
+                        size_t __len = strnlen(__in, (n)) + 1;   \
+                        char *__out = (char *) alloca(__len);    \
+                        __out[__len - 1] = '\0';                 \
+                        (char *) memcpy(__out, __in, __len - 1); \
+                }))
+#endif
+
+#ifndef strdupa
+#        define strdupa(s) strndupa(s, strlen(s))
 #endif
 
 #endif

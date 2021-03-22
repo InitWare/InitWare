@@ -42,7 +42,9 @@ static void slice_init(Unit *u) {
         assert(u);
         assert(u->load_state == UNIT_STUB);
 
+#ifdef Sys_Plat_Linux
         cgroup_context_init(&s->cgroup_context);
+#endif
 }
 
 static void slice_done(Unit *u) {
@@ -50,7 +52,9 @@ static void slice_done(Unit *u) {
 
         assert(u);
 
+#ifdef Sys_Plat_Linux
         cgroup_context_done(&s->cgroup_context);
+#endif
 }
 
 static void slice_set_state(Slice *t, SliceState state) {
@@ -188,7 +192,9 @@ static void slice_dump(Unit *u, FILE *f, const char *prefix) {
                 "%sSlice State: %s\n",
                 prefix, slice_state_to_string(t->state));
 
+#ifdef Use_CGroups
         cgroup_context_dump(&t->cgroup_context, f, prefix);
+#endif
 }
 
 static int slice_start(Unit *u) {
@@ -197,8 +203,9 @@ static int slice_start(Unit *u) {
         assert(t);
         assert(t->state == SLICE_DEAD);
 
+#ifdef Use_CGroups
         unit_realize_cgroup(u);
-
+#endif
         slice_set_state(t, SLICE_ACTIVE);
         return 0;
 }

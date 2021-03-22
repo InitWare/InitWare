@@ -945,7 +945,7 @@ int readlink_and_canonicalize(const char *p, char **r) {
         if (j < 0)
                 return j;
 
-        s = canonicalize_file_name(t);
+        s = realpath(t, NULL); /* FIXME: symlinks ?? canonicalize_file_name(t); */
         if (s) {
                 free(t);
                 *r = s;
@@ -4708,12 +4708,16 @@ char *strjoin(const char *x, ...) {
 }
 
 bool is_main_thread(void) {
+#ifdef Sys_Plat_Linux
         static __thread int cached = 0;
 
         if (_unlikely_(cached == 0))
                 cached = getpid() == gettid() ? 1 : -1;
 
         return cached > 0;
+#else
+        return true; /* FIXME: */
+#endif
 }
 
 int block_get_whole_disk(dev_t d, dev_t *ret) {

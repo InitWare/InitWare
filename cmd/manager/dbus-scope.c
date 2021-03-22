@@ -86,7 +86,9 @@ DBusHandlerResult bus_scope_message_handler(Unit *u, DBusConnection *c, DBusMess
                 { "org.freedesktop.systemd1.Unit",  bus_unit_properties,           u },
                 { "org.freedesktop.systemd1.Scope", bus_unit_cgroup_properties,    u },
                 { "org.freedesktop.systemd1.Scope", bus_scope_properties,          s },
+#ifdef Use_CGroups
                 { "org.freedesktop.systemd1.Scope", bus_cgroup_context_properties, &s->cgroup_context },
+#endif
                 { "org.freedesktop.systemd1.Scope", bus_kill_context_properties,   &s->kill_context   },
                 {}
                 };
@@ -208,7 +210,12 @@ int bus_scope_set_property(
         assert(u);
         assert(i);
 
+#ifdef Use_CGroup
         r = bus_cgroup_set_property(u, &s->cgroup_context, name, i, mode, error);
+#else
+        unimplemented_msg("bus_cgroup_set_property\n");
+        r = -ENOTSUP;
+#endif
         if (r != 0)
                 return r;
 
@@ -230,7 +237,9 @@ int bus_scope_set_property(
 int bus_scope_commit_properties(Unit *u) {
         assert(u);
 
+#ifdef Use_CGroups
         unit_realize_cgroup(u);
+#endif
         return 0;
 }
 

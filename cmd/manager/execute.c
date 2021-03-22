@@ -28,17 +28,12 @@
 #include <signal.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <sys/prctl.h>
-#include <linux/sched.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <grp.h>
 #include <pwd.h>
 #include <sys/mount.h>
-#include <linux/fs.h>
-#include <linux/oom.h>
 #include <sys/poll.h>
-#include <linux/seccomp-bpf.h>
 #include <glob.h>
 #include <libgen.h>
 
@@ -68,6 +63,17 @@
 #include "fileio.h"
 #include "unit.h"
 #include "async.h"
+
+#ifdef Have_sys_prctl_h
+#include <sys/prctl.h>
+#endif
+
+#ifdef Sys_Plat_Linux
+#include <linux/sched.h>
+#include <linux/seccomp-bpf.h>
+#include <linux/fs.h>
+#include <linux/oom.h>
+#endif
 
 #define IDLE_TIMEOUT_USEC (5*USEC_PER_SEC)
 #define IDLE_TIMEOUT2_USEC (1*USEC_PER_SEC)
@@ -160,6 +166,7 @@ _pure_ static const char *tty_path(const ExecContext *context) {
 void exec_context_tty_reset(const ExecContext *context) {
         assert(context);
 
+#ifdef Sys_Plat_Linux
         if (context->tty_vhangup)
                 terminal_vhangup(tty_path(context));
 
@@ -168,6 +175,7 @@ void exec_context_tty_reset(const ExecContext *context) {
 
         if (context->tty_vt_disallocate && context->tty_path)
                 vt_disallocate(context->tty_path);
+#endif
 }
 
 static bool is_terminal_output(ExecOutput o) {
@@ -657,6 +665,7 @@ static int enforce_user(const ExecContext *context, uid_t uid) {
         /* Sets (but doesn't lookup) the uid and make sure we keep the
          * capabilities while doing so. */
 
+#ifdef Use_capabilities
         if (context->capabilities) {
                 cap_t d;
                 static const cap_value_t bits[] = {
@@ -696,6 +705,7 @@ static int enforce_user(const ExecContext *context, uid_t uid) {
 
                 cap_free(d);
         }
+#endif
 
         /* Third step: actually set the uids */
         if (setresuid(uid, uid, uid) < 0)
@@ -937,6 +947,7 @@ static void rename_process_from_path(const char *path) {
         rename_process(process_name);
 }
 
+#ifdef Sys_Plat_Linux
 static int apply_seccomp(uint32_t *syscall_filter) {
         static const struct sock_filter header[] = {
                 VALIDATE_ARCHITECTURE,
@@ -988,6 +999,7 @@ static int apply_seccomp(uint32_t *syscall_filter) {
 
         return 0;
 }
+#endif
 
 static void do_idle_pipe_dance(int idle_pipe[4]) {
         assert(idle_pipe);
@@ -1025,8 +1037,10 @@ int exec_spawn(ExecCommand *command,
                bool apply_chroot,
                bool apply_tty_stdin,
                bool confirm_spawn,
+#ifdef Sys_Plat_Linux
                CGroupControllerMask cgroup_supported,
                const char *cgroup_path,
+#endif
                const char *unit_id,
                int idle_pipe[4],
                pid_t *ret) {
@@ -1207,6 +1221,14 @@ int exec_spawn(ExecCommand *command,
                         goto fail_child;
                 }
 
+                if (context->nice_set)
+                        if (setpriority(PRIO_PROCESS, 0, context->nice) < 0) {
+                                err = -errno;
+                                r = EXIT_NICE;
+                                goto fail_child;
+                        }
+
+#ifdef Sys_Plat_Linux
                 if (cgroup_path) {
                         err = cg_attach_everywhere(cgroup_supported, cgroup_path, 0);
                         if (err < 0) {
@@ -1227,13 +1249,6 @@ int exec_spawn(ExecCommand *command,
                                 goto fail_child;
                         }
                 }
-
-                if (context->nice_set)
-                        if (setpriority(PRIO_PROCESS, 0, context->nice) < 0) {
-                                err = -errno;
-                                r = EXIT_NICE;
-                                goto fail_child;
-                        }
 
                 if (context->cpu_sched_set) {
                         struct sched_param param = {
@@ -1272,9 +1287,12 @@ int exec_spawn(ExecCommand *command,
                                 r = EXIT_TIMERSLACK;
                                 goto fail_child;
                         }
+#endif
 
+#ifdef Use_UTmp
                 if (context->utmp_id)
                         utmp_put_init_process(context->utmp_id, getpid(), getsid(0), context->tty_path);
+#endif
 
                 if (context->user) {
                         username = context->user;
@@ -1329,6 +1347,8 @@ int exec_spawn(ExecCommand *command,
                         }
                 }
 #endif
+
+#ifdef Sys_Plat_Linux
                 if (context->private_network) {
                         if (unshare(CLONE_NEWNET) < 0) {
                                 err = -errno;
@@ -1356,6 +1376,7 @@ int exec_spawn(ExecCommand *command,
                                 goto fail_child;
                         }
                 }
+#endif
 
                 if (apply_chroot) {
                         if (context->root_directory)
@@ -1402,7 +1423,7 @@ int exec_spawn(ExecCommand *command,
 
                 if (apply_permissions) {
 
-                        for (i = 0; i < RLIMIT_NLIMITS; i++) {
+                        for (i = 0; i < RLIM_NLIMITS; i++) {
                                 if (!context->rlimit[i])
                                         continue;
 
@@ -1413,6 +1434,7 @@ int exec_spawn(ExecCommand *command,
                                 }
                         }
 
+#ifdef Use_capabilities
                         if (context->capability_bounding_set_drop) {
                                 err = capability_bounding_set_drop(context->capability_bounding_set_drop, false);
                                 if (err < 0) {
@@ -1420,6 +1442,7 @@ int exec_spawn(ExecCommand *command,
                                         goto fail_child;
                                 }
                         }
+#endif
 
                         if (context->user) {
                                 err = enforce_user(context, uid);
@@ -1429,6 +1452,7 @@ int exec_spawn(ExecCommand *command,
                                 }
                         }
 
+#ifdef Sys_Plat_Linux
                         /* PR_GET_SECUREBITS is not privileged, while
                          * PR_SET_SECUREBITS is. So to suppress
                          * potential EPERMs we'll try not to call
@@ -1461,6 +1485,7 @@ int exec_spawn(ExecCommand *command,
                                         goto fail_child;
                                 }
                         }
+#endif
                 }
 
                 our_env = new(char*, 8);
@@ -1548,6 +1573,7 @@ int exec_spawn(ExecCommand *command,
                         command->path, (unsigned long) pid,
                         NULL);
 
+#ifdef Sys_Plat_Linux
         /* We add the new process to the cgroup both in the child (so
          * that we can be sure that no user code is ever executed
          * outside of the cgroup) and in the parent (so that we can be
@@ -1555,6 +1581,7 @@ int exec_spawn(ExecCommand *command,
          * killed too). */
         if (cgroup_path)
                 cg_attach(SYSTEMD_CGROUP_CONTROLLER, cgroup_path, pid);
+#endif
 
         exec_status_start(&command->exec_status, pid);
 
@@ -1566,12 +1593,14 @@ void exec_context_init(ExecContext *c) {
         assert(c);
 
         c->umask = 0022;
+#ifdef Sys_Plat_Linux
         c->ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, 0);
         c->cpu_sched_policy = SCHED_OTHER;
+        c->timer_slack_nsec = (nsec_t) -1;
+#endif
         c->syslog_priority = LOG_DAEMON|LOG_INFO;
         c->syslog_level_prefix = true;
         c->ignore_sigpipe = true;
-        c->timer_slack_nsec = (nsec_t) -1;
 }
 
 static void *remove_tmpdir_thread(void *p) {
@@ -1658,6 +1687,7 @@ void exec_context_done(ExecContext *c, bool reloading_or_reexecuting) {
         free(c->pam_name);
         c->pam_name = NULL;
 
+#ifdef Sys_Plat_Linux
         if (c->capabilities) {
                 cap_free(c->capabilities);
                 c->capabilities = NULL;
@@ -1675,11 +1705,13 @@ void exec_context_done(ExecContext *c, bool reloading_or_reexecuting) {
         if (c->cpuset)
                 CPU_FREE(c->cpuset);
 
+        free(c->syscall_filter);
+        c->syscall_filter = NULL;
+#endif
+
         free(c->utmp_id);
         c->utmp_id = NULL;
 
-        free(c->syscall_filter);
-        c->syscall_filter = NULL;
 
         if (!reloading_or_reexecuting)
                 exec_context_tmp_dirs_done(c);
@@ -1825,7 +1857,10 @@ static bool tty_may_match_dev_console(const char *tty) {
 }
 
 bool exec_context_may_touch_console(ExecContext *ec) {
-        return (ec->tty_reset || ec->tty_vhangup || ec->tty_vt_disallocate ||
+        return (
+#ifdef Sys_Plat_Linux
+                ec->tty_reset || ec->tty_vhangup || ec->tty_vt_disallocate ||
+#endif
                 is_terminal_input(ec->std_input) ||
                 is_terminal_output(ec->std_output) ||
                 is_terminal_output(ec->std_error)) &&
@@ -1855,15 +1890,19 @@ void exec_context_dump(ExecContext *c, FILE* f, const char *prefix) {
                 "%sWorkingDirectory: %s\n"
                 "%sRootDirectory: %s\n"
                 "%sNonBlocking: %s\n"
+#ifdef Sys_Plat_Linux
                 "%sPrivateTmp: %s\n"
                 "%sPrivateNetwork: %s\n"
+#endif
                 "%sIgnoreSIGPIPE: %s\n",
                 prefix, c->umask,
                 prefix, c->working_directory ? c->working_directory : "/",
                 prefix, c->root_directory ? c->root_directory : "/",
                 prefix, yes_no(c->non_blocking),
+#ifdef Sys_Plat_Linux
                 prefix, yes_no(c->private_tmp),
                 prefix, yes_no(c->private_network),
+#endif
                 prefix, yes_no(c->ignore_sigpipe));
 
         STRV_FOREACH(e, c->environment)
@@ -1882,14 +1921,17 @@ void exec_context_dump(ExecContext *c, FILE* f, const char *prefix) {
                         "%sNice: %i\n",
                         prefix, c->nice);
 
-        if (c->oom_score_adjust_set)
-                fprintf(f,
-                        "%sOOMScoreAdjust: %i\n",
-                        prefix, c->oom_score_adjust);
 
         for (i = 0; i < RLIM_NLIMITS; i++)
                 if (c->rlimit[i])
                         fprintf(f, "%s%s: %llu\n", prefix, rlimit_to_string(i), (unsigned long long) c->rlimit[i]->rlim_max);
+
+#ifdef Sys_Plat_Linux
+
+        if (c->oom_score_adjust_set)
+                fprintf(f,
+                        "%sOOMScoreAdjust: %i\n",
+                        prefix, c->oom_score_adjust);
 
         if (c->ioprio_set) {
                 char *class_str;
@@ -1934,49 +1976,6 @@ void exec_context_dump(ExecContext *c, FILE* f, const char *prefix) {
         if (c->timer_slack_nsec != (nsec_t) -1)
                 fprintf(f, "%sTimerSlackNSec: %lu\n", prefix, (unsigned long)c->timer_slack_nsec);
 
-        fprintf(f,
-                "%sStandardInput: %s\n"
-                "%sStandardOutput: %s\n"
-                "%sStandardError: %s\n",
-                prefix, exec_input_to_string(c->std_input),
-                prefix, exec_output_to_string(c->std_output),
-                prefix, exec_output_to_string(c->std_error));
-
-        if (c->tty_path)
-                fprintf(f,
-                        "%sTTYPath: %s\n"
-                        "%sTTYReset: %s\n"
-                        "%sTTYVHangup: %s\n"
-                        "%sTTYVTDisallocate: %s\n",
-                        prefix, c->tty_path,
-                        prefix, yes_no(c->tty_reset),
-                        prefix, yes_no(c->tty_vhangup),
-                        prefix, yes_no(c->tty_vt_disallocate));
-
-        if (c->std_output == EXEC_OUTPUT_SYSLOG || c->std_output == EXEC_OUTPUT_KMSG || c->std_output == EXEC_OUTPUT_JOURNAL ||
-            c->std_output == EXEC_OUTPUT_SYSLOG_AND_CONSOLE || c->std_output == EXEC_OUTPUT_KMSG_AND_CONSOLE || c->std_output == EXEC_OUTPUT_JOURNAL_AND_CONSOLE ||
-            c->std_error == EXEC_OUTPUT_SYSLOG || c->std_error == EXEC_OUTPUT_KMSG || c->std_error == EXEC_OUTPUT_JOURNAL ||
-            c->std_error == EXEC_OUTPUT_SYSLOG_AND_CONSOLE || c->std_error == EXEC_OUTPUT_KMSG_AND_CONSOLE || c->std_error == EXEC_OUTPUT_JOURNAL_AND_CONSOLE) {
-                char *fac_str, *lvl_str;
-                int r;
-
-                r = log_facility_unshifted_to_string_alloc(c->syslog_priority >> 3, &fac_str);
-                if (r < 0)
-                        fac_str = NULL;
-
-                r = log_level_to_string_alloc(LOG_PRI(c->syslog_priority), &lvl_str);
-                if (r < 0)
-                        lvl_str = NULL;
-
-                fprintf(f,
-                        "%sSyslogFacility: %s\n"
-                        "%sSyslogLevel: %s\n",
-                        prefix, strna(fac_str),
-                        prefix, strna(lvl_str));
-                free(lvl_str);
-                free(fac_str);
-        }
-
         if (c->capabilities) {
                 char *t;
                 if ((t = cap_to_text(c->capabilities, NULL))) {
@@ -2013,19 +2012,6 @@ void exec_context_dump(ExecContext *c, FILE* f, const char *prefix) {
                 fputs("\n", f);
         }
 
-        if (c->user)
-                fprintf(f, "%sUser: %s\n", prefix, c->user);
-        if (c->group)
-                fprintf(f, "%sGroup: %s\n", prefix, c->group);
-
-        if (strv_length(c->supplementary_groups) > 0) {
-                fprintf(f, "%sSupplementaryGroups:", prefix);
-                strv_fprintf(f, c->supplementary_groups);
-                fputs("\n", f);
-        }
-
-        if (c->pam_name)
-                fprintf(f, "%sPAMName: %s\n", prefix, c->pam_name);
 
         if (strv_length(c->read_write_dirs) > 0) {
                 fprintf(f, "%sReadWriteDirs:", prefix);
@@ -2044,6 +2030,71 @@ void exec_context_dump(ExecContext *c, FILE* f, const char *prefix) {
                 strv_fprintf(f, c->inaccessible_dirs);
                 fputs("\n", f);
         }
+#endif
+
+        fprintf(f,
+                "%sStandardInput: %s\n"
+                "%sStandardOutput: %s\n"
+                "%sStandardError: %s\n",
+                prefix, exec_input_to_string(c->std_input),
+                prefix, exec_output_to_string(c->std_output),
+                prefix, exec_output_to_string(c->std_error));
+
+        if (c->tty_path)
+                fprintf(f,
+                        "%sTTYPath: %s\n"
+#ifdef Sys_Plat_Linux
+                        "%sTTYReset: %s\n"
+                        "%sTTYVHangup: %s\n"
+                        "%sTTYVTDisallocate: %s\n",
+#else
+        ,
+#endif
+                        prefix, c->tty_path
+#ifdef Sys_Plat_Linux
+                        ,prefix, yes_no(c->tty_reset),
+                        prefix, yes_no(c->tty_vhangup),
+                        prefix, yes_no(c->tty_vt_disallocate)
+#endif
+                        );
+
+        if (c->std_output == EXEC_OUTPUT_SYSLOG || c->std_output == EXEC_OUTPUT_KMSG || c->std_output == EXEC_OUTPUT_JOURNAL ||
+            c->std_output == EXEC_OUTPUT_SYSLOG_AND_CONSOLE || c->std_output == EXEC_OUTPUT_KMSG_AND_CONSOLE || c->std_output == EXEC_OUTPUT_JOURNAL_AND_CONSOLE ||
+            c->std_error == EXEC_OUTPUT_SYSLOG || c->std_error == EXEC_OUTPUT_KMSG || c->std_error == EXEC_OUTPUT_JOURNAL ||
+            c->std_error == EXEC_OUTPUT_SYSLOG_AND_CONSOLE || c->std_error == EXEC_OUTPUT_KMSG_AND_CONSOLE || c->std_error == EXEC_OUTPUT_JOURNAL_AND_CONSOLE) {
+                char *fac_str, *lvl_str;
+                int r;
+
+                r = log_facility_unshifted_to_string_alloc(c->syslog_priority >> 3, &fac_str);
+                if (r < 0)
+                        fac_str = NULL;
+
+                r = log_level_to_string_alloc(LOG_PRI(c->syslog_priority), &lvl_str);
+                if (r < 0)
+                        lvl_str = NULL;
+
+                fprintf(f,
+                        "%sSyslogFacility: %s\n"
+                        "%sSyslogLevel: %s\n",
+                        prefix, strna(fac_str),
+                        prefix, strna(lvl_str));
+                free(lvl_str);
+                free(fac_str);
+        }
+
+        if (c->user)
+                fprintf(f, "%sUser: %s\n", prefix, c->user);
+        if (c->group)
+                fprintf(f, "%sGroup: %s\n", prefix, c->group);
+
+        if (strv_length(c->supplementary_groups) > 0) {
+                fprintf(f, "%sSupplementaryGroups:", prefix);
+                strv_fprintf(f, c->supplementary_groups);
+                fputs("\n", f);
+        }
+
+        if (c->pam_name)
+                fprintf(f, "%sPAMName: %s\n", prefix, c->pam_name);
 
         if (c->utmp_id)
                 fprintf(f,
@@ -2072,8 +2123,10 @@ void exec_status_exit(ExecStatus *s, ExecContext *context, pid_t pid, int code, 
         s->status = status;
 
         if (context) {
+#ifdef Use_UTmp
                 if (context->utmp_id)
                         utmp_put_dead_process(context->utmp_id, pid, code, status);
+#endif
 
                 exec_context_tty_reset(context);
         }

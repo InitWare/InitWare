@@ -480,9 +480,10 @@ static int mount_fix_timeouts(Mount *m) {
         }
 
         SET_FOREACH(other, UNIT(m)->dependencies[UNIT_AFTER], i) {
+#ifdef Sys_Plat_Linux
                 if (other->type != UNIT_DEVICE)
                         continue;
-
+#endif
                 other->job_timeout = u;
         }
 

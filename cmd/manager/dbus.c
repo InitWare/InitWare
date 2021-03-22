@@ -66,13 +66,15 @@ const char *const bus_interface_table[] = {
         "org.freedesktop.systemd1.Service",    bus_service_interface,
         "org.freedesktop.systemd1.Socket",     bus_socket_interface,
         "org.freedesktop.systemd1.Target",     bus_target_interface,
+        "org.freedesktop.systemd1.Snapshot",   bus_snapshot_interface,
+        "org.freedesktop.systemd1.Timer",      bus_timer_interface,
+        "org.freedesktop.systemd1.Path",       bus_path_interface,
+#ifdef Sys_Plat_Linux
         "org.freedesktop.systemd1.Device",     bus_device_interface,
         "org.freedesktop.systemd1.Mount",      bus_mount_interface,
         "org.freedesktop.systemd1.Automount",  bus_automount_interface,
-        "org.freedesktop.systemd1.Snapshot",   bus_snapshot_interface,
         "org.freedesktop.systemd1.Swap",       bus_swap_interface,
-        "org.freedesktop.systemd1.Timer",      bus_timer_interface,
-        "org.freedesktop.systemd1.Path",       bus_path_interface,
+#endif
         NULL
 };
 
@@ -450,7 +452,11 @@ static DBusHandlerResult system_bus_message_filter(DBusConnection *connection, D
                                            DBUS_TYPE_INVALID))
                         log_error("Failed to parse Released message: %s", bus_error_message(&error));
                 else
+#ifdef Use_CGroups
                         manager_notify_cgroup_empty(m, cgroup);
+#else
+                        unimplemented_msg("notify cgroup empty\n");
+#endif
         }
 
         dbus_error_free(&error);
@@ -486,8 +492,11 @@ static DBusHandlerResult private_bus_message_filter(DBusConnection *connection, 
                                            DBUS_TYPE_INVALID))
                         log_error("Failed to parse Released message: %s", bus_error_message(&error));
                 else
+#ifdef Use_CGroups
                         manager_notify_cgroup_empty(m, cgroup);
-
+#else
+                        unimplemented_msg("notify cgroup empty\n");
+#endif
                 /* Forward the message to the system bus, so that user
                  * instances are notified as well */
 

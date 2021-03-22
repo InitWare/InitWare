@@ -85,5 +85,5 @@ int config_parse_blockio_device_weight(const char *unit, const char *filename, u
 int config_parse_blockio_bandwidth(const char *unit, const char *filename, unsigned line, const char *section, const char *lvalue, int ltype, const char *rvalue, void *data, void *userdata);
 
 /* gperf prototypes */
-const struct ConfigPerfItem* load_fragment_gperf_lookup(const char *key, unsigned length);
+const struct ConfigPerfItem *load_fragment_gperf_lookup(register const char *key, register size_t length);
 extern const char load_fragment_gperf_nulstr[];

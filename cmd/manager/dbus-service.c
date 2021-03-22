@@ -21,15 +21,16 @@
 
 #include <errno.h>
 
-#include "strv.h"
-#include "path-util.h"
-#include "dbus-unit.h"
-#include "dbus-execute.h"
-#include "dbus-kill.h"
 #include "dbus-cgroup.h"
 #include "dbus-common.h"
-#include "selinux-access.h"
+#include "dbus-execute.h"
+#include "dbus-kill.h"
 #include "dbus-service.h"
+#include "dbus-unit.h"
+#include "path-util.h"
+#include "selinux-access.h"
+#include "strv.h"
+
 
 #define BUS_SERVICE_INTERFACE                                           \
         " <interface name=\"org.freedesktop.systemd1.Service\">\n"      \
@@ -157,7 +158,9 @@ DBusHandlerResult bus_service_message_handler(Unit *u, DBusConnection *connectio
                 { "org.freedesktop.systemd1.Service", bus_service_properties,          s },
                 { "org.freedesktop.systemd1.Service", bus_exec_context_properties,     &s->exec_context },
                 { "org.freedesktop.systemd1.Service", bus_kill_context_properties,     &s->kill_context },
+#ifdef Use_CGroups
                 { "org.freedesktop.systemd1.Service", bus_cgroup_context_properties,   &s->cgroup_context },
+#endif
                 { "org.freedesktop.systemd1.Service", bus_exec_main_status_properties, &s->main_exec_status },
                 {}
         };
@@ -309,7 +312,12 @@ int bus_service_set_property(
         assert(u);
         assert(i);
 
+#ifdef Use_CGroup
         r = bus_cgroup_set_property(u, &s->cgroup_context, name, i, mode, error);
+#else
+        unimplemented_msg("bus_cgroup_set_property\n");
+        r = -ENOTSUP;
+#endif
         if (r != 0)
                 return r;
 
@@ -331,6 +339,8 @@ int bus_service_set_property(
 int bus_service_commit_properties(Unit *u) {
         assert(u);
 
+#ifdef Use_CGroups
         unit_realize_cgroup(u);
+#endif
         return 0;
 }

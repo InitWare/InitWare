@@ -51,7 +51,9 @@ static void scope_init(Unit *u) {
 
         watch_init(&s->timer_watch);
 
+#ifdef Sys_Plat_Linux
         cgroup_context_init(&s->cgroup_context);
+#endif
         kill_context_init(&s->kill_context);
 
         UNIT(s)->ignore_on_isolate = true;
@@ -63,10 +65,12 @@ static void scope_done(Unit *u) {
 
         assert(u);
 
+#ifdef Sys_Plat_Linux
         cgroup_context_done(&s->cgroup_context);
 
         free(s->controller);
         s->controller = NULL;
+#endif
 
         unit_unwatch_timer(u, &s->timer_watch);
 }
@@ -191,7 +195,9 @@ static void scope_dump(Unit *u, FILE *f, const char *prefix) {
                 prefix, scope_state_to_string(s->state),
                 prefix, scope_result_to_string(s->result));
 
+#ifdef Use_CGroups
         cgroup_context_dump(&s->cgroup_context, f, prefix);
+#endif
         kill_context_dump(&s->kill_context, f, prefix);
 }
 
@@ -271,6 +277,7 @@ static int scope_start(Unit *u) {
         if (!u->transient && UNIT(s)->manager->n_reloading <= 0)
                 return -ENOENT;
 
+#ifdef Use_CGroup
         r = unit_realize_cgroup(u);
         if (r < 0) {
                 log_error("Failed to realize cgroup: %s", strerror(-r));
@@ -280,6 +287,7 @@ static int scope_start(Unit *u) {
         r = cg_attach_many_everywhere(u->manager->cgroup_supported, u->cgroup_path, UNIT(s)->pids);
         if (r < 0)
                 return r;
+#endif
 
         s->result = SCOPE_SUCCESS;
 
@@ -361,11 +369,13 @@ static bool scope_check_gc(Unit *u) {
         /* Never clean up scopes that still have a process around,
          * even if the scope is formally dead. */
 
+#ifdef Use_CGroups
         if (u->cgroup_path) {
                 r = cg_is_empty_recursive(SYSTEMD_CGROUP_CONTROLLER, UNIT(s)->cgroup_path, true);
                 if (r <= 0)
                         return true;
         }
+#endif
 
         return false;
 }

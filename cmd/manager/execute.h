@@ -118,7 +118,6 @@ struct ExecContext {
         char **read_write_dirs, **read_only_dirs, **inaccessible_dirs;
         unsigned long mount_flags;
 
-
         int syslog_priority;
         char *syslog_identifier;
         bool syslog_level_prefix;
@@ -126,6 +125,13 @@ struct ExecContext {
         bool non_blocking;
         char *tmp_dir;
         char *var_tmp_dir;
+
+        /* This is not exposed to the user but available
+         * internally. We need it to make sure that whenever we spawn
+         * /bin/mount it is run in the same process group as us so
+         * that the autofs logic detects that it belongs to us and we
+         * don't enter a trigger loop. */
+        bool same_pgrp;
 
 #ifdef Sys_Plat_Linux
         int oom_score_adjust;
@@ -151,13 +157,6 @@ struct ExecContext {
         bool private_network;
 
         bool no_new_privileges;
-
-        /* This is not exposed to the user but available
-         * internally. We need it to make sure that whenever we spawn
-         * /bin/mount it is run in the same process group as us so
-         * that the autofs logic detects that it belongs to us and we
-         * don't enter a trigger loop. */
-        bool same_pgrp;
 
         uint32_t *syscall_filter;
 #endif

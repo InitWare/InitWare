@@ -18,7 +18,6 @@ add_library(initware-shared ${shared_src})
 target_include_directories(initware-shared PUBLIC head)
 target_link_libraries(initware-shared internal compat PkgConfig::DBus)
 
-
 # ------------------------------------------------------------------------------
 add_library(initware-dbus dbus-common.c dbus-loop.c polkit.c)
 target_include_directories(initware-dbus PUBLIC head)

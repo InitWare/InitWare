@@ -19,13 +19,12 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdlib.h>
 #include <errno.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/capability.h>
-#include <sys/statvfs.h>
 #include <fnmatch.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/statvfs.h>
+#include <unistd.h>
 
 #ifdef HAVE_SELINUX
 #include <selinux/selinux.h>
@@ -38,6 +37,10 @@
 #include "path-util.h"
 #include "fileio.h"
 #include "unit.h"
+
+#ifdef Use_Capability
+#        include <sys/capability.h>
+#endif
 
 Condition* condition_new(ConditionType type, const char *parameter, bool trigger, bool negate) {
         Condition *c;
@@ -184,6 +187,7 @@ static bool test_security(const char *parameter) {
 }
 
 static bool test_capability(const char *parameter) {
+#ifdef Use_capabilities
         cap_value_t value;
         FILE *f;
         char line[LINE_MAX];
@@ -213,6 +217,10 @@ static bool test_capability(const char *parameter) {
         fclose(f);
 
         return !!(capabilities & (1ULL << value));
+#else
+        unimplemented();
+        return false;
+#endif
 }
 
 static bool test_host(const char *parameter) {

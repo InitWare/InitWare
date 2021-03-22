@@ -138,6 +138,7 @@ int bus_property_append_strv(DBusMessageIter *i, const char *property, void *dat
 int bus_property_append_bool(DBusMessageIter *i, const char *property, void *data);
 int bus_property_append_tristate_false(DBusMessageIter *i, const char *property, void *data);
 int bus_property_append_int32(DBusMessageIter *i, const char *property, void *data);
+int bus_property_append_uint16(DBusMessageIter *i, const char *property, void *data);
 int bus_property_append_uint32(DBusMessageIter *i, const char *property, void *data);
 int bus_property_append_uint64(DBusMessageIter *i, const char *property, void *data);
 int bus_property_append_size(DBusMessageIter *i, const char *property, void *data);

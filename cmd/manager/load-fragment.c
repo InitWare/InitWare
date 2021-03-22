@@ -20,16 +20,13 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <linux/oom.h>
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sched.h>
-#include <sys/prctl.h>
 #include <sys/mount.h>
-#include <linux/fs.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -41,9 +38,6 @@
 #include "conf-parser.h"
 #include "load-fragment.h"
 #include "log.h"
-#include "ioprio.h"
-#include "securebits.h"
-#include "missing.h"
 #include "unit-name.h"
 #include "unit-printf.h"
 #include "dbus-common.h"
@@ -51,7 +45,21 @@
 #include "path-util.h"
 #include "syscall-list.h"
 #include "env-util.h"
+
+#ifdef Have_sys_prctl_h
+#include <sys/prctl.h>
+#endif
+
+#ifdef Sys_Plat_Linux
+#include "ioprio.h"
 #include "cgroup.h"
+#include "missing.h"
+#include "securebits.h"
+
+
+#include <linux/fs.h>
+#include <linux/oom.h>
+#endif
 
 #ifndef HAVE_SYSV_COMPAT
 int config_parse_warn_compat(const char *unit,
@@ -246,6 +254,7 @@ int config_parse_socket_listen(const char *unit,
 
                 path_kill_slashes(p->path);
 
+#ifdef Have_linux_netlink_h
         } else if (streq(lvalue, "ListenNetlink")) {
                 _cleanup_free_ char  *k = NULL;
 
@@ -262,6 +271,7 @@ int config_parse_socket_listen(const char *unit,
                         free(p);
                         return 0;
                 }
+#endif
 
         } else {
                 _cleanup_free_ char *k = NULL;
@@ -379,43 +389,6 @@ int config_parse_exec_nice(const char *unit,
 
         c->nice = priority;
         c->nice_set = true;
-
-        return 0;
-}
-
-int config_parse_exec_oom_score_adjust(const char* unit,
-                                       const char *filename,
-                                       unsigned line,
-                                       const char *section,
-                                       const char *lvalue,
-                                       int ltype,
-                                       const char *rvalue,
-                                       void *data,
-                                       void *userdata) {
-
-        ExecContext *c = data;
-        int oa, r;
-
-        assert(filename);
-        assert(lvalue);
-        assert(rvalue);
-        assert(data);
-
-        r = safe_atoi(rvalue, &oa);
-        if (r < 0) {
-                log_syntax(unit, LOG_ERR, filename, line, -r,
-                           "Failed to parse the OOM score adjust value, ignoring: %s", rvalue);
-                return 0;
-        }
-
-        if (oa < OOM_SCORE_ADJ_MIN || oa > OOM_SCORE_ADJ_MAX) {
-                log_syntax(unit, LOG_ERR, filename, line, ERANGE,
-                           "OOM score adjust value out of range, ignoring: %s", rvalue);
-                return 0;
-        }
-
-        c->oom_score_adjust = oa;
-        c->oom_score_adjust_set = true;
 
         return 0;
 }
@@ -620,6 +593,46 @@ int config_parse_socket_bindtodevice(const char* unit,
 
 DEFINE_CONFIG_PARSE_ENUM(config_parse_output, exec_output, ExecOutput, "Failed to parse output specifier");
 DEFINE_CONFIG_PARSE_ENUM(config_parse_input, exec_input, ExecInput, "Failed to parse input specifier");
+
+#ifdef Sys_Plat_Linux
+
+
+int config_parse_exec_oom_score_adjust(const char* unit,
+                                       const char *filename,
+                                       unsigned line,
+                                       const char *section,
+                                       const char *lvalue,
+                                       int ltype,
+                                       const char *rvalue,
+                                       void *data,
+                                       void *userdata) {
+
+        ExecContext *c = data;
+        int oa, r;
+
+        assert(filename);
+        assert(lvalue);
+        assert(rvalue);
+        assert(data);
+
+        r = safe_atoi(rvalue, &oa);
+        if (r < 0) {
+                log_syntax(unit, LOG_ERR, filename, line, -r,
+                           "Failed to parse the OOM score adjust value, ignoring: %s", rvalue);
+                return 0;
+        }
+
+        if (oa < OOM_SCORE_ADJ_MIN || oa > OOM_SCORE_ADJ_MAX) {
+                log_syntax(unit, LOG_ERR, filename, line, ERANGE,
+                           "OOM score adjust value out of range, ignoring: %s", rvalue);
+                return 0;
+        }
+
+        c->oom_score_adjust = oa;
+        c->oom_score_adjust_set = true;
+
+        return 0;
+}
 
 int config_parse_exec_io_class(const char *unit,
                                const char *filename,
@@ -955,6 +968,99 @@ int config_parse_bounding_set(const char *unit,
         return 0;
 }
 
+
+
+static void syscall_set(uint32_t *p, int nr) {
+        nr = SYSCALL_TO_INDEX(nr);
+        p[nr >> 4] |= 1 << (nr & 31);
+}
+
+static void syscall_unset(uint32_t *p, int nr) {
+        nr = SYSCALL_TO_INDEX(nr);
+        p[nr >> 4] &= ~(1 << (nr & 31));
+}
+
+int config_parse_syscall_filter(const char *unit,
+                                const char *filename,
+                                unsigned line,
+                                const char *section,
+                                const char *lvalue,
+                                int ltype,
+                                const char *rvalue,
+                                void *data,
+                                void *userdata) {
+
+        ExecContext *c = data;
+        Unit *u = userdata;
+        bool invert = false;
+        char *w;
+        size_t l;
+        char *state;
+
+        assert(filename);
+        assert(lvalue);
+        assert(rvalue);
+        assert(u);
+
+        if (isempty(rvalue)) {
+                /* Empty assignment resets the list */
+                free(c->syscall_filter);
+                c->syscall_filter = NULL;
+                return 0;
+        }
+
+        if (rvalue[0] == '~') {
+                invert = true;
+                rvalue++;
+        }
+
+        if (!c->syscall_filter) {
+                size_t n;
+
+                n = (syscall_max() + 31) >> 4;
+                c->syscall_filter = new(uint32_t, n);
+                if (!c->syscall_filter)
+                        return log_oom();
+
+                memset(c->syscall_filter, invert ? 0xFF : 0, n * sizeof(uint32_t));
+
+                /* Add these by default */
+                syscall_set(c->syscall_filter, __NR_execve);
+                syscall_set(c->syscall_filter, __NR_rt_sigreturn);
+#ifdef __NR_sigreturn
+                syscall_set(c->syscall_filter, __NR_sigreturn);
+#endif
+                syscall_set(c->syscall_filter, __NR_exit_group);
+                syscall_set(c->syscall_filter, __NR_exit);
+        }
+
+        FOREACH_WORD_QUOTED(w, l, rvalue, state) {
+                int id;
+                _cleanup_free_ char *t = NULL;
+
+                t = strndup(w, l);
+                if (!t)
+                        return log_oom();
+
+                id = syscall_from_name(t);
+                if (id < 0)  {
+                        log_syntax(unit, LOG_ERR, filename, line, EINVAL,
+                                   "Failed to parse syscall, ignoring: %s", t);
+                        continue;
+                }
+
+                if (invert)
+                        syscall_unset(c->syscall_filter, id);
+                else
+                        syscall_set(c->syscall_filter, id);
+        }
+
+        c->no_new_privileges = true;
+
+        return 0;
+}
+#endif
+
 int config_parse_limit(const char *unit,
                        const char *filename,
                        unsigned line,
@@ -1117,13 +1223,16 @@ int config_parse_exec_mount_flags(const char *unit,
                 if (!t)
                         return log_oom();
 
+#ifdef Sys_Plat_Linux
                 if (streq(t, "shared"))
                         flags |= MS_SHARED;
                 else if (streq(t, "slave"))
                         flags |= MS_SLAVE;
                 else if (streq(w, "private"))
                         flags |= MS_PRIVATE;
-                else {
+                else 
+#endif
+                {
                         log_syntax(unit, LOG_ERR, filename, line, EINVAL,
                                    "Failed to parse mount flag %s, ignoring: %s",
                                    t, rvalue);
@@ -1864,96 +1973,6 @@ int config_parse_documentation(const char *unit,
         return r;
 }
 
-static void syscall_set(uint32_t *p, int nr) {
-        nr = SYSCALL_TO_INDEX(nr);
-        p[nr >> 4] |= 1 << (nr & 31);
-}
-
-static void syscall_unset(uint32_t *p, int nr) {
-        nr = SYSCALL_TO_INDEX(nr);
-        p[nr >> 4] &= ~(1 << (nr & 31));
-}
-
-int config_parse_syscall_filter(const char *unit,
-                                const char *filename,
-                                unsigned line,
-                                const char *section,
-                                const char *lvalue,
-                                int ltype,
-                                const char *rvalue,
-                                void *data,
-                                void *userdata) {
-
-        ExecContext *c = data;
-        Unit *u = userdata;
-        bool invert = false;
-        char *w;
-        size_t l;
-        char *state;
-
-        assert(filename);
-        assert(lvalue);
-        assert(rvalue);
-        assert(u);
-
-        if (isempty(rvalue)) {
-                /* Empty assignment resets the list */
-                free(c->syscall_filter);
-                c->syscall_filter = NULL;
-                return 0;
-        }
-
-        if (rvalue[0] == '~') {
-                invert = true;
-                rvalue++;
-        }
-
-        if (!c->syscall_filter) {
-                size_t n;
-
-                n = (syscall_max() + 31) >> 4;
-                c->syscall_filter = new(uint32_t, n);
-                if (!c->syscall_filter)
-                        return log_oom();
-
-                memset(c->syscall_filter, invert ? 0xFF : 0, n * sizeof(uint32_t));
-
-                /* Add these by default */
-                syscall_set(c->syscall_filter, __NR_execve);
-                syscall_set(c->syscall_filter, __NR_rt_sigreturn);
-#ifdef __NR_sigreturn
-                syscall_set(c->syscall_filter, __NR_sigreturn);
-#endif
-                syscall_set(c->syscall_filter, __NR_exit_group);
-                syscall_set(c->syscall_filter, __NR_exit);
-        }
-
-        FOREACH_WORD_QUOTED(w, l, rvalue, state) {
-                int id;
-                _cleanup_free_ char *t = NULL;
-
-                t = strndup(w, l);
-                if (!t)
-                        return log_oom();
-
-                id = syscall_from_name(t);
-                if (id < 0)  {
-                        log_syntax(unit, LOG_ERR, filename, line, EINVAL,
-                                   "Failed to parse syscall, ignoring: %s", t);
-                        continue;
-                }
-
-                if (invert)
-                        syscall_unset(c->syscall_filter, id);
-                else
-                        syscall_set(c->syscall_filter, id);
-        }
-
-        c->no_new_privileges = true;
-
-        return 0;
-}
-
 int config_parse_unit_slice(
                 const char *unit,
                 const char *filename,
@@ -2001,7 +2020,9 @@ int config_parse_unit_slice(
         return 0;
 }
 
+#ifdef Use_CGroups
 DEFINE_CONFIG_PARSE_ENUM(config_parse_device_policy, cgroup_device_policy, CGroupDevicePolicy, "Failed to parse device policy");
+#endif
 
 int config_parse_cpu_shares(
                 const char *unit,
@@ -2088,12 +2109,14 @@ int config_parse_device_allow(
         const char *m;
         size_t n;
 
+#ifdef Sys_Plat_Linux
         if (isempty(rvalue)) {
                 while (c->device_allow)
                         cgroup_context_free_device_allow(c, c->device_allow);
 
                 return 0;
         }
+#endif
 
         n = strcspn(rvalue, WHITESPACE);
         path = strndup(rvalue, n);
@@ -2130,6 +2153,7 @@ int config_parse_device_allow(
         return 0;
 }
 
+#ifdef Sys_Plat_Linux
 int config_parse_blockio_weight(
                 const char *unit,
                 const char *filename,
@@ -2312,6 +2336,7 @@ int config_parse_blockio_bandwidth(
 
         return 0;
 }
+#endif
 
 #define FOLLOW_MAX 8
 
@@ -2639,21 +2664,23 @@ void unit_dump_config_items(FILE *f) {
                 { config_parse_unit_path_printf,      "PATH" },
                 { config_parse_strv,                  "STRING [...]" },
                 { config_parse_exec_nice,             "NICE" },
+#ifdef Sys_Plat_Linux
                 { config_parse_exec_oom_score_adjust, "OOMSCOREADJUST" },
                 { config_parse_exec_io_class,         "IOCLASS" },
                 { config_parse_exec_io_priority,      "IOPRIORITY" },
                 { config_parse_exec_cpu_sched_policy, "CPUSCHEDPOLICY" },
                 { config_parse_exec_cpu_sched_prio,   "CPUSCHEDPRIO" },
                 { config_parse_exec_cpu_affinity,     "CPUAFFINITY" },
+                { config_parse_exec_capabilities,     "CAPABILITIES" },
+                { config_parse_exec_secure_bits,      "SECUREBITS" },
+                { config_parse_bounding_set,          "BOUNDINGSET" },
+#endif
                 { config_parse_mode,                  "MODE" },
                 { config_parse_unit_env_file,         "FILE" },
                 { config_parse_output,                "OUTPUT" },
                 { config_parse_input,                 "INPUT" },
                 { config_parse_facility,              "FACILITY" },
                 { config_parse_level,                 "LEVEL" },
-                { config_parse_exec_capabilities,     "CAPABILITIES" },
-                { config_parse_exec_secure_bits,      "SECUREBITS" },
-                { config_parse_bounding_set,          "BOUNDINGSET" },
                 { config_parse_limit,                 "LIMIT" },
                 { config_parse_unit_deps,             "UNIT [...]" },
                 { config_parse_exec,                  "PATH [ARGUMENT [...]]" },
@@ -2691,14 +2718,16 @@ void unit_dump_config_items(FILE *f) {
                 { config_parse_service_sockets,       "SOCKETS" },
                 { config_parse_fsck_passno,           "PASSNO" },
                 { config_parse_environ,               "ENVIRON" },
-                { config_parse_syscall_filter,        "SYSCALL" },
                 { config_parse_cpu_shares,            "SHARES" },
                 { config_parse_memory_limit,          "LIMIT" },
                 { config_parse_device_allow,          "DEVICE" },
+#ifdef Sys_Plat_Linux
                 { config_parse_device_policy,         "POLICY" },
+                { config_parse_syscall_filter,        "SYSCALL" },
                 { config_parse_blockio_bandwidth,     "BANDWIDTH" },
                 { config_parse_blockio_weight,        "WEIGHT" },
                 { config_parse_blockio_device_weight, "DEVICEWEIGHT" },
+#endif
                 { config_parse_long,                  "LONG" },
                 { config_parse_socket_service,        "SERVICE" },
         };

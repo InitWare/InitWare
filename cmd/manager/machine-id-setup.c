@@ -219,6 +219,7 @@ int machine_id_setup(void) {
                 return r;
         }
 
+#ifdef MS_BIND
         /* And now, let's mount it over */
         r = mount("/run/machine-id", "/etc/machine-id", NULL, MS_BIND, NULL);
         if (r < 0) {
@@ -232,6 +233,8 @@ int machine_id_setup(void) {
         /* Mark the mount read-only */
         if (mount(NULL, "/etc/machine-id", NULL, MS_BIND|MS_RDONLY|MS_REMOUNT, NULL) < 0)
                 log_warning("Failed to make transient /etc/machine-id read-only: %m");
+#endif
+
 
         return 0;
 }

@@ -20,23 +20,22 @@
 ***/
 
 #include <assert.h>
+#include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <string.h>
 #include <sys/epoll.h>
-#include <signal.h>
-#include <sys/signalfd.h>
-#include <sys/wait.h>
-#include <unistd.h>
+#include <sys/ioctl.h>
 #include <sys/poll.h>
 #include <sys/reboot.h>
-#include <sys/ioctl.h>
-#include <linux/kd.h>
-#include <termios.h>
-#include <fcntl.h>
-#include <sys/types.h>
+#include <sys/signalfd.h>
 #include <sys/stat.h>
-#include <dirent.h>
 #include <sys/timerfd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <termios.h>
+#include <unistd.h>
 
 #ifdef HAVE_AUDIT
 #include <libaudit.h>
@@ -73,6 +72,10 @@
 #include "boot-timestamps.h"
 #include "env-util.h"
 
+#ifdef Sys_Plat_Linux
+#        include <linux/kd.h>
+#endif
+
 /* As soon as 5s passed since a unit was added to our GC queue, make sure to run a gc sweep */
 #define GC_QUEUE_USEC_MAX (10*USEC_PER_SEC)
 
@@ -80,9 +83,6 @@
 #define JOBS_IN_PROGRESS_WAIT_SEC 5
 #define JOBS_IN_PROGRESS_PERIOD_SEC 1
 #define JOBS_IN_PROGRESS_PERIOD_DIVISOR 3
-
-/* Where clients shall send notification messages to */
-#define NOTIFY_SOCKET "@/org/freedesktop/systemd1/notify"
 
 #define TIME_T_MAX (time_t)((1UL << ((sizeof(time_t) << 3) - 1)) - 1)
 
@@ -111,20 +111,29 @@ static int manager_setup_notify(Manager *m) {
         else
                 strncpy(sa.un.sun_path, NOTIFY_SOCKET, sizeof(sa.un.sun_path));
 
+#ifdef Use_SystemdCompat
         sa.un.sun_path[0] = 0;
+#endif
 
         r = bind(m->notify_watch.fd, &sa.sa,
-                 offsetof(struct sockaddr_un, sun_path) + 1 + strlen(sa.un.sun_path+1));
+#ifdef Use_SystemdCompat
+                 offsetof(struct sockaddr_un, sun_path) + 1 + strlen(sa.un.sun_path+1)
+#else
+                 offsetof(struct sockaddr_un, sun_path) + strlen(sa.un.sun_path)
+#endif
+        );
         if (r < 0) {
-                log_error("bind() failed: %m");
+                log_error("bind() of %s failed: %m", sa.un.sun_path);
                 return -errno;
         }
 
+#ifdef SO_PASSCRED
         r = setsockopt(m->notify_watch.fd, SOL_SOCKET, SO_PASSCRED, &one, sizeof(one));
         if (r < 0) {
                 log_error("SO_PASSCRED failed: %m");
                 return -errno;
         }
+#endif
 
         r = epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->notify_watch.fd, &ev);
         if (r < 0) {
@@ -132,7 +141,9 @@ static int manager_setup_notify(Manager *m) {
                 return -errno;
         }
 
+#ifdef Use_SystemdCompat
         sa.un.sun_path[0] = '@';
+#endif
         m->notify_socket = strdup(sa.un.sun_path);
         if (!m->notify_socket)
                 return log_oom();
@@ -367,10 +378,12 @@ static int enable_special_signals(Manager *m) {
 
         assert(m);
 
+#ifdef RB_DISABLE_CAD
         /* Enable that we get SIGINT on control-alt-del. In containers
          * this will fail with EPERM (older) or EINVAL (newer), so
          * ignore that. */
         if (reboot(RB_DISABLE_CAD) < 0 && errno != EPERM && errno != EINVAL)
+#endif
                 log_warning("Failed to enable ctrl-alt-del handling: %m");
 
         fd = open_terminal("/dev/tty0", O_RDWR|O_NOCTTY|O_CLOEXEC);
@@ -379,8 +392,10 @@ static int enable_special_signals(Manager *m) {
                 if (fd != -ENOENT)
                         log_warning("Failed to open /dev/tty0: %m");
         } else {
+#ifdef KDSIGACCEPT
                 /* Enable that we get SIGWINCH on kbrequest */
                 if (ioctl(fd, KDSIGACCEPT, SIGWINCH) < 0)
+#endif
                         log_warning("Failed to enable kbrequest handling: %s", strerror(errno));
 
                 safe_close(fd);
@@ -415,7 +430,10 @@ static int manager_setup_signals(Manager *m) {
                         SIGUSR2,     /* systemd: dump status */
                         SIGINT,      /* Kernel sends us this on control-alt-del */
                         SIGWINCH,    /* Kernel sends us this on kbrequest (alt-arrowup) */
+#ifdef SIGPWR
                         SIGPWR,      /* Some kernel drivers and upsd send us this on power failure */
+#endif
+#ifdef SIGRTMIN
                         SIGRTMIN+0,  /* systemd: start default.target */
                         SIGRTMIN+1,  /* systemd: isolate rescue.target */
                         SIGRTMIN+2,  /* systemd: isolate emergency.target */
@@ -436,6 +454,7 @@ static int manager_setup_signals(Manager *m) {
                         SIGRTMIN+27, /* systemd: set log target to console */
                         SIGRTMIN+28, /* systemd: set log target to kmsg */
                         SIGRTMIN+29, /* systemd: set log target to syslog-or-kmsg */
+#endif
                         -1);
         assert_se(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 
@@ -545,9 +564,11 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
         if (r < 0)
                 goto fail;
 
+#ifdef Sys_Plat_Linux
         r = manager_setup_cgroup(m);
         if (r < 0)
                 goto fail;
+#endif
 
         r = manager_setup_notify(m);
         if (r < 0)
@@ -731,9 +752,11 @@ void manager_free(Manager *m) {
                 if (unit_vtable[c]->shutdown)
                         unit_vtable[c]->shutdown(m);
 
+#ifdef Sys_Plat_Linux
         /* If we reexecute ourselves, we keep the root cgroup
          * around */
         manager_shutdown_cgroup(m, m->exit_code != MANAGER_REEXECUTE);
+#endif
 
         manager_undo_generators(m);
 
@@ -764,7 +787,7 @@ void manager_free(Manager *m) {
         free(m->switch_root);
         free(m->switch_root_init);
 
-        for (i = 0; i < RLIMIT_NLIMITS; i++)
+        for (i = 0; i < RLIM_NLIMITS; i++)
                 free(m->rlimit[i]);
 
         assert(hashmap_isempty(m->units_requiring_mounts_for));
@@ -1281,7 +1304,9 @@ static int manager_process_notify_fd(Manager *m) {
 
                 union {
                         struct cmsghdr cmsghdr;
+#ifdef Dgram_Credpass_Linux
                         uint8_t buf[CMSG_SPACE(sizeof(struct ucred))];
+#endif
                 } control = {};
 
                 struct msghdr msghdr = {
@@ -1304,6 +1329,8 @@ static int manager_process_notify_fd(Manager *m) {
                         return -errno;
                 }
 
+
+#ifdef Dgram_Credpass_Linux
                 if (msghdr.msg_controllen < CMSG_LEN(sizeof(struct ucred)) ||
                     control.cmsghdr.cmsg_level != SOL_SOCKET ||
                     control.cmsghdr.cmsg_type != SCM_CREDENTIALS ||
@@ -1337,6 +1364,9 @@ static int manager_process_notify_fd(Manager *m) {
 
                 if (!found)
                         log_warning("Cannot find unit for notify message of PID %lu.",(long unsigned) ucred->pid);
+#else
+                log_warning("Notify messages are not implemented on this platform\n");
+#endif
         }
 
         return 0;
@@ -1390,11 +1420,13 @@ static int manager_dispatch_sigchld(Manager *m) {
                                     ? exit_status_to_string(si.si_status, EXIT_STATUS_FULL)
                                     : signal_to_string(si.si_status)));
 
+#ifdef Sys_Plat_Linux
                     /* And now figure out the unit this belongs
                      * to, it might be multiple... */
                     u = manager_get_unit_by_pid(m, si.si_pid);
                     if (u)
                             invoke_sigchld_event(m, u, &si);
+#endif
                     u = hashmap_get(m->watch_pids1, LONG_TO_PTR(si.si_pid));
                     if (u)
                             invoke_sigchld_event(m, u, &si);
@@ -1508,12 +1540,14 @@ static int manager_process_signal_fd(Manager *m) {
                         /* This is a nop on non-init */
                         break;
 
+#ifdef SIGPWR
                 case SIGPWR:
                         if (m->running_as == SYSTEMD_SYSTEM)
                                 manager_start_target(m, SPECIAL_SIGPWR_TARGET, JOB_REPLACE);
 
                         /* This is a nop on non-init */
                         break;
+#endif
 
                 case SIGUSR1: {
                         Unit *u;
@@ -1566,6 +1600,7 @@ static int manager_process_signal_fd(Manager *m) {
 
                 default: {
 
+#ifdef SIGRTMIN
                         /* Starting SIGRTMIN+0 */
                         static const char * const target_table[] = {
                                 [0] = SPECIAL_DEFAULT_TARGET,
@@ -1651,9 +1686,12 @@ static int manager_process_signal_fd(Manager *m) {
                                 break;
 
                         default:
+#endif
                                 log_warning("Got unhandled signal <%s>.", signal_to_string(sfsi.ssi_signo));
+#ifdef SIGRTMIN
                         }
                 }
+#endif
                 }
         }
 
@@ -1728,6 +1766,7 @@ static int process_event(Manager *m, struct epoll_event *ev) {
                 break;
         }
 
+#ifdef Sys_Plat_Linux
         case WATCH_MOUNT:
                 /* Some mount table change, intended for the mount subsystem */
                 mount_fd_event(m, ev->events);
@@ -1742,6 +1781,7 @@ static int process_event(Manager *m, struct epoll_event *ev) {
                 /* Some notification from udev, intended for the device subsystem */
                 device_fd_event(m, ev->events);
                 break;
+#endif
 
         case WATCH_DBUS_WATCH:
                 bus_watch_event(m, w, ev->events);
@@ -1826,8 +1866,10 @@ int manager_loop(Manager *m) {
                 int n;
                 int wait_msec = -1;
 
+#ifdef Sys_Plat_Linux
                 if (m->runtime_watchdog > 0 && m->running_as == SYSTEMD_SYSTEM)
                         watchdog_ping();
+#endif
 
                 if (!ratelimit_test(&rl)) {
                         /* Yay, something is going seriously wrong, pause a little */
@@ -1845,8 +1887,10 @@ int manager_loop(Manager *m) {
                 if (manager_dispatch_cleanup_queue(m) > 0)
                         continue;
 
+#ifdef Sys_Plat_Linux
                 if (manager_dispatch_cgroup_queue(m) > 0)
                         continue;
+#endif
 
                 if (manager_dispatch_run_queue(m) > 0)
                         continue;
@@ -1857,8 +1901,10 @@ int manager_loop(Manager *m) {
                 if (manager_dispatch_dbus_queue(m) > 0)
                         continue;
 
+#ifdef Sys_Plat_Linux
                 if (swap_dispatch_reload(m) > 0)
                         continue;
+#endif
 
                 /* Sleep for half the watchdog time */
                 if (m->runtime_watchdog > 0 && m->running_as == SYSTEMD_SYSTEM) {
@@ -1994,9 +2040,12 @@ void manager_send_unit_plymouth(Manager *m, Unit *u) {
         if (detect_container(NULL) > 0)
                 return;
 
-        if (u->type != UNIT_SERVICE &&
-            u->type != UNIT_MOUNT &&
-            u->type != UNIT_SWAP)
+        if (u->type != UNIT_SERVICE
+#ifdef Sys_Plat_Linux
+            && u->type != UNIT_MOUNT &&
+            u->type != UNIT_SWAP
+#endif
+            )
                 return;
 
         /* We set SOCK_NONBLOCK here so that we rather drop the
@@ -2705,7 +2754,7 @@ int manager_set_default_rlimits(Manager *m, struct rlimit **default_rlimit) {
 
         assert(m);
 
-        for (i = 0; i < RLIMIT_NLIMITS; i++) {
+        for (i = 0; i < RLIM_NLIMITS; i++) {
                 if (!default_rlimit[i])
                         continue;
 

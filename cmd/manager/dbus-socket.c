@@ -21,13 +21,14 @@
 
 #include <errno.h>
 
-#include "dbus-unit.h"
-#include "dbus-execute.h"
-#include "dbus-kill.h"
 #include "dbus-cgroup.h"
 #include "dbus-common.h"
-#include "selinux-access.h"
+#include "dbus-execute.h"
+#include "dbus-kill.h"
 #include "dbus-socket.h"
+#include "dbus-unit.h"
+#include "selinux-access.h"
+
 
 #define BUS_SOCKET_INTERFACE                                            \
         " <interface name=\"org.freedesktop.systemd1.Socket\">\n"       \
@@ -212,7 +213,9 @@ DBusHandlerResult bus_socket_message_handler(Unit *u, DBusConnection *c, DBusMes
                 { "org.freedesktop.systemd1.Socket", bus_socket_properties,         s },
                 { "org.freedesktop.systemd1.Socket", bus_exec_context_properties,   &s->exec_context },
                 { "org.freedesktop.systemd1.Socket", bus_kill_context_properties,   &s->kill_context },
+#ifdef Use_CGroups
                 { "org.freedesktop.systemd1.Socket", bus_cgroup_context_properties, &s->cgroup_context },
+#endif
                 {}
         };
 
@@ -235,7 +238,12 @@ int bus_socket_set_property(
         assert(u);
         assert(i);
 
+#ifdef Use_CGroup
         r = bus_cgroup_set_property(u, &s->cgroup_context, name, i, mode, error);
+#else
+        unimplemented_msg("bus_cgroup_set_property\n");
+        r = -ENOTSUP;
+#endif
         if (r != 0)
                 return r;
 
@@ -245,6 +253,8 @@ int bus_socket_set_property(
 int bus_socket_commit_properties(Unit *u) {
         assert(u);
 
+#ifdef Use_CGroups
         unit_realize_cgroup(u);
+#endif
         return 0;
 }
