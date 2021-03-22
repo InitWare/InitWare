@@ -859,7 +859,11 @@ static int bus_unit_set_transient_property(
 
                 return 1;
 
-        } else if (streq(name, "Slice") && unit_get_cgroup_context(u)) {
+        } else if (streq(name, "Slice")
+#ifdef Use_CGroups
+        && unit_get_cgroup_context(u)
+#endif
+        ) {
                 const char *s;
 
                 if (dbus_message_iter_get_arg_type(i) != DBUS_TYPE_STRING)

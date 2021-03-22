@@ -21,7 +21,6 @@
 
 #include <errno.h>
 
-#include "dbus-cgroup.h"
 #include "dbus-common.h"
 #include "dbus-execute.h"
 #include "dbus-kill.h"
@@ -30,7 +29,7 @@
 #include "path-util.h"
 #include "selinux-access.h"
 #include "strv.h"
-
+#include "dbus-cgroup.h"
 
 #define BUS_SERVICE_INTERFACE                                           \
         " <interface name=\"org.freedesktop.systemd1.Service\">\n"      \

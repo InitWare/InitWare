@@ -3943,7 +3943,9 @@ const UnitVTable service_vtable = {
 
         .private_section = "Service",
         .exec_context_offset = offsetof(Service, exec_context),
+#ifdef Have_CGroups
         .cgroup_context_offset = offsetof(Service, cgroup_context),
+#endif
 
         .init = service_init,
         .done = service_done,

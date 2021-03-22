@@ -26,8 +26,11 @@ typedef struct Socket Socket;
 #include "manager.h"
 #include "unit.h"
 #include "socket-util.h"
-#include "mount.h"
 #include "service.h"
+
+#ifdef Use_Mount
+#include "mount.h"
+#endif
 
 typedef enum SocketState {
         SOCKET_DEAD,
@@ -104,7 +107,9 @@ struct Socket {
         ExecCommand* exec_command[_SOCKET_EXEC_COMMAND_MAX];
         ExecContext exec_context;
         KillContext kill_context;
+#ifdef Use_CGroups
         CGroupContext cgroup_context;
+#endif
 
         /* For Accept=no sockets refers to the one service we'll
         activate. For Accept=yes sockets is either NULL, or filled

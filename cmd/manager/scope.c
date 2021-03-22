@@ -502,7 +502,9 @@ const UnitVTable scope_vtable = {
                 "Install\0",
 
         .private_section = "Scope",
-        .cgroup_context_offset = offsetof(Scope, cgroup_context),
+#ifdef Use_CGroups
+        .cgroup_context_offset = offsetof(Socket, cgroup_context),
+#endif
 
         .no_alias = true,
         .no_instances = true,

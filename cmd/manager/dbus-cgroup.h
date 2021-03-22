@@ -21,6 +21,9 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "compat.h"
+
+#ifdef Use_CGroups
 #include <dbus/dbus.h>
 
 #include "manager.h"
@@ -43,3 +46,7 @@
 extern const BusProperty bus_cgroup_context_properties[];
 
 int bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name, DBusMessageIter *i, UnitSetPropertiesMode mode, DBusError *error);
+
+#else
+#define BUS_CGROUP_CONTEXT_INTERFACE
+#endif

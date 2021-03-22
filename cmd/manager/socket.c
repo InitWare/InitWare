@@ -2548,7 +2548,9 @@ const UnitVTable socket_vtable = {
 
         .private_section = "Socket",
         .exec_context_offset = offsetof(Socket, exec_context),
+#ifdef Use_CGroups
         .cgroup_context_offset = offsetof(Socket, cgroup_context),
+#endif
 
         .init = socket_init,
         .done = socket_done,

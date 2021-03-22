@@ -2022,7 +2022,6 @@ int config_parse_unit_slice(
 
 #ifdef Use_CGroups
 DEFINE_CONFIG_PARSE_ENUM(config_parse_device_policy, cgroup_device_policy, CGroupDevicePolicy, "Failed to parse device policy");
-#endif
 
 int config_parse_cpu_shares(
                 const char *unit,
@@ -2153,7 +2152,6 @@ int config_parse_device_allow(
         return 0;
 }
 
-#ifdef Sys_Plat_Linux
 int config_parse_blockio_weight(
                 const char *unit,
                 const char *filename,
@@ -2718,10 +2716,10 @@ void unit_dump_config_items(FILE *f) {
                 { config_parse_service_sockets,       "SOCKETS" },
                 { config_parse_fsck_passno,           "PASSNO" },
                 { config_parse_environ,               "ENVIRON" },
+#ifdef Sys_Plat_Linux
                 { config_parse_cpu_shares,            "SHARES" },
                 { config_parse_memory_limit,          "LIMIT" },
                 { config_parse_device_allow,          "DEVICE" },
-#ifdef Sys_Plat_Linux
                 { config_parse_device_policy,         "POLICY" },
                 { config_parse_syscall_filter,        "SYSCALL" },
                 { config_parse_blockio_bandwidth,     "BANDWIDTH" },

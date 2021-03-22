@@ -130,9 +130,14 @@
         "  <property name=\"Transient\" type=\"b\" access=\"read\"/>\n" \
         " </interface>\n"
 
+#ifdef Use_CGroups
 #define BUS_UNIT_CGROUP_INTERFACE                                       \
         "  <property name=\"Slice\" type=\"s\" access=\"read\"/>\n"     \
         "  <property name=\"ControlGroup\" type=\"s\" access=\"read\"/>\n"
+#else
+#define BUS_UNIT_CGROUP_INTERFACE                                       \
+        "  <property name=\"Slice\" type=\"s\" access=\"read\"/>\n" 
+#endif
 
 #define BUS_UNIT_INTERFACES_LIST                \
         BUS_GENERIC_INTERFACES_LIST             \

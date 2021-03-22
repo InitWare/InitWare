@@ -227,7 +227,8 @@ EXEC_CONTEXT_CONFIG_ITEMS(Socket)m4_dnl
 CGROUP_CONTEXT_CONFIG_ITEMS(Socket)m4_dnl
 KILL_CONTEXT_CONFIG_ITEMS(Socket)m4_dnl
 m4_dnl
-Mount.What,                      config_parse_string,                0,                             offsetof(Mount, parameters_fragment.what)
+m4_ifdef(`Use_Mount',
+`Mount.What,                      config_parse_string,                0,                             offsetof(Mount, parameters_fragment.what)
 Mount.Where,                     config_parse_path,                  0,                             offsetof(Mount, where)
 Mount.Options,                   config_parse_string,                0,                             offsetof(Mount, parameters_fragment.options)
 Mount.Type,                      config_parse_string,                0,                             offsetof(Mount, parameters_fragment.fstype)
@@ -236,17 +237,19 @@ Mount.TimeoutSec,                config_parse_sec,                   0,         
 Mount.DirectoryMode,             config_parse_mode,                  0,                             offsetof(Mount, directory_mode)
 EXEC_CONTEXT_CONFIG_ITEMS(Mount)m4_dnl
 CGROUP_CONTEXT_CONFIG_ITEMS(Mount)m4_dnl
-KILL_CONTEXT_CONFIG_ITEMS(Mount)m4_dnl
+KILL_CONTEXT_CONFIG_ITEMS(Mount)m4_dnl')m4_dnl
 m4_dnl
-Automount.Where,                 config_parse_path,                  0,                             offsetof(Automount, where)
-Automount.DirectoryMode,         config_parse_mode,                  0,                             offsetof(Automount, directory_mode)
+m4_ifdef(`Use_Automount',
+`Automount.Where,                 config_parse_path,                  0,                             offsetof(Automount, where)
+Automount.DirectoryMode,         config_parse_mode,                  0,                             offsetof(Automount, directory_mode)')m4_dnl
 m4_dnl
-Swap.What,                       config_parse_path,                  0,                             offsetof(Swap, parameters_fragment.what)
+m4_ifdef(`Use_Swap',
+`Swap.What,                       config_parse_path,                  0,                             offsetof(Swap, parameters_fragment.what)
 Swap.Priority,                   config_parse_int,                   0,                             offsetof(Swap, parameters_fragment.priority)
 Swap.TimeoutSec,                 config_parse_sec,                   0,                             offsetof(Swap, timeout_usec)
 EXEC_CONTEXT_CONFIG_ITEMS(Swap)m4_dnl
 CGROUP_CONTEXT_CONFIG_ITEMS(Swap)m4_dnl
-KILL_CONTEXT_CONFIG_ITEMS(Swap)m4_dnl
+KILL_CONTEXT_CONFIG_ITEMS(Swap)m4_dnl')m4_dnl
 m4_dnl
 Timer.OnCalendar,                config_parse_timer,                 0,                             0
 Timer.OnActiveSec,               config_parse_timer,                 0,                             0

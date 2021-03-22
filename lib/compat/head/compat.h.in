@@ -114,6 +114,10 @@ void *mempcpy(void *dest, const void *src, size_t n);
 #endif
 
 #ifdef Sys_Plat_Linux
+#        define Use_Device
+#        define Use_Mount
+#        define Use_Automount
+#        define Use_Swap
 #        define Use_CGroups
 #        define Use_Linprocfs
 #endif

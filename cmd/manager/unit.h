@@ -37,10 +37,13 @@ typedef struct UnitStatusMessageFormats UnitStatusMessageFormats;
 #include "list.h"
 #include "socket-util.h"
 #include "execute.h"
-#include "cgroup.h"
 #include "condition.h"
 #include "install.h"
 #include "unit-name.h"
+
+#ifdef Use_CGroups
+#include "linux/cgroup.h"
+#endif
 
 enum UnitActiveState {
         UNIT_ACTIVE,
@@ -279,14 +282,17 @@ typedef enum UnitSetPropertiesMode {
 #include "timer.h"
 #include "socket.h"
 #include "target.h"
-#include "device.h"
-#include "mount.h"
-#include "automount.h"
 #include "snapshot.h"
-#include "swap.h"
 #include "path.h"
 #include "slice.h"
 #include "scope.h"
+
+#ifdef Sys_Plat_Linux
+#include "device.h"
+#include "mount.h"
+#include "automount.h"
+#include "swap.h"
+#endif
 
 struct UnitVTable {
         /* How much memory does an object of this unit type need */
@@ -606,7 +612,9 @@ int unit_add_mount_links(Unit *u);
 int unit_exec_context_defaults(Unit *u, ExecContext *c);
 
 ExecContext *unit_get_exec_context(Unit *u) _pure_;
+#ifdef Use_CGroups
 CGroupContext *unit_get_cgroup_context(Unit *u) _pure_;
+#endif
 
 int unit_write_drop_in(Unit *u, UnitSetPropertiesMode mode, const char *name, const char *data);
 int unit_write_drop_in_format(Unit *u, UnitSetPropertiesMode mode, const char *name, const char *format, ...) _printf_attr_(4,5);

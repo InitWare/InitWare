@@ -288,7 +288,9 @@ const UnitVTable slice_vtable = {
                 "Install\0",
 
         .private_section = "Slice",
-        .cgroup_context_offset = offsetof(Slice, cgroup_context),
+#ifdef Use_CGroups
+        .cgroup_context_offset = offsetof(Socket, cgroup_context),
+#endif
 
         .no_alias = true,
         .no_instances = true,

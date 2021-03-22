@@ -947,7 +947,11 @@ static int unit_add_default_dependencies(Unit *u) {
                                 return r;
                 }
 
-        if (u->default_dependencies && unit_get_cgroup_context(u)) {
+        if (u->default_dependencies
+#ifdef Use_CGroups /* FIXME: check this doesn't blow up */
+        && unit_get_cgroup_context(u)
+#endif
+        ) {
                 if (UNIT_ISSET(u->slice))
                         r = unit_add_two_dependencies(u, UNIT_AFTER, UNIT_WANTS, UNIT_DEREF(u->slice), true);
                 else
@@ -2243,8 +2247,10 @@ int unit_add_default_slice(Unit *u) {
         if (UNIT_ISSET(u->slice))
                 return 0;
 
+#ifdef Use_CGroups
         if (!unit_get_cgroup_context(u))
                 return 0;
+#endif
 
         if (u->instance) {
                 _cleanup_free_ char *prefix = NULL, *escaped = NULL;
@@ -2955,6 +2961,7 @@ ExecContext *unit_get_exec_context(Unit *u) {
         return (ExecContext*) ((uint8_t*) u + offset);
 }
 
+#ifdef Use_CGroups
 CGroupContext *unit_get_cgroup_context(Unit *u) {
         size_t offset;
 
@@ -2964,6 +2971,7 @@ CGroupContext *unit_get_cgroup_context(Unit *u) {
 
         return (CGroupContext*) ((uint8_t*) u + offset);
 }
+#endif
 
 static int drop_in_file(Unit *u, UnitSetPropertiesMode mode, const char *name, char **_p, char **_q) {
         _cleanup_free_ char *b = NULL;

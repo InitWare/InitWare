@@ -48,7 +48,9 @@ typedef enum ScopeResult {
 struct Scope {
         Unit meta;
 
+#ifdef Use_CGroups
         CGroupContext cgroup_context;
+#endif
         KillContext kill_context;
 
         ScopeState state, deserialized_state;
