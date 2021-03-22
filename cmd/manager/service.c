@@ -46,6 +46,10 @@
 #include "env-util.h"
 #include "fileio.h"
 
+#ifdef Sys_Plat_NetBSD /* FIXME cleanup */
+#define reboot(m) reboot(m, NULL)
+#endif
+
 #ifdef HAVE_SYSV_COMPAT
 
 #define DEFAULT_SYSV_TIMEOUT_USEC (5*USEC_PER_MINUTE)

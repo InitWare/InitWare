@@ -1575,6 +1575,8 @@ int main(int argc, char *argv[]) {
                         prctl(PR_SET_CHILD_SUBREAPER, 1)
 #elif defined(Have_sys_procctl_h)
                 procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, 0)
+#else
+        0
 #endif
                 < 0) {
                         log_warning("Failed to make us a subreaper: %m");

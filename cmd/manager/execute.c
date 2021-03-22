@@ -606,7 +606,11 @@ static int enforce_groups(const ExecContext *context, const char *username, gid_
                 }
 
                 /* Second step, set our gids */
+#ifndef Sys_Plat_NetBSD
                 if (setresgid(gid, gid, gid) < 0)
+#else /* on NetBSD, setgid() sets real, effective, and saved GID */
+                if (setuid(gid) < 0)
+#endif
                         return -errno;
         }
 
@@ -708,9 +712,11 @@ static int enforce_user(const ExecContext *context, uid_t uid) {
 #endif
 
         /* Third step: actually set the uids */
+#ifndef Sys_Plat_NetBSD
         if (setresuid(uid, uid, uid) < 0)
-                return -errno;
-
+#else /* on NetBSD, setuid() sets real, effective, and saved UID */
+        if (setuid(uid) < 0)
+#endif
         /* At this point we should have all necessary capabilities but
            are otherwise a normal user. However, the caps might got
            corrupted due to the setresuid() so we need clean them up

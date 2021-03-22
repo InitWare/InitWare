@@ -39,7 +39,7 @@
 #include <systemd/sd-login.h>
 #include <systemd/sd-shutdown.h>
 
-//#include "log.h"
+#include "log.h"
 #include "build.h"
 #include "bus-errors.h"
 #include "cgroup-show.h"
@@ -68,6 +68,10 @@
 
 #ifdef Have_sys_prctl_h
 #        include <sys/prctl.h>
+#endif
+
+#ifdef Sys_Plat_NetBSD
+#define reboot(m) reboot(m, NULL)
 #endif
 
 static char **arg_types = NULL;

@@ -76,6 +76,10 @@
 #        include <linux/kd.h>
 #endif
 
+#ifdef Sys_Plat_NetBSD /* FIXME cleanup */
+#define reboot(m) reboot(m, NULL)
+#endif
+
 /* As soon as 5s passed since a unit was added to our GC queue, make sure to run a gc sweep */
 #define GC_QUEUE_USEC_MAX (10*USEC_PER_SEC)
 

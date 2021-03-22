@@ -1,6 +1,7 @@
 #ifndef COMPAT_H_IN_
 #define COMPAT_H_IN_
 
+#include <sys/types.h>
 #include <errno.h>
 
 #cmakedefine Sys_Plat_Linux
@@ -79,6 +80,10 @@ typedef int (*__compar_fn_t)(const void *, const void *);
 
 #ifndef Have_environ
 extern char **environ;
+#endif
+
+#ifndef Have_mempcpy
+void *mempcpy(void *dest, const void *src, size_t n);
 #endif
 
 #ifndef Have_secure_getenv
