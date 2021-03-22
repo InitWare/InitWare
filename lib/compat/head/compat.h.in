@@ -1,0 +1,46 @@
+#ifndef COMPAT_H_IN_
+#define COMPAT_H_IN_
+
+#cmakedefine Sys_Plat_Linux
+#cmakedefine Sys_Plat_BSD
+#cmakedefine Sys_Plat_FreeBSD
+#cmakedefine Sys_Plat_NetBSD
+#cmakedefine Sys_Plat_DragonFlyBSD
+#cmakedefine Sys_Plat_OpenBSD
+#cmakedefine Sys_Plat_HPUX
+
+#cmakedefine Have_sys_endian_h
+#cmakedefine Have_sys_sysmacros_h
+#cmakedefine Have_endian_h
+#cmakedefine Have_malloc_h
+#cmakedefine Have_mqueue_h
+
+#cmakedefine Have_waitid
+#cmakedefine Have_posix_fallocate
+#cmakedefine Have_mempcpy
+
+#define PACKAGE_NAME "@PACKAGE_NAME@"
+#define PACKAGE_VERSION "@PACKAGE_VERSION@"
+#define PACKAGE_STRING "@PACKAGE_STRING@"
+
+#define DISTRIBUTION "@DISTRIBUTION@"
+
+#define SYSTEM_CONFIG_FILE "@SYSTEM_CONFIG_FILE@"
+#define SYSTEM_CONFIG_UNIT_PATH "@SYSTEM_CONFIG_UNIT_PATH@"
+#define SYSTEM_DATA_UNIT_PATH "@SYSTEM_DATA_UNIT_PATH@"
+#define SYSTEM_GENERATOR_PATH "@SYSTEM_GENERATOR_PATH@"
+
+#define USER_CONFIG_FILE "@USER_CONFIG_FILE@"
+#define USER_CONFIG_UNIT_PATH "@USER_CONFIG_UNIT_PATH@"
+#define USER_DATA_UNIT_PATH "@USER_DATA_UNIT_PATH@"
+#define USER_GENERATOR_PATH "@USER_GENERATOR_PATH@"
+
+#define SYSTEMD_BINARY_PATH "@SYSTEMSERVICESD_BINARY_PATH@"
+#define SYSTEMD_CGROUP_AGENT_PATH "@SYS_CGROUP_AGENT_PATH"
+#define SYSTEMD_SHUTDOWN_BINARY_PATH "@SYS_SHUTDOWN_BINARY_PATH@"
+#define SYSTEMD_TTY_ASK_PASSWORD_AGENT_BINARY_PATH "@SYS_TTY_ASK_PASSWORD_AGENT_BINARY_PATH@"
+#define SYSTEMD_STDIO_BRIDGE_BINARY_PATH "@SYS_STDIO_BRIDGE_BINARY_PATH@"
+
+#define POLKIT_AGENT_BINARY_PATH "@POLKIT_AGENT_BINARY_PATH@"
+
+#endif

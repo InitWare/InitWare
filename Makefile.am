@@ -143,33 +143,21 @@ udevlibexec_PROGRAMS =
 
 AM_CPPFLAGS = \
 	-include $(top_builddir)/config.h \
-	-DPKGSYSCONFDIR=\"$(pkgsysconfdir)\" \
-	-DSYSTEM_CONFIG_UNIT_PATH=\"$(pkgsysconfdir)/system\" \
-	-DSYSTEM_DATA_UNIT_PATH=\"$(systemunitdir)\" \
 	-DSYSTEM_SYSVINIT_PATH=\"$(SYSTEM_SYSVINIT_PATH)\" \
 	-DSYSTEM_SYSVRCND_PATH=\"$(SYSTEM_SYSVRCND_PATH)\" \
-	-DUSER_CONFIG_UNIT_PATH=\"$(pkgsysconfdir)/user\" \
-	-DUSER_DATA_UNIT_PATH=\"$(userunitdir)\" \
+
 	-DCATALOG_DATABASE=\"$(catalogstatedir)/database\" \
-	-DSYSTEMD_CGROUP_AGENT_PATH=\"$(rootlibexecdir)/systemd-cgroups-agent\" \
-	-DSYSTEMD_BINARY_PATH=\"$(rootlibexecdir)/systemd\" \
-	-DSYSTEMD_SHUTDOWN_BINARY_PATH=\"$(rootlibexecdir)/systemd-shutdown\" \
-	-DSYSTEMD_SLEEP_BINARY_PATH=\"$(rootlibexecdir)/systemd-sleep\" \
-	-DSYSTEMCTL_BINARY_PATH=\"$(rootbindir)/systemctl\" \
-	-DSYSTEMD_TTY_ASK_PASSWORD_AGENT_BINARY_PATH=\"$(rootbindir)/systemd-tty-ask-password-agent\" \
-	-DSYSTEMD_STDIO_BRIDGE_BINARY_PATH=\"$(bindir)/systemd-stdio-bridge\" \
+
 	-DROOTPREFIX=\"$(rootprefix)\" \
 	-DRANDOM_SEED_DIR=\"$(localstatedir)/lib/systemd/\" \
 	-DRANDOM_SEED=\"$(localstatedir)/lib/systemd/random-seed\" \
 	-DSYSTEMD_CRYPTSETUP_PATH=\"$(rootlibexecdir)/systemd-cryptsetup\" \
-	-DSYSTEM_GENERATOR_PATH=\"$(systemgeneratordir)\" \
-	-DUSER_GENERATOR_PATH=\"$(usergeneratordir)\" \
 	-DSYSTEM_SHUTDOWN_PATH=\"$(systemshutdowndir)\" \
 	-DSYSTEM_SLEEP_PATH=\"$(systemsleepdir)\" \
 	-DSYSTEMD_KBD_MODEL_MAP=\"$(pkgdatadir)/kbd-model-map\" \
 	-DX_SERVER=\"$(bindir)/X\" \
 	-DUDEVLIBEXECDIR=\"$(udevlibexecdir)\" \
-	-DPOLKIT_AGENT_BINARY_PATH=\"$(bindir)/pkttyagent\" \
+
 	-DQUOTACHECK=\"$(QUOTACHECK)\" \
 	-DKEXEC=\"$(KEXEC)\" \
 	-I $(top_srcdir)/src \
