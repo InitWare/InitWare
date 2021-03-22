@@ -1,8 +1,11 @@
+.vscode
+.vs
 /Makefile
 /TAGS
 /accelerometer
 /ata_id
 /bootctl
+/build
 /build-aux
 /busctl
 /cdrom_id
