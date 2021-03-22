@@ -66,7 +66,7 @@ static void swap_unset_proc_swaps(Swap *s) {
          * same kernel swap device. */
         swaps = UNIT(s)->manager->swaps_by_proc_swaps;
         first = hashmap_get(swaps, s->parameters_proc_swaps.what);
-        LIST_REMOVE(Swap, same_proc_swaps, first, s);
+        IWLIST_REMOVE(Swap, same_proc_swaps, first, s);
 
         if (first)
                 hashmap_remove_and_replace(swaps,
@@ -364,7 +364,7 @@ static int swap_add_one(
                 p->what = wp;
 
                 first = hashmap_get(m->swaps_by_proc_swaps, wp);
-                LIST_PREPEND(Swap, same_proc_swaps, first, SWAP(u));
+                IWLIST_PREPEND(Swap, same_proc_swaps, first, SWAP(u));
 
                 r = hashmap_replace(m->swaps_by_proc_swaps, wp, first);
                 if (r < 0)
@@ -1114,7 +1114,7 @@ int swap_fd_event(Manager *m, int events) {
                 log_error("Failed to reread /proc/swaps: %s", strerror(-r));
 
                 /* Reset flags, just in case, for late calls */
-                LIST_FOREACH(units_by_type, u, m->units_by_type[UNIT_SWAP]) {
+                IWLIST_FOREACH(units_by_type, u, m->units_by_type[UNIT_SWAP]) {
                         Swap *swap = SWAP(u);
 
                         swap->is_active = swap->just_activated = false;
@@ -1125,7 +1125,7 @@ int swap_fd_event(Manager *m, int events) {
 
         manager_dispatch_load_queue(m);
 
-        LIST_FOREACH(units_by_type, u, m->units_by_type[UNIT_SWAP]) {
+        IWLIST_FOREACH(units_by_type, u, m->units_by_type[UNIT_SWAP]) {
                 Swap *swap = SWAP(u);
 
                 if (!swap->is_active) {
@@ -1185,11 +1185,11 @@ static Unit *swap_following(Unit *u) {
         /* Make everybody follow the unit that's named after the swap
          * device in the kernel */
 
-        LIST_FOREACH_AFTER(same_proc_swaps, other, s)
+        IWLIST_FOREACH_AFTER(same_proc_swaps, other, s)
                 if (streq_ptr(other->what, other->parameters_proc_swaps.what))
                         return UNIT(other);
 
-        LIST_FOREACH_BEFORE(same_proc_swaps, other, s) {
+        IWLIST_FOREACH_BEFORE(same_proc_swaps, other, s) {
                 if (streq_ptr(other->what, other->parameters_proc_swaps.what))
                         return UNIT(other);
 
@@ -1216,11 +1216,11 @@ static int swap_following_set(Unit *u, Set **_set) {
         if (!(set = set_new(NULL, NULL)))
                 return -ENOMEM;
 
-        LIST_FOREACH_AFTER(same_proc_swaps, other, s)
+        IWLIST_FOREACH_AFTER(same_proc_swaps, other, s)
                 if ((r = set_put(set, other)) < 0)
                         goto fail;
 
-        LIST_FOREACH_BEFORE(same_proc_swaps, other, s)
+        IWLIST_FOREACH_BEFORE(same_proc_swaps, other, s)
                 if ((r = set_put(set, other)) < 0)
                         goto fail;
 

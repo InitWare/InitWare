@@ -102,7 +102,7 @@ struct Swap {
         different device nodes we might end up creating multiple
         devices for the same swap. We chain them up here. */
 
-        LIST_FIELDS(struct Swap, same_proc_swaps);
+        IWLIST_FIELDS(struct Swap, same_proc_swaps);
 };
 
 extern const UnitVTable swap_vtable;

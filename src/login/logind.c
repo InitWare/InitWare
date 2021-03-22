@@ -930,7 +930,7 @@ void manager_gc(Manager *m, bool drop_not_started) {
         assert(m);
 
         while ((seat = m->seat_gc_queue)) {
-                LIST_REMOVE(Seat, gc_queue, m->seat_gc_queue, seat);
+                IWLIST_REMOVE(Seat, gc_queue, m->seat_gc_queue, seat);
                 seat->in_gc_queue = false;
 
                 if (seat_check_gc(seat, drop_not_started) == 0) {
@@ -940,7 +940,7 @@ void manager_gc(Manager *m, bool drop_not_started) {
         }
 
         while ((session = m->session_gc_queue)) {
-                LIST_REMOVE(Session, gc_queue, m->session_gc_queue, session);
+                IWLIST_REMOVE(Session, gc_queue, m->session_gc_queue, session);
                 session->in_gc_queue = false;
 
                 /* First, if we are not closing yet, initiate stopping */
@@ -955,7 +955,7 @@ void manager_gc(Manager *m, bool drop_not_started) {
         }
 
         while ((user = m->user_gc_queue)) {
-                LIST_REMOVE(User, gc_queue, m->user_gc_queue, user);
+                IWLIST_REMOVE(User, gc_queue, m->user_gc_queue, user);
                 user->in_gc_queue = false;
 
                 if (!user_check_gc(user, drop_not_started) &&

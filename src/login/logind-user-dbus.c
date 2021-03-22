@@ -123,7 +123,7 @@ static int bus_user_append_sessions(DBusMessageIter *i, const char *property, vo
         if (!dbus_message_iter_open_container(i, DBUS_TYPE_ARRAY, "(so)", &sub))
                 return -ENOMEM;
 
-        LIST_FOREACH(sessions_by_user, session, u->sessions) {
+        IWLIST_FOREACH(sessions_by_user, session, u->sessions) {
                 char *p;
 
                 if (!dbus_message_iter_open_container(&sub, DBUS_TYPE_STRUCT, NULL, &sub2))

@@ -101,29 +101,29 @@ struct Manager {
 
         /* To make it easy to iterate through the units of a specific
          * type we maintain a per type linked list */
-        LIST_HEAD(Unit, units_by_type[_UNIT_TYPE_MAX]);
+        IWLIST_HEAD(Unit, units_by_type[_UNIT_TYPE_MAX]);
 
         /* Units that need to be loaded */
-        LIST_HEAD(Unit, load_queue); /* this is actually more a stack than a queue, but uh. */
+        IWLIST_HEAD(Unit, load_queue); /* this is actually more a stack than a queue, but uh. */
 
         /* Jobs that need to be run */
-        LIST_HEAD(Job, run_queue);   /* more a stack than a queue, too */
+        IWLIST_HEAD(Job, run_queue); /* more a stack than a queue, too */
 
         /* Units and jobs that have not yet been announced via
          * D-Bus. When something about a job changes it is added here
          * if it is not in there yet. This allows easy coalescing of
          * D-Bus change signals. */
-        LIST_HEAD(Unit, dbus_unit_queue);
-        LIST_HEAD(Job, dbus_job_queue);
+        IWLIST_HEAD(Unit, dbus_unit_queue);
+        IWLIST_HEAD(Job, dbus_job_queue);
 
         /* Units to remove */
-        LIST_HEAD(Unit, cleanup_queue);
+        IWLIST_HEAD(Unit, cleanup_queue);
 
         /* Units to check when doing GC */
-        LIST_HEAD(Unit, gc_queue);
+        IWLIST_HEAD(Unit, gc_queue);
 
         /* Units that should be realized */
-        LIST_HEAD(Unit, cgroup_queue);
+        IWLIST_HEAD(Unit, cgroup_queue);
 
         /* We use two hash tables here, since the same PID might be
          * watched by two different units: once the unit that forked

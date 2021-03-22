@@ -97,7 +97,7 @@ typedef struct Server {
         usec_t max_file_usec;
         usec_t oldest_file_usec;
 
-        LIST_HEAD(StdoutStream, stdout_streams);
+        IWLIST_HEAD(StdoutStream, stdout_streams);
         unsigned n_stdout_streams;
 
         char *tty_path;

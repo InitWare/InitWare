@@ -176,7 +176,7 @@ int unit_add_name(Unit *u, const char *text) {
                 u->id = s;
                 u->instance = i;
 
-                LIST_PREPEND(Unit, units_by_type, u->manager->units_by_type[t], u);
+                IWLIST_PREPEND(Unit, units_by_type, u->manager->units_by_type[t], u);
 
                 if (UNIT_VTABLE(u)->init)
                         UNIT_VTABLE(u)->init(u);
@@ -288,7 +288,7 @@ void unit_add_to_load_queue(Unit *u) {
         if (u->load_state != UNIT_STUB || u->in_load_queue)
                 return;
 
-        LIST_PREPEND(Unit, load_queue, u->manager->load_queue, u);
+        IWLIST_PREPEND(Unit, load_queue, u->manager->load_queue, u);
         u->in_load_queue = true;
 }
 
@@ -298,7 +298,7 @@ void unit_add_to_cleanup_queue(Unit *u) {
         if (u->in_cleanup_queue)
                 return;
 
-        LIST_PREPEND(Unit, cleanup_queue, u->manager->cleanup_queue, u);
+        IWLIST_PREPEND(Unit, cleanup_queue, u->manager->cleanup_queue, u);
         u->in_cleanup_queue = true;
 }
 
@@ -311,7 +311,7 @@ void unit_add_to_gc_queue(Unit *u) {
         if (unit_check_gc(u))
                 return;
 
-        LIST_PREPEND(Unit, gc_queue, u->manager->gc_queue, u);
+        IWLIST_PREPEND(Unit, gc_queue, u->manager->gc_queue, u);
         u->in_gc_queue = true;
 
         u->manager->n_in_gc_queue ++;
@@ -330,7 +330,7 @@ void unit_add_to_dbus_queue(Unit *u) {
                 return;
         }
 
-        LIST_PREPEND(Unit, dbus_queue, u->manager->dbus_unit_queue, u);
+        IWLIST_PREPEND(Unit, dbus_queue, u->manager->dbus_unit_queue, u);
         u->in_dbus_queue = true;
 }
 
@@ -443,24 +443,24 @@ void unit_free(Unit *u) {
                 bidi_set_free(u, u->dependencies[d]);
 
         if (u->type != _UNIT_TYPE_INVALID)
-                LIST_REMOVE(Unit, units_by_type, u->manager->units_by_type[u->type], u);
+                IWLIST_REMOVE(Unit, units_by_type, u->manager->units_by_type[u->type], u);
 
         if (u->in_load_queue)
-                LIST_REMOVE(Unit, load_queue, u->manager->load_queue, u);
+                IWLIST_REMOVE(Unit, load_queue, u->manager->load_queue, u);
 
         if (u->in_dbus_queue)
-                LIST_REMOVE(Unit, dbus_queue, u->manager->dbus_unit_queue, u);
+                IWLIST_REMOVE(Unit, dbus_queue, u->manager->dbus_unit_queue, u);
 
         if (u->in_cleanup_queue)
-                LIST_REMOVE(Unit, cleanup_queue, u->manager->cleanup_queue, u);
+                IWLIST_REMOVE(Unit, cleanup_queue, u->manager->cleanup_queue, u);
 
         if (u->in_gc_queue) {
-                LIST_REMOVE(Unit, gc_queue, u->manager->gc_queue, u);
+                IWLIST_REMOVE(Unit, gc_queue, u->manager->gc_queue, u);
                 u->manager->n_in_gc_queue--;
         }
 
         if (u->in_cgroup_queue)
-                LIST_REMOVE(Unit, cgroup_queue, u->manager->cgroup_queue, u);
+                IWLIST_REMOVE(Unit, cgroup_queue, u->manager->cgroup_queue, u);
 
         if (u->cgroup_path) {
                 hashmap_remove(u->manager->cgroup_unit, u->cgroup_path);
@@ -966,7 +966,7 @@ int unit_load(Unit *u) {
         assert(u);
 
         if (u->in_load_queue) {
-                LIST_REMOVE(Unit, load_queue, u->manager->load_queue, u);
+                IWLIST_REMOVE(Unit, load_queue, u->manager->load_queue, u);
                 u->in_load_queue = false;
         }
 
@@ -2866,7 +2866,7 @@ Unit* unit_ref_set(UnitRef *ref, Unit *u) {
                 unit_ref_unset(ref);
 
         ref->unit = u;
-        LIST_PREPEND(UnitRef, refs, u->refs, ref);
+        IWLIST_PREPEND(UnitRef, refs, u->refs, ref);
         return u;
 }
 
@@ -2876,7 +2876,7 @@ void unit_ref_unset(UnitRef *ref) {
         if (!ref->unit)
                 return;
 
-        LIST_REMOVE(UnitRef, refs, ref->unit->refs, ref);
+        IWLIST_REMOVE(UnitRef, refs, ref->unit->refs, ref);
         ref->unit = NULL;
 }
 

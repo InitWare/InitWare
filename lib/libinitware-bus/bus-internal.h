@@ -51,7 +51,7 @@ struct filter_callback {
 
         unsigned last_iteration;
 
-        LIST_FIELDS(struct filter_callback, callbacks);
+        IWLIST_FIELDS(struct filter_callback, callbacks);
 };
 
 struct object_callback {
@@ -130,7 +130,7 @@ struct sd_bus {
         struct bus_match_node match_callbacks;
         Prioq *reply_callbacks_prioq;
         Hashmap *reply_callbacks;
-        LIST_HEAD(struct filter_callback, filter_callbacks);
+        IWLIST_HEAD(struct filter_callback, filter_callbacks);
         Hashmap *object_callbacks;
 
         union {

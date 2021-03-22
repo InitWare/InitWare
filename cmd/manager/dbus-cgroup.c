@@ -38,7 +38,7 @@ static int bus_cgroup_append_device_weights(DBusMessageIter *i, const char *prop
         if (!dbus_message_iter_open_container(i, DBUS_TYPE_ARRAY, "(st)", &sub))
                 return -ENOMEM;
 
-        LIST_FOREACH(device_weights, w, c->blockio_device_weights) {
+        IWLIST_FOREACH(device_weights, w, c->blockio_device_weights) {
 
                 if (!dbus_message_iter_open_container(&sub, DBUS_TYPE_STRUCT, NULL, &sub2) ||
                     !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &w->path) ||
@@ -65,7 +65,7 @@ static int bus_cgroup_append_device_bandwidths(DBusMessageIter *i, const char *p
         if (!dbus_message_iter_open_container(i, DBUS_TYPE_ARRAY, "(st)", &sub))
                 return -ENOMEM;
 
-        LIST_FOREACH(device_bandwidths, b, c->blockio_device_bandwidths) {
+        IWLIST_FOREACH(device_bandwidths, b, c->blockio_device_bandwidths) {
 
                 if (streq(property, "BlockIOReadBandwidth") != b->read)
                         continue;
@@ -95,7 +95,7 @@ static int bus_cgroup_append_device_allow(DBusMessageIter *i, const char *proper
         if (!dbus_message_iter_open_container(i, DBUS_TYPE_ARRAY, "(ss)", &sub))
                 return -ENOMEM;
 
-        LIST_FOREACH(device_allow, a, c->device_allow) {
+        IWLIST_FOREACH(device_allow, a, c->device_allow) {
                 const char *rwm;
                 char buf[4];
                 unsigned k = 0;
@@ -249,7 +249,7 @@ int bus_cgroup_set_property(
                                 CGroupBlockIODeviceBandwidth *b;
                                 bool exist = false;
 
-                                LIST_FOREACH(device_bandwidths, b, c->blockio_device_bandwidths) {
+                                IWLIST_FOREACH(device_bandwidths, b, c->blockio_device_bandwidths) {
                                         if (path_equal(path, b->path) && read == b->read) {
                                                 a = b;
                                                 exist = true;
@@ -273,7 +273,7 @@ int bus_cgroup_set_property(
                                 a->bandwidth = u64;
 
                                 if (!exist)
-                                        LIST_PREPEND(CGroupBlockIODeviceBandwidth, device_bandwidths,
+                                        IWLIST_PREPEND(CGroupBlockIODeviceBandwidth, device_bandwidths,
                                                      c->blockio_device_bandwidths, a);
                         }
 
@@ -289,7 +289,7 @@ int bus_cgroup_set_property(
                         size_t size = 0;
 
                         if (n == 0) {
-                                LIST_FOREACH_SAFE(device_bandwidths, a, next, c->blockio_device_bandwidths)
+                                IWLIST_FOREACH_SAFE(device_bandwidths, a, next, c->blockio_device_bandwidths)
                                         if (a->read == read)
                                                 cgroup_context_free_blockio_device_bandwidth(c, a);
                         }
@@ -300,12 +300,12 @@ int bus_cgroup_set_property(
 
                          if (read) {
                                 fputs("BlockIOReadBandwidth=\n", f);
-                                 LIST_FOREACH(device_bandwidths, a, c->blockio_device_bandwidths)
+                                 IWLIST_FOREACH(device_bandwidths, a, c->blockio_device_bandwidths)
                                         if (a->read)
                                                 fprintf(f, "BlockIOReadBandwidth=%s %" PRIu64 "\n", a->path, a->bandwidth);
                         } else {
                                 fputs("BlockIOWriteBandwidth=\n", f);
-                                LIST_FOREACH(device_bandwidths, a, c->blockio_device_bandwidths)
+                                IWLIST_FOREACH(device_bandwidths, a, c->blockio_device_bandwidths)
                                         if (!a->read)
                                                 fprintf(f, "BlockIOWriteBandwidth=%s %" PRIu64 "\n", a->path, a->bandwidth);
                         }
@@ -346,7 +346,7 @@ int bus_cgroup_set_property(
                                 CGroupBlockIODeviceWeight *b;
                                 bool exist = false;
 
-                                LIST_FOREACH(device_weights, b, c->blockio_device_weights) {
+                                IWLIST_FOREACH(device_weights, b, c->blockio_device_weights) {
                                         if (path_equal(b->path, path)) {
                                                 a = b;
                                                 exist = true;
@@ -369,7 +369,7 @@ int bus_cgroup_set_property(
                                 a->weight = ul;
 
                                 if (!exist)
-                                        LIST_PREPEND(CGroupBlockIODeviceWeight, device_weights,
+                                        IWLIST_PREPEND(CGroupBlockIODeviceWeight, device_weights,
                                                      c->blockio_device_weights, a);
                         }
 
@@ -393,7 +393,7 @@ int bus_cgroup_set_property(
                                 return -ENOMEM;
 
                         fputs("BlockIODeviceWeight=\n", f);
-                        LIST_FOREACH(device_weights, a, c->blockio_device_weights)
+                        IWLIST_FOREACH(device_weights, a, c->blockio_device_weights)
                                 fprintf(f, "BlockIODeviceWeight=%s %lu\n", a->path, a->weight);
 
                         fflush(f);
@@ -492,7 +492,7 @@ int bus_cgroup_set_property(
                                 CGroupDeviceAllow *b;
                                 bool exist = false;
 
-                                LIST_FOREACH(device_allow, b, c->device_allow) {
+                                IWLIST_FOREACH(device_allow, b, c->device_allow) {
                                         if (path_equal(b->path, path)) {
                                                 a = b;
                                                 exist = true;
@@ -517,7 +517,7 @@ int bus_cgroup_set_property(
                                 a->m = !!strchr(rwm, 'm');
 
                                 if (!exist)
-                                        LIST_PREPEND(CGroupDeviceAllow, device_allow, c->device_allow, a);
+                                        IWLIST_PREPEND(CGroupDeviceAllow, device_allow, c->device_allow, a);
                         }
 
                         n++;
@@ -540,7 +540,7 @@ int bus_cgroup_set_property(
                                 return -ENOMEM;
 
                         fputs("DeviceAllow=\n", f);
-                        LIST_FOREACH(device_allow, a, c->device_allow)
+                        IWLIST_FOREACH(device_allow, a, c->device_allow)
                                 fprintf(f, "DeviceAllow=%s %s%s%s\n", a->path, a->r ? "r" : "", a->w ? "w" : "", a->m ? "m" : "");
 
                         fflush(f);

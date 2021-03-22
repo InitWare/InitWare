@@ -72,7 +72,7 @@ void user_free(User *u) {
         assert(u);
 
         if (u->in_gc_queue)
-                LIST_REMOVE(User, gc_queue, u->manager->user_gc_queue, u);
+                IWLIST_REMOVE(User, gc_queue, u->manager->user_gc_queue, u);
 
         while (u->sessions)
                 session_free(u->sessions);
@@ -156,7 +156,7 @@ int user_save(User *u) {
 
                 fputs("SESSIONS=", f);
                 first = true;
-                LIST_FOREACH(sessions_by_user, i, u->sessions) {
+                IWLIST_FOREACH(sessions_by_user, i, u->sessions) {
                         if (first)
                                 first = false;
                         else
@@ -167,7 +167,7 @@ int user_save(User *u) {
 
                 fputs("\nSEATS=", f);
                 first = true;
-                LIST_FOREACH(sessions_by_user, i, u->sessions) {
+                IWLIST_FOREACH(sessions_by_user, i, u->sessions) {
                         if (!i->seat)
                                 continue;
 
@@ -181,7 +181,7 @@ int user_save(User *u) {
 
                 fputs("\nACTIVE_SESSIONS=", f);
                 first = true;
-                LIST_FOREACH(sessions_by_user, i, u->sessions) {
+                IWLIST_FOREACH(sessions_by_user, i, u->sessions) {
                         if (!session_is_active(i))
                                 continue;
 
@@ -195,7 +195,7 @@ int user_save(User *u) {
 
                 fputs("\nONLINE_SESSIONS=", f);
                 first = true;
-                LIST_FOREACH(sessions_by_user, i, u->sessions) {
+                IWLIST_FOREACH(sessions_by_user, i, u->sessions) {
                         if (session_get_state(i) == SESSION_CLOSING)
                                 continue;
 
@@ -209,7 +209,7 @@ int user_save(User *u) {
 
                 fputs("\nACTIVE_SEATS=", f);
                 first = true;
-                LIST_FOREACH(sessions_by_user, i, u->sessions) {
+                IWLIST_FOREACH(sessions_by_user, i, u->sessions) {
                         if (!session_is_active(i) || !i->seat)
                                 continue;
 
@@ -223,7 +223,7 @@ int user_save(User *u) {
 
                 fputs("\nONLINE_SEATS=", f);
                 first = true;
-                LIST_FOREACH(sessions_by_user, i, u->sessions) {
+                IWLIST_FOREACH(sessions_by_user, i, u->sessions) {
                         if (session_get_state(i) == SESSION_CLOSING || !i->seat)
                                 continue;
 
@@ -514,7 +514,7 @@ int user_stop(User *u) {
         int r = 0, k;
         assert(u);
 
-        LIST_FOREACH(sessions_by_user, s, u->sessions) {
+        IWLIST_FOREACH(sessions_by_user, s, u->sessions) {
                 k = session_stop(s);
                 if (k < 0)
                         r = k;
@@ -546,7 +546,7 @@ int user_finalize(User *u) {
         if (u->started)
                 log_debug("User %s logged out.", u->name);
 
-        LIST_FOREACH(sessions_by_user, s, u->sessions) {
+        IWLIST_FOREACH(sessions_by_user, s, u->sessions) {
                 k = session_finalize(s);
                 if (k < 0)
                         r = k;
@@ -575,7 +575,7 @@ int user_get_idle_hint(User *u, dual_timestamp *t) {
 
         assert(u);
 
-        LIST_FOREACH(sessions_by_user, s, u->sessions) {
+        IWLIST_FOREACH(sessions_by_user, s, u->sessions) {
                 dual_timestamp k;
                 int ih;
 
@@ -647,7 +647,7 @@ void user_add_to_gc_queue(User *u) {
         if (u->in_gc_queue)
                 return;
 
-        LIST_PREPEND(User, gc_queue, u->manager->user_gc_queue, u);
+        IWLIST_PREPEND(User, gc_queue, u->manager->user_gc_queue, u);
         u->in_gc_queue = true;
 }
 
@@ -665,7 +665,7 @@ UserState user_get_state(User *u) {
         if (u->sessions) {
                 bool all_closing = true;
 
-                LIST_FOREACH(sessions_by_user, i, u->sessions) {
+                IWLIST_FOREACH(sessions_by_user, i, u->sessions) {
                         if (session_is_active(i))
                                 return USER_ACTIVE;
                         if (session_get_state(i) != SESSION_CLOSING)

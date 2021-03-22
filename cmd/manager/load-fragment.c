@@ -310,10 +310,10 @@ int config_parse_socket_listen(const char *unit,
         p->fd = -1;
 
         if (s->ports) {
-                LIST_FIND_TAIL(SocketPort, port, s->ports, tail);
-                LIST_INSERT_AFTER(SocketPort, port, s->ports, tail, p);
+                IWLIST_FIND_TAIL(SocketPort, port, s->ports, tail);
+                IWLIST_INSERT_AFTER(SocketPort, port, s->ports, tail, p);
         } else
-                LIST_PREPEND(SocketPort, port, s->ports, p);
+                IWLIST_PREPEND(SocketPort, port, s->ports, p);
 
         return 0;
 }
@@ -1230,7 +1230,7 @@ int config_parse_exec_mount_flags(const char *unit,
                         flags |= MS_SLAVE;
                 else if (streq(w, "private"))
                         flags |= MS_PRIVATE;
-                else 
+                else
 #endif
                 {
                         log_syntax(unit, LOG_ERR, filename, line, EINVAL,
@@ -1311,7 +1311,7 @@ int config_parse_timer(const char *unit,
         v->value = u;
         v->calendar_spec = c;
 
-        LIST_PREPEND(TimerValue, value, t->values, v);
+        IWLIST_PREPEND(TimerValue, value, t->values, v);
 
         return 0;
 }
@@ -1431,7 +1431,7 @@ int config_parse_path_spec(const char *unit,
         s->type = b;
         s->inotify_fd = -1;
 
-        LIST_PREPEND(PathSpec, spec, p->specs, s);
+        IWLIST_PREPEND(PathSpec, spec, p->specs, s);
 
         return 0;
 }
@@ -1765,7 +1765,7 @@ int config_parse_unit_condition_path(const char *unit,
         if (!c)
                 return log_oom();
 
-        LIST_PREPEND(Condition, conditions, u->conditions, c);
+        IWLIST_PREPEND(Condition, conditions, u->conditions, c);
         return 0;
 }
 
@@ -1820,7 +1820,7 @@ int config_parse_unit_condition_string(const char *unit,
         if (!c)
                 return log_oom();
 
-        LIST_PREPEND(Condition, conditions, u->conditions, c);
+        IWLIST_PREPEND(Condition, conditions, u->conditions, c);
         return 0;
 }
 
@@ -1874,7 +1874,7 @@ int config_parse_unit_condition_null(const char *unit,
         if (!c)
                 return log_oom();
 
-        LIST_PREPEND(Condition, conditions, u->conditions, c);
+        IWLIST_PREPEND(Condition, conditions, u->conditions, c);
         return 0;
 }
 
@@ -2149,7 +2149,7 @@ int config_parse_device_allow(
         a->w = !!strchr(m, 'w');
         a->m = !!strchr(m, 'm');
 
-        LIST_PREPEND(CGroupDeviceAllow, device_allow, c->device_allow, a);
+        IWLIST_PREPEND(CGroupDeviceAllow, device_allow, c->device_allow, a);
         return 0;
 }
 
@@ -2256,7 +2256,7 @@ int config_parse_blockio_device_weight(
 
         w->weight = lu;
 
-        LIST_PREPEND(CGroupBlockIODeviceWeight, device_weights, c->blockio_device_weights, w);
+        IWLIST_PREPEND(CGroupBlockIODeviceWeight, device_weights, c->blockio_device_weights, w);
         return 0;
 }
 
@@ -2289,9 +2289,9 @@ int config_parse_blockio_bandwidth(
         if (isempty(rvalue)) {
                 CGroupBlockIODeviceBandwidth *next;
 
-                LIST_FOREACH_SAFE (device_bandwidths, b, next, c->blockio_device_bandwidths)
-                        if (b->read == read)
-                                cgroup_context_free_blockio_device_bandwidth(c, b);
+                IWLIST_FOREACH_SAFE(device_bandwidths, b, next, c->blockio_device_bandwidths)
+                if (b->read == read)
+                        cgroup_context_free_blockio_device_bandwidth(c, b);
 
                 return 0;
         }
@@ -2332,7 +2332,7 @@ int config_parse_blockio_bandwidth(
         b->bandwidth = (uint64_t) bytes;
         b->read = read;
 
-        LIST_PREPEND(CGroupBlockIODeviceBandwidth, device_bandwidths, c->blockio_device_bandwidths, b);
+        IWLIST_PREPEND(CGroupBlockIODeviceBandwidth, device_bandwidths, c->blockio_device_bandwidths, b);
 
         return 0;
 }

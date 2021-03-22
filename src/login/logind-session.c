@@ -100,7 +100,7 @@ void session_free(Session *s) {
         assert(s);
 
         if (s->in_gc_queue)
-                LIST_REMOVE(Session, gc_queue, s->manager->session_gc_queue, s);
+                IWLIST_REMOVE(Session, gc_queue, s->manager->session_gc_queue, s);
 
         session_drop_controller(s);
 
@@ -110,7 +110,7 @@ void session_free(Session *s) {
         hashmap_free(s->devices);
 
         if (s->user) {
-                LIST_REMOVE(Session, sessions_by_user, s->user->sessions, s);
+                IWLIST_REMOVE(Session, sessions_by_user, s->user->sessions, s);
 
                 if (s->user->display == s)
                         s->user->display = NULL;
@@ -122,7 +122,7 @@ void session_free(Session *s) {
                 if (s->seat->pending_switch == s)
                         s->seat->pending_switch = NULL;
 
-                LIST_REMOVE(Session, sessions_by_seat, s->seat->sessions, s);
+                IWLIST_REMOVE(Session, sessions_by_seat, s->seat->sessions, s);
         }
 
         if (s->scope) {
@@ -153,7 +153,7 @@ void session_set_user(Session *s, User *u) {
         assert(!s->user);
 
         s->user = u;
-        LIST_PREPEND(Session, sessions_by_user, u->sessions, s);
+        IWLIST_PREPEND(Session, sessions_by_user, u->sessions, s);
 }
 
 int session_save(Session *s) {
@@ -1039,7 +1039,7 @@ void session_add_to_gc_queue(Session *s) {
         if (s->in_gc_queue)
                 return;
 
-        LIST_PREPEND(Session, gc_queue, s->manager->session_gc_queue, s);
+        IWLIST_PREPEND(Session, gc_queue, s->manager->session_gc_queue, s);
         s->in_gc_queue = true;
 }
 

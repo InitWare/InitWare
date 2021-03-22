@@ -23,19 +23,19 @@
 int main(int argc, const char *argv[]) {
         size_t i;
         typedef struct list_item {
-                LIST_FIELDS(struct list_item, item);
+                IWLIST_FIELDS(struct list_item, item);
         } list_item;
-        LIST_HEAD(list_item, head);
+        IWLIST_HEAD(list_item, head);
         list_item items[4];
         list_item *cursor;
 
-        LIST_HEAD_INIT(list_item, head);
+        IWLIST_HEAD_INIT(list_item, head);
         assert_se(head == NULL);
 
         for (i = 0; i < ELEMENTSOF(items); i++) {
-                LIST_INIT(list_item, item, &items[i]);
+                IWLIST_INIT(list_item, item, &items[i]);
                 assert_se(LIST_JUST_US(item, &items[i]));
-                LIST_PREPEND(list_item, item, head, &items[i]);
+                IWLIST_PREPEND(list_item, item, head, &items[i]);
         }
 
         assert_se(!LIST_JUST_US(item, head));
@@ -53,10 +53,10 @@ int main(int argc, const char *argv[]) {
         LIST_FIND_HEAD(list_item, item, &items[0], cursor);
         assert_se(cursor == &items[3]);
 
-        LIST_FIND_TAIL(list_item, item, &items[3], cursor);
+        IWLIST_FIND_TAIL(list_item, item, &items[3], cursor);
         assert_se(cursor == &items[0]);
 
-        LIST_REMOVE(list_item, item, head, &items[1]);
+        IWLIST_REMOVE(list_item, item, head, &items[1]);
         assert_se(LIST_JUST_US(item, &items[1]));
 
         assert_se(items[0].item_next == NULL);
@@ -67,7 +67,7 @@ int main(int argc, const char *argv[]) {
         assert_se(items[2].item_prev == &items[3]);
         assert_se(items[3].item_prev == NULL);
 
-        LIST_INSERT_AFTER(list_item, item, head, &items[3], &items[1]);
+        IWLIST_INSERT_AFTER(list_item, item, head, &items[3], &items[1]);
         assert_se(items[0].item_next == NULL);
         assert_se(items[2].item_next == &items[0]);
         assert_se(items[1].item_next == &items[2]);
@@ -78,7 +78,7 @@ int main(int argc, const char *argv[]) {
         assert_se(items[1].item_prev == &items[3]);
         assert_se(items[3].item_prev == NULL);
 
-        LIST_REMOVE(list_item, item, head, &items[0]);
+        IWLIST_REMOVE(list_item, item, head, &items[0]);
         assert_se(LIST_JUST_US(item, &items[0]));
 
         assert_se(items[2].item_next == NULL);
@@ -89,7 +89,7 @@ int main(int argc, const char *argv[]) {
         assert_se(items[1].item_prev == &items[3]);
         assert_se(items[3].item_prev == NULL);
 
-        LIST_REMOVE(list_item, item, head, &items[1]);
+        IWLIST_REMOVE(list_item, item, head, &items[1]);
         assert_se(LIST_JUST_US(item, &items[1]));
 
         assert_se(items[2].item_next == NULL);
@@ -98,11 +98,11 @@ int main(int argc, const char *argv[]) {
         assert_se(items[2].item_prev == &items[3]);
         assert_se(items[3].item_prev == NULL);
 
-        LIST_REMOVE(list_item, item, head, &items[2]);
+        IWLIST_REMOVE(list_item, item, head, &items[2]);
         assert_se(LIST_JUST_US(item, &items[2]));
         assert_se(LIST_JUST_US(item, head));
 
-        LIST_REMOVE(list_item, item, head, &items[3]);
+        IWLIST_REMOVE(list_item, item, head, &items[3]);
         assert_se(LIST_JUST_US(item, &items[3]));
 
         return 0;

@@ -48,7 +48,7 @@ static void device_unset_sysfs(Device *d) {
         /* Remove this unit from the chain of devices which share the
          * same sysfs path. */
         first = hashmap_get(UNIT(d)->manager->devices_by_sysfs, d->sysfs);
-        LIST_REMOVE(Device, same_sysfs, first, d);
+        IWLIST_REMOVE(Device, same_sysfs, first, d);
 
         if (first)
                 hashmap_remove_and_replace(UNIT(d)->manager->devices_by_sysfs, d->sysfs, first->sysfs, first);
@@ -232,7 +232,7 @@ static int device_update_unit(Manager *m, struct udev_device *dev, const char *p
                         }
 
                 first = hashmap_get(m->devices_by_sysfs, sysfs);
-                LIST_PREPEND(Device, same_sysfs, first, DEVICE(u));
+                IWLIST_PREPEND(Device, same_sysfs, first, DEVICE(u));
 
                 if ((r = hashmap_replace(m->devices_by_sysfs, DEVICE(u)->sysfs, first)) < 0)
                         goto fail;
@@ -369,8 +369,8 @@ static int device_process_new_device(Manager *m, struct udev_device *dev, bool u
                 manager_dispatch_load_queue(m);
 
                 l = hashmap_get(m->devices_by_sysfs, sysfs);
-                LIST_FOREACH(same_sysfs, d, l)
-                        device_set_state(d, DEVICE_PLUGGED);
+                IWLIST_FOREACH(same_sysfs, d, l)
+                device_set_state(d, DEVICE_PLUGGED);
         }
 
         return 0;

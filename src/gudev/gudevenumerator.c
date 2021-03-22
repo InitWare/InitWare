@@ -420,7 +420,7 @@ g_udev_enumerator_execute (GUdevEnumerator  *enumerator)
 
       device = _g_udev_device_new (udevice);
       udev_device_unref (udevice);
-      ret = g_list_prepend (ret, device);
+      ret = g_IWLIST_PREPEND (ret, device);
     }
 
   ret = g_list_reverse (ret);

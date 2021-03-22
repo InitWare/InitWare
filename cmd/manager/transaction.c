@@ -71,7 +71,7 @@ static void transaction_find_jobs_that_matter_to_anchor(Job *j, unsigned generat
         j->matters_to_anchor = true;
         j->generation = generation;
 
-        LIST_FOREACH(subject, l, j->subject_list) {
+        IWLIST_FOREACH(subject, l, j->subject_list) {
 
                 /* This link does not matter */
                 if (!l->matters)
@@ -104,7 +104,7 @@ static void transaction_merge_and_delete_job(Transaction *tr, Job *j, Job *other
 
         /* Patch us in as new owner of the JobDependency objects */
         last = NULL;
-        LIST_FOREACH(subject, l, other->subject_list) {
+        IWLIST_FOREACH(subject, l, other->subject_list) {
                 assert(l->subject == other);
                 l->subject = j;
                 last = l;
@@ -120,7 +120,7 @@ static void transaction_merge_and_delete_job(Transaction *tr, Job *j, Job *other
 
         /* Patch us in as new owner of the JobDependency objects */
         last = NULL;
-        LIST_FOREACH(object, l, other->object_list) {
+        IWLIST_FOREACH(object, l, other->object_list) {
                 assert(l->object == other);
                 l->object = j;
                 last = l;
@@ -148,7 +148,7 @@ _pure_ static bool job_is_conflicted_by(Job *j) {
         /* Returns true if this job is pulled in by a least one
          * ConflictedBy dependency. */
 
-        LIST_FOREACH(object, l, j->object_list)
+        IWLIST_FOREACH(object, l, j->object_list)
                 if (l->conflicts)
                         return true;
 
@@ -167,8 +167,8 @@ static int delete_one_unmergeable_job(Transaction *tr, Job *j) {
 
         /* We rely here on the fact that if a merged with b does not
          * merge with c, either a or b merge with c neither */
-        LIST_FOREACH(transaction, j, j)
-                LIST_FOREACH(transaction, k, j->transaction_next) {
+        IWLIST_FOREACH(transaction, j, j)
+                IWLIST_FOREACH(transaction, k, j->transaction_next) {
                         Job *d;
 
                         /* Is this one mergeable? Then skip it */
@@ -245,7 +245,7 @@ static int transaction_merge_jobs(Transaction *tr, DBusError *e) {
                 Job *k;
 
                 t = j->type;
-                LIST_FOREACH(transaction, k, j->transaction_next) {
+                IWLIST_FOREACH(transaction, k, j->transaction_next) {
                         if (job_type_merge_and_collapse(&t, k->type, j->unit) >= 0)
                                 continue;
 
@@ -273,7 +273,7 @@ static int transaction_merge_jobs(Transaction *tr, DBusError *e) {
                 Job *k;
 
                 /* Merge all transaction jobs for j->unit */
-                LIST_FOREACH(transaction, k, j->transaction_next)
+                IWLIST_FOREACH(transaction, k, j->transaction_next)
                         assert_se(job_type_merge_and_collapse(&t, k->type, j->unit) == 0);
 
                 while ((k = j->transaction_next)) {
@@ -305,7 +305,7 @@ rescan:
         HASHMAP_FOREACH(j, tr->jobs, i) {
                 Job *k;
 
-                LIST_FOREACH(transaction, k, j) {
+                IWLIST_FOREACH(transaction, k, j) {
 
                         if (tr->anchor_job == k ||
                             !job_type_is_redundant(k->type, unit_active_state(k->unit)) ||
@@ -327,7 +327,7 @@ _pure_ static bool unit_matters_to_anchor(Unit *u, Job *j) {
         /* Checks whether at least one of the jobs for this unit
          * matters to the anchor. */
 
-        LIST_FOREACH(transaction, j, j)
+        IWLIST_FOREACH(transaction, j, j)
                 if (j->matters_to_anchor)
                         return true;
 
@@ -527,7 +527,7 @@ static void transaction_minimize_impact(Transaction *tr) {
 
 rescan:
         HASHMAP_FOREACH(j, tr->jobs, i) {
-                LIST_FOREACH(transaction, j, j) {
+                IWLIST_FOREACH(transaction, j, j) {
                         bool stops_running_service, changes_existing_job;
 
                         /* If it matters, we shouldn't drop it */
@@ -755,7 +755,7 @@ static Job* transaction_add_one_job(Transaction *tr, JobType type, Unit *unit, b
 
         f = hashmap_get(tr->jobs, unit);
 
-        LIST_FOREACH(transaction, j, f) {
+        IWLIST_FOREACH(transaction, j, f) {
                 assert(j->unit == unit);
 
                 if (j->type == type) {
@@ -775,10 +775,10 @@ static Job* transaction_add_one_job(Transaction *tr, JobType type, Unit *unit, b
         j->override = override;
         j->irreversible = tr->irreversible;
 
-        LIST_PREPEND(Job, transaction, f, j);
+        IWLIST_PREPEND(Job, transaction, f, j);
 
         if (hashmap_replace(tr->jobs, unit, f) < 0) {
-                LIST_REMOVE(Job, transaction, f, j);
+                IWLIST_REMOVE(Job, transaction, f, j);
                 job_free(j);
                 return NULL;
         }

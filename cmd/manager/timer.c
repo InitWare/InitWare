@@ -54,7 +54,7 @@ void timer_free_values(Timer *t) {
         assert(t);
 
         while ((v = t->values)) {
-                LIST_REMOVE(TimerValue, value, t->values, v);
+                IWLIST_REMOVE(TimerValue, value, t->values, v);
 
                 if (v->calendar_spec)
                         calendar_spec_free(v->calendar_spec);
@@ -157,7 +157,7 @@ static void timer_dump(Unit *u, FILE *f, const char *prefix) {
                 prefix, timer_result_to_string(t->result),
                 prefix, trigger ? trigger->id : "n/a");
 
-        LIST_FOREACH(value, v, t->values) {
+        IWLIST_FOREACH(value, v, t->values) {
 
                 if (v->base == TIMER_CALENDAR) {
                         _cleanup_free_ char *p = NULL;
@@ -240,7 +240,7 @@ static void timer_enter_waiting(Timer *t, bool initial) {
         dual_timestamp_get(&ts);
         t->next_elapse_monotonic = t->next_elapse_realtime = 0;
 
-        LIST_FOREACH(value, v, t->values) {
+        IWLIST_FOREACH(value, v, t->values) {
 
                 if (v->disabled)
                         continue;
@@ -500,7 +500,7 @@ static void timer_trigger_notify(Unit *u, Unit *other) {
                 return;
 
         /* Reenable all timers that depend on unit state */
-        LIST_FOREACH(value, v, t->values)
+        IWLIST_FOREACH(value, v, t->values)
                 if (v->base == TIMER_UNIT_ACTIVE ||
                     v->base == TIMER_UNIT_INACTIVE)
                         v->disabled = false;

@@ -336,7 +336,7 @@ int bus_execute_append_command(DBusMessageIter *i, const char *property, void *d
         if (!dbus_message_iter_open_container(i, DBUS_TYPE_ARRAY, "(sasbttttuii)", &sub))
                 return -ENOMEM;
 
-        LIST_FOREACH(command, c, c) {
+        IWLIST_FOREACH(command, c, c) {
                 char **l;
                 uint32_t pid;
                 int32_t code, status;

@@ -67,7 +67,7 @@ static int bus_path_append_paths(DBusMessageIter *i, const char *property, void 
         if (!dbus_message_iter_open_container(i, DBUS_TYPE_ARRAY, "(ss)", &sub))
                 return -ENOMEM;
 
-        LIST_FOREACH(spec, k, p->specs) {
+        IWLIST_FOREACH(spec, k, p->specs) {
                 const char *t = path_type_to_string(k->type);
 
                 if (!dbus_message_iter_open_container(&sub, DBUS_TYPE_STRUCT, NULL, &sub2) ||

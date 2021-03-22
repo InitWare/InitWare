@@ -86,13 +86,13 @@ typedef struct SocketPort {
         char *path;
         Watch fd_watch;
 
-        LIST_FIELDS(struct SocketPort, port);
+        IWLIST_FIELDS(struct SocketPort, port);
 } SocketPort;
 
 struct Socket {
         Unit meta;
 
-        LIST_HEAD(SocketPort, ports);
+        IWLIST_HEAD(SocketPort, ports);
 
         unsigned n_accepted;
         unsigned n_connections;

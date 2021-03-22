@@ -188,7 +188,7 @@ static Match *match_new(Match *p, MatchType t) {
 
         if (p) {
                 m->parent = p;
-                LIST_PREPEND(Match, matches, p->matches, m);
+                IWLIST_PREPEND(Match, matches, p->matches, m);
         }
 
         return m;
@@ -201,7 +201,7 @@ static void match_free(Match *m) {
                 match_free(m->matches);
 
         if (m->parent)
-                LIST_REMOVE(Match, matches, m->parent->matches, m);
+                IWLIST_REMOVE(Match, matches, m->parent->matches, m);
 
         free(m->data);
         free(m);
@@ -262,10 +262,10 @@ _public_ int sd_journal_add_match(sd_journal *j, const void *data, size_t size) 
 
         le_hash = htole64(hash64(data, size));
 
-        LIST_FOREACH(matches, l3, j->level2->matches) {
+        IWLIST_FOREACH(matches, l3, j->level2->matches) {
                 assert(l3->type == MATCH_OR_TERM);
 
-                LIST_FOREACH(matches, l4, l3->matches) {
+                IWLIST_FOREACH(matches, l4, l3->matches) {
                         assert(l4->type == MATCH_DISCRETE);
 
                         /* Exactly the same match already? Then ignore
@@ -370,7 +370,7 @@ static char *match_make_string(Match *m) {
                 return strndup(m->data, m->size);
 
         p = NULL;
-        LIST_FOREACH(matches, i, m->matches) {
+        IWLIST_FOREACH(matches, i, m->matches) {
                 char *t, *k;
 
                 t = match_make_string(i);
@@ -596,7 +596,7 @@ static int next_for_match(
 
                 /* Find the earliest match beyond after_offset */
 
-                LIST_FOREACH(matches, i, m->matches) {
+                IWLIST_FOREACH(matches, i, m->matches) {
                         uint64_t cp;
 
                         r = next_for_match(j, i, f, after_offset, direction, NULL, &cp);
@@ -703,7 +703,7 @@ static int find_location_for_match(
 
                 /* Find the earliest match */
 
-                LIST_FOREACH(matches, i, m->matches) {
+                IWLIST_FOREACH(matches, i, m->matches) {
                         uint64_t cp;
 
                         r = find_location_for_match(j, i, f, direction, NULL, &cp);
@@ -741,7 +741,7 @@ static int find_location_for_match(
                 if (!m->matches)
                         return 0;
 
-                LIST_FOREACH(matches, i, m->matches) {
+                IWLIST_FOREACH(matches, i, m->matches) {
                         uint64_t cp;
 
                         r = find_location_for_match(j, i, f, direction, NULL, &cp);

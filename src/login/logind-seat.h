@@ -35,16 +35,16 @@ struct Seat {
 
         char *state_file;
 
-        LIST_HEAD(Device, devices);
+        IWLIST_HEAD(Device, devices);
 
         Session *active;
         Session *pending_switch;
-        LIST_HEAD(Session, sessions);
+        IWLIST_HEAD(Session, sessions);
 
         bool in_gc_queue:1;
         bool started:1;
 
-        LIST_FIELDS(Seat, gc_queue);
+        IWLIST_FIELDS(Seat, gc_queue);
 };
 
 Seat *seat_new(Manager *m, const char *id);

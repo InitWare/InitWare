@@ -76,8 +76,8 @@ void condition_free(Condition *c) {
 void condition_free_list(Condition *first) {
         Condition *c, *n;
 
-        LIST_FOREACH_SAFE(conditions, c, n, first)
-                condition_free(c);
+        IWLIST_FOREACH_SAFE(conditions, c, n, first)
+        condition_free(c);
 }
 
 static bool test_kernel_command_line(const char *parameter) {
@@ -353,7 +353,7 @@ bool condition_test_list(const char *unit, Condition *first) {
         /* Otherwise, if all of the non-trigger conditions apply and
          * if any of the trigger conditions apply (unless there are
          * none) we return true */
-        LIST_FOREACH(conditions, c, first) {
+        IWLIST_FOREACH(conditions, c, first) {
                 bool b;
 
                 b = condition_test(c);
@@ -398,8 +398,8 @@ void condition_dump(Condition *c, FILE *f, const char *prefix) {
 void condition_dump_list(Condition *first, FILE *f, const char *prefix) {
         Condition *c;
 
-        LIST_FOREACH(conditions, c, first)
-                condition_dump(c, f, prefix);
+        IWLIST_FOREACH(conditions, c, first)
+        condition_dump(c, f, prefix);
 }
 
 static const char* const condition_type_table[_CONDITION_TYPE_MAX] = {

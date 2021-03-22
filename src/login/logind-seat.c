@@ -67,7 +67,7 @@ void seat_free(Seat *s) {
         assert(s);
 
         if (s->in_gc_queue)
-                LIST_REMOVE(Seat, gc_queue, s->manager->seat_gc_queue, s);
+                IWLIST_REMOVE(Seat, gc_queue, s->manager->seat_gc_queue, s);
 
         while (s->sessions)
                 session_free(s->sessions);
@@ -128,7 +128,7 @@ int seat_save(Seat *s) {
                 Session *i;
 
                 fputs("SESSIONS=", f);
-                LIST_FOREACH(sessions_by_seat, i, s->sessions) {
+                IWLIST_FOREACH(sessions_by_seat, i, s->sessions) {
                         fprintf(f,
                                 "%s%c",
                                 i->id,
@@ -136,7 +136,7 @@ int seat_save(Seat *s) {
                 }
 
                 fputs("UIDS=", f);
-                LIST_FOREACH(sessions_by_seat, i, s->sessions)
+                IWLIST_FOREACH(sessions_by_seat, i, s->sessions)
                         fprintf(f,
                                 "%lu%c",
                                 (unsigned long) i->user->uid,
@@ -288,7 +288,7 @@ int seat_active_vt_changed(Seat *s, int vtnr) {
 
         log_debug("VT changed to %i", vtnr);
 
-        LIST_FOREACH(sessions_by_seat, i, s->sessions)
+        IWLIST_FOREACH(sessions_by_seat, i, s->sessions)
                 if (i->vtnr == vtnr) {
                         new_active = i;
                         break;
@@ -399,7 +399,7 @@ int seat_stop_sessions(Seat *s) {
 
         assert(s);
 
-        LIST_FOREACH(sessions_by_seat, session, s->sessions) {
+        IWLIST_FOREACH(sessions_by_seat, session, s->sessions) {
                 k = session_stop(session);
                 if (k < 0)
                         r = k;
@@ -414,7 +414,7 @@ int seat_attach_session(Seat *s, Session *session) {
         assert(!session->seat);
 
         session->seat = s;
-        LIST_PREPEND(Session, sessions_by_seat, s->sessions, session);
+        IWLIST_PREPEND(Session, sessions_by_seat, s->sessions, session);
 
         seat_send_changed(s, "Sessions\0");
 
@@ -485,7 +485,7 @@ int seat_get_idle_hint(Seat *s, dual_timestamp *t) {
 
         assert(s);
 
-        LIST_FOREACH(sessions_by_seat, session, s->sessions) {
+        IWLIST_FOREACH(sessions_by_seat, session, s->sessions) {
                 dual_timestamp k;
                 int ih;
 
@@ -532,7 +532,7 @@ void seat_add_to_gc_queue(Seat *s) {
         if (s->in_gc_queue)
                 return;
 
-        LIST_PREPEND(Seat, gc_queue, s->manager->seat_gc_queue, s);
+        IWLIST_PREPEND(Seat, gc_queue, s->manager->seat_gc_queue, s);
         s->in_gc_queue = true;
 }
 

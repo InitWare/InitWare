@@ -78,7 +78,7 @@ struct ExecCommand {
         char *path;
         char **argv;
         ExecStatus exec_status;
-        LIST_FIELDS(ExecCommand, command); /* useful for chaining commands */
+        IWLIST_FIELDS(ExecCommand, command); /* useful for chaining commands */
         bool ignore;
 };
 

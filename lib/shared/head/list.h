@@ -23,21 +23,19 @@
 
 /* The head of the linked list. Use this in the structure that shall
  * contain the head of the linked list */
-#define LIST_HEAD(t,name)                                               \
-        t *name
+#define IWLIST_HEAD(t, name) t *name
 
 /* The pointers in the linked list's items. Use this in the item structure */
-#define LIST_FIELDS(t,name)                                             \
-        t *name##_next, *name##_prev
+#define IWLIST_FIELDS(t, name) t *name##_next, *name##_prev
 
 /* Initialize the list's head */
-#define LIST_HEAD_INIT(t,head)                                          \
-        do {                                                            \
-                (head) = NULL; }                                        \
-        while(false)
+#define IWLIST_HEAD_INIT(t, head) \
+        do {                      \
+                (head) = NULL;    \
+        } while (false)
 
 /* Initialize a list item */
-#define LIST_INIT(t,name,item)                                          \
+#define IWLIST_INIT(t,name,item)                                          \
         do {                                                            \
                 t *_item = (item);                                      \
                 assert(_item);                                          \
@@ -45,7 +43,7 @@
         } while(false)
 
 /* Prepend an item to the list */
-#define LIST_PREPEND(t,name,head,item)                                  \
+#define IWLIST_PREPEND(t,name,head,item)                                  \
         do {                                                            \
                 t **_head = &(head), *_item = (item);                   \
                 assert(_item);                                          \
@@ -56,7 +54,7 @@
         } while(false)
 
 /* Remove an item from the list */
-#define LIST_REMOVE(t,name,head,item)                                   \
+#define IWLIST_REMOVE(t,name,head,item)                                   \
         do {                                                            \
                 t **_head = &(head), *_item = (item);                   \
                 assert(_item);                                          \
@@ -82,7 +80,7 @@
         } while (false)
 
 /* Find the tail of the list */
-#define LIST_FIND_TAIL(t,name,item,tail)                                \
+#define IWLIST_FIND_TAIL(t,name,item,tail)                                \
         do {                                                            \
                 t *_item = (item);                                      \
                 assert(_item);                                          \
@@ -92,7 +90,7 @@
         } while (false)
 
 /* Insert an item after another one (a = where, b = what) */
-#define LIST_INSERT_AFTER(t,name,head,a,b)                              \
+#define IWLIST_INSERT_AFTER(t,name,head,a,b)                              \
         do {                                                            \
                 t **_head = &(head), *_a = (a), *_b = (b);              \
                 assert(_b);                                             \
@@ -112,16 +110,16 @@
 #define LIST_JUST_US(name,item)                                         \
         (!(item)->name##_prev && !(item)->name##_next)                  \
 
-#define LIST_FOREACH(name,i,head)                                       \
+#define IWLIST_FOREACH(name,i,head)                                       \
         for ((i) = (head); (i); (i) = (i)->name##_next)
 
-#define LIST_FOREACH_SAFE(name,i,n,head)                                \
+#define IWLIST_FOREACH_SAFE(name,i,n,head)                                \
         for ((i) = (head); (i) && (((n) = (i)->name##_next), 1); (i) = (n))
 
-#define LIST_FOREACH_BEFORE(name,i,p)                                   \
+#define IWLIST_FOREACH_BEFORE(name,i,p)                                   \
         for ((i) = (p)->name##_prev; (i); (i) = (i)->name##_prev)
 
-#define LIST_FOREACH_AFTER(name,i,p)                                    \
+#define IWLIST_FOREACH_AFTER(name,i,p)                                    \
         for ((i) = (p)->name##_next; (i); (i) = (i)->name##_next)
 
 /* Loop starting from p->next until p->prev.

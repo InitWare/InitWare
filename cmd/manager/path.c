@@ -282,7 +282,7 @@ void path_free_specs(Path *p) {
 
         while ((s = p->specs)) {
                 path_spec_unwatch(s, UNIT(p));
-                LIST_REMOVE(PathSpec, spec, p->specs, s);
+                IWLIST_REMOVE(PathSpec, spec, p->specs, s);
                 path_spec_done(s);
                 free(s);
         }
@@ -302,7 +302,7 @@ static int path_add_mount_links(Path *p) {
 
         assert(p);
 
-        LIST_FOREACH(spec, s, p->specs) {
+        IWLIST_FOREACH(spec, s, p->specs) {
                 r = unit_require_mounts_for(UNIT(p), s->path);
                 if (r < 0)
                         return r;
@@ -408,7 +408,7 @@ static void path_dump(Unit *u, FILE *f, const char *prefix) {
                 prefix, yes_no(p->make_directory),
                 prefix, p->directory_mode);
 
-        LIST_FOREACH(spec, s, p->specs)
+        IWLIST_FOREACH(spec, s, p->specs)
                 path_spec_dump(s, f, prefix);
 }
 
@@ -417,7 +417,7 @@ static void path_unwatch(Path *p) {
 
         assert(p);
 
-        LIST_FOREACH(spec, s, p->specs)
+        IWLIST_FOREACH(spec, s, p->specs)
                 path_spec_unwatch(s, UNIT(p));
 }
 
@@ -427,7 +427,7 @@ static int path_watch(Path *p) {
 
         assert(p);
 
-        LIST_FOREACH(spec, s, p->specs) {
+        IWLIST_FOREACH(spec, s, p->specs) {
                 r = path_spec_watch(s, UNIT(p));
                 if (r < 0)
                         return r;
@@ -523,7 +523,7 @@ static bool path_check_good(Path *p, bool initial) {
 
         assert(p);
 
-        LIST_FOREACH(spec, s, p->specs) {
+        IWLIST_FOREACH(spec, s, p->specs) {
                 good = path_spec_check_good(s, initial);
 
                 if (good)
@@ -575,7 +575,7 @@ static void path_mkdir(Path *p) {
         if (!p->make_directory)
                 return;
 
-        LIST_FOREACH(spec, s, p->specs)
+        IWLIST_FOREACH(spec, s, p->specs)
                 path_spec_mkdir(s, p->directory_mode);
 }
 
@@ -677,7 +677,7 @@ static void path_fd_event(Unit *u, int fd, uint32_t events, Watch *w) {
 
         /* log_debug("inotify wakeup on %s.", u->id); */
 
-        LIST_FOREACH(spec, s, p->specs)
+        IWLIST_FOREACH(spec, s, p->specs)
                 if (path_spec_owns_inotify_fd(s, fd))
                         break;
 

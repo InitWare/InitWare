@@ -112,7 +112,7 @@ void socket_free_ports(Socket *s) {
         assert(s);
 
         while ((p = s->ports)) {
-                LIST_REMOVE(SocketPort, port, s->ports, p);
+                IWLIST_REMOVE(SocketPort, port, s->ports, p);
 
                 if (p->fd >= 0) {
                         unit_unwatch_fd(UNIT(s), &p->fd_watch);
@@ -212,7 +212,7 @@ static bool have_non_accept_socket(Socket *s) {
         if (!s->accept)
                 return true;
 
-        LIST_FOREACH(port, p, s->ports) {
+        IWLIST_FOREACH(port, p, s->ports) {
 
                 if (p->type != SOCKET_SOCKET)
                         return true;
@@ -272,7 +272,7 @@ static int socket_add_mount_links(Socket *s) {
 
         assert(s);
 
-        LIST_FOREACH(port, p, s->ports) {
+        IWLIST_FOREACH(port, p, s->ports) {
                 const char *path = NULL;
 
                 if (p->type == SOCKET_SOCKET)
@@ -544,7 +544,7 @@ static void socket_dump(Unit *u, FILE *f, const char *prefix) {
                         prefix, strna(s->user),
                         prefix, strna(s->group));
 
-        LIST_FOREACH(port, p, s->ports) {
+        IWLIST_FOREACH(port, p, s->ports) {
 
                 if (p->type == SOCKET_SOCKET) {
                         const char *t;
@@ -690,7 +690,7 @@ static void socket_close_fds(Socket *s) {
 
         assert(s);
 
-        LIST_FOREACH(port, p, s->ports) {
+        IWLIST_FOREACH(port, p, s->ports) {
                 if (p->fd < 0)
                         continue;
 
@@ -1007,7 +1007,7 @@ static int socket_open_fds(Socket *s) {
 
         assert(s);
 
-        LIST_FOREACH(port, p, s->ports) {
+        IWLIST_FOREACH(port, p, s->ports) {
 
                 if (p->fd >= 0)
                         continue;
@@ -1093,7 +1093,7 @@ static void socket_unwatch_fds(Socket *s) {
 
         assert(s);
 
-        LIST_FOREACH(port, p, s->ports) {
+        IWLIST_FOREACH(port, p, s->ports) {
                 if (p->fd < 0)
                         continue;
 
@@ -1107,7 +1107,7 @@ static int socket_watch_fds(Socket *s) {
 
         assert(s);
 
-        LIST_FOREACH(port, p, s->ports) {
+        IWLIST_FOREACH(port, p, s->ports) {
                 if (p->fd < 0)
                         continue;
 
@@ -1315,7 +1315,7 @@ static int socket_chown(Socket *s, pid_t *_pid) {
                         }
                 }
 
-                LIST_FOREACH(port, p, s->ports) {
+                IWLIST_FOREACH(port, p, s->ports) {
                         const char *path;
 
                         if (p->type == SOCKET_SOCKET)
@@ -1858,7 +1858,7 @@ static int socket_serialize(Unit *u, FILE *f, FDSet *fds) {
         if (s->control_command_id >= 0)
                 unit_serialize_item(u, f, "control-command", socket_exec_command_to_string(s->control_command_id));
 
-        LIST_FOREACH(port, p, s->ports) {
+        IWLIST_FOREACH(port, p, s->ports) {
                 int copy;
 
                 if (p->fd < 0)
@@ -1959,7 +1959,7 @@ static int socket_deserialize_item(Unit *u, const char *key, const char *value, 
                                        "Failed to parse fifo value %s", value);
                 else {
 
-                        LIST_FOREACH(port, p, s->ports)
+                        IWLIST_FOREACH(port, p, s->ports)
                                 if (p->type == SOCKET_FIFO &&
                                     streq_ptr(p->path, value+skip))
                                         break;
@@ -1979,7 +1979,7 @@ static int socket_deserialize_item(Unit *u, const char *key, const char *value, 
                                        "Failed to parse special value %s", value);
                 else {
 
-                        LIST_FOREACH(port, p, s->ports)
+                        IWLIST_FOREACH(port, p, s->ports)
                                 if (p->type == SOCKET_SPECIAL &&
                                     streq_ptr(p->path, value+skip))
                                         break;
@@ -1999,7 +1999,7 @@ static int socket_deserialize_item(Unit *u, const char *key, const char *value, 
                                        "Failed to parse mqueue value %s", value);
                 else {
 
-                        LIST_FOREACH(port, p, s->ports)
+                        IWLIST_FOREACH(port, p, s->ports)
                                 if (p->type == SOCKET_MQUEUE &&
                                     streq_ptr(p->path, value+skip))
                                         break;
@@ -2019,7 +2019,7 @@ static int socket_deserialize_item(Unit *u, const char *key, const char *value, 
                                        "Failed to parse socket value %s", value);
                 else {
 
-                        LIST_FOREACH(port, p, s->ports)
+                        IWLIST_FOREACH(port, p, s->ports)
                                 if (socket_address_is(&p->address, value+skip, type))
                                         break;
 
@@ -2039,7 +2039,7 @@ static int socket_deserialize_item(Unit *u, const char *key, const char *value, 
                                        "Failed to parse socket value %s", value);
                 else {
 
-                        LIST_FOREACH(port, p, s->ports)
+                        IWLIST_FOREACH(port, p, s->ports)
                                 if (socket_address_is_netlink(&p->address, value+skip))
                                         break;
 
@@ -2078,7 +2078,7 @@ static int socket_distribute_fds(Unit *u, FDSet *fds) {
 
         assert(u);
 
-        LIST_FOREACH(port, p, s->ports) {
+        IWLIST_FOREACH(port, p, s->ports) {
                 Iterator i;
                 int fd;
 
@@ -2388,7 +2388,7 @@ int socket_collect_fds(Socket *s, int **fds, unsigned *n_fds) {
         /* Called from the service code for requesting our fds */
 
         rn_fds = 0;
-        LIST_FOREACH(port, p, s->ports)
+        IWLIST_FOREACH(port, p, s->ports)
                 if (p->fd >= 0)
                         rn_fds++;
 
@@ -2402,7 +2402,7 @@ int socket_collect_fds(Socket *s, int **fds, unsigned *n_fds) {
                 return -ENOMEM;
 
         k = 0;
-        LIST_FOREACH(port, p, s->ports)
+        IWLIST_FOREACH(port, p, s->ports)
                 if (p->fd >= 0)
                         rfds[k++] = p->fd;
 

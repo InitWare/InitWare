@@ -114,15 +114,15 @@ struct JobDependency {
         Job *subject;
         Job *object;
 
-        LIST_FIELDS(JobDependency, subject);
-        LIST_FIELDS(JobDependency, object);
+        IWLIST_FIELDS(JobDependency, subject);
+        IWLIST_FIELDS(JobDependency, object);
 
         bool matters;
         bool conflicts;
 };
 
 struct JobBusClient {
-        LIST_FIELDS(JobBusClient, client);
+        IWLIST_FIELDS(JobBusClient, client);
         /* Note that this bus object is not ref counted here. */
         DBusConnection *bus;
         char name[0];
@@ -132,12 +132,12 @@ struct Job {
         Manager *manager;
         Unit *unit;
 
-        LIST_FIELDS(Job, transaction);
-        LIST_FIELDS(Job, run_queue);
-        LIST_FIELDS(Job, dbus_queue);
+        IWLIST_FIELDS(Job, transaction);
+        IWLIST_FIELDS(Job, run_queue);
+        IWLIST_FIELDS(Job, dbus_queue);
 
-        LIST_HEAD(JobDependency, subject_list);
-        LIST_HEAD(JobDependency, object_list);
+        IWLIST_HEAD(JobDependency, subject_list);
+        IWLIST_HEAD(JobDependency, object_list);
 
         /* Used for graph algs as a "I have been here" marker */
         Job* marker;
@@ -151,7 +151,7 @@ struct Job {
         Watch timer_watch;
 
         /* There can be more than one client, because of job merging. */
-        LIST_HEAD(JobBusClient, bus_client_list);
+        IWLIST_HEAD(JobBusClient, bus_client_list);
 
         JobResult result;
 

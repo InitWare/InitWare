@@ -232,7 +232,7 @@ static int job_send_message(Job *j, DBusMessage* (*new_message)(Job *j)) {
                 JobBusClient *cl;
                 assert(j->bus_client_list);
 
-                LIST_FOREACH(client, cl, j->bus_client_list) {
+                IWLIST_FOREACH(client, cl, j->bus_client_list) {
                         assert(cl->bus);
 
                         m = new_message(j);
@@ -319,7 +319,7 @@ void bus_job_send_change_signal(Job *j) {
         assert(j);
 
         if (j->in_dbus_queue) {
-                LIST_REMOVE(Job, dbus_queue, j->manager->dbus_job_queue, j);
+                IWLIST_REMOVE(Job, dbus_queue, j->manager->dbus_job_queue, j);
                 j->in_dbus_queue = false;
         }
 

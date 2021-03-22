@@ -93,7 +93,7 @@ static void bus_free(sd_bus *b) {
         prioq_free(b->reply_callbacks_prioq);
 
         while ((f = b->filter_callbacks)) {
-                LIST_REMOVE(struct filter_callback, callbacks, b->filter_callbacks, f);
+                IWLIST_REMOVE(struct filter_callback, callbacks, b->filter_callbacks, f);
                 free(f);
         }
 
@@ -1742,7 +1742,7 @@ static int process_filter(sd_bus *bus, sd_bus_message *m) {
         do {
                 bus->filter_callbacks_modified = false;
 
-                LIST_FOREACH(callbacks, l, bus->filter_callbacks) {
+                IWLIST_FOREACH(callbacks, l, bus->filter_callbacks) {
 
                         if (bus->filter_callbacks_modified)
                                 break;
@@ -1760,7 +1760,6 @@ static int process_filter(sd_bus *bus, sd_bus_message *m) {
                         r = l->callback(bus, m, l->userdata);
                         if (r != 0)
                                 return r;
-
                 }
 
         } while (bus->filter_callbacks_modified);
@@ -2279,7 +2278,7 @@ int sd_bus_add_filter(sd_bus *bus, sd_bus_message_handler_t callback, void *user
         f->userdata = userdata;
 
         bus->filter_callbacks_modified = true;
-        LIST_PREPEND(struct filter_callback, callbacks, bus->filter_callbacks, f);
+        IWLIST_PREPEND(struct filter_callback, callbacks, bus->filter_callbacks, f);
         return 0;
 }
 
@@ -2293,10 +2292,10 @@ int sd_bus_remove_filter(sd_bus *bus, sd_bus_message_handler_t callback, void *u
         if (bus_pid_changed(bus))
                 return -ECHILD;
 
-        LIST_FOREACH(callbacks, f, bus->filter_callbacks) {
+        IWLIST_FOREACH(callbacks, f, bus->filter_callbacks) {
                 if (f->callback == callback && f->userdata == userdata) {
                         bus->filter_callbacks_modified = true;
-                        LIST_REMOVE(struct filter_callback, callbacks, bus->filter_callbacks, f);
+                        IWLIST_REMOVE(struct filter_callback, callbacks, bus->filter_callbacks, f);
                         free(f);
                         return 1;
                 }

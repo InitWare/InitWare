@@ -1677,7 +1677,7 @@ void mount_fd_event(Manager *m, int events) {
                 log_error("Failed to reread /proc/self/mountinfo: %s", strerror(-r));
 
                 /* Reset flags, just in case, for later calls */
-                LIST_FOREACH(units_by_type, u, m->units_by_type[UNIT_MOUNT]) {
+                IWLIST_FOREACH(units_by_type, u, m->units_by_type[UNIT_MOUNT]) {
                         Mount *mount = MOUNT(u);
 
                         mount->is_mounted = mount->just_mounted = mount->just_changed = false;
@@ -1688,7 +1688,7 @@ void mount_fd_event(Manager *m, int events) {
 
         manager_dispatch_load_queue(m);
 
-        LIST_FOREACH(units_by_type, u, m->units_by_type[UNIT_MOUNT]) {
+        IWLIST_FOREACH(units_by_type, u, m->units_by_type[UNIT_MOUNT]) {
                 Mount *mount = MOUNT(u);
 
                 if (!mount->is_mounted) {

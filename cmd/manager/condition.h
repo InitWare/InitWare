@@ -56,7 +56,7 @@ typedef struct Condition {
 
         int state;
 
-        LIST_FIELDS(struct Condition, conditions);
+        IWLIST_FIELDS(struct Condition, conditions);
 } Condition;
 
 Condition* condition_new(ConditionType type, const char *parameter, bool trigger, bool negate);

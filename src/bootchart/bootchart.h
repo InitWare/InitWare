@@ -62,7 +62,7 @@ struct list_sample_data {
         double sampletime;
         int entropy_avail;
         struct block_stat_struct blockstat;
-        LIST_FIELDS(struct list_sample_data, link); /* DLL */
+        IWLIST_FIELDS(struct list_sample_data, link); /* DLL */
         int counter;
 };
 

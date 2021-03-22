@@ -42,7 +42,7 @@ struct Manager {
         Hashmap *machines;
         Hashmap *machine_units;
 
-        LIST_HEAD(Machine, machine_gc_queue);
+        IWLIST_HEAD(Machine, machine_gc_queue);
 };
 
 enum {

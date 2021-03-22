@@ -40,14 +40,14 @@
 typedef struct MountPoint {
         char *path;
         dev_t devnum;
-        LIST_FIELDS (struct MountPoint, mount_point);
+        IWLIST_FIELDS(struct MountPoint, mount_point);
 } MountPoint;
 
 static void mount_point_free(MountPoint **head, MountPoint *m) {
         assert(head);
         assert(m);
 
-        LIST_REMOVE(MountPoint, mount_point, *head, m);
+        IWLIST_REMOVE(MountPoint, mount_point, *head, m);
 
         free(m->path);
         free(m);
@@ -125,7 +125,7 @@ static int mount_points_list_get(MountPoint **head) {
                 }
 
                 m->path = p;
-                LIST_PREPEND(MountPoint, mount_point, *head, m);
+                IWLIST_PREPEND(MountPoint, mount_point, *head, m);
         }
 
         r = 0;
@@ -190,7 +190,7 @@ static int swap_list_get(MountPoint **head) {
                 }
 
                 swap->path = d;
-                LIST_PREPEND(MountPoint, mount_point, *head, swap);
+                IWLIST_PREPEND(MountPoint, mount_point, *head, swap);
         }
 
         r = 0;
@@ -250,7 +250,7 @@ static int loopback_list_get(MountPoint **head) {
                 }
 
                 lb->path = loop;
-                LIST_PREPEND(MountPoint, mount_point, *head, lb);
+                IWLIST_PREPEND(MountPoint, mount_point, *head, lb);
         }
 
         return 0;
@@ -308,7 +308,7 @@ static int dm_list_get(MountPoint **head) {
 
                 m->path = node;
                 m->devnum = devnum;
-                LIST_PREPEND(MountPoint, mount_point, *head, m);
+                IWLIST_PREPEND(MountPoint, mount_point, *head, m);
         }
 
         return 0;
@@ -360,7 +360,7 @@ static int mount_points_list_umount(MountPoint **head, bool *changed, bool log_e
 
         assert(head);
 
-        LIST_FOREACH_SAFE(mount_point, m, n, *head) {
+        IWLIST_FOREACH_SAFE(mount_point, m, n, *head) {
 
                 /* If we are in a container, don't attempt to
                    read-only mount anything as that brings no real
@@ -420,7 +420,7 @@ static int swap_points_list_off(MountPoint **head, bool *changed) {
 
         assert(head);
 
-        LIST_FOREACH_SAFE(mount_point, m, n, *head) {
+        IWLIST_FOREACH_SAFE(mount_point, m, n, *head) {
                 log_info("Deactivating swap %s.", m->path);
                 if (swapoff(m->path) == 0) {
                         if (changed)
@@ -445,7 +445,7 @@ static int loopback_points_list_detach(MountPoint **head, bool *changed) {
 
         k = lstat("/", &root_st);
 
-        LIST_FOREACH_SAFE(mount_point, m, n, *head) {
+        IWLIST_FOREACH_SAFE(mount_point, m, n, *head) {
                 int r;
                 struct stat loopback_st;
 
@@ -482,7 +482,7 @@ static int dm_points_list_detach(MountPoint **head, bool *changed) {
 
         k = lstat("/", &root_st);
 
-        LIST_FOREACH_SAFE(mount_point, m, n, *head) {
+        IWLIST_FOREACH_SAFE(mount_point, m, n, *head) {
                 int r;
 
                 if (k >= 0 &&
@@ -511,9 +511,9 @@ static int dm_points_list_detach(MountPoint **head, bool *changed) {
 int umount_all(bool *changed) {
         int r;
         bool umount_changed;
-        LIST_HEAD(MountPoint, mp_list_head);
+        IWLIST_HEAD(MountPoint, mp_list_head);
 
-        LIST_HEAD_INIT(MountPoint, mp_list_head);
+        IWLIST_HEAD_INIT(MountPoint, mp_list_head);
         r = mount_points_list_get(&mp_list_head);
         if (r < 0)
                 goto end;
@@ -541,9 +541,9 @@ int umount_all(bool *changed) {
 
 int swapoff_all(bool *changed) {
         int r;
-        LIST_HEAD(MountPoint, swap_list_head);
+        IWLIST_HEAD(MountPoint, swap_list_head);
 
-        LIST_HEAD_INIT(MountPoint, swap_list_head);
+        IWLIST_HEAD_INIT(MountPoint, swap_list_head);
 
         r = swap_list_get(&swap_list_head);
         if (r < 0)
@@ -559,9 +559,9 @@ int swapoff_all(bool *changed) {
 
 int loopback_detach_all(bool *changed) {
         int r;
-        LIST_HEAD(MountPoint, loopback_list_head);
+        IWLIST_HEAD(MountPoint, loopback_list_head);
 
-        LIST_HEAD_INIT(MountPoint, loopback_list_head);
+        IWLIST_HEAD_INIT(MountPoint, loopback_list_head);
 
         r = loopback_list_get(&loopback_list_head);
         if (r < 0)
@@ -577,9 +577,9 @@ int loopback_detach_all(bool *changed) {
 
 int dm_detach_all(bool *changed) {
         int r;
-        LIST_HEAD(MountPoint, dm_list_head);
+        IWLIST_HEAD(MountPoint, dm_list_head);
 
-        LIST_HEAD_INIT(MountPoint, dm_list_head);
+        IWLIST_HEAD_INIT(MountPoint, dm_list_head);
 
         r = dm_list_get(&dm_list_head);
         if (r < 0)

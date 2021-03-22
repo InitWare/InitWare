@@ -432,7 +432,7 @@ static int sysv_fix_order(Service *s) {
         /* For each pair of services where at least one lacks a LSB
          * header, we use the start priority value to order things. */
 
-        LIST_FOREACH(units_by_type, other, UNIT(s)->manager->units_by_type[UNIT_SERVICE]) {
+        IWLIST_FOREACH(units_by_type, other, UNIT(s)->manager->units_by_type[UNIT_SERVICE]) {
                 Service *t;
                 UnitDependency d;
                 bool special_s, special_t;
@@ -1078,7 +1078,7 @@ static int fsck_fix_order(Service *s) {
         /* For each pair of services where both have an fsck priority
          * we order things based on it. */
 
-        LIST_FOREACH(units_by_type, other, UNIT(s)->manager->units_by_type[UNIT_SERVICE]) {
+        IWLIST_FOREACH(units_by_type, other, UNIT(s)->manager->units_by_type[UNIT_SERVICE]) {
                 Service *t;
                 UnitDependency d;
 

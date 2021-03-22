@@ -58,8 +58,8 @@ struct JournalRateLimitGroup {
         JournalRateLimitPool pools[POOLS_MAX];
         unsigned hash;
 
-        LIST_FIELDS(JournalRateLimitGroup, bucket);
-        LIST_FIELDS(JournalRateLimitGroup, lru);
+        IWLIST_FIELDS(JournalRateLimitGroup, bucket);
+        IWLIST_FIELDS(JournalRateLimitGroup, lru);
 };
 
 struct JournalRateLimit {
@@ -96,8 +96,8 @@ static void journal_rate_limit_group_free(JournalRateLimitGroup *g) {
                 if (g->parent->lru_tail == g)
                         g->parent->lru_tail = g->lru_prev;
 
-                LIST_REMOVE(JournalRateLimitGroup, lru, g->parent->lru, g);
-                LIST_REMOVE(JournalRateLimitGroup, bucket, g->parent->buckets[g->hash % BUCKETS_MAX], g);
+                IWLIST_REMOVE(JournalRateLimitGroup, lru, g->parent->lru, g);
+                IWLIST_REMOVE(JournalRateLimitGroup, bucket, g->parent->buckets[g->hash % BUCKETS_MAX], g);
 
                 g->parent->n_groups --;
         }
@@ -156,8 +156,8 @@ static JournalRateLimitGroup* journal_rate_limit_group_new(JournalRateLimit *r, 
 
         journal_rate_limit_vacuum(r, ts);
 
-        LIST_PREPEND(JournalRateLimitGroup, bucket, r->buckets[g->hash % BUCKETS_MAX], g);
-        LIST_PREPEND(JournalRateLimitGroup, lru, r->lru, g);
+        IWLIST_PREPEND(JournalRateLimitGroup, bucket, r->buckets[g->hash % BUCKETS_MAX], g);
+        IWLIST_PREPEND(JournalRateLimitGroup, lru, r->lru, g);
         if (!g->lru_next)
                 r->lru_tail = g;
         r->n_groups ++;
@@ -220,9 +220,9 @@ int journal_rate_limit_test(JournalRateLimit *r, const char *id, int priority, u
         h = string_hash_func(id);
         g = r->buckets[h % BUCKETS_MAX];
 
-        LIST_FOREACH(bucket, g, g)
-                if (streq(g->id, id))
-                        break;
+        IWLIST_FOREACH(bucket, g, g)
+        if (streq(g->id, id))
+                break;
 
         if (!g) {
                 g = journal_rate_limit_group_new(r, id, ts);

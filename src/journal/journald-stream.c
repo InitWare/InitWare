@@ -70,7 +70,7 @@ struct StdoutStream {
         char buffer[LINE_MAX+1];
         size_t length;
 
-        LIST_FIELDS(StdoutStream, stdout_stream);
+        IWLIST_FIELDS(StdoutStream, stdout_stream);
 };
 
 static int stdout_stream_log(StdoutStream *s, const char *p) {
@@ -320,7 +320,7 @@ void stdout_stream_free(StdoutStream *s) {
         if (s->server) {
                 assert(s->server->n_stdout_streams > 0);
                 s->server->n_stdout_streams --;
-                LIST_REMOVE(StdoutStream, stdout_stream, s->server->stdout_streams, s);
+                IWLIST_REMOVE(StdoutStream, stdout_stream, s->server->stdout_streams, s);
         }
 
         if (s->fd >= 0) {
@@ -399,7 +399,7 @@ int stdout_stream_new(Server *s) {
         }
 
         stream->server = s;
-        LIST_PREPEND(StdoutStream, stdout_stream, s->stdout_streams, stream);
+        IWLIST_PREPEND(StdoutStream, stdout_stream, s->stdout_streams, stream);
         s->n_stdout_streams ++;
 
         return 0;

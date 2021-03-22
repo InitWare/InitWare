@@ -36,6 +36,8 @@
 #cmakedefine Have_mempcpy
 #cmakedefine Have___secure_getenv
 #cmakedefine Have_secure_getenv
+#cmakedefine Have_statfs
+#cmakedefine Have_statvfs
 
 #cmakedefine Use_capabilities
 
@@ -81,6 +83,11 @@ extern char **environ;
 
 #ifndef Have_secure_getenv
 #        define secure_getenv getenv
+#endif
+
+#ifndef Have_statfs
+#        define statfs statvfs
+#        define fstatfs fstatvfs
 #endif
 
 #ifndef Have_program_invocation_short_name

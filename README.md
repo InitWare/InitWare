@@ -14,8 +14,8 @@ InitWare is derived from the X Desktop Group's
 [systemd](http://www.freedesktop.org/wiki/Software/systemd), version 208, and
 provides similar APIs, with an option to build in *systemd mode*, in which the
 exact same D-Bus APIs are provided. InitWare is differentiated from systemd by
-its greater portability, more controlled scope, and a more modular approach to
-questions of architecture.
+its superior portability, more controlled project scope, and a modular approach
+to questions of architecture.
 
 Requirements
 ------------

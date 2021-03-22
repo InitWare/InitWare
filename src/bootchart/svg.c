@@ -81,9 +81,9 @@ static void svg_header(void) {
         struct list_sample_data *sampledata_last;
 
         sampledata = head;
-        LIST_FIND_TAIL(struct list_sample_data, link, sampledata, head);
+        IWLIST_FIND_TAIL(struct list_sample_data, link, sampledata, head);
         sampledata_last = head;
-        LIST_FOREACH_BEFORE(link, sampledata, head) {
+        IWLIST_FOREACH_BEFORE(link, sampledata, head) {
                 sampledata_last = sampledata;
         }
 
@@ -240,7 +240,7 @@ static void svg_graph_box(int height) {
         struct list_sample_data *sampledata_last;
 
         sampledata_last = head;
-        LIST_FOREACH_BEFORE(link, sampledata, head) {
+        IWLIST_FOREACH_BEFORE(link, sampledata, head) {
                 sampledata_last = sampledata;
         }
 
@@ -303,7 +303,7 @@ static void svg_pss_graph(void) {
         struct list_sample_data *sampledata_last;
 
         sampledata_last = head;
-        LIST_FOREACH_BEFORE(link, sampledata, head) {
+        IWLIST_FOREACH_BEFORE(link, sampledata, head) {
                 sampledata_last = sampledata;
         }
 
@@ -330,7 +330,7 @@ static void svg_pss_graph(void) {
         /* now plot the graph itself */
         i = 1;
         prev_sampledata = head;
-        LIST_FOREACH_BEFORE(link, sampledata, head) {
+        IWLIST_FOREACH_BEFORE(link, sampledata, head) {
                 int bottom;
                 int top;
                 struct ps_sched_struct *cross_place;
@@ -419,7 +419,7 @@ static void svg_pss_graph(void) {
 
         /* overlay all the text labels */
         i = 1;
-        LIST_FOREACH_BEFORE(link, sampledata, head) {
+        IWLIST_FOREACH_BEFORE(link, sampledata, head) {
                 int bottom;
                 int top;
                 struct ps_sched_struct *prev_sample;
@@ -557,7 +557,7 @@ static void svg_io_bi_bar(void) {
 
         /* find the max IO first */
         i = 1;
-        LIST_FOREACH_BEFORE(link, sampledata, head) {
+        IWLIST_FOREACH_BEFORE(link, sampledata, head) {
                 int start;
                 int stop;
                 int diff;
@@ -595,7 +595,7 @@ static void svg_io_bi_bar(void) {
         /* plot bi */
         i = 1;
         prev_sampledata = head;
-        LIST_FOREACH_BEFORE(link, sampledata, head) {
+        IWLIST_FOREACH_BEFORE(link, sampledata, head) {
                 int start;
                 int stop;
                 int diff;
@@ -671,7 +671,7 @@ static void svg_io_bo_bar(void) {
 
         /* find the max IO first */
         i = 0;
-        LIST_FOREACH_BEFORE(link, sampledata, head) {
+        IWLIST_FOREACH_BEFORE(link, sampledata, head) {
                 int start;
                 int stop;
                 int diff;
@@ -705,7 +705,7 @@ static void svg_io_bo_bar(void) {
         /* plot bo */
         prev_sampledata = head;
         i=1;
-        LIST_FOREACH_BEFORE(link, sampledata, head) {
+        IWLIST_FOREACH_BEFORE(link, sampledata, head) {
                 int start;
                 int stop;
                 int diff;
@@ -762,7 +762,7 @@ static void svg_cpu_bar(void) {
 
         /* bars for each sample, proportional to the CPU util. */
         prev_sampledata = head;
-        LIST_FOREACH_BEFORE(link, sampledata, head) {
+        IWLIST_FOREACH_BEFORE(link, sampledata, head) {
                 int c;
                 double trt;
                 double ptrt;
@@ -804,7 +804,7 @@ static void svg_wait_bar(void) {
 
         /* bars for each sample, proportional to the CPU util. */
         prev_sampledata = head;
-        LIST_FOREACH_BEFORE(link, sampledata, head) {
+        IWLIST_FOREACH_BEFORE(link, sampledata, head) {
                 int c;
                 double twt;
                 double ptwt;
@@ -846,7 +846,7 @@ static void svg_entropy_bar(void) {
 
         /* bars for each sample, scale 0-4096 */
         prev_sampledata = head;
-        LIST_FOREACH_BEFORE(link, sampledata, head) {
+        IWLIST_FOREACH_BEFORE(link, sampledata, head) {
                 /* svg("<!-- entropy %.03f %i -->\n", sampletime[i], entropy_avail[i]); */
                 svg("<rect class=\"cpu\" x=\"%.03f\" y=\"%.03f\" width=\"%.03f\" height=\"%.03f\" />\n",
                     time_to_graph(prev_sampledata->sampletime - graph_start),

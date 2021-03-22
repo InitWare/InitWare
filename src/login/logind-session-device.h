@@ -47,7 +47,7 @@ struct SessionDevice {
         bool active;
         DeviceType type;
 
-        LIST_FIELDS(struct SessionDevice, sd_by_device);
+        IWLIST_FIELDS(struct SessionDevice, sd_by_device);
 };
 
 int session_device_new(Session *s, dev_t dev, SessionDevice **out);

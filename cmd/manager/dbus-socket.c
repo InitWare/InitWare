@@ -116,7 +116,7 @@ static int bus_socket_append_listen(DBusMessageIter *i, const char *property, vo
         if (!dbus_message_iter_open_container(i, DBUS_TYPE_ARRAY, "(ss)", &array))
                 return log_oom();
 
-        LIST_FOREACH(port, p, s->ports) {
+        IWLIST_FOREACH(port, p, s->ports) {
                 const char *type = socket_port_type_to_string(p);
                 _cleanup_free_ char *address = NULL;
                 const char *a;

@@ -693,7 +693,7 @@ static unsigned manager_dispatch_gc_queue(Manager *m) {
 
                 unit_gc_sweep(u, gc_marker);
 
-                LIST_REMOVE(Unit, gc_queue, m->gc_queue, u);
+                IWLIST_REMOVE(Unit, gc_queue, m->gc_queue, u);
                 u->in_gc_queue = false;
 
                 n++;

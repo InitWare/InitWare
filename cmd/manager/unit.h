@@ -122,7 +122,7 @@ struct UnitRef {
          * references to them */
 
         Unit* unit;
-        LIST_FIELDS(UnitRef, refs);
+        IWLIST_FIELDS(UnitRef, refs);
 };
 
 struct Unit {
@@ -159,10 +159,10 @@ struct Unit {
         usec_t job_timeout;
 
         /* References to this */
-        LIST_HEAD(UnitRef, refs);
+        IWLIST_HEAD(UnitRef, refs);
 
         /* Conditions to check */
-        LIST_HEAD(Condition, conditions);
+        IWLIST_HEAD(Condition, conditions);
 
         dual_timestamp condition_timestamp;
 
@@ -178,25 +178,25 @@ struct Unit {
         UnitRef slice;
 
         /* Per type list */
-        LIST_FIELDS(Unit, units_by_type);
+        IWLIST_FIELDS(Unit, units_by_type);
 
         /* All units which have requires_mounts_for set */
-        LIST_FIELDS(Unit, has_requires_mounts_for);
+        IWLIST_FIELDS(Unit, has_requires_mounts_for);
 
         /* Load queue */
-        LIST_FIELDS(Unit, load_queue);
+        IWLIST_FIELDS(Unit, load_queue);
 
         /* D-Bus queue */
-        LIST_FIELDS(Unit, dbus_queue);
+        IWLIST_FIELDS(Unit, dbus_queue);
 
         /* Cleanup queue */
-        LIST_FIELDS(Unit, cleanup_queue);
+        IWLIST_FIELDS(Unit, cleanup_queue);
 
         /* GC queue */
-        LIST_FIELDS(Unit, gc_queue);
+        IWLIST_FIELDS(Unit, gc_queue);
 
         /* CGroup realize members queue */
-        LIST_FIELDS(Unit, cgroup_queue);
+        IWLIST_FIELDS(Unit, cgroup_queue);
 
         /* PIDs we keep an eye on. Note that a unit might have many
          * more, but these are the ones we care enough about to

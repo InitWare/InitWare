@@ -548,6 +548,7 @@ bool socket_address_matches_fd(const SocketAddress *a, int fd) {
         if (type != a->type)
                 return false;
 
+#ifdef SO_PROTOCOL
         if (a->protocol != 0)  {
                 solen = sizeof(protocol);
                 if (getsockopt(fd, SOL_SOCKET, SO_PROTOCOL, &protocol, &solen) < 0)
@@ -556,6 +557,7 @@ bool socket_address_matches_fd(const SocketAddress *a, int fd) {
                 if (protocol != a->protocol)
                         return false;
         }
+#endif
 
         switch (sa.sa.sa_family) {
 

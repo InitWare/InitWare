@@ -43,7 +43,7 @@ struct Device {
         different device nodes we might end up creating multiple
         devices for the same sysfs path. We chain them up here. */
 
-        LIST_FIELDS(struct Device, same_sysfs);
+        IWLIST_FIELDS(struct Device, same_sysfs);
 
         DeviceState state;
 };

@@ -354,8 +354,8 @@ static int bus_property_append_condition_list(DBusMessageIter *i, const char *pr
         if (!dbus_message_iter_open_container(i, DBUS_TYPE_ARRAY, "(sbbsi)", &sub))
                 return -ENOMEM;
 
-        LIST_FOREACH(conditions, c, *first)
-                bus_property_append_condition(&sub, property, &c);
+        IWLIST_FOREACH(conditions, c, *first)
+        bus_property_append_condition(&sub, property, &c);
 
         if (!dbus_message_iter_close_container(i, &sub))
                 return -ENOMEM;
@@ -627,7 +627,7 @@ void bus_unit_send_change_signal(Unit *u) {
         assert(u);
 
         if (u->in_dbus_queue) {
-                LIST_REMOVE(Unit, dbus_queue, u->manager->dbus_unit_queue, u);
+                IWLIST_REMOVE(Unit, dbus_queue, u->manager->dbus_unit_queue, u);
                 u->in_dbus_queue = false;
         }
 
@@ -801,7 +801,7 @@ DBusHandlerResult bus_unit_queue_job(
         if (!cl)
                 goto oom;
 
-        LIST_PREPEND(JobBusClient, client, j->bus_client_list, cl);
+        IWLIST_PREPEND(JobBusClient, client, j->bus_client_list, cl);
 
         reply = dbus_message_new_method_return(message);
         if (!reply)

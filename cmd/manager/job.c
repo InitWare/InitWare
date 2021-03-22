@@ -99,10 +99,10 @@ void job_free(Job *j) {
         assert(!j->object_list);
 
         if (j->in_run_queue)
-                LIST_REMOVE(Job, run_queue, j->manager->run_queue, j);
+                IWLIST_REMOVE(Job, run_queue, j->manager->run_queue, j);
 
         if (j->in_dbus_queue)
-                LIST_REMOVE(Job, dbus_queue, j->manager->dbus_job_queue, j);
+                IWLIST_REMOVE(Job, dbus_queue, j->manager->dbus_job_queue, j);
 
         if (j->timer_watch.type != WATCH_INVALID) {
                 assert(j->timer_watch.type == WATCH_JOB_TIMER);
@@ -114,7 +114,7 @@ void job_free(Job *j) {
         }
 
         while ((cl = j->bus_client_list)) {
-                LIST_REMOVE(JobBusClient, client, j->bus_client_list, cl);
+                IWLIST_REMOVE(JobBusClient, client, j->bus_client_list, cl);
                 free(cl);
         }
         free(j);
@@ -267,9 +267,9 @@ JobDependency* job_dependency_new(Job *subject, Job *object, bool matters, bool 
         l->conflicts = conflicts;
 
         if (subject)
-                LIST_PREPEND(JobDependency, subject, subject->subject_list, l);
+                IWLIST_PREPEND(JobDependency, subject, subject->subject_list, l);
 
-        LIST_PREPEND(JobDependency, object, object->object_list, l);
+        IWLIST_PREPEND(JobDependency, object, object->object_list, l);
 
         return l;
 }
@@ -278,9 +278,9 @@ void job_dependency_free(JobDependency *l) {
         assert(l);
 
         if (l->subject)
-                LIST_REMOVE(JobDependency, subject, l->subject->subject_list, l);
+                IWLIST_REMOVE(JobDependency, subject, l->subject->subject_list, l);
 
-        LIST_REMOVE(JobDependency, object, l->object->object_list, l);
+        IWLIST_REMOVE(JobDependency, object, l->object->object_list, l);
 
         free(l);
 }
@@ -491,7 +491,7 @@ int job_run_and_invalidate(Job *j) {
         assert(j->type < _JOB_TYPE_MAX_IN_TRANSACTION);
         assert(j->in_run_queue);
 
-        LIST_REMOVE(Job, run_queue, j->manager->run_queue, j);
+        IWLIST_REMOVE(Job, run_queue, j->manager->run_queue, j);
         j->in_run_queue = false;
 
         if (j->state != JOB_WAITING)
@@ -911,7 +911,7 @@ void job_add_to_run_queue(Job *j) {
         if (j->in_run_queue)
                 return;
 
-        LIST_PREPEND(Job, run_queue, j->manager->run_queue, j);
+        IWLIST_PREPEND(Job, run_queue, j->manager->run_queue, j);
         j->in_run_queue = true;
 }
 
@@ -926,7 +926,7 @@ void job_add_to_dbus_queue(Job *j) {
          * job might just have been created and not yet assigned to a
          * connection/client. */
 
-        LIST_PREPEND(Job, dbus_queue, j->manager->dbus_job_queue, j);
+        IWLIST_PREPEND(Job, dbus_queue, j->manager->dbus_job_queue, j);
         j->in_dbus_queue = true;
 }
 

@@ -45,7 +45,7 @@ typedef enum CGroupDevicePolicy {
 } CGroupDevicePolicy;
 
 struct CGroupDeviceAllow {
-        LIST_FIELDS(CGroupDeviceAllow, device_allow);
+        IWLIST_FIELDS(CGroupDeviceAllow, device_allow);
         char *path;
         bool r:1;
         bool w:1;
@@ -53,13 +53,13 @@ struct CGroupDeviceAllow {
 };
 
 struct CGroupBlockIODeviceWeight {
-        LIST_FIELDS(CGroupBlockIODeviceWeight, device_weights);
+        IWLIST_FIELDS(CGroupBlockIODeviceWeight, device_weights);
         char *path;
         unsigned long weight;
 };
 
 struct CGroupBlockIODeviceBandwidth {
-        LIST_FIELDS(CGroupBlockIODeviceBandwidth, device_bandwidths);
+        IWLIST_FIELDS(CGroupBlockIODeviceBandwidth, device_bandwidths);
         char *path;
         uint64_t bandwidth;
         bool read;
@@ -73,13 +73,13 @@ struct CGroupContext {
         unsigned long cpu_shares;
 
         unsigned long blockio_weight;
-        LIST_HEAD(CGroupBlockIODeviceWeight, blockio_device_weights);
-        LIST_HEAD(CGroupBlockIODeviceBandwidth, blockio_device_bandwidths);
+        IWLIST_HEAD(CGroupBlockIODeviceWeight, blockio_device_weights);
+        IWLIST_HEAD(CGroupBlockIODeviceBandwidth, blockio_device_bandwidths);
 
         uint64_t memory_limit;
 
         CGroupDevicePolicy device_policy;
-        LIST_HEAD(CGroupDeviceAllow, device_allow);
+        IWLIST_HEAD(CGroupDeviceAllow, device_allow);
 };
 
 #include "unit.h"

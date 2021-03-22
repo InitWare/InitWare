@@ -52,7 +52,7 @@ typedef struct Fifo Fifo;
 typedef struct Server {
         int epoll_fd;
 
-        LIST_HEAD(Fifo, fifos);
+        IWLIST_HEAD(Fifo, fifos);
         unsigned n_fifos;
 
         DBusConnection *bus;
@@ -68,7 +68,7 @@ struct Fifo {
         struct init_request buffer;
         size_t bytes_read;
 
-        LIST_FIELDS(Fifo, fifo);
+        IWLIST_FIELDS(Fifo, fifo);
 };
 
 static const char *translate_runlevel(int runlevel, bool *isolate) {
@@ -251,7 +251,7 @@ static void fifo_free(Fifo *f) {
         if (f->server) {
                 assert(f->server->n_fifos > 0);
                 f->server->n_fifos--;
-                LIST_REMOVE(Fifo, fifo, f->server->fifos, f);
+                IWLIST_REMOVE(Fifo, fifo, f->server->fifos, f);
         }
 
         if (f->fd >= 0) {
@@ -340,7 +340,7 @@ static int server_init(Server *s, unsigned n_sockets) {
                 }
 
                 f->fd = fd;
-                LIST_PREPEND(Fifo, fifo, s->fifos, f);
+                IWLIST_PREPEND(Fifo, fifo, s->fifos, f);
                 f->server = s;
                 s->n_fifos ++;
         }

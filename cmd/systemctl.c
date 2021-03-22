@@ -2394,7 +2394,7 @@ typedef struct ExecStatusInfo {
         int code;
         int status;
 
-        LIST_FIELDS(struct ExecStatusInfo, exec);
+        IWLIST_FIELDS(struct ExecStatusInfo, exec);
 } ExecStatusInfo;
 
 static void exec_status_info_free(ExecStatusInfo *i) {
@@ -2548,7 +2548,7 @@ typedef struct UnitStatusInfo {
         /* Swap */
         const char *what;
 
-        LIST_HEAD(ExecStatusInfo, exec);
+        IWLIST_HEAD(ExecStatusInfo, exec);
 } UnitStatusInfo;
 
 static void print_status_info(UnitStatusInfo *i, bool *ellipsized) {
@@ -2687,7 +2687,7 @@ static void print_status_info(UnitStatusInfo *i, bool *ellipsized) {
         if (i->accept)
                 printf(" Accepted: %u; Connected: %u\n", i->n_accepted, i->n_connections);
 
-        LIST_FOREACH(exec, p, i->exec) {
+        IWLIST_FOREACH(exec, p, i->exec) {
                 _cleanup_free_ char *argv = NULL;
                 bool good;
 
@@ -3053,7 +3053,7 @@ static int status_property(const char *name, DBusMessageIter *iter, UnitStatusIn
                                         return r;
                                 }
 
-                                LIST_PREPEND(ExecStatusInfo, exec, i->exec, info);
+                                IWLIST_PREPEND(ExecStatusInfo, exec, i->exec, info);
 
                                 dbus_message_iter_next(&sub);
                         }
@@ -3515,7 +3515,7 @@ static int show_one(
         }
 
         while ((p = info.exec)) {
-                LIST_REMOVE(ExecStatusInfo, exec, info.exec, p);
+                IWLIST_REMOVE(ExecStatusInfo, exec, info.exec, p);
                 exec_status_info_free(p);
         }
 

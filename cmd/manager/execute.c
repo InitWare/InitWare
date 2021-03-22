@@ -1738,7 +1738,7 @@ void exec_command_free_list(ExecCommand *c) {
         ExecCommand *i;
 
         while ((i = c)) {
-                LIST_REMOVE(ExecCommand, command, c, i);
+                IWLIST_REMOVE(ExecCommand, command, c, i);
                 exec_command_done(i);
                 free(i);
         }
@@ -2235,8 +2235,8 @@ void exec_command_dump_list(ExecCommand *c, FILE *f, const char *prefix) {
         if (!prefix)
                 prefix = "";
 
-        LIST_FOREACH(command, c, c)
-                exec_command_dump(c, f, prefix);
+        IWLIST_FOREACH(command, c, c)
+        exec_command_dump(c, f, prefix);
 }
 
 void exec_command_append_list(ExecCommand **l, ExecCommand *e) {
@@ -2247,8 +2247,8 @@ void exec_command_append_list(ExecCommand **l, ExecCommand *e) {
 
         if (*l) {
                 /* It's kind of important, that we keep the order here */
-                LIST_FIND_TAIL(ExecCommand, command, *l, end);
-                LIST_INSERT_AFTER(ExecCommand, command, *l, end, e);
+                IWLIST_FIND_TAIL(ExecCommand, command, *l, end);
+                IWLIST_INSERT_AFTER(ExecCommand, command, *l, end, e);
         } else
               *l = e;
 }

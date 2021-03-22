@@ -113,10 +113,10 @@ struct Session {
         char *controller;
         Hashmap *devices;
 
-        LIST_FIELDS(Session, sessions_by_user);
-        LIST_FIELDS(Session, sessions_by_seat);
+        IWLIST_FIELDS(Session, sessions_by_user);
+        IWLIST_FIELDS(Session, sessions_by_seat);
 
-        LIST_FIELDS(Session, gc_queue);
+        IWLIST_FIELDS(Session, gc_queue);
 };
 
 Session *session_new(Manager *m, const char *id);

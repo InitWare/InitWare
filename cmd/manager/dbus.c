@@ -1175,9 +1175,9 @@ static void shutdown_connection(Manager *m, DBusConnection *c) {
 
         HASHMAP_FOREACH(j, m->jobs, i) {
                 JobBusClient *cl, *nextcl;
-                LIST_FOREACH_SAFE(client, cl, nextcl, j->bus_client_list) {
+                IWLIST_FOREACH_SAFE(client, cl, nextcl, j->bus_client_list) {
                         if (cl->bus == c) {
-                                LIST_REMOVE(JobBusClient, client, j->bus_client_list, cl);
+                                IWLIST_REMOVE(JobBusClient, client, j->bus_client_list, cl);
                                 free(cl);
                         }
                 }

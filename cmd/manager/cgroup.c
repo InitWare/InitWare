@@ -41,7 +41,7 @@ void cgroup_context_free_device_allow(CGroupContext *c, CGroupDeviceAllow *a) {
         assert(c);
         assert(a);
 
-        LIST_REMOVE(CGroupDeviceAllow, device_allow, c->device_allow, a);
+        IWLIST_REMOVE(CGroupDeviceAllow, device_allow, c->device_allow, a);
         free(a->path);
         free(a);
 }
@@ -50,7 +50,7 @@ void cgroup_context_free_blockio_device_weight(CGroupContext *c, CGroupBlockIODe
         assert(c);
         assert(w);
 
-        LIST_REMOVE(CGroupBlockIODeviceWeight, device_weights, c->blockio_device_weights, w);
+        IWLIST_REMOVE(CGroupBlockIODeviceWeight, device_weights, c->blockio_device_weights, w);
         free(w->path);
         free(w);
 }
@@ -59,7 +59,7 @@ void cgroup_context_free_blockio_device_bandwidth(CGroupContext *c, CGroupBlockI
         assert(c);
         assert(b);
 
-        LIST_REMOVE(CGroupBlockIODeviceBandwidth, device_bandwidths, c->blockio_device_bandwidths, b);
+        IWLIST_REMOVE(CGroupBlockIODeviceBandwidth, device_bandwidths, c->blockio_device_bandwidths, b);
         free(b->path);
         free(b);
 }
@@ -103,21 +103,21 @@ void cgroup_context_dump(CGroupContext *c, FILE* f, const char *prefix) {
                 prefix, c->memory_limit,
                 prefix, cgroup_device_policy_to_string(c->device_policy));
 
-        LIST_FOREACH(device_allow, a, c->device_allow)
+        IWLIST_FOREACH(device_allow, a, c->device_allow)
                 fprintf(f,
                         "%sDeviceAllow=%s %s%s%s\n",
                         prefix,
                         a->path,
                         a->r ? "r" : "", a->w ? "w" : "", a->m ? "m" : "");
 
-        LIST_FOREACH(device_weights, w, c->blockio_device_weights)
+        IWLIST_FOREACH(device_weights, w, c->blockio_device_weights)
                 fprintf(f,
                         "%sBlockIODeviceWeight=%s %lu",
                         prefix,
                         w->path,
                         w->weight);
 
-        LIST_FOREACH(device_bandwidths, b, c->blockio_device_bandwidths) {
+        IWLIST_FOREACH(device_bandwidths, b, c->blockio_device_bandwidths) {
                 char buf[FORMAT_BYTES_MAX];
 
                 fprintf(f,
@@ -222,7 +222,7 @@ void cgroup_context_apply(CGroupContext *c, CGroupControllerMask mask, const cha
                         log_warning("Failed to set blkio.weight on %s: %s", path, strerror(-r));
 
                 /* FIXME: no way to reset this list */
-                LIST_FOREACH(device_weights, w, c->blockio_device_weights) {
+                IWLIST_FOREACH(device_weights, w, c->blockio_device_weights) {
                         dev_t dev;
 
                         r = lookup_blkio_device(w->path, &dev);
@@ -236,7 +236,7 @@ void cgroup_context_apply(CGroupContext *c, CGroupControllerMask mask, const cha
                 }
 
                 /* FIXME: no way to reset this list */
-                LIST_FOREACH(device_bandwidths, b, c->blockio_device_bandwidths) {
+                IWLIST_FOREACH(device_bandwidths, b, c->blockio_device_bandwidths) {
                         const char *a;
                         dev_t dev;
 
@@ -291,7 +291,7 @@ void cgroup_context_apply(CGroupContext *c, CGroupControllerMask mask, const cha
                                 whitelist_device(path, x, y);
                 }
 
-                LIST_FOREACH(device_allow, a, c->device_allow) {
+                IWLIST_FOREACH(device_allow, a, c->device_allow) {
                         char acc[4];
                         unsigned k = 0;
 
@@ -428,7 +428,7 @@ static int unit_realize_cgroup_now(Unit *u) {
         assert(u);
 
         if (u->in_cgroup_queue) {
-                LIST_REMOVE(Unit, cgroup_queue, u->manager->cgroup_queue, u);
+                IWLIST_REMOVE(Unit, cgroup_queue, u->manager->cgroup_queue, u);
                 u->in_cgroup_queue = false;
         }
 
@@ -452,7 +452,7 @@ static void unit_add_to_cgroup_queue(Unit *u) {
         if (u->in_cgroup_queue)
                 return;
 
-        LIST_PREPEND(Unit, cgroup_queue, u->manager->cgroup_queue, u);
+        IWLIST_PREPEND(Unit, cgroup_queue, u->manager->cgroup_queue, u);
         u->in_cgroup_queue = true;
 }
 

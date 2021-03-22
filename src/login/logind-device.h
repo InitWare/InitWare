@@ -38,8 +38,8 @@ struct Device {
 
         dual_timestamp timestamp;
 
-        LIST_FIELDS(struct Device, devices);
-        LIST_HEAD(SessionDevice, session_devices);
+        IWLIST_FIELDS(struct Device, devices);
+        IWLIST_HEAD(SessionDevice, session_devices);
 };
 
 Device* device_new(Manager *m, const char *sysfs, bool master);

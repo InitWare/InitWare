@@ -75,7 +75,7 @@ struct Machine {
 
         DBusMessage *create_message;
 
-        LIST_FIELDS(Machine, gc_queue);
+        IWLIST_FIELDS(Machine, gc_queue);
 };
 
 Machine* machine_new(Manager *manager, const char *name);

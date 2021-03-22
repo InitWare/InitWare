@@ -50,7 +50,7 @@ typedef struct PathSpec {
 
         Watch watch;
 
-        LIST_FIELDS(struct PathSpec, spec);
+        IWLIST_FIELDS(struct PathSpec, spec);
 
         PathType type;
         int inotify_fd;
@@ -78,7 +78,7 @@ typedef enum PathResult {
 struct Path {
         Unit meta;
 
-        LIST_HEAD(PathSpec, specs);
+        IWLIST_HEAD(PathSpec, specs);
 
         PathState state, deserialized_state;
 

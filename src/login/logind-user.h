@@ -63,8 +63,8 @@ struct User {
         bool started:1;
         bool stopping:1;
 
-        LIST_HEAD(Session, sessions);
-        LIST_FIELDS(User, gc_queue);
+        IWLIST_HEAD(Session, sessions);
+        IWLIST_FIELDS(User, gc_queue);
 };
 
 User* user_new(Manager *m, uid_t uid, gid_t gid, const char *name);

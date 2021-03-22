@@ -46,7 +46,7 @@ typedef enum MatchType {
 struct Match {
         MatchType type;
         Match *parent;
-        LIST_FIELDS(Match, matches);
+        IWLIST_FIELDS(Match, matches);
 
         /* For concrete matches */
         char *data;
@@ -54,7 +54,7 @@ struct Match {
         le64_t le_hash;
 
         /* For terms */
-        LIST_HEAD(Match, matches);
+        IWLIST_HEAD(Match, matches);
 };
 
 typedef enum LocationType {

@@ -374,7 +374,7 @@ g_udev_client_query_by_subsystem (GUdevClient  *client,
         continue;
       device = _g_udev_device_new (udevice);
       udev_device_unref (udevice);
-      ret = g_list_prepend (ret, device);
+      ret = g_IWLIST_PREPEND (ret, device);
     }
   udev_enumerate_unref (enumerate);
 

@@ -73,7 +73,7 @@ static int bus_timer_append_monotonic_timers(DBusMessageIter *i, const char *pro
         if (!dbus_message_iter_open_container(i, DBUS_TYPE_ARRAY, "(stt)", &sub))
                 return -ENOMEM;
 
-        LIST_FOREACH(value, k, p->values) {
+        IWLIST_FOREACH(value, k, p->values) {
                 _cleanup_free_ char *buf = NULL;
                 const char *t;
                 size_t l;
@@ -122,7 +122,7 @@ static int bus_timer_append_calendar_timers(DBusMessageIter *i, const char *prop
         if (!dbus_message_iter_open_container(i, DBUS_TYPE_ARRAY, "(sst)", &sub))
                 return -ENOMEM;
 
-        LIST_FOREACH(value, k, p->values) {
+        IWLIST_FOREACH(value, k, p->values) {
                 _cleanup_free_ char *buf = NULL;
                 const char *t;
                 bool b;

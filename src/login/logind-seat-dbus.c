@@ -103,7 +103,7 @@ static int bus_seat_append_sessions(DBusMessageIter *i, const char *property, vo
         if (!dbus_message_iter_open_container(i, DBUS_TYPE_ARRAY, "(so)", &sub))
                 return -ENOMEM;
 
-        LIST_FOREACH(sessions_by_seat, session, s->sessions) {
+        IWLIST_FOREACH(sessions_by_seat, session, s->sessions) {
                 _cleanup_free_ char *p = NULL;
 
                 if (!dbus_message_iter_open_container(&sub, DBUS_TYPE_STRUCT, NULL, &sub2))
