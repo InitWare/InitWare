@@ -31,8 +31,8 @@ The following platforms are supported:
 
 - FreeBSD (13.0+) as user manager.
 - NetBSD (8.0+) as user manager.
+- DragonFly BSD (5.8+) as user manager.
 - GNU/Linux (4.0+) as system or user manager.
-
 
 To build InitWare, a full installation (including development libraries and
 headers) is required of at least the following components:
