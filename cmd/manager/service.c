@@ -1948,7 +1948,7 @@ _pure_ static int control_pid_good(Service *s) {
 }
 
 static int cgroup_good(Service *s) {
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
         int r;
 
         assert(s);

@@ -21,7 +21,6 @@
 
 #include <errno.h>
 #include <sys/epoll.h>
-#include <libudev.h>
 
 #include "unit.h"
 #include "device.h"
@@ -31,6 +30,15 @@
 #include "dbus-device.h"
 #include "def.h"
 #include "path-util.h"
+#include "libudev.h"
+
+#ifdef Use_Devattr
+#define MainUnitNamePrefix "dev-"
+#define udev_device_get_syspath udev_device_get_devnode
+#define udev_monitor_new_from_netlink(u, name) udev_monitor_new(u)
+#else
+#define MainUnitNamePrefix "sys-"
+#endif
 
 static const UnitActiveState state_translation_table[_DEVICE_STATE_MAX] = {
         [DEVICE_DEAD] = UNIT_INACTIVE,
@@ -137,16 +145,31 @@ _pure_ static const char *device_sub_state_to_string(Unit *u) {
 }
 
 static int device_add_escaped_name(Unit *u, const char *dn) {
+#ifdef Use_Devattr
+        char *t;
+#endif
         char *e;
         int r;
 
         assert(u);
         assert(dn);
+#ifndef Use_Devattr
         assert(dn[0] == '/');
+#endif
 
         e = unit_name_from_path(dn, ".device");
         if (!e)
                 return -ENOMEM;
+
+#ifdef Use_Devattr /* add dev- prefix */
+         if (asprintf(&t, "dev-%s", e) < 0)
+        {
+                free (e);
+                return -ENOMEM;
+        }
+        free(e);
+        e = t;
+#endif
 
         r = unit_add_name(u, e);
         free(e);
@@ -158,17 +181,32 @@ static int device_add_escaped_name(Unit *u, const char *dn) {
 }
 
 static int device_find_escape_name(Manager *m, const char *dn, Unit **_u) {
+#ifdef Use_Devattr
+        char *t;
+#endif
         char *e;
         Unit *u;
 
         assert(m);
         assert(dn);
+#ifndef Use_Devattr
         assert(dn[0] == '/');
+#endif
         assert(_u);
 
         e = unit_name_from_path(dn, ".device");
         if (!e)
                 return -ENOMEM;
+
+#ifdef Use_Devattr /* add dev- prefix */
+         if (asprintf(&t, "dev-%s", e) < 0)
+        {
+                free (e);
+                return -ENOMEM;
+        }
+        free(e);
+        e = t;
+#endif
 
         u = manager_get_unit(m, e);
         free(e);
@@ -197,6 +235,9 @@ static int device_update_unit(Manager *m, struct udev_device *dev, const char *p
 
         if (u && DEVICE(u)->sysfs && !path_equal(DEVICE(u)->sysfs, sysfs))
                 return -EEXIST;
+
+                //printf("Check for %s\n", DEVICE(u)->sysfs);
+
 
         if (!u) {
                 delete = true;
@@ -331,6 +372,7 @@ static int device_process_new_device(Manager *m, struct udev_device *dev, bool u
         if (r < 0)
                 return r;
 
+#ifdef Sys_Plat_Linux /* no devlinks nor sysfs in DFBSD's UDev */
         /* Add an additional unit for the device node */
         if ((dn = udev_device_get_devnode(dev)))
                 device_update_unit(m, dev, dn, false);
@@ -342,6 +384,7 @@ static int device_process_new_device(Manager *m, struct udev_device *dev, bool u
                 struct stat st;
 
                 /* Don't bother with the /dev/block links */
+
                 p = udev_list_entry_get_name(item);
 
                 if (path_startswith(p, "/dev/block/") ||
@@ -362,6 +405,7 @@ static int device_process_new_device(Manager *m, struct udev_device *dev, bool u
 
                 device_update_unit(m, dev, p, false);
         }
+#endif
 
         if (update_state) {
                 Device *d, *l;
@@ -376,6 +420,7 @@ static int device_process_new_device(Manager *m, struct udev_device *dev, bool u
         return 0;
 }
 
+#ifdef Sys_Plat_Linux
 static int device_process_path(Manager *m, const char *path, bool update_state) {
         int r;
         struct udev_device *dev;
@@ -392,6 +437,7 @@ static int device_process_path(Manager *m, const char *path, bool update_state) 
         udev_device_unref(dev);
         return r;
 }
+#endif
 
 static int device_process_removed_device(Manager *m, struct udev_device *dev) {
         const char *sysfs;
@@ -418,16 +464,16 @@ static Unit *device_following(Unit *u) {
 
         assert(d);
 
-        if (startswith(u->id, "sys-"))
+        if (startswith(u->id, MainUnitNamePrefix))
                 return NULL;
 
         /* Make everybody follow the unit that's named after the sysfs path */
         for (other = d->same_sysfs_next; other; other = other->same_sysfs_next)
-                if (startswith(UNIT(other)->id, "sys-"))
+                if (startswith(UNIT(other)->id, MainUnitNamePrefix))
                         return UNIT(other);
 
         for (other = d->same_sysfs_prev; other; other = other->same_sysfs_prev) {
-                if (startswith(UNIT(other)->id, "sys-"))
+                if (startswith(UNIT(other)->id, MainUnitNamePrefix))
                         return UNIT(other);
 
                 first = other;
@@ -497,13 +543,18 @@ static int device_enumerate(Manager *m) {
                 struct epoll_event ev;
 
                 if (!(m->udev = udev_new()))
+                {
+                        log_error("udev_new() failed\n");
                         return -ENOMEM;
+                }
 
                 if (!(m->udev_monitor = udev_monitor_new_from_netlink(m->udev, "udev"))) {
+                        log_error("udev_monitor_new() failed\n");
                         r = -ENOMEM;
                         goto fail;
                 }
 
+#ifndef Use_Devattr
                 /* This will fail if we are unprivileged, but that
                  * should not matter much, as user instances won't run
                  * during boot. */
@@ -513,6 +564,15 @@ static int device_enumerate(Manager *m) {
                         r = -ENOMEM;
                         goto fail;
                 }
+#else
+                if (udev_monitor_filter_add_nomatch_expr(m->udev_monitor, "name", "fd/*") < 0 ||
+                    udev_monitor_filter_add_nomatch_expr(m->udev_monitor, "name", "pty*") < 0 ||
+                    udev_monitor_filter_add_nomatch_expr(m->udev_monitor, "name", "tty*") < 0) {
+                        r = -ENOMEM;
+                        goto fail;
+                }
+
+#endif
 
                 if (udev_monitor_enable_receiving(m->udev_monitor) < 0) {
                         r = -EIO;
@@ -534,10 +594,22 @@ static int device_enumerate(Manager *m) {
                 r = -ENOMEM;
                 goto fail;
         }
+#ifndef Use_Devattr
         if (udev_enumerate_add_match_tag(e, "systemd") < 0) {
                 r = -EIO;
                 goto fail;
         }
+#else
+        /* Filter out fdescfs, and also pty* and tty* as every single possible
+         * node seems to be enumerated.... */
+        if (udev_enumerate_add_nomatch_expr(e, "name", "fd/*") < 0 ||
+            udev_enumerate_add_nomatch_expr(e, "name", "pty*") < 0 ||
+            udev_enumerate_add_nomatch_expr(e, "name", "tty*") < 0)
+        {
+                r = -EIO;
+                goto fail;
+        }
+#endif
 
         if (udev_enumerate_scan_devices(e) < 0) {
                 r = -EIO;
@@ -546,7 +618,11 @@ static int device_enumerate(Manager *m) {
 
         first = udev_enumerate_get_list_entry(e);
         udev_list_entry_foreach(item, first)
+#ifdef Sys_Plat_Linux
                 device_process_path(m, udev_list_entry_get_name(item), false);
+#else
+                device_process_new_device(m, udev_list_entry_get_device(item), false);
+#endif
 
         udev_enumerate_unref(e);
         return 0;

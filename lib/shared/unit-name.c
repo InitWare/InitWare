@@ -40,9 +40,11 @@ static const char* const unit_type_table[_UNIT_TYPE_MAX] = {
         [UNIT_TIMER] = "timer",
         [UNIT_PATH] = "path",
         [UNIT_SLICE] = "slice",
-        [UNIT_SCOPE] = "scope"
-#ifdef Sys_Plat_Linux
+        [UNIT_SCOPE] = "scope",
+#ifdef Use_UDev
         [UNIT_DEVICE] = "device",
+#endif
+#ifdef Sys_Plat_Linux
         [UNIT_MOUNT] = "mount",
         [UNIT_AUTOMOUNT] = "automount",
         [UNIT_SWAP] = "swap",

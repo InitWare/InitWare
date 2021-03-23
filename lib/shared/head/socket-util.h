@@ -33,7 +33,7 @@
 #ifdef Have_asm_types_h
 #        include <asm/types.h>
 #endif
-#ifdef Have_netlink_h
+#ifdef Have_linux_netlink_h
 #        include <linux/netlink.h>
 #endif
 
@@ -43,7 +43,7 @@ union sockaddr_union {
         struct sockaddr_in in4;
         struct sockaddr_in6 in6;
         struct sockaddr_un un;
-#ifdef Have_netlink_h
+#ifdef Have_linux_netlink_h
         struct sockaddr_nl nl;
 #endif
         struct sockaddr_storage storage;
@@ -106,7 +106,7 @@ const char* socket_address_get_path(const SocketAddress *a);
 const char* socket_address_bind_ipv6_only_to_string(SocketAddressBindIPv6Only b) _const_;
 SocketAddressBindIPv6Only socket_address_bind_ipv6_only_from_string(const char *s) _pure_;
 
-#ifdef Have_netlink_h
+#ifdef Have_linux_netlink_h
 int netlink_family_to_string_alloc(int b, char **s);
 int netlink_family_from_string(const char *s);
 #endif

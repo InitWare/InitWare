@@ -133,6 +133,13 @@ struct ExecContext {
          * don't enter a trigger loop. */
         bool same_pgrp;
 
+#ifdef Use_Capabilities
+        uint64_t capability_bounding_set_drop;
+
+        cap_t capabilities;
+        int secure_bits;
+#endif
+
 #ifdef Sys_Plat_Linux
         int oom_score_adjust;
         int ioprio;
@@ -146,11 +153,6 @@ struct ExecContext {
         bool tty_reset;
         bool tty_vhangup;
         bool tty_vt_disallocate;
-
-        uint64_t capability_bounding_set_drop;
-
-        cap_t capabilities;
-        int secure_bits;
 
         bool cpu_sched_reset_on_fork;
         bool private_tmp;

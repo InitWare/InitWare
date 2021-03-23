@@ -18,6 +18,7 @@
 #cmakedefine Have_sys_endian_h
 #cmakedefine Have_sys_procctl_h
 #cmakedefine Have_sys_prctl_h
+#cmakedefine Have_sys_statfs_h
 #cmakedefine Have_sys_statvfs_h
 #cmakedefine Have_sys_sysmacros_h
 #cmakedefine Have sys_vfs_h
@@ -40,7 +41,13 @@
 #cmakedefine Have_statfs
 #cmakedefine Have_statvfs
 
-#cmakedefine Use_capabilities
+#cmakedefine Use_SystemdDBus
+#cmakedefine Use_SystemdCompat
+#cmakedefine Use_Cap
+#cmakedefine Use_MQueue
+#cmakedefine Use_UDev
+#cmakedefine Use_Devattr
+
 
 #define PACKAGE_NAME "@PACKAGE_NAME@"
 #define PACKAGE_VERSION "@PACKAGE_VERSION@"
@@ -111,6 +118,10 @@ void *mempcpy(void *dest, const void *src, size_t n);
 #        define ETIME ETIMEDOUT
 #else
 #        define Have_ETIME
+#endif
+
+#if defined(Use_UDev) | defined(Use_Devattr)
+#define Use_UDev true
 #endif
 
 #ifdef Sys_Plat_Linux

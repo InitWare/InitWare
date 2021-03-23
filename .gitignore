@@ -1,5 +1,6 @@
 .vscode
 .vs
+/brand.initware.com
 /Makefile
 /TAGS
 /accelerometer

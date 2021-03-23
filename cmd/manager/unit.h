@@ -287,8 +287,10 @@ typedef enum UnitSetPropertiesMode {
 #include "slice.h"
 #include "scope.h"
 
-#ifdef Sys_Plat_Linux
+#ifdef Use_UDev
 #include "device.h"
+#endif
+#ifdef Sys_Plat_Linux
 #include "mount.h"
 #include "automount.h"
 #include "swap.h"
@@ -472,8 +474,10 @@ DEFINE_CAST(SNAPSHOT, Snapshot);
 DEFINE_CAST(PATH, Path);
 DEFINE_CAST(SLICE, Slice);
 DEFINE_CAST(SCOPE, Scope);
-#ifdef Sys_Plat_Linux
+#ifdef Use_UDev
 DEFINE_CAST(DEVICE, Device);
+#endif
+#ifdef Sys_Plat_Linux
 DEFINE_CAST(MOUNT, Mount);
 DEFINE_CAST(AUTOMOUNT, Automount);
 DEFINE_CAST(SWAP, Swap);

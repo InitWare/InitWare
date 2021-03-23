@@ -1694,9 +1694,10 @@ static int manager_process_signal_fd(Manager *m) {
                                 log_warning("Got unhandled signal <%s>.", signal_to_string(sfsi.ssi_signo));
 #ifdef SIGRTMIN
                         }
-                }
 #endif
                 }
+                }
+
         }
 
         if (sigchld)

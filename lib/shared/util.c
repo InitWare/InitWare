@@ -76,11 +76,15 @@
 #ifdef Have_sys_procctl_h
 #include <sys/procctl.h>
 #endif
-
 #ifdef Have_sys_statvfs_h
 #include <sys/statvfs.h>
 #endif
-
+#ifdef Have_sys_statfs_h
+#include <sys/statfs.h>
+#endif
+#ifdef Have_sys_sysmacros_h
+#include <sys/sysmacros.h>
+#endif
 #ifdef Have_sys_vfs_h
 #include <sys/vfs.h>
 #endif
@@ -106,7 +110,7 @@ static volatile unsigned cached_lines = 0;
 int exit_with_parent()
 {
 #ifdef PR_SET_PDEATHSIG
-        return prctl(PR_SET_PDEATHSIG, SIGTERM) < 0
+        return prctl(PR_SET_PDEATHSIG, SIGTERM);
 #elif defined(PROC_PDEATHSIG_CTL)
         const int sig = SIGTERM;
         return procctl (P_PID, 0, PROC_PDEATHSIG_CTL, (void*) &sig);
@@ -4954,9 +4958,11 @@ const char *signal_to_string(int signo) {
         if (name)
                 return name;
 
+#ifdef SIGRTMIN
         if (signo >= SIGRTMIN && signo <= SIGRTMAX)
                 snprintf(buf, sizeof(buf), "RTMIN+%d", signo - SIGRTMIN);
         else
+#endif
                 snprintf(buf, sizeof(buf), "%d", signo);
 
         return buf;
@@ -4971,10 +4977,12 @@ int signal_from_string(const char *s) {
         if (signo > 0)
                 return signo;
 
+#ifdef SIGRTMIN
         if (startswith(s, "RTMIN+")) {
                 s += 6;
                 offset = SIGRTMIN;
         }
+#endif
         if (safe_atou(s, &u) >= 0) {
                 signo = (int) u + offset;
                 if (signo > 0 && signo < NSIG)

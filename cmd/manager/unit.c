@@ -58,8 +58,10 @@ const UnitVTable * const unit_vtable[_UNIT_TYPE_MAX] = {
         [UNIT_PATH] = &path_vtable,
         [UNIT_SLICE] = &slice_vtable,
         [UNIT_SCOPE] = &scope_vtable,
-#ifdef Sys_Plat_Linux
+#ifdef Use_UDev
         [UNIT_DEVICE] = &device_vtable,
+#endif
+#ifdef Sys_Plat_Linux
         [UNIT_MOUNT] = &mount_vtable,
         [UNIT_AUTOMOUNT] = &automount_vtable,
         [UNIT_SWAP] = &swap_vtable,

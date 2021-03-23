@@ -22,7 +22,6 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <malloc.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/types.h>
@@ -33,6 +32,10 @@
 #include "strv.h"
 #include "util.h"
 #include "path-util.h"
+
+#ifdef Have_malloc_h
+#include <malloc.h>
+#endif
 
 #ifdef HAVE_SELINUX
 #include "selinux-util.h"

@@ -33,6 +33,10 @@ set(manager_core_src unit.c unit-printf.c job.c manager.c transaction.c
     ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.c
     ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf-nulstr.c)
 
+if(Use_UDev OR Use_Devattr)
+  list(APPEND manager_core_src dbus-device.c device.c)
+endif()
+
 set(manager_core_src_linux dbus-cgroup.c cgroup.c swap.c dbus-swap.c mount.c
     dbus-mount.c device.c dbus-device.c automount.c dbus-automount.c
     selinux-access.c selinux-setup.c namespace.c c mount-setup.c
@@ -41,7 +45,8 @@ set(manager_core_src_linux dbus-cgroup.c cgroup.c swap.c dbus-swap.c mount.c
 add_library(manager-core ${manager_core_src})
 target_include_directories(manager-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(manager-core initware-shared initware-units initware-label
-    initware-dbus initware-id128 initware-daemon PkgConfig::DBus Threads::Threads)
+    initware-dbus initware-id128 initware-daemon ${UDev_Libs}
+    PkgConfig::DBus Threads::Threads)
 
 add_executable(iw.manager main.c)
 target_link_libraries(iw.manager manager-core)

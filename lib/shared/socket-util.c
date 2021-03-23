@@ -192,7 +192,7 @@ int socket_address_parse(SocketAddress *a, const char *s) {
         return 0;
 }
 
-#ifdef Have_netlink_h
+#ifdef Have_linux_netlink_h
 int socket_address_parse_netlink(SocketAddress *a, const char *s) {
         int family;
         unsigned group = 0;

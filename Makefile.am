@@ -84,23 +84,13 @@ userpresetdir=$(prefix)/lib/systemd/user-preset
 tmpfilesdir=$(prefix)/lib/tmpfiles.d
 sysctldir=$(prefix)/lib/sysctl.d
 pkgincludedir=$(includedir)/systemd
-systemgeneratordir=$(rootlibexecdir)/system-generators
-usergeneratordir=$(prefix)/lib/systemd/user-generators
 systemshutdowndir=$(rootlibexecdir)/system-shutdown
 systemsleepdir=$(rootlibexecdir)/system-sleep
 systemunitdir=$(rootprefix)/lib/systemd/system
 systempresetdir=$(rootprefix)/lib/systemd/system-preset
-udevlibexecdir=$(rootprefix)/lib/udev
-udevhomedir=$(udevlibexecdir)
-udevrulesdir=$(udevlibexecdir)/rules.d
-udevhwdbdir=$(udevlibexecdir)/hwdb.d
 catalogdir=$(prefix)/lib/systemd/catalog
 kernelinstalldir = $(prefix)/lib/kernel/install.d
 
-# And these are the special ones for /
-rootprefix=@rootprefix@
-rootbindir=$(rootprefix)/bin
-rootlibexecdir=$(rootprefix)/lib/systemd
 
 CLEANFILES = $(BUILT_SOURCES)
 DISTCLEANFILES =
@@ -773,19 +763,6 @@ src/core/syscall-to-name.h: src/core/syscall-list.txt Makefile
 	$(AM_V_GEN)$(AWK) 'BEGIN{ print "const char* const syscall_names[] = { "} { printf "[SYSCALL_TO_INDEX(__NR_%s)] = \"%s\",\n", $$1, $$1 } END{print "};"}' < $< > $@
 
 # ------------------------------------------------------------------------------
-systemd_SOURCES = \
-	src/core/main.c
-
-systemd_CFLAGS = \
-	$(AM_CFLAGS) \
-	$(DBUS_CFLAGS)
-
-systemd_LDADD = \
-	libsystemd-core.la \
-	libsystemd-daemon.la \
-	libsystemd-id128-internal.la \
-	libsystemd-dbus.la
-
 dist_pkgsysconf_DATA += \
 	src/core/system.conf \
 	src/core/user.conf
