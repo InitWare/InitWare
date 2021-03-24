@@ -42,13 +42,13 @@ endmacro()
 # appropriate libraries or features are discovered during configuration.
 
 # Default value for options with either a "none" or a "linux" option
-set(default_linux "none")
-set(Default_Runstatedir "/var/run")
+set(Default_linux "none")
+set(Default_runstatedir "/var/run")
 
 if(CMAKE_SYSTEM_NAME MATCHES ".*Linux")
   set(Sys_Plat_Linux TRUE)
-  set(default_linux "linux")
-  set(Default_Runstatedir "/run")
+  set(Default_linux "linux")
+  set(Default_runstatedir "/run")
   add_definitions("-D_GNU_SOURCE")
 elseif(CMAKE_SYSTEM_NAME MATCHES "kFreeBSD.*|FreeBSD")
   set(Sys_Plat_BSD TRUE)
@@ -75,7 +75,7 @@ pkg_check_modules(EPoll REQUIRED IMPORTED_TARGET epoll-shim)
 pkg_check_modules(INotify REQUIRED IMPORTED_TARGET libinotify)
 set(EPoll_Compat_Libs PkgConfig::EPoll PkgConfig::INotify)
 endif()
-pkg_check_modules(UDev IMPORTED_TARGET udev)
+pkg_check_modules(UDev IMPORTED_TARGET libudev)
 pkg_check_modules(Cap IMPORTED_TARGET libcap)
 pkg_check_modules(DBus REQUIRED IMPORTED_TARGET dbus-1)
 
@@ -131,18 +131,28 @@ endif()
 
 option(Use_SystemdDBus "Systemd-compatible D-Bus interface" OFF)
 option(Use_SystemdCompat "Systemd-compatible paths and behaviour (Linux-only)" OFF)
-option(Use_Cap "Use POSIX capabilities from LibCap" ${Cap_FOUND})
 option(Use_MQueue "Use POSIX message queues" ${Have_mq_open})
-option(Use_UDev "Use UDev (libudev)" ${UDev_FOUND})
-option(Use_Devattr "Use UDev (libdevattr)" ${Have_udev_as_devattr})
+option(Use_libcap "Use POSIX capabilities (libcap)" ${Cap_FOUND})
+option(Use_libudev "Use udev (libudev)" ${UDev_FOUND})
+option(Use_libdevattr "Use udev (libdevattr)" ${Have_udev_as_devattr})
 
 if(${Use_SystemdCompat})
-set(Default_NOTIFY_SOCKET "@/org/freedesktop/systemd1/notify")
 set(pkgdirname "systemd")
 else()
-set(Default_NOTIFY_SOCKET "/run/InitWare/notify")
 set(pkgdirname "InitWare")
 endif()
+
+message("Default: ${Default_runstatedir}")
+
+set(Full_pkgrunstatedir "${Default_runstatedir}/${pkgdirname}"
+  CACHE STRING
+  "Full path to the directory in which to store the run-time state of InitWare,
+e.g. /var/run/InitWare")
+
+set(Full_userrunstatedir "${Default_runstatedir}/user"
+  CACHE STRING
+  "Full path to the directory in which to generate subdirectories for runtime
+state of each logged-in user, e.g. /var/run/user")
 
 set(Relative_Pkglibdir "lib/${pkgdirname}" CACHE STRING
 "Relative to the install prefix, the directory for storing \
@@ -157,11 +167,6 @@ set(Relative_Pkgsysconfdir "${CMAKE_INSTALL_SYSCONFDIR}/${pkgdirname}"
   CACHE STRING
   "Relative to the install prefix, the directory for storing  \
 node-specific, administrator-modifiable configuration and unit-files.")
-
-set(Full_Runstatedir "${Default_Runstatedir}"
-  CACHE STRING
-  "Full path to the directory used by the system to store global run-time \
-variable data.")
 
 set(NOTIFY_SOCKET ${Default_NOTIFY_SOCKET} CACHE STRING
   "Path to the notification socket that will be created by InitWare")
@@ -184,9 +189,9 @@ set_property(CACHE Kind_Swap PROPERTY STRINGS none linux)
 
 # computed libraries/settings
 
-if(${Use_Devattr})
+if(${Use_libdevattr})
   set(UDev_Libs devattr prop)
-elseif(${Use_UDev})
+elseif(${Use_libudev})
   set(UDev_Libs PkgConfig::UDev)
 endif()
 
@@ -194,7 +199,7 @@ if(DEFINED Have_mq_open_in_rt AND ${Use_MQueue})
   set(MQ_Libs rt)
 endif()
 
-if(${Use_Libcap})
+if(${Use_libcap})
   set(Cap_Libs PkgConfig::Cap)
 endif()
 
@@ -205,8 +210,8 @@ endif()
 set(pkglibdir ${CMAKE_INSTALL_PREFIX}/${Relative_Pkglibdir})
 set(pkglibexecdir ${CMAKE_INSTALL_PREFIX}/${Relative_Pkglibexecdir})
 set(pkgsysconfdir ${CMAKE_INSTALL_PREFIX}/${Relative_Pkgsysconfdir})
-set(runstatedir ${Full_Runstatedir})
-set(pkgrunstatedir ${Full_Runstatedir}/${pkgdirname})
+set(pkgrunstatedir ${Full_pkgrunstatedir})
+set(userrunstatedir ${Full_userrunstatedir})
 
 set(userunitdir ${pkglibdir}/user)
 set(usergeneratordir ${pkglibexecdir}/user-generators)
@@ -260,12 +265,12 @@ endfunction(FShow)
 message("Feature settings:")
 FShow("Systemd-compatible D-Bus interface" Use_SystemdDBus)
 FShow("Systemd-compatible paths & behaviour" Use_SystemdCompat)
-FShow("LibCap POSIX Capabilities" Use_Libcap)
+FShow("POSIX Capabilities (libcap)" Use_libcap)
 FShow("POSIX Message Queues" Use_MQueue)
-FShow("U-Dev (LibUDev)" Use_UDev)
-FShow("U-Dev (LibDevAttr)" Use_Devattr)
+FShow("Udev (libudev)" Use_libudev)
+FShow("Udev (libdevattr)" Use_libdevattr)
 
-message("Unit types:")
+message("Optional units:")
 FShow(".device" Kind_Device)
 FShow(".mount" Kind_Mount)
 FShow(".automount" Kind_Automount)
@@ -278,5 +283,5 @@ FShow("InitWare-internal executables" pkglibexecdir)
 FShow("System-provided InitWare data" pkglibdir)
 FShow("Node-specific InitWare data" pkgsysconfdir)
 FShow("Run-time state" runstatedir)
-message("    InitWare-specific data will be in ${pkgrunstatedir}")
-message("    'user' subdirectory will be ${runstatedir}/user")
+FShow("InitWare-specific data" pkgrunstatedir)
+FShow("User run-state base" userrunstatedir)

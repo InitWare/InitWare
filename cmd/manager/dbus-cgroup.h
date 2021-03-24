@@ -28,7 +28,7 @@
 
 #include "manager.h"
 #include "dbus-common.h"
-#include "cgroup.h"
+#include "linux/cgroup.h"
 
 #define BUS_CGROUP_CONTEXT_INTERFACE                                    \
         "  <property name=\"CPUAccounting\" type=\"b\" access=\"read\"/>\n" \

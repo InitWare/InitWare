@@ -37,6 +37,12 @@ typedef enum DeviceState {
 struct Device {
         Unit meta;
 
+        /**
+         * Path to this device's main node.
+         *
+         * Either that in the sysfs for udev on inux, or for libudev-devd or
+         * libdevattr, in the devfs.
+         */
         char *sysfs;
 
         /* In order to be able to distinguish dependencies on

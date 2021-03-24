@@ -18,7 +18,7 @@
 ***/
 
 #include "automount.h"
-#include "cgroup.h"
+#include "linux/cgroup.h"
 #include "condition.h"
 #include "device.h"
 #include "execute.h"

@@ -89,7 +89,7 @@ static void socket_init(Unit *u) {
         s->exec_context.std_output = u->manager->default_std_output;
         s->exec_context.std_error = u->manager->default_std_error;
         kill_context_init(&s->kill_context);
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
         cgroup_context_init(&s->cgroup_context);
 #endif
 
@@ -132,7 +132,7 @@ static void socket_done(Unit *u) {
         socket_free_ports(s);
 
         exec_context_done(&s->exec_context, manager_is_reloading_or_reexecuting(u->manager));
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
         cgroup_context_init(&s->cgroup_context);
 #endif
 
@@ -1230,7 +1230,7 @@ static int socket_spawn(Socket *s, ExecCommand *c, pid_t *_pid) {
         assert(c);
         assert(_pid);
 
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
         unit_realize_cgroup(UNIT(s));
 #endif
 
@@ -1251,7 +1251,7 @@ static int socket_spawn(Socket *s, ExecCommand *c, pid_t *_pid) {
                        true,
                        true,
                        UNIT(s)->manager->confirm_spawn,
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
                        UNIT(s)->manager->cgroup_supported,
                        UNIT(s)->cgroup_path,
 #endif

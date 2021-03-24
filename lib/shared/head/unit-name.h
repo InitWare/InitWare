@@ -39,7 +39,7 @@ enum UnitType {
         UNIT_PATH,
         UNIT_SLICE,
         UNIT_SCOPE,
-#ifdef Use_UDev
+#ifdef Use_udev
         UNIT_DEVICE,
 #endif
 #ifdef Sys_Plat_Linux

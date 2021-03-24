@@ -58,7 +58,7 @@ const UnitVTable * const unit_vtable[_UNIT_TYPE_MAX] = {
         [UNIT_PATH] = &path_vtable,
         [UNIT_SLICE] = &slice_vtable,
         [UNIT_SCOPE] = &scope_vtable,
-#ifdef Use_UDev
+#ifdef Use_udev
         [UNIT_DEVICE] = &device_vtable,
 #endif
 #ifdef Sys_Plat_Linux

@@ -51,7 +51,7 @@ static void scope_init(Unit *u) {
 
         watch_init(&s->timer_watch);
 
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
         cgroup_context_init(&s->cgroup_context);
 #endif
         kill_context_init(&s->kill_context);
@@ -65,7 +65,7 @@ static void scope_done(Unit *u) {
 
         assert(u);
 
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
         cgroup_context_done(&s->cgroup_context);
 
         free(s->controller);

@@ -43,10 +43,10 @@
 
 #cmakedefine Use_SystemdDBus
 #cmakedefine Use_SystemdCompat
-#cmakedefine Use_Cap
+#cmakedefine Use_libcap
 #cmakedefine Use_MQueue
-#cmakedefine Use_UDev
-#cmakedefine Use_Devattr
+#cmakedefine Use_libudev
+#cmakedefine Use_libdevattr
 
 
 #define PACKAGE_NAME "@PACKAGE_NAME@"
@@ -120,16 +120,15 @@ void *mempcpy(void *dest, const void *src, size_t n);
 #        define Have_ETIME
 #endif
 
-#if defined(Use_UDev) | defined(Use_Devattr)
-#define Use_UDev true
+#if defined(Use_libudev) | defined(Use_libdevattr)
+#define Use_udev true
 #endif
 
 #ifdef Sys_Plat_Linux
-#        define Use_Device
 #        define Use_Mount
 #        define Use_Automount
 #        define Use_Swap
-#        define Use_CGroups
+//#        define Use_CGroups
 #        define Use_Linprocfs
 #endif
 

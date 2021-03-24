@@ -57,9 +57,5 @@ The runtime requirements are:
 Licencing
 ---------
 
-InitWare is licensed under the GNU Library GPL, version 2.1 or later, except for
-the following files:
-
-- sd-daemon.[ch] and sd-readahead.[ch], which are subject to the MIT Licence.
-- src/shared/MurmurHash3.c, which is in the public domain.
-- src/journal/lookup3.c, which is in the public domain.
+Most of InitWare is licensed under the GNU Library GPL, version 2.1 or later,
+but some files are under other terms. See [doc/Licences.md] for details.

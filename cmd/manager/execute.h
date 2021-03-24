@@ -35,7 +35,7 @@ typedef struct ExecContext ExecContext;
 #include "list.h"
 #include "util.h"
 
-#ifdef Use_capabilities
+#ifdef Use_libcap
 #        include <sys/capability.h>
 #endif
 
@@ -133,7 +133,7 @@ struct ExecContext {
          * don't enter a trigger loop. */
         bool same_pgrp;
 
-#ifdef Use_Capabilities
+#ifdef Use_libcap
         uint64_t capability_bounding_set_drop;
 
         cap_t capabilities;
@@ -173,7 +173,7 @@ struct ExecContext {
 };
 
 #ifdef Sys_Plat_Linux
-#        include "cgroup.h"
+#        include "linux/cgroup.h"
 #endif
 
 int exec_spawn(
@@ -187,7 +187,7 @@ int exec_spawn(
         bool apply_chroot,
         bool apply_tty_stdin,
         bool confirm_spawn,
-#ifdef Sys_Plat_Linux
+#ifdef Have_CGroups
         CGroupControllerMask cgroup_mask,
         const char *cgroup_path,
 #endif

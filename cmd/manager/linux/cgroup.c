@@ -24,7 +24,7 @@
 #include "path-util.h"
 #include "special.h"
 #include "cgroup-util.h"
-#include "cgroup.h"
+#include "linux/cgroup.h"
 
 void cgroup_context_init(CGroupContext *c) {
         assert(c);

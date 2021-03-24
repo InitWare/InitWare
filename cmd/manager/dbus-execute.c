@@ -251,7 +251,7 @@ static int bus_execute_append_syscall_filter(DBusMessageIter *i, const char *pro
 }
 #endif
 
-#ifdef Use_capabilities
+#ifdef Use_libcap
 static int bus_execute_append_capability_bs(DBusMessageIter *i, const char *property, void *data) {
         ExecContext *c = data;
         uint64_t normal, inverted;
@@ -435,7 +435,7 @@ const BusProperty bus_exec_context_properties[] = {
         { "SyslogPriority",           bus_property_append_int,               "i", offsetof(ExecContext, syslog_priority)              },
         { "SyslogIdentifier",         bus_property_append_string,            "s", offsetof(ExecContext, syslog_identifier),      true },
         { "SyslogLevelPrefix",        bus_property_append_bool,              "b", offsetof(ExecContext, syslog_level_prefix)          },
-#ifdef Use_Capabilities
+#ifdef Use_libcap
 #ifdef Sys_Plat_Linux
         { "SecureBits",               bus_property_append_int,               "i", offsetof(ExecContext, secure_bits)                  },
 #endif

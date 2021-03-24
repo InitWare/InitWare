@@ -669,7 +669,7 @@ static int enforce_user(const ExecContext *context, uid_t uid) {
         /* Sets (but doesn't lookup) the uid and make sure we keep the
          * capabilities while doing so. */
 
-#ifdef Use_capabilities
+#ifdef Use_libcap
         if (context->capabilities) {
                 cap_t d;
                 static const cap_value_t bits[] = {
@@ -1043,7 +1043,7 @@ int exec_spawn(ExecCommand *command,
                bool apply_chroot,
                bool apply_tty_stdin,
                bool confirm_spawn,
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
                CGroupControllerMask cgroup_supported,
                const char *cgroup_path,
 #endif
@@ -1122,7 +1122,7 @@ int exec_spawn(ExecCommand *command,
                         **final_env = NULL, **final_argv = NULL;
                 unsigned n_env = 0;
 
-                /* child */
+                /* We are the child process. */
 
                 rename_process_from_path(command->path);
 
@@ -1234,7 +1234,7 @@ int exec_spawn(ExecCommand *command,
                                 goto fail_child;
                         }
 
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
                 if (cgroup_path) {
                         err = cg_attach_everywhere(cgroup_supported, cgroup_path, 0);
                         if (err < 0) {
@@ -1242,7 +1242,8 @@ int exec_spawn(ExecCommand *command,
                                 goto fail_child;
                         }
                 }
-
+#endif
+#ifdef Sys_Plat_Linux
                 if (context->oom_score_adjust_set) {
                         char t[16];
 
@@ -1440,7 +1441,7 @@ int exec_spawn(ExecCommand *command,
                                 }
                         }
 
-#ifdef Use_capabilities
+#ifdef Use_libcap
                         if (context->capability_bounding_set_drop) {
                                 err = capability_bounding_set_drop(context->capability_bounding_set_drop, false);
                                 if (err < 0) {
@@ -1458,7 +1459,7 @@ int exec_spawn(ExecCommand *command,
                                 }
                         }
 
-#ifdef Sys_Plat_Linux
+#ifdef Use_libcap
                         /* PR_GET_SECUREBITS is not privileged, while
                          * PR_SET_SECUREBITS is. So to suppress
                          * potential EPERMs we'll try not to call
@@ -1476,7 +1477,8 @@ int exec_spawn(ExecCommand *command,
                                         r = EXIT_CAPABILITIES;
                                         goto fail_child;
                                 }
-
+#endif
+#ifdef Sys_Plat_Linux
                         if (context->no_new_privileges)
                                 if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0) {
                                         err = -errno;
@@ -1579,7 +1581,7 @@ int exec_spawn(ExecCommand *command,
                         command->path, (unsigned long) pid,
                         NULL);
 
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
         /* We add the new process to the cgroup both in the child (so
          * that we can be sure that no user code is ever executed
          * outside of the cgroup) and in the parent (so that we can be
@@ -1693,12 +1695,14 @@ void exec_context_done(ExecContext *c, bool reloading_or_reexecuting) {
         free(c->pam_name);
         c->pam_name = NULL;
 
-#ifdef Sys_Plat_Linux
+#ifdef Use_libcap
         if (c->capabilities) {
                 cap_free(c->capabilities);
                 c->capabilities = NULL;
         }
+#endif
 
+#ifdef Sys_Plat_Linux
         strv_free(c->read_only_dirs);
         c->read_only_dirs = NULL;
 
@@ -1982,6 +1986,7 @@ void exec_context_dump(ExecContext *c, FILE* f, const char *prefix) {
         if (c->timer_slack_nsec != (nsec_t) -1)
                 fprintf(f, "%sTimerSlackNSec: %lu\n", prefix, (unsigned long)c->timer_slack_nsec);
 
+#ifdef Use_libcap
         if (c->capabilities) {
                 char *t;
                 if ((t = cap_to_text(c->capabilities, NULL))) {
@@ -2017,6 +2022,7 @@ void exec_context_dump(ExecContext *c, FILE* f, const char *prefix) {
 
                 fputs("\n", f);
         }
+#endif
 
 
         if (strv_length(c->read_write_dirs) > 0) {

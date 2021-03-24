@@ -52,7 +52,7 @@
 
 #ifdef Sys_Plat_Linux
 #include "ioprio.h"
-#include "cgroup.h"
+#include "linux/cgroup.h"
 #include "missing.h"
 #include "securebits.h"
 
@@ -828,6 +828,7 @@ int config_parse_exec_cpu_affinity(const char *unit,
         return 0;
 }
 
+#ifdef Use_libcap
 int config_parse_exec_capabilities(const char *unit,
                                    const char *filename,
                                    unsigned line,
@@ -968,7 +969,7 @@ int config_parse_bounding_set(const char *unit,
         return 0;
 }
 
-
+#endif
 
 static void syscall_set(uint32_t *p, int nr) {
         nr = SYSCALL_TO_INDEX(nr);

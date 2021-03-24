@@ -146,7 +146,7 @@ static void service_init(Unit *u) {
 
         exec_context_init(&s->exec_context);
         kill_context_init(&s->kill_context);
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
         cgroup_context_init(&s->cgroup_context);
 #endif
 
@@ -1500,7 +1500,7 @@ static int service_search_main_pid(Service *s) {
 
         assert(s->main_pid <= 0);
 
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
         pid = unit_search_main_pid(UNIT(s));
 #else
         unimplemented_msg("search main PID");
@@ -1601,7 +1601,7 @@ static void service_set_state(Service *s, ServiceState state) {
         if (state == SERVICE_STOP || state == SERVICE_STOP_SIGTERM)
                 service_stop_watchdog(s);
 
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
         /* For the inactive states unit_notify() will trim the cgroup,
          * but for exit we have to do that ourselves... */
         if (state == SERVICE_EXITED && UNIT(s)->manager->n_reloading <= 0)
@@ -1873,7 +1873,7 @@ static int service_spawn(
                 goto fail;
         }
 
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
         if (is_control && UNIT(s)->cgroup_path) {
                 path = strappenda(UNIT(s)->cgroup_path, "/control");
                 cg_create(SYSTEMD_CGROUP_CONTROLLER, path);
@@ -1890,7 +1890,7 @@ static int service_spawn(
                        apply_chroot,
                        apply_tty_stdin,
                        UNIT(s)->manager->confirm_spawn,
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
                        UNIT(s)->manager->cgroup_supported,
                        path,
 #endif
@@ -2202,7 +2202,7 @@ fail:
 }
 
 static void service_kill_control_processes(Service *s) {
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
         char *p;
 
         if (!UNIT(s)->cgroup_path)

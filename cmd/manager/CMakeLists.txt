@@ -33,7 +33,7 @@ set(manager_core_src unit.c unit-printf.c job.c manager.c transaction.c
     ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.c
     ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf-nulstr.c)
 
-if(Use_UDev OR Use_Devattr)
+if(Use_libudev OR Use_libdevattr)
   list(APPEND manager_core_src dbus-device.c device.c)
 endif()
 

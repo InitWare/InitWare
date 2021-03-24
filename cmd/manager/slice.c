@@ -42,7 +42,7 @@ static void slice_init(Unit *u) {
         assert(u);
         assert(u->load_state == UNIT_STUB);
 
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
         cgroup_context_init(&s->cgroup_context);
 #endif
 }
@@ -52,7 +52,7 @@ static void slice_done(Unit *u) {
 
         assert(u);
 
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
         cgroup_context_done(&s->cgroup_context);
 #endif
 }

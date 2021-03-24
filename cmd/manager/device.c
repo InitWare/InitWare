@@ -32,10 +32,12 @@
 #include "path-util.h"
 #include "libudev.h"
 
-#ifdef Use_Devattr
+#ifdef Use_libdevattr
 #define MainUnitNamePrefix "dev-"
 #define udev_device_get_syspath udev_device_get_devnode
 #define udev_monitor_new_from_netlink(u, name) udev_monitor_new(u)
+#elif !defined(Sys_Plat_Linux)
+#define MainUnitNamePrefix "dev-"
 #else
 #define MainUnitNamePrefix "sys-"
 #endif
@@ -145,7 +147,7 @@ _pure_ static const char *device_sub_state_to_string(Unit *u) {
 }
 
 static int device_add_escaped_name(Unit *u, const char *dn) {
-#ifdef Use_Devattr
+#ifdef Use_libdevattr
         char *t;
 #endif
         char *e;
@@ -153,7 +155,7 @@ static int device_add_escaped_name(Unit *u, const char *dn) {
 
         assert(u);
         assert(dn);
-#ifndef Use_Devattr
+#ifndef Use_libdevattr
         assert(dn[0] == '/');
 #endif
 
@@ -161,7 +163,7 @@ static int device_add_escaped_name(Unit *u, const char *dn) {
         if (!e)
                 return -ENOMEM;
 
-#ifdef Use_Devattr /* add dev- prefix */
+#ifdef Use_libdevattr /* add dev- prefix */
          if (asprintf(&t, "dev-%s", e) < 0)
         {
                 free (e);
@@ -181,7 +183,7 @@ static int device_add_escaped_name(Unit *u, const char *dn) {
 }
 
 static int device_find_escape_name(Manager *m, const char *dn, Unit **_u) {
-#ifdef Use_Devattr
+#ifdef Use_libdevattr
         char *t;
 #endif
         char *e;
@@ -189,7 +191,7 @@ static int device_find_escape_name(Manager *m, const char *dn, Unit **_u) {
 
         assert(m);
         assert(dn);
-#ifndef Use_Devattr
+#ifndef Use_libdevattr
         assert(dn[0] == '/');
 #endif
         assert(_u);
@@ -198,7 +200,7 @@ static int device_find_escape_name(Manager *m, const char *dn, Unit **_u) {
         if (!e)
                 return -ENOMEM;
 
-#ifdef Use_Devattr /* add dev- prefix */
+#ifdef Use_libdevattr /* add dev- prefix */
          if (asprintf(&t, "dev-%s", e) < 0)
         {
                 free (e);
@@ -235,9 +237,6 @@ static int device_update_unit(Manager *m, struct udev_device *dev, const char *p
 
         if (u && DEVICE(u)->sysfs && !path_equal(DEVICE(u)->sysfs, sysfs))
                 return -EEXIST;
-
-                //printf("Check for %s\n", DEVICE(u)->sysfs);
-
 
         if (!u) {
                 delete = true;
@@ -420,7 +419,7 @@ static int device_process_new_device(Manager *m, struct udev_device *dev, bool u
         return 0;
 }
 
-#ifdef Sys_Plat_Linux
+#ifdef Use_libudev
 static int device_process_path(Manager *m, const char *path, bool update_state) {
         int r;
         struct udev_device *dev;
@@ -554,7 +553,7 @@ static int device_enumerate(Manager *m) {
                         goto fail;
                 }
 
-#ifndef Use_Devattr
+#ifdef Sys_Plat_Linux
                 /* This will fail if we are unprivileged, but that
                  * should not matter much, as user instances won't run
                  * during boot. */
@@ -564,7 +563,7 @@ static int device_enumerate(Manager *m) {
                         r = -ENOMEM;
                         goto fail;
                 }
-#else
+#elif defined Use_libdevattr
                 if (udev_monitor_filter_add_nomatch_expr(m->udev_monitor, "name", "fd/*") < 0 ||
                     udev_monitor_filter_add_nomatch_expr(m->udev_monitor, "name", "pty*") < 0 ||
                     udev_monitor_filter_add_nomatch_expr(m->udev_monitor, "name", "tty*") < 0) {
@@ -594,12 +593,12 @@ static int device_enumerate(Manager *m) {
                 r = -ENOMEM;
                 goto fail;
         }
-#ifndef Use_Devattr
+#ifdef Sys_Plat_Linux
         if (udev_enumerate_add_match_tag(e, "systemd") < 0) {
                 r = -EIO;
                 goto fail;
         }
-#else
+#elif defined(Use_libdevattr)
         /* Filter out fdescfs, and also pty* and tty* as every single possible
          * node seems to be enumerated.... */
         if (udev_enumerate_add_nomatch_expr(e, "name", "fd/*") < 0 ||
@@ -618,7 +617,7 @@ static int device_enumerate(Manager *m) {
 
         first = udev_enumerate_get_list_entry(e);
         udev_list_entry_foreach(item, first)
-#ifdef Sys_Plat_Linux
+#ifdef Use_libudev
                 device_process_path(m, udev_list_entry_get_name(item), false);
 #else
                 device_process_new_device(m, udev_list_entry_get_device(item), false);

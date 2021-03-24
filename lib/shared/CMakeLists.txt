@@ -12,7 +12,7 @@ set(shared_src mkdir-label.c acpi-fpdt.c MurmurHash3.c
 
 set(shared_src_linux cgroup-show.c cgroup-util.c hwclock.c selinux-util.c
     watchdog.c  utmp-wtmp.c)
-set(shared_src_use_capabilities capability.c)
+set(shared_src_Use_libcap capability.c)
 
 add_library(initware-shared ${shared_src})
 target_include_directories(initware-shared PUBLIC head)

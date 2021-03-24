@@ -41,7 +41,7 @@ static const char* const unit_type_table[_UNIT_TYPE_MAX] = {
         [UNIT_PATH] = "path",
         [UNIT_SLICE] = "slice",
         [UNIT_SCOPE] = "scope",
-#ifdef Use_UDev
+#ifdef Use_udev
         [UNIT_DEVICE] = "device",
 #endif
 #ifdef Sys_Plat_Linux
