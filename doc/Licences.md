@@ -5,3 +5,5 @@ v2.1:
 - `lib/shared/MurmurHash3.c`: in the public domain.
 - `src/journal/lookup3.c`: in the public domain.
 - `lib/compat/head/printf.h`: Modified BSD Licence (2-clause).
+- `lib/compat/head/compat.h.in`: Mixed Modified BSD Licence (2-clause) with
+  one GPL Version 2 or Later fragment.
