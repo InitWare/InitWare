@@ -1,6 +1,6 @@
 #include "compat.h"
 
-#ifdef Use_libdevattr
+#ifdef Use_Libdevattr
 #include <devattr.h>
 #elif defined(Use_udev)
 #include_next <libudev.h>

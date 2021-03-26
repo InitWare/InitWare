@@ -32,7 +32,7 @@
 #include "path-util.h"
 #include "libudev.h"
 
-#ifdef Use_libdevattr
+#ifdef Use_Libdevattr
 #define MainUnitNamePrefix "dev-"
 #define udev_device_get_syspath udev_device_get_devnode
 #define udev_monitor_new_from_netlink(u, name) udev_monitor_new(u)
@@ -147,7 +147,7 @@ _pure_ static const char *device_sub_state_to_string(Unit *u) {
 }
 
 static int device_add_escaped_name(Unit *u, const char *dn) {
-#ifdef Use_libdevattr
+#ifdef Use_Libdevattr
         char *t;
 #endif
         char *e;
@@ -155,7 +155,7 @@ static int device_add_escaped_name(Unit *u, const char *dn) {
 
         assert(u);
         assert(dn);
-#ifndef Use_libdevattr
+#ifndef Use_Libdevattr
         assert(dn[0] == '/');
 #endif
 
@@ -163,7 +163,7 @@ static int device_add_escaped_name(Unit *u, const char *dn) {
         if (!e)
                 return -ENOMEM;
 
-#ifdef Use_libdevattr /* add dev- prefix */
+#ifdef Use_Libdevattr /* add dev- prefix */
          if (asprintf(&t, "dev-%s", e) < 0)
         {
                 free (e);
@@ -183,7 +183,7 @@ static int device_add_escaped_name(Unit *u, const char *dn) {
 }
 
 static int device_find_escape_name(Manager *m, const char *dn, Unit **_u) {
-#ifdef Use_libdevattr
+#ifdef Use_Libdevattr
         char *t;
 #endif
         char *e;
@@ -191,7 +191,7 @@ static int device_find_escape_name(Manager *m, const char *dn, Unit **_u) {
 
         assert(m);
         assert(dn);
-#ifndef Use_libdevattr
+#ifndef Use_Libdevattr
         assert(dn[0] == '/');
 #endif
         assert(_u);
@@ -200,7 +200,7 @@ static int device_find_escape_name(Manager *m, const char *dn, Unit **_u) {
         if (!e)
                 return -ENOMEM;
 
-#ifdef Use_libdevattr /* add dev- prefix */
+#ifdef Use_Libdevattr /* add dev- prefix */
          if (asprintf(&t, "dev-%s", e) < 0)
         {
                 free (e);
@@ -419,7 +419,7 @@ static int device_process_new_device(Manager *m, struct udev_device *dev, bool u
         return 0;
 }
 
-#ifdef Use_libudev
+#ifdef Use_Libudev
 static int device_process_path(Manager *m, const char *path, bool update_state) {
         int r;
         struct udev_device *dev;
@@ -563,7 +563,7 @@ static int device_enumerate(Manager *m) {
                         r = -ENOMEM;
                         goto fail;
                 }
-#elif defined Use_libdevattr
+#elif defined Use_Libdevattr
                 if (udev_monitor_filter_add_nomatch_expr(m->udev_monitor, "name", "fd/*") < 0 ||
                     udev_monitor_filter_add_nomatch_expr(m->udev_monitor, "name", "pty*") < 0 ||
                     udev_monitor_filter_add_nomatch_expr(m->udev_monitor, "name", "tty*") < 0) {
@@ -598,7 +598,7 @@ static int device_enumerate(Manager *m) {
                 r = -EIO;
                 goto fail;
         }
-#elif defined(Use_libdevattr)
+#elif defined(Use_Libdevattr)
         /* Filter out fdescfs, and also pty* and tty* as every single possible
          * node seems to be enumerated.... */
         if (udev_enumerate_add_nomatch_expr(e, "name", "fd/*") < 0 ||
@@ -617,7 +617,7 @@ static int device_enumerate(Manager *m) {
 
         first = udev_enumerate_get_list_entry(e);
         udev_list_entry_foreach(item, first)
-#ifdef Use_libudev
+#ifdef Use_Libudev
                 device_process_path(m, udev_list_entry_get_name(item), false);
 #else
                 device_process_new_device(m, udev_list_entry_get_device(item), false);

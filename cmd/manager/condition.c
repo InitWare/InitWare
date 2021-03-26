@@ -38,7 +38,7 @@
 #include "fileio.h"
 #include "unit.h"
 
-#ifdef Use_libcap
+#ifdef Use_Libcap
 #        include <sys/capability.h>
 #endif
 
@@ -187,7 +187,7 @@ static bool test_security(const char *parameter) {
 }
 
 static bool test_capability(const char *parameter) {
-#ifdef Use_libcap
+#ifdef Use_Libcap
         cap_value_t value;
         FILE *f;
         char line[LINE_MAX];

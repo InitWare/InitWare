@@ -130,7 +130,7 @@ int bus_connect(DBusBusType t, DBusConnection **_bus, bool *_private, DBusError 
                         if (e) {
                                 char *p;
 
-                                if (asprintf(&p, "unix:path=%s/systemd/private", e) < 0)
+                                if (asprintf(&p, "unix:path=%s/" PkgDirName "/private", e) < 0)
                                         return -ENOMEM;
 
                                 bus = dbus_connection_open_private(p, NULL);

@@ -103,6 +103,10 @@ static int manager_setup_notify(Manager *m) {
         };
         int one = 1, r;
 
+        m->notify_socket = strjoin(m->iw_state_dir, "/notify", NULL);
+        if (!m->notify_socket)
+                return log_oom();
+
         m->notify_watch.type = WATCH_NOTIFY;
         m->notify_watch.fd = socket(AF_UNIX, SOCK_DGRAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0);
         if (m->notify_watch.fd < 0) {
@@ -110,22 +114,10 @@ static int manager_setup_notify(Manager *m) {
                 return -errno;
         }
 
-        if (getpid() != 1 || detect_container(NULL) > 0)
-                snprintf(sa.un.sun_path, sizeof(sa.un.sun_path), NOTIFY_SOCKET "/%llu", random_ull());
-        else
-                strncpy(sa.un.sun_path, NOTIFY_SOCKET, sizeof(sa.un.sun_path));
+        strncpy(sa.un.sun_path, m->notify_socket, sizeof(sa.un.sun_path));
+        unlink(m->notify_socket);
 
-#ifdef Use_SystemdCompat
-        sa.un.sun_path[0] = 0;
-#endif
-
-        r = bind(m->notify_watch.fd, &sa.sa,
-#ifdef Use_SystemdCompat
-                 offsetof(struct sockaddr_un, sun_path) + 1 + strlen(sa.un.sun_path+1)
-#else
-                 offsetof(struct sockaddr_un, sun_path) + strlen(sa.un.sun_path)
-#endif
-        );
+        r = bind(m->notify_watch.fd, &sa.sa, offsetof(struct sockaddr_un, sun_path) + strlen(sa.un.sun_path));
         if (r < 0) {
                 log_error("bind() of %s failed: %m", sa.un.sun_path);
                 return -errno;
@@ -144,13 +136,6 @@ static int manager_setup_notify(Manager *m) {
                 log_error("Failed to add notification socket fd to epoll: %m");
                 return -errno;
         }
-
-#ifdef Use_SystemdCompat
-        sa.un.sun_path[0] = '@';
-#endif
-        m->notify_socket = strdup(sa.un.sun_path);
-        if (!m->notify_socket)
-                return log_oom();
 
         log_debug("Using notification socket %s", m->notify_socket);
 
@@ -536,6 +521,50 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
         m->epoll_fd = m->dev_autofs_fd = -1;
         m->current_job_id = 1; /* start as id #1, so that we can leave #0 around as "null-like" value */
 
+        if (running_as == SYSTEMD_SYSTEM) {
+                m->runtime_state_dir = strdup(AbsDir_PkgRunState);
+                if (!m->runtime_state_dir) {
+                        r = ENOMEM;
+                        goto fail;
+                }
+
+        } else {
+                const char *e = getenv("XDG_RUNTIME_DIR");
+                if (!e) {
+                        r = asprintf(&m->runtime_state_dir, AbsDir_User_RunStateBase "/%lu", getuid());
+                        if (r < 0)
+                                goto fail;
+
+
+                        r = mkdir(m->runtime_state_dir, 0700);
+                        if (r < 0 && !(errno == EEXIST && is_dir(m->runtime_state_dir))) {
+                                log_error(
+                                        "Failed to create user's runtime state directory %s: %s",
+                                        m->runtime_state_dir,
+                                        strerror(r));
+                                goto fail;
+                        }
+
+                        setenv("XDG_RUNTIME_DIR", m->runtime_state_dir, 0);
+                } else
+                        m->runtime_state_dir = strdup(e);
+        }
+
+        m->iw_state_dir = strjoin(m->runtime_state_dir, "/" PkgDirName, NULL);
+        if (!m->iw_state_dir) {
+                r = ENOMEM;
+                goto fail;
+        }
+
+        r = mkdir(m->iw_state_dir, running_as == SYSTEMD_SYSTEM ? 0755 : 0700);
+        if (r < 0 && !(errno == EEXIST && is_dir(m->iw_state_dir))) {
+                log_error(
+                        "Failed to create InitWare runtime state directory %s: %s",
+                        m->iw_state_dir,
+                        strerror(r));
+                goto fail;
+        }
+
         r = manager_default_environment(m);
         if (r < 0)
                 goto fail;
@@ -568,7 +597,7 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
         if (r < 0)
                 goto fail;
 
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
         r = manager_setup_cgroup(m);
         if (r < 0)
                 goto fail;
@@ -796,6 +825,9 @@ void manager_free(Manager *m) {
 
         assert(hashmap_isempty(m->units_requiring_mounts_for));
         hashmap_free(m->units_requiring_mounts_for);
+
+        free(m->runtime_state_dir);
+        free(m->iw_state_dir);
 
         free(m);
 }
@@ -1781,7 +1813,9 @@ static int process_event(Manager *m, struct epoll_event *ev) {
                 /* Some swap table change, intended for the swap subsystem */
                 swap_fd_event(m, ev->events);
                 break;
+#endif
 
+#ifdef Use_udev
         case WATCH_UDEV:
                 /* Some notification from udev, intended for the device subsystem */
                 device_fd_event(m, ev->events);

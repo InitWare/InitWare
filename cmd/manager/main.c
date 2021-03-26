@@ -691,7 +691,8 @@ static int parse_config_file(void) {
         const char *fn;
         int r;
 
-        fn = arg_running_as == SYSTEMD_SYSTEM ? PKGSYSCONFDIR "/system.conf" : PKGSYSCONFDIR "/user.conf";
+        fn = arg_running_as == SYSTEMD_SYSTEM ? AbsDir_PkgSysConf "/system.conf" :
+                                                AbsDir_PkgSysConf "/user.conf";
         f = fopen(fn, "re");
         if (!f) {
                 if (errno == ENOENT)

@@ -31,6 +31,15 @@
 #include "path-util.h"
 #include "mkdir.h"
 
+int is_dir(const char *path) {
+        struct stat st;
+
+        if (stat(path, &st) < 0)
+                return -errno;
+
+        return S_ISDIR(st.st_mode);
+}
+
 int mkdir_safe_internal(const char *path, mode_t mode, uid_t uid, gid_t gid, mkdir_func_t _mkdir) {
         struct stat st;
 
@@ -54,15 +63,6 @@ int mkdir_safe_internal(const char *path, mode_t mode, uid_t uid, gid_t gid, mkd
 
 int mkdir_safe(const char *path, mode_t mode, uid_t uid, gid_t gid) {
         return mkdir_safe_internal(path, mode, uid, gid, mkdir);
-}
-
-static int is_dir(const char* path) {
-        struct stat st;
-
-        if (stat(path, &st) < 0)
-                return -errno;
-
-        return S_ISDIR(st.st_mode);
 }
 
 int mkdir_parents_internal(const char *prefix, const char *path, mode_t mode, mkdir_func_t _mkdir) {

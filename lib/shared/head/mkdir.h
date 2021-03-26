@@ -25,6 +25,8 @@
 
 #include <sys/types.h>
 
+int is_dir(const char *path);
+
 int mkdir_safe(const char *path, mode_t mode, uid_t uid, gid_t gid);
 int mkdir_parents(const char *path, mode_t mode);
 int mkdir_p(const char *path, mode_t mode);

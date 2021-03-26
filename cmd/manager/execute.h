@@ -35,7 +35,7 @@ typedef struct ExecContext ExecContext;
 #include "list.h"
 #include "util.h"
 
-#ifdef Use_libcap
+#ifdef Use_Libcap
 #        include <sys/capability.h>
 #endif
 
@@ -133,7 +133,7 @@ struct ExecContext {
          * don't enter a trigger loop. */
         bool same_pgrp;
 
-#ifdef Use_libcap
+#ifdef Use_Libcap
         uint64_t capability_bounding_set_drop;
 
         cap_t capabilities;

@@ -266,6 +266,21 @@ struct Manager {
          * them. It's a hashmap with a path string as key and a Set as
          * value where Unit objects are contained. */
         Hashmap *units_requiring_mounts_for;
+
+        /*
+         * The runtime state base for this session.
+         *
+         * If a system instance: a copy of AbsDir_PkgRunState.
+         * If a user instance: loaded from XDG_RUNTIME_DIR if possible,
+         * otherwise synthesised as AbsDir_User_RunStateBase/$getpid().
+         *
+         * e.g. /var/run
+         * e.g. /var/run/user/1000
+         */
+        char *runtime_state_dir;
+
+        /* $runtime_state_dir/$PkgDirName */
+        char *iw_state_dir;
 };
 
 int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **m);

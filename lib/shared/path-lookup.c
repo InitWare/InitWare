@@ -46,7 +46,7 @@ int user_config_home(char **config_home) {
 
         e = getenv("XDG_CONFIG_HOME");
         if (e) {
-                r = strappend(e, "/systemd/user");
+                r = strappend(e, "/" PkgDirName "/user");
                 if (!r)
                         return -ENOMEM;
 
@@ -57,7 +57,7 @@ int user_config_home(char **config_home) {
 
                 home = getenv("HOME");
                 if (home) {
-                        r = strappend(home, "/.config/systemd/user");
+                        r = strappend(home, "/.config/" PkgDirName "/user");
                         if (!r)
                                 return -ENOMEM;
 
@@ -122,17 +122,17 @@ static char** user_dirs(
                         goto fail;
         }
 
-        /* We don't treat /etc/xdg/systemd here as the spec
+        /* We don't treat /etc/xdg/$PkgDirName here as the spec
          * suggests because we assume that that is a link to
-         * /etc/systemd/ anyway. */
+         * /etc/$PkgDirName/ anyway. */
 
         e = getenv("XDG_DATA_HOME");
         if (e) {
-                if (asprintf(&data_home, "%s/systemd/user", e) < 0)
+                if (asprintf(&data_home, "%s/" PkgDirName "/user", e) < 0)
                         goto fail;
 
         } else if (home) {
-                if (asprintf(&data_home, "%s/.local/share/systemd/user", home) < 0)
+                if (asprintf(&data_home, "%s/.local/share/" PkgDirName "/user", home) < 0)
                         goto fail;
 
                 /* There is really no need for two unit dirs in $HOME,
@@ -143,7 +143,7 @@ static char** user_dirs(
                  * one. */
 
                 mkdir_parents_label(data_home, 0777);
-                (void) symlink("../../../.config/systemd/user", data_home);
+                (void) symlink("../../../.config/" PkgDirName "/user", data_home);
         }
 
         e = getenv("XDG_DATA_DIRS");
@@ -174,7 +174,7 @@ static char** user_dirs(
         }
 
         if (!strv_isempty(config_dirs)) {
-                t = strv_merge_concat(r, config_dirs, "/systemd/user");
+                t = strv_merge_concat(r, config_dirs, "/" PkgDirName "/user");
                 if (!t)
                         goto finish;
                 strv_free(r);
@@ -204,7 +204,7 @@ static char** user_dirs(
         }
 
         if (!strv_isempty(data_dirs)) {
-                t = strv_merge_concat(r, data_dirs, "/systemd/user");
+                t = strv_merge_concat(r, data_dirs, "/" PkgDirName "/user");
                 if (!t)
                         goto fail;
                 strv_free(r);
@@ -287,14 +287,20 @@ int lookup_paths_init(
                                                  * the arrays in user_dirs() above! */
                                                 STRV_IFNOTNULL(generator_early),
                                                 USER_CONFIG_UNIT_PATH,
+#ifdef Use_CompatSystemd
                                                 "/etc/systemd/user",
                                                 "/run/systemd/user",
+#endif
                                                 STRV_IFNOTNULL(generator),
+#ifdef Use_CompatSystemd
                                                 "/usr/local/lib/systemd/user",
                                                 "/usr/local/share/systemd/user",
+#endif
                                                 USER_DATA_UNIT_PATH,
+#ifdef Use_CompatSystemd
                                                 "/usr/lib/systemd/user",
                                                 "/usr/share/systemd/user",
+#endif
                                                 STRV_IFNOTNULL(generator_late),
                                                 NULL);
 
@@ -307,14 +313,20 @@ int lookup_paths_init(
                                          * systemdsystemunitpath= in systemd.pc.in! */
                                         STRV_IFNOTNULL(generator_early),
                                         SYSTEM_CONFIG_UNIT_PATH,
+#ifdef Use_CompatSystemd
                                         "/etc/systemd/system",
                                         "/run/systemd/system",
+#endif
                                         STRV_IFNOTNULL(generator),
+#ifdef Use_CompatSystemd /* TODO: customisable 'extra unit paths' option?  */
                                         "/usr/local/lib/systemd/system",
+#endif
                                         SYSTEM_DATA_UNIT_PATH,
+#ifdef Use_CompatSystemd
                                         "/usr/lib/systemd/system",
 #ifdef HAVE_SPLIT_USR
                                         "/lib/systemd/system",
+#endif
 #endif
                                         STRV_IFNOTNULL(generator_late),
                                         NULL);

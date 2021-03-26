@@ -1,3 +1,21 @@
+#
+# Some notes on style:
+# - Variables are named in Snake_CamelCase. In some cases (e.g. variables whose
+#   names refer to actually existing filenames) the casing may vary.
+#   Some kinds of variable get a type prefix. These follow below:
+#   - AbsPath[Bin]: absolute path [to a binary]
+#   - AbsDir: Absolute path to a directory.
+#   - RelPath[Bin]: relative path [to a binary]
+#   - RelDir: Relative path to a directory.
+#     Use:     optional feature usage (on/off)
+#     Kind:    configurable feature kind
+#     Have:    whether a library, header, or similar is present.
+#
+#   The purpose of using Snake_CamelCase is to clearly distinguish these
+#   build system-generated settings from everything else in the source tree, by
+#   using a style unused anywhere else. The type prefixes offer clarification
+#   that literal type does not.
+
 project(InitWare)
 cmake_minimum_required(VERSION 3.9)
 cmake_policy(VERSION 3.9)
@@ -37,18 +55,25 @@ endmacro()
 
 #-------------------------------------------------------------------------------
 # feature checks
+#-------------------------------------------------------------------------------
 
 # These are default values for some options, but they'll be changed if
 # appropriate libraries or features are discovered during configuration.
 
-# Default value for options with either a "none" or a "linux" option
-set(Default_linux "none")
-set(Default_runstatedir "/var/run")
+set(Default_Use_CGroups OFF)
+set(Default_Linux "none")
+set(Default_AbsDir_RunState "/var/run")
+set(Default_Kind_Automount "none")
+set(Default_Kind_Mount "none")
+set(Default_Kind_Swap "none")
 
 if(CMAKE_SYSTEM_NAME MATCHES ".*Linux")
   set(Sys_Plat_Linux TRUE)
-  set(Default_linux "linux")
-  set(Default_runstatedir "/run")
+  set(Default_Use_CGroups ON)
+  set(Default_Kind_Automount "linux")
+  set(Default_Kind_Mount "linux")
+  set(Default_Kind_Swap "linux")
+  set(Default_AbsDir_RunState "/run")
   add_definitions("-D_GNU_SOURCE")
 elseif(CMAKE_SYSTEM_NAME MATCHES "kFreeBSD.*|FreeBSD")
   set(Sys_Plat_BSD TRUE)
@@ -119,79 +144,83 @@ if(DEFINED Have_mq_open_in_rt)
   set(Have_mq_open TRUE)
 endif()
 
-if(DEFINED UDev_FOUND OR DEFINED Have_udev_as_devattr)
-  set(Default_Device "udev")
-else()
-  set(Default_Device "none")
-endif()
-
 #-------------------------------------------------------------------------------
 # options configurable by the user
 #-------------------------------------------------------------------------------
 
+
+# Use flags: these enable or disable features
 option(Use_SystemdDBus "Systemd-compatible D-Bus interface" OFF)
-option(Use_SystemdCompat "Systemd-compatible paths and behaviour (Linux-only)" OFF)
+option(Use_SystemdCompat
+  "Systemd-compatible paths and behaviour (Linux-only)"
+  OFF)
+
+option(Use_CGroups
+  "Use CGroups (GNU/Linux Control Groups)"
+  ${Default_Use_CGroups})
+option(Use_Libcap "Use POSIX capabilities (libcap)" ${Cap_FOUND})
 option(Use_MQueue "Use POSIX message queues" ${Have_mq_open})
-option(Use_libcap "Use POSIX capabilities (libcap)" ${Cap_FOUND})
-option(Use_libudev "Use udev (libudev)" ${UDev_FOUND})
-option(Use_libdevattr "Use udev (libdevattr)" ${Have_udev_as_devattr})
+option(Use_Libdevattr "Use udev (libdevattr)" ${Have_udev_as_devattr})
+option(Use_Libudev "Use udev (libudev)" ${UDev_FOUND})
 
 if(${Use_SystemdCompat})
-set(pkgdirname "systemd")
+set(PkgDirName "systemd")
 else()
-set(pkgdirname "InitWare")
+set(PkgDirName "InitWare")
 endif()
 
-message("Default: ${Default_runstatedir}")
-
-set(Full_pkgrunstatedir "${Default_runstatedir}/${pkgdirname}"
+# Paths, either absolute ("full") or relative ("rel")
+set(AbsDir_PkgRunState "${Default_AbsDir_RunState}/${PkgDirName}"
   CACHE STRING
   "Full path to the directory in which to store the run-time state of InitWare,
 e.g. /var/run/InitWare")
 
-set(Full_userrunstatedir "${Default_runstatedir}/user"
+set(AbsDir_User_RunStateBase "${Default_AbsDir_RunState}/user"
   CACHE STRING
   "Full path to the directory in which to generate subdirectories for runtime
 state of each logged-in user, e.g. /var/run/user")
 
-set(Relative_Pkglibdir "lib/${pkgdirname}" CACHE STRING
+set(RelDir_PkgLib "lib/${PkgDirName}" CACHE STRING
 "Relative to the install prefix, the directory for storing \
-system-provided unit-files and configuration. ")
+system-provided, read-only InitWare configuration and unit0files. ")
 
-set(Relative_Pkglibexecdir "${CMAKE_INSTALL_LIBEXECDIR}/${pkgdirname}"
+set(RelDir_PkgLibExecDir "${CMAKE_INSTALL_LIBEXECDIR}/${PkgDirName}"
   CACHE STRING
   "Relative to the install prefix, the directory for storing executables not \
 intended for running by the user, e.g. agents and generators.")
 
-set(Relative_Pkgsysconfdir "${CMAKE_INSTALL_SYSCONFDIR}/${pkgdirname}"
+set(RelDir_PkgSysConf "${CMAKE_INSTALL_SYSCONFDIR}/${PkgDirName}"
   CACHE STRING
   "Relative to the install prefix, the directory for storing  \
 node-specific, administrator-modifiable configuration and unit-files.")
 
-set(NOTIFY_SOCKET ${Default_NOTIFY_SOCKET} CACHE STRING
-  "Path to the notification socket that will be created by InitWare")
+if(DEFINED UDev_FOUND OR DEFINED Have_udev_as_devattr)
+  set(Default_Kind_Device "udev")
+else()
+  set(Default_Kind_Device "none")
+endif()
 
-set(Kind_Device ${Default_Device} CACHE STRING
+set(Kind_Device ${Default_Kind_Device} CACHE STRING
   "Kind of .device unit to provide, or none")
 set_property(CACHE Kind_Device PROPERTY STRINGS none udev)
 
-set(Kind_Mount ${default_linux} CACHE STRING
+set(Kind_Mount ${Default_Kind_Mount} CACHE STRING
   "Kind of mount unit to provide, or none")
 set_property(CACHE Kind_Mount PROPERTY STRINGS none linux)
 
-set(Kind_Automount ${default_linux} CACHE STRING
+set(Kind_Automount ${Default_Kind_Automount} CACHE STRING
   "Kind of .automount unit to provide, or none")
 set_property(CACHE Kind_Automount PROPERTY STRINGS none linux)
 
-set(Kind_Swap ${default_linux} CACHE STRING
+set(Kind_Swap ${Default_Kind_Swap} CACHE STRING
   "Kind of .swap unit to provide, or none")
 set_property(CACHE Kind_Swap PROPERTY STRINGS none linux)
 
 # computed libraries/settings
 
-if(${Use_libdevattr})
+if(${Use_Libdevattr})
   set(UDev_Libs devattr prop)
-elseif(${Use_libudev})
+elseif(${Use_Libudev})
   set(UDev_Libs PkgConfig::UDev)
 endif()
 
@@ -199,7 +228,7 @@ if(DEFINED Have_mq_open_in_rt AND ${Use_MQueue})
   set(MQ_Libs rt)
 endif()
 
-if(${Use_libcap})
+if(${Use_Libcap})
   set(Cap_Libs PkgConfig::Cap)
 endif()
 
@@ -207,23 +236,21 @@ endif()
 # computed paths
 #-------------------------------------------------------------------------------
 
-set(pkglibdir ${CMAKE_INSTALL_PREFIX}/${Relative_Pkglibdir})
-set(pkglibexecdir ${CMAKE_INSTALL_PREFIX}/${Relative_Pkglibexecdir})
-set(pkgsysconfdir ${CMAKE_INSTALL_PREFIX}/${Relative_Pkgsysconfdir})
-set(pkgrunstatedir ${Full_pkgrunstatedir})
-set(userrunstatedir ${Full_userrunstatedir})
+set(AbsDir_PkgLib ${CMAKE_INSTALL_PREFIX}/${RelDir_PkgLib})
+set(AbsDir_PkgLibExec ${CMAKE_INSTALL_PREFIX}/${RelDir_PkgLibExec})
+set(AbsDir_PkgSysConf ${CMAKE_INSTALL_PREFIX}/${RelDir_PkgSysConf})
 
-set(userunitdir ${pkglibdir}/user)
-set(usergeneratordir ${pkglibexecdir}/user-generators)
+set(userunitdir ${AbsDir_PkgLib}/user)
+set(usergeneratordir ${AbsDir_PkgLibExec}/user-generators)
 
-set(systemunitdir ${pkglibdir}/system)
-set(systemgeneratordir ${pkglibexecdir}/system-generators)
+set(systemunitdir ${AbsDir_PkgLib}/system)
+set(systemgeneratordir ${AbsDir_PkgLibExec}/system-generators)
 
-set(SYSTEM_CONFIG_UNIT_PATH ${pkgsysconfdir}/system)
+set(SYSTEM_CONFIG_UNIT_PATH ${AbsDir_PkgSysConf}/system)
 set(SYSTEM_DATA_UNIT_PATH ${systemunitdir})
 set(SYSTEM_GENERATOR_PATH ${systemgeneratordir})
 
-set(USER_CONFIG_UNIT_PATH ${pkgsysconfdir}/user)
+set(USER_CONFIG_UNIT_PATH ${AbsDir_PkgSysConf}/user)
 set(USER_DATA_UNIT_PATH ${userunitdir})
 set(USER_GENERATOR_PATH ${usergeneratordir})
 
@@ -262,13 +289,15 @@ function(FShow name flag)
     endif()
 endfunction(FShow)
 
-message("Feature settings:")
+message("Feature settings (Use flags):")
 FShow("Systemd-compatible D-Bus interface" Use_SystemdDBus)
 FShow("Systemd-compatible paths & behaviour" Use_SystemdCompat)
-FShow("POSIX Capabilities (libcap)" Use_libcap)
+
+FShow("GNU/Linux Control Groups (CGroups)" Use_CGroups)
+FShow("POSIX Capabilities (libcap)" Use_Libcap)
 FShow("POSIX Message Queues" Use_MQueue)
-FShow("Udev (libudev)" Use_libudev)
-FShow("Udev (libdevattr)" Use_libdevattr)
+FShow("UDev (libdevattr)" Use_Libdevattr)
+FShow("UDev (libudev)" Use_Libudev)
 
 message("Optional units:")
 FShow(".device" Kind_Device)
@@ -277,11 +306,9 @@ FShow(".automount" Kind_Automount)
 FShow(".swap" Kind_Swap)
 
 message("Paths:")
-FShow("Notify socket" NOTIFY_SOCKET)
 FShow("Prefix" CMAKE_INSTALL_PREFIX)
-FShow("InitWare-internal executables" pkglibexecdir)
-FShow("System-provided InitWare data" pkglibdir)
-FShow("Node-specific InitWare data" pkgsysconfdir)
-FShow("Run-time state" runstatedir)
-FShow("InitWare-specific data" pkgrunstatedir)
-FShow("User run-state base" userrunstatedir)
+FShow("  -> InitWare-internal executables" AbsDir_PkgLibExec)
+FShow("  -> System-provided InitWare data" AbsDir_PkgLib)
+FShow("  -> Node-specific InitWare data" AbsDir_PkgSysConf)
+FShow("User runtime state base" AbsDir_User_RunStateBase)
+FShow("InitWare runtime state" AbsDir_PkgRunState)

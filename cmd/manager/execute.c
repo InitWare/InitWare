@@ -669,7 +669,7 @@ static int enforce_user(const ExecContext *context, uid_t uid) {
         /* Sets (but doesn't lookup) the uid and make sure we keep the
          * capabilities while doing so. */
 
-#ifdef Use_libcap
+#ifdef Use_Libcap
         if (context->capabilities) {
                 cap_t d;
                 static const cap_value_t bits[] = {
@@ -1441,7 +1441,7 @@ int exec_spawn(ExecCommand *command,
                                 }
                         }
 
-#ifdef Use_libcap
+#ifdef Use_Libcap
                         if (context->capability_bounding_set_drop) {
                                 err = capability_bounding_set_drop(context->capability_bounding_set_drop, false);
                                 if (err < 0) {
@@ -1459,7 +1459,7 @@ int exec_spawn(ExecCommand *command,
                                 }
                         }
 
-#ifdef Use_libcap
+#ifdef Use_Libcap
                         /* PR_GET_SECUREBITS is not privileged, while
                          * PR_SET_SECUREBITS is. So to suppress
                          * potential EPERMs we'll try not to call
@@ -1695,7 +1695,7 @@ void exec_context_done(ExecContext *c, bool reloading_or_reexecuting) {
         free(c->pam_name);
         c->pam_name = NULL;
 
-#ifdef Use_libcap
+#ifdef Use_Libcap
         if (c->capabilities) {
                 cap_free(c->capabilities);
                 c->capabilities = NULL;
@@ -1986,7 +1986,7 @@ void exec_context_dump(ExecContext *c, FILE* f, const char *prefix) {
         if (c->timer_slack_nsec != (nsec_t) -1)
                 fprintf(f, "%sTimerSlackNSec: %lu\n", prefix, (unsigned long)c->timer_slack_nsec);
 
-#ifdef Use_libcap
+#ifdef Use_Libcap
         if (c->capabilities) {
                 char *t;
                 if ((t = cap_to_text(c->capabilities, NULL))) {

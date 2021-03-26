@@ -1075,18 +1075,13 @@ static int bus_init_private(Manager *m) {
                 if (getpid() != 1)
                         return 0;
 
-                unlink("/run/systemd/private");
-                m->private_bus = dbus_server_listen("unix:path=/run/systemd/private", &error);
+                unlink(AbsPath_System_Private_Bus);
+                m->private_bus = dbus_server_listen("unix:path=" AbsPath_System_Private_Bus, &error);
         } else {
-                const char *e;
                 char *p;
                 char *escaped;
 
-                e = secure_getenv("XDG_RUNTIME_DIR");
-                if (!e)
-                        return 0;
-
-                if (asprintf(&p, "%s/systemd/private", e) < 0) {
+                if (asprintf(&p, "%s/private", m->iw_state_dir) < 0) {
                         r = log_oom();
                         goto fail;
                 }
@@ -1095,12 +1090,12 @@ static int bus_init_private(Manager *m) {
                 unlink(p);
                 free(p);
 
-                escaped = dbus_address_escape_value(e);
+                escaped = dbus_address_escape_value(m->iw_state_dir);
                 if (!escaped) {
                         r = log_oom();
                         goto fail;
                 }
-                if (asprintf(&p, "unix:path=%s/systemd/private", escaped) < 0) {
+                if (asprintf(&p, "unix:path=%s/private", escaped) < 0) {
                         dbus_free(escaped);
                         r = log_oom();
                         goto fail;

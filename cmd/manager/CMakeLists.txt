@@ -33,7 +33,7 @@ set(manager_core_src unit.c unit-printf.c job.c manager.c transaction.c
     ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.c
     ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf-nulstr.c)
 
-if(Use_libudev OR Use_libdevattr)
+if(Use_Libudev OR Use_Libdevattr)
   list(APPEND manager_core_src dbus-device.c device.c)
 endif()
 
@@ -45,7 +45,7 @@ set(manager_core_src_linux dbus-cgroup.c cgroup.c swap.c dbus-swap.c mount.c
 add_library(manager-core ${manager_core_src})
 target_include_directories(manager-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(manager-core initware-shared initware-units initware-label
-    initware-dbus initware-id128 initware-daemon ${UDev_Libs}
+    initware-dbus initware-id128 initware-daemon ${UDev_Libs} ${Cap_Libs}
     PkgConfig::DBus Threads::Threads)
 
 add_executable(iw.manager main.c)

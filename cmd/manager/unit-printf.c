@@ -162,22 +162,9 @@ static int specifier_runtime(char specifier, void *data, void *userdata, char **
 
         assert(u);
 
-        if (u->manager->running_as == SYSTEMD_USER) {
-                const char *e;
-
-                e = getenv("XDG_RUNTIME_DIR");
-                if (e) {
-                        n = strdup(e);
-                        if (!n)
-                                return -ENOMEM;
-                }
-        }
-
-        if (!n) {
-                n = strdup("/run");
-                if (!n)
-                        return -ENOMEM;
-        }
+        n = strdup(u->manager->runtime_state_dir);
+        if (!n)
+                return -ENOMEM;
 
         *ret = n;
         return 0;

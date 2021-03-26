@@ -2824,7 +2824,7 @@ int unit_kill_common(
                                 r = -errno;
 
         if (who == KILL_ALL && u->cgroup_path) {
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
                 _cleanup_set_free_ Set *pid_set = NULL;
                 int q;
 
@@ -3216,7 +3216,7 @@ int unit_kill_context(
         }
 
         if (c->kill_mode == KILL_CONTROL_GROUP && u->cgroup_path) {
-#ifdef Sys_Plat_Linux
+#ifdef Use_CGroups
                 _cleanup_set_free_ Set *pid_set = NULL;
 
                 /* Exclude the main/control pids from being killed via the cgroup */

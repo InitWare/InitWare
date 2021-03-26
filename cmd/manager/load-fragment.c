@@ -828,7 +828,7 @@ int config_parse_exec_cpu_affinity(const char *unit,
         return 0;
 }
 
-#ifdef Use_libcap
+#ifdef Use_Libcap
 int config_parse_exec_capabilities(const char *unit,
                                    const char *filename,
                                    unsigned line,

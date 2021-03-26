@@ -86,6 +86,9 @@
         "org.freedesktop.DBus.Introspectable\0" \
         "org.freedesktop.DBus.Peer\0"
 
+/* Absolute path to the system manager's private bus socket. */
+#define AbsPath_System_Private_Bus AbsDir_PkgRunState "/private"
+
 int bus_check_peercred(DBusConnection *c);
 
 int bus_connect(DBusBusType t, DBusConnection **_bus, bool *private_bus, DBusError *error);

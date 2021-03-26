@@ -34,25 +34,35 @@ The following platforms are supported:
 - DragonFly BSD (5.8+) as user manager.
 - GNU/Linux (4.0+) as system or user manager.
 
-To build InitWare, a full installation (including development libraries and
-headers) is required of at least the following components:
+**Required runtime dependencies**:
+
+- D-Bus 1.4+
+- On GNU/Linux:
+    - Kernel 3.6+
+- On all BSD platforms:
+    - *[libepoll-shim](https://github.com/jiixyj/epoll-shim)* v0.0.20210310+
+      (provided as `libepoll-shim` in Ports)
+    - *[libinotify-kqueue](https://github.com/libinotify-kqueue/libinotify-kqueue)*
+      v0.0.20180201+ (provided as `libinotify` in Ports, pkgsrc, and OpenPorts)
+
+**Optional runtime dependencies**:
+
+- On GNU/Linux:
+    - Udev or Eudev (for `.device` unit support)
+- On FreeBSD:
+    - `fdescfs` mounted at `/dev/fd`
+    - *libudev-devd* (for `.device` unit support)
+- On NetBSD:
+    - `procfs` mounted at `/proc`
+
+To build InitWare, any libraries listed above must be present complete with
+their associated development libraries. Additionally required are the
+following:
 
 - a C toolchain supporting GNU C extensions, e.g. GNU CC or LLVM/Clang
 - CMake 3.9+
-- D-Bus 1.4+
-- On FreeBSD/NetBSD/OpenBSD:
-    - [ePoll-Shim](https://github.com/jiixyj/epoll-shim) v0.0.20210310+
-      (provided as `libepoll-shim` in Ports)
-    - [libiNotify-KQueue](https://github.com/libinotify-kqueue/libinotify-kqueue)
-      v0.0.20180201+ (provided as `libinotify` in Ports, pkgsrc, and OpenPorts)
-
-The runtime requirements are:
-
-- D-Bus 1.4+
-- On FreeBSD:
-    - `fdescfs` mounted at `/dev/fd`
-- On NetBSD:
-    - `procfs` mounted at `/proc`
+- GPerf
+- M4, Awk
 
 Licencing
 ---------

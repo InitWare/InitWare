@@ -43,10 +43,12 @@
 
 #cmakedefine Use_SystemdDBus
 #cmakedefine Use_SystemdCompat
-#cmakedefine Use_libcap
+
+#cmakedefine Use_CGroups
+#cmakedefine Use_Libcap
 #cmakedefine Use_MQueue
-#cmakedefine Use_libudev
-#cmakedefine Use_libdevattr
+#cmakedefine Use_Libudev
+#cmakedefine Use_Libdevattr
 
 
 #define PACKAGE_NAME "@PACKAGE_NAME@"
@@ -55,7 +57,10 @@
 
 #define DISTRIBUTION "@DISTRIBUTION@"
 
-#define PKGSYSCONFDIR "@pkgsysconfdir@"
+#define AbsDir_User_RunStateBase "@AbsDir_User_RunStateBase@"
+#define AbsDir_PkgRunState "@AbsDirs_IW_RunState@"
+#define AbsDir_PkgSysConf "@AbsDir_PkgSysConf@"
+#define PkgDirName "@PkgDirName@"
 
 #define SYSTEM_CONFIG_FILE "@SYSTEM_CONFIG_FILE@"
 #define SYSTEM_CONFIG_UNIT_PATH "@SYSTEM_CONFIG_UNIT_PATH@"
@@ -74,8 +79,6 @@
 #define SYSTEMD_STDIO_BRIDGE_BINARY_PATH "@SYSTEMD_STDIO_BRIDGE_BINARY_PATH@"
 
 #define POLKIT_AGENT_BINARY_PATH "@POLKIT_AGENT_BINARY_PATH@"
-
-#define NOTIFY_SOCKET "@NOTIFY_SOCKET@"
 
 #ifdef Sys_Plat_FreeBSD
 #        define _PATH_UTMPX "/var/run/utx.active"
@@ -120,15 +123,14 @@ void *mempcpy(void *dest, const void *src, size_t n);
 #        define Have_ETIME
 #endif
 
-#if defined(Use_libudev) | defined(Use_libdevattr)
-#define Use_udev true
+#if defined(Use_Libudev) | defined(Use_Libdevattr)
+#        define Use_udev true
 #endif
 
 #ifdef Sys_Plat_Linux
 #        define Use_Mount
 #        define Use_Automount
 #        define Use_Swap
-//#        define Use_CGroups
 #        define Use_Linprocfs
 #endif
 

@@ -54,8 +54,8 @@ DBusHandlerResult bus_slice_message_handler(Unit *u, DBusConnection *c, DBusMess
 
         const BusBoundProperties bps[] = {
                 { "org.freedesktop.systemd1.Unit",  bus_unit_properties,           u },
-#ifdef Use_CGroups
                 { "org.freedesktop.systemd1.Slice", bus_unit_cgroup_properties,    u },
+#ifdef Use_CGroups
                 { "org.freedesktop.systemd1.Slice", bus_cgroup_context_properties, &s->cgroup_context },
 #endif
                 {}
