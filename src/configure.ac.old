@@ -1014,7 +1014,6 @@ AC_CONFIG_FILES([
 
 AC_OUTPUT
 AC_MSG_RESULT([
-        $PACKAGE_NAME $VERSION
 
         libcryptsetup:           ${have_libcryptsetup}
         tcpwrap:                 ${have_tcpwrap}
@@ -1059,13 +1058,8 @@ AC_MSG_RESULT([
         Split /usr:              ${enable_split_usr}
         SysV compatibility:      ${SYSTEM_SYSV_COMPAT}
 
-        prefix:                  ${prefix}
         rootprefix:              ${with_rootprefix}
-        sysconf dir:             ${sysconfdir}
-        datarootdir:             ${datarootdir}
-        includedir:              ${includedir}
         include_prefix:          ${INCLUDE_PREFIX}
-        lib dir:                 ${libdir}
         rootlib dir:             ${with_rootlibdir}
         SysV init scripts:       ${SYSTEM_SYSVINIT_PATH}
         SysV rc?.d directories:  ${SYSTEM_SYSVRCND_PATH}
