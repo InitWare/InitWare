@@ -29,10 +29,13 @@ Requirements
 
 The following platforms are supported:
 
-- FreeBSD (13.0+) as user manager.
-- NetBSD (8.0+) as user manager.
 - DragonFly BSD (5.8+) as user manager.
+- FreeBSD (13.0+) as user manager.
 - GNU/Linux (4.0+) as system or user manager.
+- NetBSD (8.0+) as user manager.
+
+We hope to support (recent versions of) OpenBSD, and possibly also Illumos, in
+the near future.
 
 **Required runtime dependencies**:
 
@@ -48,7 +51,9 @@ The following platforms are supported:
 **Optional runtime dependencies**:
 
 - On GNU/Linux:
-    - Udev or Eudev (for `.device` unit support)
+    - UDev or Eudev (for `.device` unit support)
+- On DragonFly BSD:
+    - `udevd` running (for `.device` unit support)
 - On FreeBSD:
     - `fdescfs` mounted at `/dev/fd`
     - *libudev-devd* (for `.device` unit support)

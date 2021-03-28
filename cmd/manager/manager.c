@@ -72,6 +72,11 @@
 #include "boot-timestamps.h"
 #include "env-util.h"
 
+#ifdef Use_KQProc
+#        include "ptgroup/kqproc.h"
+#        include <sys/event.h>
+#endif
+
 #ifdef Sys_Plat_Linux
 #        include <linux/kd.h>
 #endif
@@ -531,7 +536,10 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
         } else {
                 const char *e = getenv("XDG_RUNTIME_DIR");
                 if (!e) {
-                        r = asprintf(&m->runtime_state_dir, AbsDir_User_RunStateBase "/%lu", getuid());
+                        r = asprintf(
+                                &m->runtime_state_dir,
+                                AbsDir_User_RunStateBase "/%llu",
+                                (long long unsigned) getuid());
                         if (r < 0)
                                 goto fail;
 
@@ -585,6 +593,12 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
         if (!m->cgroup_unit)
                 goto fail;
 
+#ifdef Use_PTGroups
+        m->ptgroup_unit = hashmap_new(trivial_hash_func, trivial_compare_func);
+        if (!m->ptgroup_unit)
+                goto fail;
+#endif
+
         m->watch_bus = hashmap_new(string_hash_func, string_compare_func);
         if (!m->watch_bus)
                 goto fail;
@@ -601,6 +615,20 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
         r = manager_setup_cgroup(m);
         if (r < 0)
                 goto fail;
+#endif
+
+#ifdef Use_KQProc
+        r = manager_setup_kqproc_watch(m);
+        if (r < 0)
+                goto fail;
+#endif
+
+#ifdef Use_PTGroups
+        m->pt_manager = ptmanager_new(m, strdup(running_as == SYSTEMD_SYSTEM ? "sys:" : "usr:"));
+        if (!m->pt_manager) {
+                log_error("Failed to allocate root PT group\n");
+                r = -ENOMEM;
+        }
 #endif
 
         r = manager_setup_notify(m);
@@ -813,6 +841,10 @@ void manager_free(Manager *m) {
         strv_free(m->environment);
 
         hashmap_free(m->cgroup_unit);
+#ifdef Use_PTGroups
+        hashmap_free(m->ptgroup_unit);
+#endif
+
         set_free_free(m->unit_path_cache);
 
         close_idle_pipe(m);
@@ -1456,7 +1488,7 @@ static int manager_dispatch_sigchld(Manager *m) {
                                     ? exit_status_to_string(si.si_status, EXIT_STATUS_FULL)
                                     : signal_to_string(si.si_status)));
 
-#ifdef Sys_Plat_Linux
+#if defined(Use_CGroups) || defined(Use_KQProc)
                     /* And now figure out the unit this belongs
                      * to, it might be multiple... */
                     u = manager_get_unit_by_pid(m, si.si_pid);
@@ -1871,6 +1903,20 @@ static int process_event(Manager *m, struct epoll_event *ev) {
                 close_idle_pipe(m);
                 break;
         }
+
+#ifdef Use_KQProc
+        case WATCH_KQPROC: {
+
+                if (ev->events != EPOLLIN) {
+                        log_warning("Unexpected event on PROC events Kernel Queue\n");
+                        return -EINVAL;
+                }
+
+                manager_kqproc_event(m);
+
+                break;
+        }
+#endif
 
         default:
                 log_error("event type=%i", w->type);

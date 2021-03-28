@@ -1230,8 +1230,10 @@ static int socket_spawn(Socket *s, ExecCommand *c, pid_t *_pid) {
         assert(c);
         assert(_pid);
 
-#ifdef Use_CGroups
+#ifdef Use_CGroup
         unit_realize_cgroup(UNIT(s));
+#elif defined(Use_PTGroups)
+        unit_realize_ptgroup(UNIT(s));
 #endif
 
         r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, s->timeout_usec, &s->timer_watch);
@@ -1254,6 +1256,9 @@ static int socket_spawn(Socket *s, ExecCommand *c, pid_t *_pid) {
 #ifdef Use_CGroups
                        UNIT(s)->manager->cgroup_supported,
                        UNIT(s)->cgroup_path,
+#elif defined(Use_PTGroups)
+                       UNIT(s)->manager->pt_manager,
+                       UNIT(s)->ptgroup,
 #endif
                        UNIT(s)->id,
                        NULL,

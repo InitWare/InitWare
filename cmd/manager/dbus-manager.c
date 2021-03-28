@@ -680,7 +680,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                                     DBUS_TYPE_INVALID))
                         return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-#ifdef Use_CGroups
+#if defined(Use_CGroups) || defined(Use_KQProc)
                 u = manager_get_unit_by_pid(m, (pid_t) pid);
 #endif
                 if (!u) {

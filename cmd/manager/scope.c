@@ -277,7 +277,7 @@ static int scope_start(Unit *u) {
         if (!u->transient && UNIT(s)->manager->n_reloading <= 0)
                 return -ENOENT;
 
-#ifdef Use_CGroup
+#if defined(Use_CGroups)
         r = unit_realize_cgroup(u);
         if (r < 0) {
                 log_error("Failed to realize cgroup: %s", strerror(-r));
@@ -285,6 +285,16 @@ static int scope_start(Unit *u) {
         }
 
         r = cg_attach_many_everywhere(u->manager->cgroup_supported, u->cgroup_path, UNIT(s)->pids);
+        if (r < 0)
+                return r;
+#elif defined(Use_PTGroups)
+        r = unit_realize_ptgroup(u);
+        if (r < 0) {
+                log_error("Failed to realize ptgroup: %s", strerror(-r));
+                return r;
+        }
+
+        r = ptgroup_attach_many(u->ptgroup, u->manager->pt_manager, UNIT(s)->pids);
         if (r < 0)
                 return r;
 #endif
@@ -374,6 +384,10 @@ static bool scope_check_gc(Unit *u) {
                 r = cg_is_empty_recursive(SYSTEMD_CGROUP_CONTROLLER, UNIT(s)->cgroup_path, true);
                 if (r <= 0)
                         return true;
+        }
+#else
+        if (u->ptgroup) {
+                return !ptg_is_empty_recursive(UNIT(s)->ptgroup);
         }
 #endif
 

@@ -26,8 +26,9 @@
 #include <stdio.h>
 #include <dbus/dbus.h>
 
-#include "fdset.h"
 #include "cgroup-util.h"
+#include "fdset.h"
+#include "ptgroup/ptgroup.h"
 
 /* Enforce upper limit how many names we allow */
 #define MANAGER_MAX_NAMES 131072 /* 128K */
@@ -65,6 +66,10 @@ enum WatchType {
         WATCH_TIME_CHANGE,
         WATCH_JOBS_IN_PROGRESS,
         WATCH_IDLE_PIPE,
+#ifdef Use_KQProc
+        /** an event on the process tracker kernel queue */
+        WATCH_KQPROC,
+#endif
 };
 
 struct Watch {
@@ -267,8 +272,8 @@ struct Manager {
          * value where Unit objects are contained. */
         Hashmap *units_requiring_mounts_for;
 
-        /*
-         * The runtime state base for this session.
+        /**
+         * The runtime state base directory for this session.
          *
          * If a system instance: a copy of AbsDir_PkgRunState.
          * If a user instance: loaded from XDG_RUNTIME_DIR if possible,
@@ -281,6 +286,22 @@ struct Manager {
 
         /* $runtime_state_dir/$PkgDirName */
         char *iw_state_dir;
+
+#ifdef Use_KQProc
+        /**
+         * Watch for the Kernel Queue on which PROC events are received.
+         * (The Kernel Queue itself is in the .fd member.)
+         */
+        Watch kqproc_watch;
+#endif
+
+#ifdef Use_PTGroups
+        /** Process Tracking Groups manager */
+        PTManager *pt_manager;
+
+        /* PTGroup object:Unit object 1:1 */
+        Hashmap *ptgroup_unit;
+#endif
 };
 
 int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **m);

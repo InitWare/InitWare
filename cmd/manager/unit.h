@@ -177,6 +177,9 @@ struct Unit {
         /* Counterparts in the cgroup filesystem */
         char *cgroup_path;
         CGroupControllerMask cgroup_mask;
+#ifdef Use_PTGroups
+        PTGroup *ptgroup;
+#endif
 
         UnitRef slice;
 

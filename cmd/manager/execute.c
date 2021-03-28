@@ -717,6 +717,8 @@ static int enforce_user(const ExecContext *context, uid_t uid) {
 #else /* on NetBSD, setuid() sets real, effective, and saved UID */
         if (setuid(uid) < 0)
 #endif
+                return -errno;
+
         /* At this point we should have all necessary capabilities but
            are otherwise a normal user. However, the caps might got
            corrupted due to the setresuid() so we need clean them up
@@ -1046,6 +1048,9 @@ int exec_spawn(ExecCommand *command,
 #ifdef Use_CGroups
                CGroupControllerMask cgroup_supported,
                const char *cgroup_path,
+#elif defined(Use_PTGroups)
+        PTManager *ptm,
+        PTGroup *ptg,
 #endif
                const char *unit_id,
                int idle_pipe[4],
@@ -1056,6 +1061,12 @@ int exec_spawn(ExecCommand *command,
         char *line;
         pid_t pid;
         int r;
+        /*
+         * A pipe on which the forked process waits for the reception of 1 byte
+         * before it tries to proceed. This gives the parent time to do any
+         * necessary work in advance, and prevents a race.
+         */
+        int waitfd[2];
 
         assert(command);
         assert(context);
@@ -1108,11 +1119,17 @@ int exec_spawn(ExecCommand *command,
         }
 #endif
 
+        if (pipe(waitfd) < 0) {
+                log_error("Failed to open wait-pipe for child process: %m");
+                return -errno;
+        }
+
         pid = fork();
         if (pid < 0)
                 return -errno;
 
         if (pid == 0) {
+                char dispose;
                 int i, err;
                 sigset_t ss;
                 const char *username = NULL, *home = NULL, *shell = NULL;
@@ -1123,6 +1140,14 @@ int exec_spawn(ExecCommand *command,
                 unsigned n_env = 0;
 
                 /* We are the child process. */
+
+                /*
+                 * First, wait until we receive a byte on the waitfd, before
+                 * we proceed.
+                 */
+                close(waitfd[1]);
+                read(waitfd[0], &dispose, 1);
+                close(waitfd[0]);
 
                 rename_process_from_path(command->path);
 
@@ -1575,6 +1600,9 @@ int exec_spawn(ExecCommand *command,
                 _exit(r);
         }
 
+        /* We are the parent process. */
+        close(waitfd[0]);
+
         log_struct_unit(LOG_DEBUG,
                         unit_id,
                         "MESSAGE=Forked %s as %lu",
@@ -1589,6 +1617,13 @@ int exec_spawn(ExecCommand *command,
          * killed too). */
         if (cgroup_path)
                 cg_attach(SYSTEMD_CGROUP_CONTROLLER, cgroup_path, pid);
+#elif defined(Use_PTGroups)
+        if (ptgroup_attach(ptg, ptm, pid) < 0)
+                log_error("Failed to attach pid %lu to ptgroup!", (unsigned long) pid);
+        
+        if (write(waitfd[1], "0", 1) < 0)
+                log_error("Failed to write to pid %lu's wait-pipe!", (unsigned long) pid);
+        close(waitfd[1]);
 #endif
 
         exec_status_start(&command->exec_status, pid);

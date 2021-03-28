@@ -203,8 +203,10 @@ static int slice_start(Unit *u) {
         assert(t);
         assert(t->state == SLICE_DEAD);
 
-#ifdef Use_CGroups
+#if defined(Use_CGroups)
         unit_realize_cgroup(u);
+#elif defined(Use_PTGroups)
+        unit_realize_ptgroup(u);
 #endif
         slice_set_state(t, SLICE_ACTIVE);
         return 0;

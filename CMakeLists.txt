@@ -95,6 +95,12 @@ elseif(APPLE)
   set(Sys_Plat_BSD TRUE)
 endif()
 
+if(Sys_Plat_BSD)
+  set(Default_Use_KQProc YES)
+else()
+  set(Default_Use_KQProc NO)
+endif()
+
 if(NOT Sys_Plat_Linux)
 pkg_check_modules(EPoll REQUIRED IMPORTED_TARGET epoll-shim)
 pkg_check_modules(INotify REQUIRED IMPORTED_TARGET libinotify)
@@ -156,8 +162,11 @@ option(Use_SystemdCompat
   OFF)
 
 option(Use_CGroups
-  "Use CGroups (GNU/Linux Control Groups)"
+  "Use GNU/Linux Control Groups for advanced process tracking"
   ${Default_Use_CGroups})
+option(Use_KQProc
+  "Use Kernel Queues for advanced process tracking"
+  ${Default_Use_KQProc})
 option(Use_Libcap "Use POSIX capabilities (libcap)" ${Cap_FOUND})
 option(Use_MQueue "Use POSIX message queues" ${Have_mq_open})
 option(Use_Libdevattr "Use udev (libdevattr)" ${Have_udev_as_devattr})
@@ -293,7 +302,10 @@ message("Feature settings (Use flags):")
 FShow("Systemd-compatible D-Bus interface" Use_SystemdDBus)
 FShow("Systemd-compatible paths & behaviour" Use_SystemdCompat)
 
-FShow("GNU/Linux Control Groups (CGroups)" Use_CGroups)
+message("  Advanced process tracking:")
+FShow("    -> GNU/Linux Control Groups (CGroups)" Use_CGroups)
+FShow("    -> Kernel Queues PROC event filter" Use_KQProc)
+
 FShow("POSIX Capabilities (libcap)" Use_Libcap)
 FShow("POSIX Message Queues" Use_MQueue)
 FShow("UDev (libdevattr)" Use_Libdevattr)

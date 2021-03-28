@@ -45,6 +45,7 @@
 #cmakedefine Use_SystemdCompat
 
 #cmakedefine Use_CGroups
+#cmakedefine Use_KQProc
 #cmakedefine Use_Libcap
 #cmakedefine Use_MQueue
 #cmakedefine Use_Libudev
@@ -79,6 +80,14 @@
 #define SYSTEMD_STDIO_BRIDGE_BINARY_PATH "@SYSTEMD_STDIO_BRIDGE_BINARY_PATH@"
 
 #define POLKIT_AGENT_BINARY_PATH "@POLKIT_AGENT_BINARY_PATH@"
+
+#ifdef Use_KQProc
+#        define Use_PTGroups true
+#endif
+
+#if defined(Use_Libudev) | defined(Use_Libdevattr)
+#        define Use_udev true
+#endif
 
 #ifdef Sys_Plat_FreeBSD
 #        define _PATH_UTMPX "/var/run/utx.active"
@@ -121,10 +130,6 @@ void *mempcpy(void *dest, const void *src, size_t n);
 #        define ETIME ETIMEDOUT
 #else
 #        define Have_ETIME
-#endif
-
-#if defined(Use_Libudev) | defined(Use_Libdevattr)
-#        define Use_udev true
 #endif
 
 #ifdef Sys_Plat_Linux

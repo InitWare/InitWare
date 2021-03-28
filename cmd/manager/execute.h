@@ -39,6 +39,8 @@ typedef struct ExecContext ExecContext;
 #        include <sys/capability.h>
 #endif
 
+typedef struct PTGroup PTGroup;
+typedef struct PTManager PTManager;
 typedef struct Unit Unit;
 
 typedef enum ExecInput {
@@ -190,6 +192,9 @@ int exec_spawn(
 #ifdef Have_CGroups
         CGroupControllerMask cgroup_mask,
         const char *cgroup_path,
+#elif defined(Use_PTGroups)
+        PTManager *ptm,
+        PTGroup *ptgroup,
 #endif
         const char *unit_id,
         int pipe_fd[2],

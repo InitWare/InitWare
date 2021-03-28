@@ -1806,6 +1806,8 @@ static int service_spawn(
 
 #ifdef Use_CGroup
         unit_realize_cgroup(UNIT(s));
+#elif defined(Use_PTGroups)
+        unit_realize_ptgroup(UNIT(s));
 #endif
 
         if (pass_fds ||
@@ -1873,7 +1875,7 @@ static int service_spawn(
                 goto fail;
         }
 
-#ifdef Use_CGroups
+#ifdef Use_CGroups /* FIXME: PTGroups adaptation */
         if (is_control && UNIT(s)->cgroup_path) {
                 path = strappenda(UNIT(s)->cgroup_path, "/control");
                 cg_create(SYSTEMD_CGROUP_CONTROLLER, path);
@@ -1893,6 +1895,9 @@ static int service_spawn(
 #ifdef Use_CGroups
                        UNIT(s)->manager->cgroup_supported,
                        path,
+#elif defined(Use_PTGroups)
+                UNIT(s)->manager->pt_manager,
+                UNIT(s)->ptgroup,
 #endif
                        UNIT(s)->id,
                        s->type == SERVICE_IDLE ? UNIT(s)->manager->idle_pipe : NULL,
@@ -1961,6 +1966,13 @@ static int cgroup_good(Service *s) {
                 return r;
 
         return !r;
+#elif defined(Use_PTGroups)
+        assert(s);
+
+        if (!UNIT(s)->ptgroup)
+                return 0;
+
+        return !ptg_is_empty_recursive(UNIT(s)->ptgroup);
 #else
         unimplemented();
         return true;

@@ -31,10 +31,15 @@ set(manager_core_src unit.c unit-printf.c job.c manager.c transaction.c
     condition.c tcpwrap.c killall.c
     audit-fd.c async.c async.h
     ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.c
-    ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf-nulstr.c)
+    ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf-nulstr.c
+    ptgroup/ptgroup.c)
 
 if(Use_Libudev OR Use_Libdevattr)
   list(APPEND manager_core_src dbus-device.c device.c)
+endif()
+
+if(Use_KQProc)
+  list(APPEND manager_core_src ptgroup/kqproc.c)
 endif()
 
 set(manager_core_src_linux dbus-cgroup.c cgroup.c swap.c dbus-swap.c mount.c
