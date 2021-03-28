@@ -13,20 +13,51 @@ have been included with this software
         All rights reserved.
 *********************************************************************/
 
+/* needed for NetBSD */
+#define _KMEMUSER
+
 #include <assert.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
-#include <sys/user.h>
 
 #include "util.h"
+
+#if defined(Sys_Plat_NetBSD)
+#        define kinfo_proc kinfo_proc2
+#        define kvm_getprocs(kd, op, arg, cnt) kvm_getproc2(kd, op, arg, sizeof(struct kinfo_proc2), cnt)
+#elif defined(Sys_Plat_DragonFlyBSD)
+#        define p_ppid kp_ppid
+#        define p_stat kp_stat
+#        define p_comm kp_comm
+#        define p_ruid kp_ruid
+#        define p_rgid kp_rgid
+#elif defined(Sys_Plat_FreeBSD)
+/* KVM is platform-specific enough to not bother with CMake. */
+#        include <sys/user.h>
+
+#        define p_ppid ki_ppid
+#        define p_stat ki_stat
+#        define p_comm ki_comm
+#        define p_ruid ki_ruid
+#        define p_rgid ki_rgid
+#else
+#        error "Unsupported platform- please port"
+#endif
+
 
 static kvm_t *kd = NULL;
 
 static struct kinfo_proc *get_pid_info(pid_t pid) {
         if (!kd)
+#if defined(Sys_Plat_FreeBSD) || defined(Sys_Plat_DragonFlyBSD)
                 kd = kvm_open(NULL, "/dev/null", NULL, O_RDONLY, "KVM Error");
+#elif defined(Sys_Plat_NetBSD) || defined(Sys_Plat_OpenBSD)
+                kd = kvm_open(NULL, NULL, NULL, KVM_NO_FILES, "KVM Error");
+#else
+#        error "Unsupported platform - please port"
+#endif
 
         if (!kd)
                 return NULL;
@@ -44,7 +75,7 @@ int get_parent_of_pid(pid_t pid, pid_t *_ppid) {
         if (!info)
                 return -errno;
 
-        *_ppid = info->ki_ppid;
+        *_ppid = info->p_ppid;
 
         return 0;
 }
@@ -53,7 +84,7 @@ int get_process_state(pid_t pid) {
         struct kinfo_proc *info = get_pid_info(pid);
         if (!info)
                 return -errno;
-        if (info->ki_stat == SZOMB)
+        if (info->p_stat == SZOMB)
                 return 'Z';
         else
                 return 'O'; /* TODO: extend. */
@@ -63,7 +94,7 @@ int get_process_comm(pid_t pid, char **name) {
         struct kinfo_proc *info = get_pid_info(pid);
         if (!info)
                 return -errno;
-        *name = strdup(info->ki_comm);
+        *name = strdup(info->p_comm);
         if (!*name)
                 return -ENOMEM;
         return 0;
@@ -71,10 +102,10 @@ int get_process_comm(pid_t pid, char **name) {
 
 int get_process_uid(pid_t pid, uid_t *uid) {
         struct kinfo_proc *info = get_pid_info(pid);
-        return info->ki_ruid;
+        return info->p_ruid;
 }
 
 int get_process_gid(pid_t pid, gid_t *gid) {
         struct kinfo_proc *info = get_pid_info(pid);
-        return info->ki_rgid;
+        return info->p_rgid;
 }
