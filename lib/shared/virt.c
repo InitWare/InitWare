@@ -270,7 +270,12 @@ int detect_container(const char **id) {
                 goto finish;
         }
 
+#ifdef Sys_Plat_Linux
         r = getenv_for_pid(1, "container", &e);
+#else
+        /* TODO: A less ugly, more portable way! */
+        return -ENOENT;
+#endif
         if (r < 0)
                 return r;
         if (r == 0)

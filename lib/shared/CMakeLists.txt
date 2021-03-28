@@ -10,13 +10,22 @@ set(shared_src mkdir-label.c acpi-fpdt.c MurmurHash3.c
     log.c
     virt.c mkdir.c)
 
+if(Sys_Plat_Linux)
+    list(APPEND shared_src linprocfs/proc-util.c)
+elseif(Sys_Plat_BSD)
+    list(APPEND shared_src kvm/proc-util.c)
+    list(APPEND KVM_Libs kvm)
+else()
+    message(FATAL_ERROR "No process utilities for this platform - please port.")
+endif()
+
 set(shared_src_linux cgroup-show.c cgroup-util.c hwclock.c selinux-util.c
-    watchdog.c  utmp-wtmp.c)
+    watchdog.c utmp-wtmp.c)
 set(shared_src_Use_Libcap capability.c)
 
 add_library(initware-shared ${shared_src})
 target_include_directories(initware-shared PUBLIC head)
-target_link_libraries(initware-shared internal compat PkgConfig::DBus)
+target_link_libraries(initware-shared internal compat PkgConfig::DBus ${KVM_Libs})
 
 # ------------------------------------------------------------------------------
 add_library(initware-dbus dbus-common.c dbus-loop.c polkit.c)

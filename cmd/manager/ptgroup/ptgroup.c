@@ -352,6 +352,8 @@ int ptmanager_exit(PTManager *ptm, pid_t pid) {
         if (!hashmap_contains(ptm->manager->watch_pids1, PID_TO_PTR(pid)) &&
             !hashmap_contains(ptm->manager->watch_pids2, PID_TO_PTR(pid)))
                 log_error("Should probably not delete in this case!"); /* TODO: ! */
+        /* TODO: Should we generate a SIGCHLD event if the process is not a
+         * direct child of ours? */
         return r;
 }
 

@@ -443,8 +443,10 @@ static void test_get_process_comm(void) {
 
         assert(get_ctty_devnr(1, &h) == -ENOENT);
 
+#ifdef Sys_Plat_Linux
         getenv_for_pid(1, "PATH", &i);
         log_info("pid1 $PATH: '%s'", strna(i));
+#endif
 }
 
 static void test_protect_errno(void) {

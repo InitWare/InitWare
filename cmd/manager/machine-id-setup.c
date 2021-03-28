@@ -95,7 +95,12 @@ static int generate(char id[34]) {
         if (r > 0) {
                 _cleanup_free_ char *e = NULL;
 
+#ifdef Sys_Plat_Linux
                 r = getenv_for_pid(1, "container_uuid", &e);
+#else
+                /* TODO: */
+                r = -1;
+#endif
                 if (r > 0) {
                         if (strlen(e) >= 36) {
                                 r = shorten_uuid(id, e);
