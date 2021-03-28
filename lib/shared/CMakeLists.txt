@@ -11,12 +11,16 @@ set(shared_src mkdir-label.c acpi-fpdt.c MurmurHash3.c
     virt.c mkdir.c)
 
 if(Sys_Plat_Linux)
-    list(APPEND shared_src linprocfs/proc-util.c)
+    list(APPEND shared_src linprocfs/fdset.c linprocfs/proc-util.c)
 elseif(Sys_Plat_BSD)
-    list(APPEND shared_src kvm/proc-util.c)
+    list(APPEND shared_src kvm/fdset.c kvm/proc-util.c)
     list(APPEND KVM_Libs kvm)
 else()
     message(FATAL_ERROR "No process utilities for this platform - please port.")
+endif()
+
+if(Sys_Plat_FreeBSD)
+    list(APPEND KVM_Libs util)
 endif()
 
 set(shared_src_linux cgroup-show.c cgroup-util.c hwclock.c selinux-util.c

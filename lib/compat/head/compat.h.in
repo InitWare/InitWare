@@ -1,9 +1,6 @@
 #ifndef COMPAT_H_IN_
 #define COMPAT_H_IN_
 
-#include <sys/types.h>
-#include <errno.h>
-
 #cmakedefine Sys_Plat_Linux
 #cmakedefine Sys_Plat_BSD
 #cmakedefine Sys_Plat_FreeBSD
@@ -11,6 +8,9 @@
 #cmakedefine Sys_Plat_DragonFlyBSD
 #cmakedefine Sys_Plat_OpenBSD
 #cmakedefine Sys_Plat_HPUX
+
+#include <sys/types.h>
+#include <errno.h>
 
 #cmakedefine Have_asm_types_h
 #cmakedefine Have_linux_netlink_h

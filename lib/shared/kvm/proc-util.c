@@ -13,15 +13,9 @@ have been included with this software
         All rights reserved.
 *********************************************************************/
 
-/* needed for NetBSD */
-#define _KMEMUSER
-
 #include <assert.h>
-#include <fcntl.h>
-#include <kvm.h>
-#include <sys/param.h>
-#include <sys/sysctl.h>
 
+#include "kvm.h"
 #include "util.h"
 
 #if defined(Sys_Plat_NetBSD)
@@ -34,9 +28,6 @@ have been included with this software
 #        define p_ruid kp_ruid
 #        define p_rgid kp_rgid
 #elif defined(Sys_Plat_FreeBSD)
-/* KVM is platform-specific enough to not bother with CMake. */
-#        include <sys/user.h>
-
 #        define p_ppid ki_ppid
 #        define p_stat ki_stat
 #        define p_comm ki_comm
@@ -46,24 +37,26 @@ have been included with this software
 #        error "Unsupported platform- please port"
 #endif
 
+kvm_t *g_kd = NULL;
 
-static kvm_t *kd = NULL;
-
-static struct kinfo_proc *get_pid_info(pid_t pid) {
-        if (!kd)
+kvm_t *open_kvm() {
+        if (!g_kd)
 #if defined(Sys_Plat_FreeBSD) || defined(Sys_Plat_DragonFlyBSD)
-                kd = kvm_open(NULL, "/dev/null", NULL, O_RDONLY, "KVM Error");
+                g_kd = kvm_open(NULL, "/dev/null", NULL, O_RDONLY, "KVM Error");
 #elif defined(Sys_Plat_NetBSD) || defined(Sys_Plat_OpenBSD)
-                kd = kvm_open(NULL, NULL, NULL, KVM_NO_FILES, "KVM Error");
+                g_kd = kvm_open(NULL, NULL, NULL, KVM_NO_FILES, "KVM Error");
 #else
 #        error "Unsupported platform - please port"
 #endif
+        return g_kd;
+}
 
-        if (!kd)
+static struct kinfo_proc *get_pid_info(pid_t pid) {
+        if (!open_kvm())
                 return NULL;
         else {
                 int cnt;
-                struct kinfo_proc *info = kvm_getprocs(kd, KERN_PROC_PID, pid, &cnt);
+                struct kinfo_proc *info = kvm_getprocs(g_kd, KERN_PROC_PID, pid, &cnt);
                 assert(cnt == 1);
                 return info;
         }

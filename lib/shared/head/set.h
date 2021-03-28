@@ -30,6 +30,8 @@
 #include "hashmap.h"
 #include "util.h"
 
+#define MAKE_SET(s) ((Set *) s)
+
 typedef struct Set Set;
 
 Set *set_new(hash_func_t hash_func, compare_func_t compare_func);

@@ -30,7 +30,6 @@
 #include "fdset.h"
 #include "sd-daemon.h"
 
-#define MAKE_SET(s) ((Set*) s)
 #define MAKE_FDSET(s) ((FDSet*) s)
 
 /* Make sure we can distuingish fd 0 and NULL */
@@ -101,67 +100,6 @@ int fdset_remove(FDSet *s, int fd) {
         assert(fd >= 0);
 
         return set_remove(MAKE_SET(s), FD_TO_PTR(fd)) ? fd : -ENOENT;
-}
-
-int fdset_new_fill(FDSet **_s) {
-#ifdef Have_Linprocfs
-        DIR *d;
-        struct dirent *de;
-        int r = 0;
-        FDSet *s;
-
-        assert(_s);
-
-        /* Creates an fdset and fills in all currently open file
-         * descriptors. */
-
-        d = opendir("/proc/self/fd");
-        if (!d)
-                return -errno;
-
-        s = fdset_new();
-        if (!s) {
-                r = -ENOMEM;
-                goto finish;
-        }
-
-        while ((de = readdir(d))) {
-                int fd = -1;
-
-                if (ignore_file(de->d_name))
-                        continue;
-
-                r = safe_atoi(de->d_name, &fd);
-                if (r < 0)
-                        goto finish;
-
-                if (fd < 3)
-                        continue;
-
-                if (fd == dirfd(d))
-                        continue;
-
-                r = fdset_put(s, fd);
-                if (r < 0)
-                        goto finish;
-        }
-
-        r = 0;
-        *_s = s;
-        s = NULL;
-
-finish:
-        closedir(d);
-
-        /* We won't close the fds here! */
-        if (s)
-                set_free(MAKE_SET(s));
-
-        return r;
-#else
-        unimplemented();
-        return -ENOTSUP;
-#endif
 }
 
 int fdset_cloexec(FDSet *fds, bool b) {

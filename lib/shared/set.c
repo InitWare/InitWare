@@ -24,7 +24,6 @@
 #include "set.h"
 #include "hashmap.h"
 
-#define MAKE_SET(h) ((Set*) (h))
 #define MAKE_HASHMAP(s) ((Hashmap*) (s))
 
 /* For now this is not much more than a wrapper around a hashmap */
