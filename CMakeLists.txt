@@ -249,6 +249,7 @@ set(AbsDir_PkgLib ${CMAKE_INSTALL_PREFIX}/${RelDir_PkgLib})
 set(AbsDir_PkgLibExec ${CMAKE_INSTALL_PREFIX}/${RelDir_PkgLibExec})
 set(AbsDir_PkgSysConf ${CMAKE_INSTALL_PREFIX}/${RelDir_PkgSysConf})
 
+set(RelDir_UserUnitfiles ${RelDir_PkgLib}/user)
 set(userunitdir ${AbsDir_PkgLib}/user)
 set(usergeneratordir ${AbsDir_PkgLibExec}/user-generators)
 
@@ -285,6 +286,7 @@ target_include_directories(internal INTERFACE common head head/systemd)
 
 add_subdirectory(lib)
 add_subdirectory(cmd)
+add_subdirectory(share)
 
 #-------------------------------------------------------------------------------
 # display enabled options
