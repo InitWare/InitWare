@@ -1569,24 +1569,22 @@ int main(int argc, char *argv[]) {
         }
 #endif
 
-        if (arg_running_as == SYSTEMD_USER) {
+        if (getpid() != 1) {
                 /* Become reaper of our children */
                 if (
-#ifdef Have_sys_prctl_h
+#if defined(Have_sys_prctl_h)
                         prctl(PR_SET_CHILD_SUBREAPER, 1)
 #elif defined(Have_sys_procctl_h)
                 procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, 0)
 #else
         0
 #endif
-                < 0) {
+                        < 0) {
                         log_warning("Failed to make us a subreaper: %m");
                         if (errno == EINVAL)
                                 log_info("Perhaps the kernel version is too old (< 3.4?)");
                 }
-
         }
-
 
         if (arg_running_as == SYSTEMD_SYSTEM)
                 bump_rlimit_nofile(&saved_rlimit_nofile);
@@ -1876,8 +1874,9 @@ finish:
                         fds = NULL;
                 }
 
-                /* Reopen the console */
-                make_console_stdio();
+                if (arg_running_as == SYSTEMD_SYSTEM)
+                        /* Reopen the console */
+                        make_console_stdio();
 
                 for (j = 1, i = 1; j < argc; j++)
                         args[i++] = argv[j];
@@ -1897,18 +1896,18 @@ finish:
                         log_warning("Failed to execute configured init, trying fallback: %m");
                 }
 
-                args[0] = "/sbin/init";
+                args[0] = SYSTEMD_BINARY_PATH;
                 execv(args[0], (char* const*) args);
 
                 if (errno == ENOENT) {
-                        log_warning("No /sbin/init, trying fallback");
+                        log_warning("No " SYSTEMD_BINARY_PATH ", trying fallback");
 
                         args[0] = "/bin/sh";
                         args[1] = NULL;
                         execv(args[0], (char* const*) args);
                         log_error("Failed to execute /bin/sh, giving up: %m");
                 } else
-                        log_warning("Failed to execute /sbin/init, giving up: %m");
+                        log_warning("Failed to execute " SYSTEMD_BINARY_PATH ", giving up: %m");
         }
 
         if (serialization)

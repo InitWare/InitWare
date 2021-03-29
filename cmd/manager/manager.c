@@ -2223,16 +2223,18 @@ int manager_open_serialization(Manager *m, FILE **_f) {
 
         assert(_f);
 
-        if (m->running_as == SYSTEMD_SYSTEM)
-                asprintf(&path, "/run/systemd/dump-%lu-XXXXXX", (unsigned long) getpid());
-        else
-                asprintf(&path, "/tmp/systemd-dump-%lu-XXXXXX", (unsigned long) getpid());
+        asprintf(&path, "%s/dump-%lu-XXXXXX", m->iw_state_dir, (unsigned long) getpid());
 
         if (!path)
                 return -ENOMEM;
 
         RUN_WITH_UMASK(0077) {
-                fd = mkostemp(path, O_RDWR|O_CLOEXEC);
+                fd = mkostemp(
+                        path,
+#ifndef Sys_Plat_FreeBSD /* this is already implied on FreeBSD */
+                        O_RDWR |
+#endif
+                                O_CLOEXEC);
         }
 
         if (fd < 0) {

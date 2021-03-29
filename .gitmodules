@@ -1,0 +1,3 @@
+[submodule "vendor/cJSON"]
+	path = vendor/cJSON
+	url = ../cJSON
