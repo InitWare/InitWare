@@ -38,9 +38,14 @@ include(CheckLibraryExists)
 include(CheckSymbolExists)
 include(CheckTypeSize)
 
+list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE -D__BSD_VISIBLE")
+
 macro(check_type_size_in type headers var)
   cmake_push_check_state()
-  SET(CMAKE_EXTRA_INCLUDE_FILES ${headers})
+  # why must I do it twice, CMake?! I never asked to clear it in the first
+  # place!!
+  list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE -D__BSD_VISIBLE")
+  set(CMAKE_EXTRA_INCLUDE_FILES ${headers})
   check_type_size(${type} ${var})
   cmake_push_check_state(RESET)
 endmacro()
@@ -128,8 +133,6 @@ check_include_file(endian.h Have_endian_h)
 check_include_file(malloc.h Have_malloc_h)
 check_include_file(mntent.h Have_mntent_h)
 check_include_file(mqueue.h Have_mqueue_h)
-
-list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE -D__BSD_VISIBLE")
 
 check_library_exists(devattr udev_new "" Have_udev_as_devattr)
 check_library_exists(rt mq_open "" Have_mq_open_in_rt)
@@ -287,6 +290,9 @@ set(POLKIT_AGENT_BINARY_PATH ${CMAKE_INSTALL_FULL_BINDIR}/pkttyagent)
 
 add_library(internal INTERFACE)
 target_include_directories(internal INTERFACE common head head/systemd)
+
+add_library(initware-cjson vendor/cJSON/cJSON.c)
+target_include_directories(initware-cjson PUBLIC vendor/cJSON)
 
 add_subdirectory(lib)
 add_subdirectory(cmd)
