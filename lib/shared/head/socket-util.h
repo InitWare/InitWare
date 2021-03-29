@@ -37,6 +37,33 @@
 #        include <linux/netlink.h>
 #endif
 
+#ifdef SCM_CREDENTIALS
+#        define SCM_CRED_OPT SCM_CREDENTIALS
+#elif defined(SCM_CREDS)
+#        define SCM_CRED_OPT SCM_CREDS
+#endif
+
+#ifdef Have_socket_struct_ucred
+#        define socket_ucred ucred
+#        define dgram_creds struct ucred
+#        define dgram_creds_pid pid
+#        define dgram_creds_uid uid
+#        define dgram_creds_gid uid
+#elif defined(Have_struct_cmsgcred)
+#        define Cmsgcred
+#        define dgram_creds struct cmsgcred
+#        define dgram_creds_pid cmcred_pid
+#        define dgram_creds_uid cmcred_uid
+#        define dgram_creds_gid cmcred_gid
+#endif
+
+#ifndef Have_socket_struct_ucred
+struct socket_ucred {
+        pid_t pid;
+        uid_t uid;
+        gid_t gid;
+};
+#endif
 
 union sockaddr_union {
         struct sockaddr sa;

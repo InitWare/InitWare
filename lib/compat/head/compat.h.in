@@ -23,12 +23,11 @@
 #cmakedefine Have_sys_sysmacros_h
 #cmakedefine Have sys_vfs_h
 #cmakedefine Have_alloca_h
+#cmakedefine Have_byteswap_h
 #cmakedefine Have_endian_h
 #cmakedefine Have_malloc_h
 #cmakedefine Have_mntent_h
 #cmakedefine Have_mqueue_h
-
-#cmakedefine Have___compar_fn_t
 
 #cmakedefine Have_environ
 #cmakedefine Have_waitid
@@ -38,8 +37,12 @@
 #cmakedefine Have_mempcpy
 #cmakedefine Have___secure_getenv
 #cmakedefine Have_secure_getenv
+
+#cmakedefine Have___compar_fn_t
+#cmakedefine Have_socket_struct_ucred
 #cmakedefine Have_statfs
 #cmakedefine Have_statvfs
+#cmakedefine Have_struct_cmsgcred
 
 #cmakedefine Use_SystemdDBus
 #cmakedefine Use_SystemdCompat
