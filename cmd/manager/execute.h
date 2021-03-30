@@ -189,7 +189,7 @@ int exec_spawn(
         bool apply_chroot,
         bool apply_tty_stdin,
         bool confirm_spawn,
-#ifdef Have_CGroups
+#ifdef Use_CGroups
         CGroupControllerMask cgroup_mask,
         const char *cgroup_path,
 #elif defined(Use_PTGroups)
