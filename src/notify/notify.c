@@ -32,7 +32,6 @@
 #include "strv.h"
 #include "util.h"
 #include "log.h"
-#include "sd-readahead.h"
 #include "build.h"
 #include "env-util.h"
 
@@ -40,7 +39,6 @@ static bool arg_ready = false;
 static pid_t arg_pid = 0;
 static const char *arg_status = NULL;
 static bool arg_booted = false;
-static const char *arg_readahead = NULL;
 
 static int help(void) {
 
@@ -52,7 +50,6 @@ static int help(void) {
                "     --pid[=PID]        Set main pid of daemon\n"
                "     --status=TEXT      Set status text\n"
                "     --booted           Returns 0 if the system was booted up with systemd, non-zero otherwise\n"
-               "     --readahead=ACTION Controls read-ahead operations\n",
                program_invocation_short_name);
 
         return 0;
@@ -66,7 +63,6 @@ static int parse_argv(int argc, char *argv[]) {
                 ARG_PID,
                 ARG_STATUS,
                 ARG_BOOTED,
-                ARG_READAHEAD
         };
 
         static const struct option options[] = {
@@ -76,7 +72,6 @@ static int parse_argv(int argc, char *argv[]) {
                 { "pid",       optional_argument, NULL, ARG_PID       },
                 { "status",    required_argument, NULL, ARG_STATUS    },
                 { "booted",    no_argument,       NULL, ARG_BOOTED    },
-                { "readahead", required_argument, NULL, ARG_READAHEAD },
                 { NULL,        0,                 NULL, 0             }
         };
 
@@ -122,10 +117,6 @@ static int parse_argv(int argc, char *argv[]) {
                         arg_booted = true;
                         break;
 
-                case ARG_READAHEAD:
-                        arg_readahead = optarg;
-                        break;
-
                 case '?':
                         return -EINVAL;
 
@@ -139,8 +130,7 @@ static int parse_argv(int argc, char *argv[]) {
             !arg_ready &&
             !arg_status &&
             !arg_pid &&
-            !arg_booted &&
-            !arg_readahead) {
+            !arg_booted) {
                 help();
                 return -EINVAL;
         }
@@ -165,13 +155,6 @@ int main(int argc, char* argv[]) {
 
         if (arg_booted)
                 return sd_booted() <= 0;
-
-        if (arg_readahead) {
-                if ((r = sd_readahead(arg_readahead)) < 0) {
-                        log_error("Failed to issue read-ahead control command: %s", strerror(-r));
-                        goto finish;
-                }
-        }
 
         if (arg_ready)
                 our_env[i++] = (char*) "READY=1";

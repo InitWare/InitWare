@@ -83,4 +83,41 @@
 #define _XZ_FEATURE_ "-XZ"
 #endif
 
-#define SYSTEMD_FEATURES _PAM_FEATURE_ " " _LIBWRAP_FEATURE_ " " _AUDIT_FEATURE_ " " _SELINUX_FEATURE_ " " _IMA_FEATURE_ " " _SYSVINIT_FEATURE_ " " _LIBCRYPTSETUP_FEATURE_ " " _GCRYPT_FEATURE_ " " _ACL_FEATURE_ " " _XZ_FEATURE_
+#ifdef Use_CGroups
+#        define _CGROUPS_FEATURE_ "+CGROUPS"
+#else
+#        define _CGROUPS_FEATURE_ "-CGROUPS"
+#endif
+
+#ifdef Use_KQProc
+#        define _KQPROC_FEATURE_ "+PTGROUPS"
+#else
+#        define _KQPROC_FEATURE_ "-PTGROUPS"
+#endif
+
+#ifdef Use_MQueue
+#        define _MQ_FEATURE_ "+MQ"
+#else
+#        define _MQ_FEATURE_ "-MQ"
+#endif
+
+#if defined(Use_Libudev)
+#        define _DEVICE_FEATURE_ "+DEVICE(UDEV)"
+#elif defined(Use_Libdevattr)
+#        define _DEVICE_FEATURE_ "+DEVICE(DEVATTR)"
+#else
+#        define _DEVICE_FEATURE_ "-DEVICE"
+#endif
+
+#ifdef Use_Libcap
+#        define _CAP_FEATURE_ "+CAP"
+#else
+#        define _CAP_FEATURE_ "-CAP"
+#endif
+
+#define SYSTEMD_FEATURES                                                                                \
+        _PAM_FEATURE_ " " _LIBWRAP_FEATURE_ " " _AUDIT_FEATURE_ " " _SELINUX_FEATURE_ " " _IMA_FEATURE_ \
+                      " " _SYSVINIT_FEATURE_ " " _LIBCRYPTSETUP_FEATURE_ " " _GCRYPT_FEATURE_           \
+                      " " _ACL_FEATURE_ " " _XZ_FEATURE_                                                \
+                      " "_CGROUPS_FEATURE_                                                              \
+                      " " _KQPROC_FEATURE_ " " _MQ_FEATURE_ " " _DEVICE_FEATURE_ " " _CAP_FEATURE_
