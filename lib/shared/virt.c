@@ -274,7 +274,7 @@ int detect_container(const char **id) {
         r = getenv_for_pid(1, "container", &e);
 #else
         /* TODO: A less ugly, more portable way! */
-        return -ENOENT;
+        return false;
 #endif
         if (r < 0)
                 return r;

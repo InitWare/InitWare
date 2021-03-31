@@ -2234,7 +2234,7 @@ int manager_open_serialization(Manager *m, FILE **_f) {
 #ifndef Sys_Plat_FreeBSD /* this is already implied on FreeBSD */
                         O_RDWR |
 #endif
-                                O_CLOEXEC);
+                        O_CLOEXEC);
         }
 
         if (fd < 0) {

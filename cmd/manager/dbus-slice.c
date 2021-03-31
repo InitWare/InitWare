@@ -84,7 +84,7 @@ int bus_slice_set_property(
         r = bus_cgroup_set_property(u, &s->cgroup_context, name, i, mode, error);
 #else
         unimplemented_msg("bus_cgroup_set_property\n");
-        r = -ENOTSUP;
+        r = 0;
 #endif
         if (r != 0)
                 return r;

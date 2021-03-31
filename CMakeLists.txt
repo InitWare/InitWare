@@ -153,7 +153,7 @@ check_type_size_in("struct ucred" "sys/socket.h" Have_socket_struct_ucred)
 check_symbol_exists(waitid "sys/wait.h" Have_waitid)
 
 
-if(DEFINED Have_mq_open_in_rt)
+if(Have_mq_open_in_rt)
   set(Have_mq_open TRUE)
 endif()
 
@@ -210,7 +210,7 @@ set(RelDir_PkgSysConf "${CMAKE_INSTALL_SYSCONFDIR}/${PkgDirName}"
   "Relative to the install prefix, the directory for storing  \
 node-specific, administrator-modifiable configuration and unit-files.")
 
-if(DEFINED UDev_FOUND OR DEFINED Have_udev_as_devattr)
+if(Use_Libdevattr OR Use_Libudev)
   set(Default_Kind_Device "udev")
 else()
   set(Default_Kind_Device "none")
@@ -240,7 +240,7 @@ elseif(${Use_Libudev})
   set(UDev_Libs PkgConfig::UDev)
 endif()
 
-if(DEFINED Have_mq_open_in_rt AND ${Use_MQueue})
+if(Have_mq_open_in_rt AND ${Use_MQueue})
   set(MQ_Libs rt)
 endif()
 
