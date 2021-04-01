@@ -2573,9 +2573,11 @@ int unit_load_fragment(Unit *u) {
         assert(u->load_state == UNIT_STUB);
         assert(u->id);
 
-        /* First, try to find the unit under its id. We always look
+        /*
+         * First, try to find the unit under its id. We always look
          * for unit files in the default directories, to make it easy
-         * to override things by placing things in /etc/systemd/system */
+         * to override things by placing things in /path/to/etc/InitWare/system
+         */
         r = load_from_path(u, u->id);
         if (r < 0)
                 return r;

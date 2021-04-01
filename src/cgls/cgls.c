@@ -189,7 +189,7 @@ int main(int argc, char *argv[]) {
                 } else {
                         if (arg_machine) {
                                 char *m;
-                                m = strappenda("/run/systemd/machines/", arg_machine);
+                                m = strappenda(AbsDir_PkgRunState "/machines/", arg_machine);
                                 r = parse_env_file(m, NEWLINE, "CGROUP", &root, NULL);
                         } else
                                 r = cg_get_root_path(&root);

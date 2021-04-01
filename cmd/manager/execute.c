@@ -219,7 +219,7 @@ static int connect_logger_as(const ExecContext *context, ExecOutput output, cons
         int fd, r;
         union sockaddr_union sa = {
                 .un.sun_family = AF_UNIX,
-                .un.sun_path = "/run/systemd/journal/stdout",
+                .un.sun_path = AbsDir_PkgRunState "/journal/stdout",
         };
 
         assert(context);

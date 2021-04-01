@@ -114,7 +114,7 @@ int bus_connect(DBusBusType t, DBusConnection **_bus, bool *_private, DBusError 
                 /* If we are root, then let's talk directly to the
                  * system instance, instead of going via the bus */
 
-                bus = dbus_connection_open_private("unix:path=/run/systemd/private", error);
+                bus = dbus_connection_open_private("unix:path=" AbsDir_PkgRunState "/private", error);
                 if (!bus)
                         return -EIO;
 

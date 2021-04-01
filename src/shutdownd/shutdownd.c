@@ -204,7 +204,7 @@ static int update_schedule_file(struct sd_shutdown_command *c) {
 
         assert(c);
 
-        r = mkdir_safe_label("/run/systemd/shutdown", 0755, 0, 0);
+        r = mkdir_safe_label(AbsDir_PkgRunState "/shutdown", 0755, 0, 0);
         if (r < 0) {
                 log_error("Failed to create shutdown subdirectory: %s", strerror(-r));
                 return r;
@@ -214,7 +214,7 @@ static int update_schedule_file(struct sd_shutdown_command *c) {
         if (!t)
                 return log_oom();
 
-        r = fopen_temporary("/run/systemd/shutdown/scheduled", &f, &temp_path);
+        r = fopen_temporary(AbsDir_PkgRunState "/shutdown/scheduled", &f, &temp_path);
         if (r < 0) {
                 log_error("Failed to save information about scheduled shutdowns: %s", strerror(-r));
                 free(t);
@@ -241,12 +241,12 @@ static int update_schedule_file(struct sd_shutdown_command *c) {
 
         fflush(f);
 
-        if (ferror(f) || rename(temp_path, "/run/systemd/shutdown/scheduled") < 0) {
+        if (ferror(f) || rename(temp_path, AbsDir_PkgRunState "/shutdown/scheduled") < 0) {
                 log_error("Failed to write information about scheduled shutdowns: %m");
                 r = -errno;
 
                 unlink(temp_path);
-                unlink("/run/systemd/shutdown/scheduled");
+                unlink(AbsDir_PkgRunState "/shutdown/scheduled");
         }
 
         fclose(f);
@@ -443,7 +443,7 @@ finish:
         if (unlink_nologin)
                 unlink("/run/nologin");
 
-        unlink("/run/systemd/shutdown/scheduled");
+        unlink(AbsDir_PkgRunState "/shutdown/scheduled");
 
         if (exec_shutdown && !b.command.dry_run) {
                 char sw[3];

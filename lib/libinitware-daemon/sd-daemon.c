@@ -512,7 +512,7 @@ _sd_export_ int sd_booted(void) {
          * created. This takes place in mount-setup.c, so is
          * guaranteed to happen very early during boot. */
 
-        if (lstat("/run/systemd/system/", &st) < 0)
+        if (lstat(AbsDir_PkgRunState "/system/", &st) < 0)
                 return 0;
 
         return !!S_ISDIR(st.st_mode);

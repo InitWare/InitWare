@@ -274,12 +274,17 @@ static char** get_ntp_services(void) {
         char **i;
         int k;
 
-        k = conf_files_list(&files, ".list", NULL,
-                            "/etc/systemd/ntp-units.d",
-                            "/run/systemd/ntp-units.d",
-                            "/usr/local/lib/systemd/ntp-units.d",
-                            "/usr/lib/systemd/ntp-units.d",
-                            NULL);
+        k = conf_files_list(
+                &files,
+                ".list",
+                NULL,
+                AbsDir_PkgSysConf "/ntp-units.d",
+                AbsDir_PkgRunState "/ntp-units.d",
+#ifdef Use_SystemdCompat
+                "/usr/local/lib/systemd/ntp-units.d",
+#endif
+                AbsDir_PkgLib "/ntp-units.d",
+                NULL);
         if (k < 0)
                 return NULL;
 

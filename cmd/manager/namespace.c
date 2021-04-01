@@ -138,7 +138,7 @@ static int apply_mount(
         switch (m->mode) {
 
         case INACCESSIBLE:
-                what = "/run/systemd/inaccessible";
+                what = AbsDir_PkgRunState "/inaccessible";
                 break;
 
         case READONLY:

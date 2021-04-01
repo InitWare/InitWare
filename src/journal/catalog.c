@@ -41,8 +41,10 @@
 #include "catalog.h"
 
 const char * const catalog_file_dirs[] = {
+#ifdef Use_SystemdCompat
         "/usr/local/lib/systemd/catalog/",
-        "/usr/lib/systemd/catalog/",
+#endif
+        AbsDir_PkgLib "/catalog/",
         NULL
 };
 

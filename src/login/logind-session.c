@@ -65,7 +65,7 @@ Session* session_new(Manager *m, const char *id) {
         if (!s)
                 return NULL;
 
-        s->state_file = strappend("/run/systemd/sessions/", id);
+        s->state_file = strappend(AbsDir_PkgRunState "/sessions/", id);
         if (!s->state_file) {
                 free(s);
                 return NULL;
@@ -169,7 +169,7 @@ int session_save(Session *s) {
         if (!s->started)
                 return 0;
 
-        r = mkdir_safe_label("/run/systemd/sessions", 0755, 0, 0);
+        r = mkdir_safe_label(AbsDir_PkgRunState "/sessions", 0755, 0, 0);
         if (r < 0)
                 goto finish;
 
@@ -953,11 +953,11 @@ int session_create_fifo(Session *s) {
 
         /* Create FIFO */
         if (!s->fifo_path) {
-                r = mkdir_safe_label("/run/systemd/sessions", 0755, 0, 0);
+                r = mkdir_safe_label(AbsDir_PkgRunState "/sessions", 0755, 0, 0);
                 if (r < 0)
                         return r;
 
-                if (asprintf(&s->fifo_path, "/run/systemd/sessions/%s.ref", s->id) < 0)
+                if (asprintf(&s->fifo_path, AbsDir_PkgRunState "/sessions/%s.ref", s->id) < 0)
                         return -ENOMEM;
 
                 if (mkfifo(s->fifo_path, 0600) < 0 && errno != EEXIST)

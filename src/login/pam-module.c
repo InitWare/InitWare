@@ -220,7 +220,7 @@ _public_ PAM_EXTERN int pam_sm_open_session(
         if (streq_ptr(service, "systemd-user")) {
                 char *p, *rt = NULL;
 
-                if (asprintf(&p, "/run/systemd/users/%lu", (unsigned long) pw->pw_uid) < 0) {
+                if (asprintf(&p, AbsDir_PkgRunState "/users/%lu", (unsigned long) pw->pw_uid) < 0) {
                         r = PAM_BUF_ERR;
                         goto finish;
                 }

@@ -905,9 +905,8 @@ static int system_journal_open(Server *s) {
 
         sd_id128_to_string(machine, ids);
 
-        if (!s->system_journal &&
-            (s->storage == STORAGE_PERSISTENT || s->storage == STORAGE_AUTO) &&
-            access("/run/systemd/journal/flushed", F_OK) >= 0) {
+        if (!s->system_journal && (s->storage == STORAGE_PERSISTENT || s->storage == STORAGE_AUTO) &&
+            access(AbsDir_PkgRunState "/journal/flushed", F_OK) >= 0) {
 
                 /* If in auto mode: first try to create the machine
                  * path, but not the prefix.
@@ -1105,7 +1104,7 @@ int process_event(Server *s, struct epoll_event *ev) {
                 if (sfsi.ssi_signo == SIGUSR1) {
                         log_info("Received request to flush runtime journal from PID %"PRIu32,
                                  sfsi.ssi_pid);
-                        touch("/run/systemd/journal/flushed");
+                        touch(AbsDir_PkgRunState "/journal/flushed");
                         server_flush_to_var(s);
                         server_sync(s);
                         return 1;
@@ -1393,7 +1392,7 @@ static int server_parse_proc_cmdline(Server *s) {
 }
 
 static int server_parse_config_file(Server *s) {
-        static const char fn[] = "/etc/systemd/journald.conf";
+        static const char fn[] = AbsDir_PkgSysConf "/journald.conf";
         _cleanup_fclose_ FILE *f = NULL;
         int r;
 
@@ -1506,7 +1505,7 @@ int server_init(Server *s) {
                 s->rate_limit_interval = s->rate_limit_burst = 0;
         }
 
-        mkdir_p("/run/systemd/journal", 0755);
+        mkdir_p(AbsDir_PkgRunState "/journal", 0755);
 
         s->user_journals = hashmap_new(trivial_hash_func, trivial_compare_func);
         if (!s->user_journals)
@@ -1530,7 +1529,7 @@ int server_init(Server *s) {
 
         for (fd = SD_LISTEN_FDS_START; fd < SD_LISTEN_FDS_START + n; fd++) {
 
-                if (sd_is_socket_unix(fd, SOCK_DGRAM, -1, "/run/systemd/journal/socket", 0) > 0) {
+                if (sd_is_socket_unix(fd, SOCK_DGRAM, -1, AbsDir_PkgRunState "/journal/socket", 0) > 0) {
 
                         if (s->native_fd >= 0) {
                                 log_error("Too many native sockets passed.");
@@ -1539,7 +1538,7 @@ int server_init(Server *s) {
 
                         s->native_fd = fd;
 
-                } else if (sd_is_socket_unix(fd, SOCK_STREAM, 1, "/run/systemd/journal/stdout", 0) > 0) {
+                } else if (sd_is_socket_unix(fd, SOCK_STREAM, 1, AbsDir_PkgRunState "/journal/stdout", 0) > 0) {
 
                         if (s->stdout_fd >= 0) {
                                 log_error("Too many stdout sockets passed.");

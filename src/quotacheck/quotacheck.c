@@ -104,7 +104,7 @@ int main(int argc, char *argv[]) {
                 if (arg_skip)
                         return EXIT_SUCCESS;
 
-                if (access("/run/systemd/quotacheck", F_OK) < 0)
+                if (access(AbsDir_PkgRunState "/quotacheck", F_OK) < 0)
                         return EXIT_SUCCESS;
         }
 

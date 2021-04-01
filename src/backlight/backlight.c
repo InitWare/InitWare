@@ -279,9 +279,9 @@ int main(int argc, char *argv[]) {
 
         umask(0022);
 
-        r = mkdir_p("/var/lib/systemd/backlight", 0755);
+        r = mkdir_p(AbsDir_PkgVarLib "/backlight", 0755);
         if (r < 0) {
-                log_error("Failed to create backlight directory /var/lib/systemd/backlight: %s",
+                log_error("Failed to create backlight directory " AbsDir_PkgVarLib "/backlight: %s",
                           strerror(-r));
                 return EXIT_FAILURE;
         }
@@ -350,9 +350,9 @@ int main(int argc, char *argv[]) {
                         return EXIT_FAILURE;
                 }
 
-                saved = strjoin("/var/lib/systemd/backlight/", escaped_path_id, ":", escaped_ss, ":", escaped_sysname, NULL);
+                saved = strjoin(AbsDir_PkgVarLib "/backlight/", escaped_path_id, ":", escaped_ss, ":", escaped_sysname, NULL);
         } else
-                saved = strjoin("/var/lib/systemd/backlight/", escaped_ss, ":", escaped_sysname, NULL);
+                saved = strjoin(AbsDir_PkgVarLib "/backlight/", escaped_ss, ":", escaped_sysname, NULL);
 
         if (!saved) {
                 log_oom();

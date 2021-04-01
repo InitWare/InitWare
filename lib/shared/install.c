@@ -90,9 +90,9 @@ static int get_config_path(UnitFileScope scope, bool runtime, const char *root_d
         case UNIT_FILE_SYSTEM:
 
                 if (root_dir && runtime)
-                        asprintf(&p, "%s/run/systemd/system", root_dir);
+                        asprintf(&p, "%s" AbsDir_PkgRunState "/system", root_dir);
                 else if (runtime)
-                        p = strdup("/run/systemd/system");
+                        p = strdup(AbsDir_PkgRunState "/system");
                 else if (root_dir)
                         asprintf(&p, "%s/%s", root_dir, SYSTEM_CONFIG_UNIT_PATH);
                 else
@@ -106,7 +106,7 @@ static int get_config_path(UnitFileScope scope, bool runtime, const char *root_d
                         return -EINVAL;
 
                 if (runtime)
-                        p = strdup("/run/systemd/user");
+                        p = strdup(AbsDir_PkgRunState "/user");
                 else
                         p = strdup(USER_CONFIG_UNIT_PATH);
                 break;
@@ -1786,18 +1786,26 @@ int unit_file_query_preset(UnitFileScope scope, const char *name) {
 
         if (scope == UNIT_FILE_SYSTEM)
                 r = conf_files_list(&files, ".preset", NULL,
+                                    AbsDir_PkgSysConf "/system-preset",
+                                    //AbsDir_PkgLib "/system-preset",
+#ifdef Use_SystemdCompat
                                     "/etc/systemd/system-preset",
                                     "/usr/local/lib/systemd/system-preset",
                                     "/usr/lib/systemd/system-preset",
 #ifdef HAVE_SPLIT_USR
                                     "/lib/systemd/system-preset",
 #endif
+#endif
                                     NULL);
         else if (scope == UNIT_FILE_GLOBAL)
                 r = conf_files_list(&files, ".preset", NULL,
+                                    AbsDir_PkgSysConf "/user-preset",
+                                    //AbsDir_PkgLib "/user-preset",
+#ifdef Use_SystemdCompat
                                     "/etc/systemd/user-preset",
                                     "/usr/local/lib/systemd/user-preset",
                                     "/usr/lib/systemd/user-preset",
+#endif
                                     NULL);
         else
                 return 1;

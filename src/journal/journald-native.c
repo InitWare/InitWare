@@ -382,7 +382,7 @@ int server_open_native_socket(Server*s) {
 
                 zero(sa);
                 sa.un.sun_family = AF_UNIX;
-                strncpy(sa.un.sun_path, "/run/systemd/journal/socket", sizeof(sa.un.sun_path));
+                strncpy(sa.un.sun_path, AbsDir_PkgRunState "/journal/socket", sizeof(sa.un.sun_path));
 
                 unlink(sa.un.sun_path);
 

@@ -41,7 +41,7 @@ Inhibitor* inhibitor_new(Manager *m, const char* id) {
         if (!i)
                 return NULL;
 
-        i->state_file = strappend("/run/systemd/inhibit/", id);
+        i->state_file = strappend(AbsDir_PkgRunState "/inhibit/", id);
         if (!i->state_file) {
                 free(i);
                 return NULL;
@@ -85,7 +85,7 @@ int inhibitor_save(Inhibitor *i) {
 
         assert(i);
 
-        r = mkdir_safe_label("/run/systemd/inhibit", 0755, 0, 0);
+        r = mkdir_safe_label(AbsDir_PkgRunState "/inhibit", 0755, 0, 0);
         if (r < 0)
                 goto finish;
 
@@ -278,11 +278,11 @@ int inhibitor_create_fifo(Inhibitor *i) {
 
         /* Create FIFO */
         if (!i->fifo_path) {
-                r = mkdir_safe_label("/run/systemd/inhibit", 0755, 0, 0);
+                r = mkdir_safe_label(AbsDir_PkgRunState "/inhibit", 0755, 0, 0);
                 if (r < 0)
                         return r;
 
-                if (asprintf(&i->fifo_path, "/run/systemd/inhibit/%s.ref", i->id) < 0)
+                if (asprintf(&i->fifo_path, AbsDir_PkgRunState "/inhibit/%s.ref", i->id) < 0)
                         return -ENOMEM;
 
                 if (mkfifo(i->fifo_path, 0600) < 0 && errno != EEXIST)

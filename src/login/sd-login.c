@@ -101,7 +101,7 @@ _public_ int sd_uid_get_state(uid_t uid, char**state) {
         if (!state)
                 return -EINVAL;
 
-        if (asprintf(&p, "/run/systemd/users/%lu", (unsigned long) uid) < 0)
+        if (asprintf(&p, AbsDir_PkgRunState "/users/%lu", (unsigned long) uid) < 0)
                 return -ENOMEM;
 
         r = parse_env_file(p, NEWLINE, "STATE", &s, NULL);
@@ -137,7 +137,7 @@ _public_ int sd_uid_is_on_seat(uid_t uid, int require_active, const char *seat) 
 
         variable = require_active ? "ACTIVE_UID" : "UIDS";
 
-        p = strappend("/run/systemd/seats/", seat);
+        p = strappend(AbsDir_PkgRunState "/seats/", seat);
         if (!p)
                 return -ENOMEM;
 
@@ -165,7 +165,7 @@ static int uid_get_array(uid_t uid, const char *variable, char ***array) {
         char **a;
         int r;
 
-        if (asprintf(&p, "/run/systemd/users/%lu", (unsigned long) uid) < 0)
+        if (asprintf(&p, AbsDir_PkgRunState "/users/%lu", (unsigned long) uid) < 0)
                 return -ENOMEM;
 
         r = parse_env_file(p, NEWLINE,
@@ -231,7 +231,7 @@ static int file_of_session(const char *session, char **_p) {
                 if (!session_id_valid(session))
                         return -EINVAL;
 
-                p = strappend("/run/systemd/sessions/", session);
+                p = strappend(AbsDir_PkgRunState "/sessions/", session);
         } else {
                 _cleanup_free_ char *buf = NULL;
 
@@ -239,7 +239,7 @@ static int file_of_session(const char *session, char **_p) {
                 if (r < 0)
                         return r;
 
-                p = strappend("/run/systemd/sessions/", buf);
+                p = strappend(AbsDir_PkgRunState "/sessions/", buf);
         }
 
         if (!p)
@@ -389,7 +389,7 @@ static int file_of_seat(const char *seat, char **_p) {
         assert(_p);
 
         if (seat)
-                p = strappend("/run/systemd/seats/", seat);
+                p = strappend(AbsDir_PkgRunState "/seats/", seat);
         else {
                 _cleanup_free_ char *buf = NULL;
 
@@ -397,7 +397,7 @@ static int file_of_seat(const char *seat, char **_p) {
                 if (r < 0)
                         return r;
 
-                p = strappend("/run/systemd/seats/", buf);
+                p = strappend(AbsDir_PkgRunState "/seats/", buf);
         }
 
         if (!p)
@@ -555,11 +555,11 @@ _public_ int sd_seat_can_graphical(const char *seat) {
 }
 
 _public_ int sd_get_seats(char ***seats) {
-        return get_files_in_directory("/run/systemd/seats/", seats);
+        return get_files_in_directory(AbsDir_PkgRunState "/seats/", seats);
 }
 
 _public_ int sd_get_sessions(char ***sessions) {
-        return get_files_in_directory("/run/systemd/sessions/", sessions);
+        return get_files_in_directory(AbsDir_PkgRunState "/sessions/", sessions);
 }
 
 _public_ int sd_get_uids(uid_t **users) {
@@ -568,7 +568,7 @@ _public_ int sd_get_uids(uid_t **users) {
         unsigned n = 0;
         _cleanup_free_ uid_t *l = NULL;
 
-        d = opendir("/run/systemd/users/");
+        d = opendir(AbsDir_PkgRunState "/users/");
         if (!d)
                 return -errno;
 
@@ -621,7 +621,7 @@ _public_ int sd_get_uids(uid_t **users) {
 }
 
 _public_ int sd_get_machine_names(char ***machines) {
-        return get_files_in_directory("/run/systemd/machines/", machines);
+        return get_files_in_directory(AbsDir_PkgRunState "/machines/", machines);
 }
 
 static inline int MONITOR_TO_FD(sd_login_monitor *m) {
@@ -644,7 +644,7 @@ _public_ int sd_login_monitor_new(const char *category, sd_login_monitor **m) {
                 return -errno;
 
         if (!category || streq(category, "seat")) {
-                k = inotify_add_watch(fd, "/run/systemd/seats/", IN_MOVED_TO|IN_DELETE);
+                k = inotify_add_watch(fd, AbsDir_PkgRunState "/seats/", IN_MOVED_TO | IN_DELETE);
                 if (k < 0) {
                         safe_close(fd);
                         return -errno;
@@ -654,7 +654,7 @@ _public_ int sd_login_monitor_new(const char *category, sd_login_monitor **m) {
         }
 
         if (!category || streq(category, "session")) {
-                k = inotify_add_watch(fd, "/run/systemd/sessions/", IN_MOVED_TO|IN_DELETE);
+                k = inotify_add_watch(fd, AbsDir_PkgRunState "/sessions/", IN_MOVED_TO | IN_DELETE);
                 if (k < 0) {
                         safe_close(fd);
                         return -errno;
@@ -664,7 +664,7 @@ _public_ int sd_login_monitor_new(const char *category, sd_login_monitor **m) {
         }
 
         if (!category || streq(category, "uid")) {
-                k = inotify_add_watch(fd, "/run/systemd/users/", IN_MOVED_TO|IN_DELETE);
+                k = inotify_add_watch(fd, AbsDir_PkgRunState "/users/", IN_MOVED_TO | IN_DELETE);
                 if (k < 0) {
                         safe_close(fd);
                         return -errno;
@@ -674,7 +674,7 @@ _public_ int sd_login_monitor_new(const char *category, sd_login_monitor **m) {
         }
 
         if (!category || streq(category, "machine")) {
-                k = inotify_add_watch(fd, "/run/systemd/machines/", IN_MOVED_TO|IN_DELETE);
+                k = inotify_add_watch(fd, AbsDir_PkgRunState "/machines/", IN_MOVED_TO | IN_DELETE);
                 if (k < 0) {
                         safe_close(fd);
                         return -errno;

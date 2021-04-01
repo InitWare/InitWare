@@ -302,12 +302,12 @@ int manager_enumerate_seats(Manager *m) {
          * actually create any seats. Removes data of seats that no
          * longer exist. */
 
-        d = opendir("/run/systemd/seats");
+        d = opendir(AbsDir_PkgRunState "/seats");
         if (!d) {
                 if (errno == ENOENT)
                         return 0;
 
-                log_error("Failed to open /run/systemd/seats: %m");
+                log_error("Failed to open " AbsDir_PkgRunState "/seats: %m");
                 return -errno;
         }
 
@@ -339,12 +339,12 @@ static int manager_enumerate_linger_users(Manager *m) {
 
         assert(m);
 
-        d = opendir("/var/lib/systemd/linger");
+        d = opendir(AbsDir_PkgVarLib "/linger");
         if (!d) {
                 if (errno == ENOENT)
                         return 0;
 
-                log_error("Failed to open /var/lib/systemd/linger/: %m");
+                log_error("Failed to open " AbsDir_PkgVarLib "/linger/: %m");
                 return -errno;
         }
 
@@ -375,12 +375,12 @@ int manager_enumerate_users(Manager *m) {
         r = manager_enumerate_linger_users(m);
 
         /* Read in user data stored on disk */
-        d = opendir("/run/systemd/users");
+        d = opendir(AbsDir_PkgRunState "/users");
         if (!d) {
                 if (errno == ENOENT)
                         return 0;
 
-                log_error("Failed to open /run/systemd/users: %m");
+                log_error("Failed to open " AbsDir_PkgRunState "/users: %m");
                 return -errno;
         }
 
@@ -416,12 +416,12 @@ int manager_enumerate_sessions(Manager *m) {
         assert(m);
 
         /* Read in session data stored on disk */
-        d = opendir("/run/systemd/sessions");
+        d = opendir(AbsDir_PkgRunState "/sessions");
         if (!d) {
                 if (errno == ENOENT)
                         return 0;
 
-                log_error("Failed to open /run/systemd/sessions: %m");
+                log_error("Failed to open " AbsDir_PkgRunState "/sessions: %m");
                 return -errno;
         }
 
@@ -463,12 +463,12 @@ int manager_enumerate_inhibitors(Manager *m) {
 
         assert(m);
 
-        d = opendir("/run/systemd/inhibit");
+        d = opendir(AbsDir_PkgRunState "/inhibit");
         if (!d) {
                 if (errno == ENOENT)
                         return 0;
 
-                log_error("Failed to open /run/systemd/inhibit: %m");
+                log_error("Failed to open " AbsDir_PkgRunState "/inhibit: %m");
                 return -errno;
         }
 
@@ -1224,7 +1224,7 @@ int manager_run(Manager *m) {
 }
 
 static int manager_parse_config_file(Manager *m) {
-        static const char fn[] = "/etc/systemd/logind.conf";
+        static const char fn[] = AbsDir_PkgSysConf "/logind.conf";
         _cleanup_fclose_ FILE *f = NULL;
         int r;
 
@@ -1266,12 +1266,12 @@ int main(int argc, char *argv[]) {
 
         /* Always create the directories people can create inotify
          * watches in. Note that some applications might check for the
-         * existence of /run/systemd/seats/ to determine whether
+         * existence of @AbsDir_PkgRunState@/seats/ to determine whether
          * logind is available, so please always make sure this check
          * stays in. */
-        mkdir_label("/run/systemd/seats", 0755);
-        mkdir_label("/run/systemd/users", 0755);
-        mkdir_label("/run/systemd/sessions", 0755);
+        mkdir_label(AbsDir_PkgRunState "/seats", 0755);
+        mkdir_label(AbsDir_PkgRunState "/users", 0755);
+        mkdir_label(AbsDir_PkgRunState "/sessions", 0755);
 
         m = manager_new();
         if (!m) {

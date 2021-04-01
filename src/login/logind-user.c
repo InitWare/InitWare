@@ -48,7 +48,7 @@ User* user_new(Manager *m, uid_t uid, gid_t gid, const char *name) {
         if (!u->name)
                 goto fail;
 
-        if (asprintf(&u->state_file, "/run/systemd/users/%lu", (unsigned long) uid) < 0)
+        if (asprintf(&u->state_file, AbsDir_PkgRunState "/users/%lu", (unsigned long) uid) < 0)
                 goto fail;
 
         if (hashmap_put(m->users, ULONG_TO_PTR((unsigned long) uid), u) < 0)
@@ -110,7 +110,7 @@ int user_save(User *u) {
         if (!u->started)
                 return 0;
 
-        r = mkdir_safe_label("/run/systemd/users", 0755, 0, 0);
+        r = mkdir_safe_label(AbsDir_PkgRunState "/users", 0755, 0, 0);
         if (r < 0)
                 goto finish;
 
@@ -608,7 +608,7 @@ static int user_check_linger_file(User *u) {
         char *p;
         int r;
 
-        if (asprintf(&p, "/var/lib/systemd/linger/%s", u->name) < 0)
+        if (asprintf(&p, AbsDir_PkgVarLib "/linger/%s", u->name) < 0)
                 return -ENOMEM;
 
         r = access(p, F_OK) >= 0;

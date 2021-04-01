@@ -5888,7 +5888,7 @@ static int send_shutdownd(usec_t t, char mode, bool dry_run, bool warn, const ch
         };
         union sockaddr_union sockaddr = {
                 .un.sun_family = AF_UNIX,
-                .un.sun_path = "/run/systemd/shutdownd",
+                .un.sun_path = AbsDir_PkgRunState "/shutdownd",
         };
         struct iovec iovec[2] = { {
                 .iov_base = (char *) &c,
@@ -5896,7 +5896,8 @@ static int send_shutdownd(usec_t t, char mode, bool dry_run, bool warn, const ch
         } };
         struct msghdr msghdr = {
                 .msg_name = &sockaddr,
-                .msg_namelen = offsetof(struct sockaddr_un, sun_path) + sizeof("/run/systemd/shutdownd") - 1,
+                .msg_namelen = offsetof(struct sockaddr_un, sun_path) +
+                        sizeof(AbsDir_PkgRunState "/shutdownd") - 1,
                 .msg_iov = iovec,
                 .msg_iovlen = 1,
         };

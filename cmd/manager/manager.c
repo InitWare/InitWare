@@ -2708,7 +2708,7 @@ static int create_generator_dir(Manager *m, char **generator, const char *name) 
 
         if (m->running_as == SYSTEMD_SYSTEM && getpid() == 1) {
 
-                p = strappend("/run/systemd/", name);
+                p = strappend(AbsDir_PkgRunState "/", name);
                 if (!p)
                         return log_oom();
 
@@ -2887,9 +2887,9 @@ void manager_set_show_status(Manager *m, bool b) {
         m->show_status = b;
 
         if (b)
-                touch("/run/systemd/show-status");
+                touch(AbsDir_PkgRunState "/show-status");
         else
-                unlink("/run/systemd/show-status");
+                unlink(AbsDir_PkgRunState "/show-status");
 }
 
 static bool manager_get_show_status(Manager *m) {

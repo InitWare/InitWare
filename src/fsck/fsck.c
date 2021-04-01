@@ -153,7 +153,7 @@ static void test_files(void) {
         }
 #endif
 
-        if (access("/run/systemd/show-status", F_OK) >= 0 || plymouth_running())
+        if (access(AbsDir_PkgRunState "/show-status", F_OK) >= 0 || plymouth_running())
                 arg_show_progress = true;
 }
 
@@ -412,7 +412,7 @@ int main(int argc, char *argv[]) {
                 r = EXIT_SUCCESS;
 
         if (status.si_code == CLD_EXITED && (status.si_status & 1))
-                touch("/run/systemd/quotacheck");
+                touch(AbsDir_PkgRunState "/quotacheck");
 
 finish:
         close_pipe(progress_pipe);

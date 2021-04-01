@@ -290,13 +290,11 @@ static void test_load_env_file_4(void) {
 #pragma GCC diagnostic ignored "-Wnonnull"
 
 static void test_install_printf(void) {
-        char    name[] = "name.service",
-                path[] = "/run/systemd/system/name.service",
-                user[] = "xxxx-no-such-user";
+        char name[] = "name.service", path[] = AbsDir_PkgRunState "/system/name.service",
+             user[] = "xxxx-no-such-user";
         InstallInfo i = {name, path, user};
         InstallInfo i2 = {name, path, NULL};
-        char    name3[] = "name@inst.service",
-                path3[] = "/run/systemd/system/name.service";
+        char name3[] = "name@inst.service", path3[] = AbsDir_PkgRunState "/system/name.service";
         InstallInfo i3 = {name3, path3, user};
         InstallInfo i4 = {name3, path3, NULL};
 

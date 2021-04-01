@@ -3009,9 +3009,9 @@ static int drop_in_file(Unit *u, UnitSetPropertiesMode mode, const char *name, c
 
                 p = strjoin(c, "/", u->id, ".d", NULL);
         } else if (mode == UNIT_PERSISTENT && !u->transient)
-                p = strjoin("/etc/systemd/system/", u->id, ".d", NULL);
+                p = strjoin(AbsDir_PkgSysConf "/system/", u->id, ".d", NULL);
         else
-                p = strjoin("/run/systemd/system/", u->id, ".d", NULL);
+                p = strjoin(AbsDir_PkgRunState "/system/", u->id, ".d", NULL);
         if (!p)
                 return -ENOMEM;
 
@@ -3158,11 +3158,11 @@ int unit_make_transient(Unit *u) {
 
                 mkdir_p(c, 0755);
         } else {
-                u->fragment_path = strappend("/run/systemd/system/", u->id);
+                u->fragment_path = strappend(AbsDir_PkgRunState "/system/", u->id);
                 if (!u->fragment_path)
                         return -ENOMEM;
 
-                mkdir_p("/run/systemd/system", 0755);
+                mkdir_p(AbsDir_PkgRunState "/system", 0755);
         }
 
         return write_string_file_atomic_label(u->fragment_path, "# Transient stub");

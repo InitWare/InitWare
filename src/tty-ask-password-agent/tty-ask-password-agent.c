@@ -436,7 +436,7 @@ static int wall_tty_block(void) {
         if (r < 0)
                 return r;
 
-        if (asprintf(&p, "/run/systemd/ask-password-block/%u:%u", major(devnr), minor(devnr)) < 0)
+        if (asprintf(&p, AbsDir_PkgRunState "/ask-password-block/%u:%u", major(devnr), minor(devnr)) < 0)
                 return -ENOMEM;
 
         mkdir_parents_label(p, 0700);
@@ -480,7 +480,8 @@ static bool wall_tty_match(const char *path) {
          * advantage that the block will automatically go away if the
          * process dies. */
 
-        if (asprintf(&p, "/run/systemd/ask-password-block/%u:%u", major(st.st_rdev), minor(st.st_rdev)) < 0)
+        if (asprintf(&p, AbsDir_PkgRunState "/ask-password-block/%u:%u", major(st.st_rdev), minor(st.st_rdev)) <
+            0)
                 return true;
 
         fd = open(p, O_WRONLY|O_CLOEXEC|O_NONBLOCK|O_NOCTTY);
@@ -499,11 +500,11 @@ static int show_passwords(void) {
         struct dirent *de;
         int r = 0;
 
-        if (!(d = opendir("/run/systemd/ask-password"))) {
+        if (!(d = opendir(AbsDir_PkgRunState "/ask-password"))) {
                 if (errno == ENOENT)
                         return 0;
 
-                log_error("opendir(/run/systemd/ask-password): %m");
+                log_error("opendir(" AbsDir_PkgRunState "/ask-password): %m");
                 return -errno;
         }
 
@@ -524,7 +525,7 @@ static int show_passwords(void) {
                 if (!startswith(de->d_name, "ask."))
                         continue;
 
-                if (!(p = strappend("/run/systemd/ask-password/", de->d_name))) {
+                if (!(p = strappend(AbsDir_PkgRunState "/ask-password/", de->d_name))) {
                         r = log_oom();
                         goto finish;
                 }
@@ -562,14 +563,14 @@ static int watch_passwords(void) {
 
         tty_block_fd = wall_tty_block();
 
-        mkdir_p_label("/run/systemd/ask-password", 0755);
+        mkdir_p_label(AbsDir_PkgRunState "/ask-password", 0755);
 
         if ((notify = inotify_init1(IN_CLOEXEC)) < 0) {
                 r = -errno;
                 goto finish;
         }
 
-        if (inotify_add_watch(notify, "/run/systemd/ask-password", IN_CLOSE_WRITE|IN_MOVED_TO) < 0) {
+        if (inotify_add_watch(notify, AbsDir_PkgRunState "/ask-password", IN_CLOSE_WRITE | IN_MOVED_TO) < 0) {
                 r = -errno;
                 goto finish;
         }

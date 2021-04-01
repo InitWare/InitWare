@@ -87,12 +87,12 @@ int manager_enumerate_machines(Manager *m) {
         assert(m);
 
         /* Read in machine data stored on disk */
-        d = opendir("/run/systemd/machines");
+        d = opendir(AbsDir_PkgRunState "/machines");
         if (!d) {
                 if (errno == ENOENT)
                         return 0;
 
-                log_error("Failed to open /run/systemd/machines: %m");
+                log_error("Failed to open " AbsDir_PkgRunState "/machines: %m");
                 return -errno;
         }
 
@@ -345,10 +345,10 @@ int main(int argc, char *argv[]) {
 
         /* Always create the directories people can create inotify
          * watches in. Note that some applications might check for the
-         * existence of /run/systemd/seats/ to determine whether
+         * existence of @AbsDir_PkgRunDir@/seats/ to determine whether
          * machined is available, so please always make sure this check
          * stays in. */
-        mkdir_label("/run/systemd/machines", 0755);
+        mkdir_label(AbsDir_PkgRunState "/machines", 0755);
 
         m = manager_new();
         if (!m) {

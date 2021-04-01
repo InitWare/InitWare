@@ -49,7 +49,7 @@ Machine* machine_new(Manager *manager, const char *name) {
         if (!m->name)
                 goto fail;
 
-        m->state_file = strappend("/run/systemd/machines/", m->name);
+        m->state_file = strappend(AbsDir_PkgRunState "/machines/", m->name);
         if (!m->state_file)
                 goto fail;
 
@@ -105,7 +105,7 @@ int machine_save(Machine *m) {
         if (!m->started)
                 return 0;
 
-        r = mkdir_safe_label("/run/systemd/machines", 0755, 0, 0);
+        r = mkdir_safe_label(AbsDir_PkgRunState "/machines", 0755, 0, 0);
         if (r < 0)
                 goto finish;
 

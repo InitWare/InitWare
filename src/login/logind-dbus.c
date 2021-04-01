@@ -2009,13 +2009,13 @@ static DBusHandlerResult manager_message_handler(
                 if (r < 0)
                         return bus_send_error_reply(connection, message, &error, r);
 
-                mkdir_p_label("/var/lib/systemd", 0755);
+                mkdir_p_label(AbsDir_PkgVarLib "", 0755);
 
-                r = mkdir_safe_label("/var/lib/systemd/linger", 0755, 0, 0);
+                r = mkdir_safe_label(AbsDir_PkgVarLib "/linger", 0755, 0, 0);
                 if (r < 0)
                         return bus_send_error_reply(connection, message, &error, r);
 
-                path = strappend("/var/lib/systemd/linger/", pw->pw_name);
+                path = strappend(AbsDir_PkgVarLib "/linger/", pw->pw_name);
                 if (!path)
                         goto oom;
 

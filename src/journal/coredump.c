@@ -56,11 +56,12 @@ enum {
 static int divert_coredump(void) {
         _cleanup_fclose_ FILE *f = NULL;
 
-        log_info("Detected coredump of the journal daemon itself, diverting coredump to /var/lib/systemd/coredump/.");
+        log_info("Detected coredump of the journal daemon itself, diverting coredump to " AbsDir_PkgVarLib
+                 "/coredump/.");
 
-        mkdir_p_label("/var/lib/systemd/coredump", 0755);
+        mkdir_p_label(AbsDir_PkgVarLib "/coredump", 0755);
 
-        f = fopen("/var/lib/systemd/coredump/core.systemd-journald", "we");
+        f = fopen(AbsDir_PkgVarLib "/coredump/core.systemd-journald", "we");
         if (!f) {
                 log_error("Failed to create coredump file: %m");
                 return -errno;

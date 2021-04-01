@@ -96,7 +96,7 @@ static void signal_handler(int sig) {
         exiting = 1;
 }
 
-#define BOOTCHART_CONF "/etc/systemd/bootchart.conf"
+#define BOOTCHART_CONF AbsDir_PkgSysConf "/bootchart.conf"
 
 #define BOOTCHART_MAX (16*1024*1024)
 
@@ -301,7 +301,7 @@ int main(int argc, char *argv[]) {
                 return EXIT_FAILURE;
 
         /*
-         * If the kernel executed us through init=/usr/lib/systemd/systemd-bootchart, then
+         * If the kernel executed us through init=@AbsDir_PkgLibexecDir@/systemd-bootchart, then
          * fork:
          * - parent execs executable specified via init_path[] (/sbin/init by default) as pid=1
          * - child logs data

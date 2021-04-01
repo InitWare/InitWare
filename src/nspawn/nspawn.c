@@ -1484,6 +1484,9 @@ int main(int argc, char *argv[]) {
                                 a = newa(char*, l + 1);
                                 memcpy(a + 1, argv + optind, l * sizeof(char*));
 
+                                a[0] = (char *) AbsDir_PkgLib "/iw.manager";
+                                execve(a[0], a, (char **) envp);
+
                                 a[0] = (char*) "/usr/lib/systemd/systemd";
                                 execve(a[0], a, (char**) envp);
 
