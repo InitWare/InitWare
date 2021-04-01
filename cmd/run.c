@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -19,16 +17,16 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdio.h>
 #include <getopt.h>
+#include <stdio.h>
 
-#include "sd-bus.h"
-#include "bus-internal.h"
-#include "bus-message.h"
-#include "strv.h"
+#include <dbus/dbus.h>
+
 #include "build.h"
-#include "unit-name.h"
+#include "dbus-common.h"
 #include "path-util.h"
+#include "strv.h"
+#include "unit-name.h"
 
 static bool arg_scope = false;
 static bool arg_user = false;
@@ -37,6 +35,7 @@ static const char *arg_unit = NULL;
 static const char *arg_description = NULL;
 static const char *arg_slice = NULL;
 static bool arg_send_sighup = false;
+static bool private_bus = false;
 
 static int help(void) {
 
@@ -70,17 +69,17 @@ static int parse_argv(int argc, char *argv[]) {
         };
 
         static const struct option options[] = {
-                { "help",              no_argument,       NULL, 'h'             },
-                { "version",           no_argument,       NULL, ARG_VERSION     },
-                { "user",              no_argument,       NULL, ARG_USER        },
-                { "system",            no_argument,       NULL, ARG_SYSTEM      },
-                { "scope",             no_argument,       NULL, ARG_SCOPE       },
-                { "unit",              required_argument, NULL, ARG_UNIT        },
-                { "description",       required_argument, NULL, ARG_DESCRIPTION },
-                { "slice",             required_argument, NULL, ARG_SLICE       },
-                { "remain-after-exit", no_argument,       NULL, 'r'             },
-                { "send-sighup",       no_argument,       NULL, ARG_SEND_SIGHUP },
-                { NULL,                0,                 NULL, 0               },
+                { "help", no_argument, NULL, 'h' },
+                { "version", no_argument, NULL, ARG_VERSION },
+                { "user", no_argument, NULL, ARG_USER },
+                { "system", no_argument, NULL, ARG_SYSTEM },
+                { "scope", no_argument, NULL, ARG_SCOPE },
+                { "unit", required_argument, NULL, ARG_UNIT },
+                { "description", required_argument, NULL, ARG_DESCRIPTION },
+                { "slice", required_argument, NULL, ARG_SLICE },
+                { "remain-after-exit", no_argument, NULL, 'r' },
+                { "send-sighup", no_argument, NULL, ARG_SEND_SIGHUP },
+                { NULL, 0, NULL, 0 },
         };
 
         int c;
@@ -150,48 +149,62 @@ static int parse_argv(int argc, char *argv[]) {
         return 1;
 }
 
-static int message_start_transient_unit_new(sd_bus *bus, const char *name, sd_bus_message **ret) {
-        _cleanup_bus_message_unref_ sd_bus_message *m = NULL;
+static int string_property(DBusMessageIter *sub, const char *key, const char *value) {
+        DBusMessageIter sub2, sub3, sub4;
+        if (!dbus_message_iter_open_container(sub, DBUS_TYPE_STRUCT, NULL, &sub2) ||
+            !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &key) ||
+            !dbus_message_iter_open_container(&sub2, DBUS_TYPE_VARIANT, "s", &sub3) ||
+            !dbus_message_iter_append_basic(&sub3, DBUS_TYPE_STRING, &value) ||
+            !dbus_message_iter_close_container(&sub2, &sub3) || !dbus_message_iter_close_container(sub, &sub2))
+                return log_oom();
+        return 0;
+}
+
+static int message_start_transient_unit_new(
+        DBusConnection *bus, const char *name, DBusMessage **ret, DBusMessageIter *args, DBusMessageIter *props) {
+        _cleanup_dbus_message_unref_ DBusMessage *m = NULL;
+        DBusMessageIter sub, sub2, sub3, sub4;
         int r;
+        const char *fail_property = "fail";
 
         log_info("Running as unit %s.", name);
 
-        r = sd_bus_message_new_method_call(
-                        bus,
-                        "org.freedesktop.systemd1",
-                        "/org/freedesktop/systemd1",
-                        "org.freedesktop.systemd1.Manager",
-                        "StartTransientUnit", &m);
-        if (r < 0)
-                return r;
+        m = dbus_message_new_method_call(
+                "org.freedesktop.systemd1",
+                "/org/freedesktop/systemd1",
+                "org.freedesktop.systemd1.Manager",
+                "StartTransientUnit");
+        if (!m)
+                return log_oom();
 
-        r = sd_bus_message_append(m, "ss", name, "fail");
-        if (r < 0)
-                return r;
+        dbus_message_iter_init_append(m, args);
 
-        r = sd_bus_message_open_container(m, 'a', "(sv)");
-        if (r < 0)
-                return r;
+        if (!dbus_message_iter_append_basic(args, DBUS_TYPE_STRING, &name) ||
+            !dbus_message_iter_append_basic(args, DBUS_TYPE_STRING, &fail_property))
+                return log_oom();
 
-        r = sd_bus_message_append(m, "(sv)", "Description", "s", arg_description);
-        if (r < 0)
-                return r;
+        if (!dbus_message_iter_open_container(args, DBUS_TYPE_ARRAY, "(sv)", props))
+                return log_oom();
+
+        string_property(props, "Description", arg_description);
 
         if (!isempty(arg_slice)) {
                 _cleanup_free_ char *slice;
 
                 slice = unit_name_mangle_with_suffix(arg_slice, ".slice");
                 if (!slice)
-                        return -ENOMEM;
+                        return log_oom();
 
-                r = sd_bus_message_append(m, "(sv)", "Slice", "s", slice);
+                r = string_property(props, "Slice", slice);
                 if (r < 0)
                         return r;
         }
 
+#if 0
         r = sd_bus_message_append(m, "(sv)", "SendSIGHUP", "b", arg_send_sighup);
         if (r < 0)
                 return r;
+#endif
 
         *ret = m;
         m = NULL;
@@ -199,22 +212,18 @@ static int message_start_transient_unit_new(sd_bus *bus, const char *name, sd_bu
         return 0;
 }
 
-static int message_start_transient_unit_send(sd_bus *bus, sd_bus_message *m, sd_bus_error *error, sd_bus_message **reply) {
+
+static int message_start_transient_unit_send(
+        DBusConnection *bus, DBusMessage *m, DBusError *error, DBusMessage **reply) {
         int r;
 
-        r = sd_bus_message_close_container(m);
-        if (r < 0)
-                return r;
-
-        return sd_bus_send_with_reply_and_block(bus, m, 0, error, reply);
+        *reply = dbus_connection_send_with_reply_and_block(bus, m, 200, error);
+        return dbus_error_is_set(error) ? -1 : 0;
 }
 
-static int start_transient_service(
-                sd_bus *bus,
-                char **argv,
-                sd_bus_error *error) {
+static int start_transient_service(DBusConnection *bus, char **argv, DBusError *error) {
 
-        _cleanup_bus_message_unref_ sd_bus_message *m = NULL, *reply = NULL;
+        _cleanup_dbus_message_unref_ DBusMessage *m = NULL, *reply = NULL;
         _cleanup_free_ char *name = NULL;
         char **i;
         int r;
@@ -224,12 +233,9 @@ static int start_transient_service(
         else
                 asprintf(&name, "run-%lu.service", (unsigned long) getpid());
         if (!name)
-                return -ENOMEM;
+                return log_oom();
 
-        r = message_start_transient_unit_new(bus, name, &m);
-        if (r < 0)
-                return r;
-
+#if 0
         r = sd_bus_message_append(m, "(sv)", "RemainAfterExit", "b", arg_remain_after_exit);
         if (r < 0)
                 return r;
@@ -262,7 +268,7 @@ static int start_transient_service(
         if (r < 0)
                 return r;
 
-        STRV_FOREACH(i, argv) {
+        STRV_FOREACH (i, argv) {
                 r = sd_bus_message_append(m, "s", *i);
                 if (r < 0)
                         return r;
@@ -291,30 +297,48 @@ static int start_transient_service(
         r = sd_bus_message_close_container(m);
         if (r < 0)
                 return r;
+#endif
 
-        return  message_start_transient_unit_send(bus, m, error, &reply);
+        return message_start_transient_unit_send(bus, m, error, &reply);
 }
 
-static int start_transient_scope(
-                sd_bus *bus,
-                char **argv,
-                sd_bus_error *error) {
+static int start_transient_scope(DBusConnection *bus, char **argv, DBusError *error) {
 
-        _cleanup_bus_message_unref_ sd_bus_message *m = NULL, *reply = NULL;
+        _cleanup_dbus_message_unref_ DBusMessage *m = NULL, *reply = NULL;
         _cleanup_free_ char *name = NULL;
         int r;
+        uint32_t pid = getpid();
+        DBusMessageIter args, aux, props, sub1, sub2, sub3, sub4;
+        static const char *pids_property = "PIDs";
 
         if (arg_unit)
                 name = unit_name_mangle_with_suffix(arg_unit, ".scope");
         else
                 asprintf(&name, "run-%lu.scope", (unsigned long) getpid());
         if (!name)
-                return -ENOMEM;
+                return log_oom();
 
-        r = message_start_transient_unit_new(bus, name, &m);
+        r = message_start_transient_unit_new(bus, name, &m, &args, &props);
         if (r < 0)
                 return r;
 
+        if (!dbus_message_iter_open_container(&props, DBUS_TYPE_STRUCT, NULL, &sub2) ||
+            !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &pids_property) ||
+            !dbus_message_iter_open_container(&sub2, DBUS_TYPE_VARIANT, "au", &sub3) ||
+            !dbus_message_iter_open_container(&sub3, DBUS_TYPE_ARRAY, "u", &sub4) ||
+            !dbus_message_iter_append_basic(&sub4, DBUS_TYPE_UINT32, &pid) ||
+            !dbus_message_iter_close_container(&sub3, &sub4) ||
+            !dbus_message_iter_close_container(&sub2, &sub3) ||
+            !dbus_message_iter_close_container(&props, &sub2))
+                return log_oom();
+
+        if (!dbus_message_iter_close_container(&args, &props))
+                return log_oom();
+
+        dbus_message_iter_open_container(&args, 'a', "(sa(sv))", &aux);
+        dbus_message_iter_close_container(&args, &aux);
+
+#if 0
         {
                 const char *unique_id;
                 sd_bus_get_unique_name(bus, &unique_id);
@@ -322,10 +346,7 @@ static int start_transient_scope(
                 if (r < 0)
                         return r;
         }
-
-        r = sd_bus_message_append(m, "(sv)", "PIDs", "au", 1, (uint32_t) getpid());
-        if (r < 0)
-                return r;
+#endif
 
         r = message_start_transient_unit_send(bus, m, error, &reply);
         if (r < 0)
@@ -336,14 +357,16 @@ static int start_transient_scope(
         return -errno;
 }
 
-int main(int argc, char* argv[]) {
-        sd_bus_error error = SD_BUS_ERROR_NULL;
-        _cleanup_bus_unref_ sd_bus *bus = NULL;
+int main(int argc, char *argv[]) {
+        DBusError error;
+        DBusConnection *bus = NULL;
         _cleanup_free_ char *description = NULL, *command = NULL;
         int r;
 
         log_parse_environment();
         log_open();
+
+        dbus_error_init(&error);
 
         r = parse_argv(argc, argv);
         if (r <= 0)
@@ -366,22 +389,25 @@ int main(int argc, char* argv[]) {
                 arg_description = description;
         }
 
-        if (arg_user)
-                r = sd_bus_open_user(&bus);
-        else
-                r = sd_bus_open_system(&bus);
-        if (r < 0) {
-                log_error("Failed to create bus connection: %s", strerror(-r));
+        if (bus_connect(arg_user ? DBUS_BUS_SESSION : DBUS_BUS_SYSTEM, &bus, &private_bus, &error) < 0) {
+                log_error("Failed to get D-Bus connection: %s", bus_error_message(&error));
                 goto finish;
         }
 
         if (arg_scope)
                 r = start_transient_scope(bus, argv + optind, &error);
         else
+#if 0
                 r = start_transient_service(bus, argv + optind, &error);
-        if (r < 0) {
+#else
+        {
+                log_error("%s only supports transient scopes currently.\n", program_invocation_short_name);
+                r = ENOTSUP;
+        }
+#endif
+                if (r < 0) {
                 log_error("Failed start transient unit: %s", error.message ? error.message : strerror(-r));
-                sd_bus_error_free(&error);
+                dbus_error_free(&error);
                 goto finish;
         }
 

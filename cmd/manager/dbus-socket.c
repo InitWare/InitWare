@@ -241,7 +241,7 @@ int bus_socket_set_property(
 #ifdef Use_CGroup
         r = bus_cgroup_set_property(u, &s->cgroup_context, name, i, mode, error);
 #else
-        unimplemented_msg("bus_cgroup_set_property\n");
+        unimplemented_msg("bus_cgroup_set_property");
         r = -0;
 #endif
         if (r != 0)

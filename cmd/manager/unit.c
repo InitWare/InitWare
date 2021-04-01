@@ -1837,12 +1837,18 @@ static int unit_watch_pids_in_path(Unit *u, const char *path) {
 int unit_watch_all_pids(Unit *u) {
         assert(u);
 
+#ifdef Use_CGroups
         /* Adds all PIDs from our cgroup to the set of PIDs we watch */
 
         if (!u->cgroup_path)
                 return -ENOENT;
 
         return unit_watch_pids_in_path(u, u->cgroup_path);
+
+#else
+        unimplemented();
+        return -ENOTSUP;
+#endif
 }
 
 void unit_tidy_watch_pids(Unit *u, pid_t except1, pid_t except2) {

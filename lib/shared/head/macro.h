@@ -311,7 +311,7 @@ static inline size_t IOVEC_INCREMENT(struct iovec *i, unsigned n, size_t k) {
         })
 
 
-#define unimplemented() fprintf(stderr, "%s: unimplemented\n", __PRETTY_FUNCTION__)
-#define unimplemented_msg(...) fprintf(stderr, "%s: unimplemented: ", __VA_ARGS__)
+#define unimplemented() log_warning("%s: unimplemented\n", __FUNCTION__)
+#define unimplemented_msg(...) log_warning("%s: %s: unimplemented\n", __FUNCTION__, __VA_ARGS__)
 
 #include "log.h"

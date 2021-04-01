@@ -455,7 +455,7 @@ static DBusHandlerResult system_bus_message_filter(DBusConnection *connection, D
 #ifdef Use_CGroups
                         manager_notify_cgroup_empty(m, cgroup);
 #else
-                        unimplemented_msg("notify cgroup empty\n");
+                        unimplemented_msg("notify cgroup empty");
 #endif
         }
 
@@ -495,7 +495,7 @@ static DBusHandlerResult private_bus_message_filter(DBusConnection *connection, 
 #ifdef Use_CGroups
                         manager_notify_cgroup_empty(m, cgroup);
 #else
-                        unimplemented_msg("notify cgroup empty\n");
+                        unimplemented_msg("notify cgroup empty");
 #endif
                 /* Forward the message to the system bus, so that user
                  * instances are notified as well */

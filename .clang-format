@@ -51,16 +51,6 @@ Cpp11BracedListStyle: false
 ForEachMacros:
   - BITMAP_FOREACH
   - CMSG_FOREACH
-  - _DNS_ANSWER_FOREACH
-  - DNS_ANSWER_FOREACH
-  - _DNS_ANSWER_FOREACH_FLAGS
-  - DNS_ANSWER_FOREACH_FLAGS
-  - _DNS_ANSWER_FOREACH_FULL
-  - DNS_ANSWER_FOREACH_FULL
-  - _DNS_ANSWER_FOREACH_IFINDEX
-  - DNS_ANSWER_FOREACH_IFINDEX
-  - _DNS_QUESTION_FOREACH
-  - DNS_QUESTION_FOREACH
   - FDSET_FOREACH
   - FOREACH_BTRFS_IOCTL_SEARCH_HEADER
   - FOREACH_DEVICE
@@ -106,6 +96,46 @@ ForEachMacros:
   - STRV_FOREACH
   - STRV_FOREACH_BACKWARDS
   - STRV_FOREACH_PAIR
+IncludeBlocks: Preserve
+#
+# Include blocks are sorted by Priority, then within those blocks are sorted by
+# SortPriority.
+# 
+# n.b. these categories are more aspirational than anything else. Follow the
+# style guidelines instead, section Include-File Ordering
+#
+IncludeCategories:
+ - Regex: '^<sys/param\.h>'
+   Priority: -100
+   SortPriority: -100
+ - Regex: '^<sys/types\.h>'
+   Priority: -100
+   SortPriority: -99
+ - Regex: '^<sys.*/.*'
+   Priority: -100
+   SortPriority: -98
+ - Regex: '^<asm.*/.*'
+   Priority: -98
+   SortPriority: -97
+ - Regex: '^<linux.*/.*'
+   Priority: -96
+   SortPriority: -95
+ - Regex: '^<net.*/.*'
+   Priority: -92
+   SortPriority: -92
+ - Regex: '^<protocols.*/.*'
+   Priority: -92
+   SortPriority: -91
+ - Regex: '^<.*\.h>'
+   Priority: -50
+   SortPriority: -50
+ - Regex: '^<.*>'
+   Priority: -40
+   SortPriority: -40
+ - Regex: '^\".*\"'
+   Priority: 1
+   SortPriority: 1
+SortIncludes: true
 IndentPPDirectives: AfterHash
 IndentWidth:     8
 IndentWrappedFunctionNames: true

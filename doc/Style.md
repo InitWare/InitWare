@@ -1,10 +1,85 @@
+# C Style Guide
 
-- 8ch indent, no tabs
+InitWare code is subject to a style guide. This document describes the style
+expected of code written in C-like languages.
+All code in new files or files in which the new style already predominantes 
+should conform;
+in the case of modifications to files which retain the older style from the
+systemd project, the systemd style guide ought to be followed instead.
+
+## Basics
+
+- Indentation is by 8 characters.
+- Structures are named in MixedCase, while variables and functions get
+  snake_case.
+- Function call argument lists shall *not* be divided from the function
+  expression:
+
+      foo();
+
+  and not
+
+      foo ();
+
+## Curly Brackets
+
+- Curly Bracketing shall follow the principles of BSD Kernel Normal Form;
+  the opening curly bracket of a function shall appear on a dedicated line:
+  
+      int hello()
+      {
+              return 0;
+      }
+  
+  while all other curly brackets shall come one space after the last part of the
+  syntactic element to which they are bound:
+
+      if (true) {
+              do_this();
+              do_that();
+      }
+
+  In the exceptional case of a compound statement directly attached to the
+  statement list of an enclosing compound statement, then the curly bracket does
+  retain its own line:
+
+      {
+              int x;
+
+              do_with(x);
+      }
+
+## Include-File Ordering
+
+Include files shall be sorted into groups - within which includes are sorted
+alphabetically unless specified otherwise - in the following order:
+
+1. The kernel include files (`<sys/*>`). Within these, either
+  `<sys/param.h` or `<sys/types.h` comes first if one is included, but not both.
+  The remainder are sorted alphabetically.
+
+2. Linux architecture-specific include files (`<asm/*>`).
+
+3. Linux kernel include files (`<linux/*>`).
+
+4. Networking include files (`<net/*>`, `<netinet/*>`, `<protocols/`).
+
+5. System C includes (`<*>` noninclusive)
+
+6. Host library includes and includes public to the project (`<*>`, `<*/*>` both
+  noninclusive).
+
+7. All other includes.
+
+It is often the case that conditional inclusion of files is required. In this
+case, conditional includes ought to be grouped as above, but appear as a
+separate set of groups which follow the groups of unconditional includes.
+
+## Misc
 
 - Variables and functions *must* be static, unless they have a
   protoype, and are supposed to be exported.
 
-- structs in MixedCase, variables + functions in lower_case
 
 - The destructors always unregister the object from the next bigger
   object, not the other way around
@@ -57,25 +132,10 @@
   numbers. Their syntax is locale dependent (i.e. "5.000" in en_US is
   generally understood as 5, while on de_DE as 5000.).
 
-- Try to use this::
-
-      void foo() {
-      }
-
-  instead of this::
-
-      void foo()
-      {
-      }
-
-  But it's OK if you don't.
-
-- Don't write "foo ()", write "foo()".
-
 - Please use streq() and strneq() instead of strcmp(), strncmp() where applicable.
 
 - Please do not allocate variables on the stack in the middle of code,
-  even if C99 allows it. Wrong::
+  even if C99 allows it. Wrong:
 
     {
             a = 5;
@@ -83,7 +143,7 @@
             b = a;
     }
 
-  Right::
+  Right:
 
     {
             int b;
@@ -97,14 +157,14 @@
   no speed benefit, and on calls like printf() "float"s get upgraded
   to "double"s anyway, so there is no point.
 
-- Don't invoke functions when you allocate variables on the stack. Wrong::
+- Don't invoke functions when you allocate variables on the stack. Wrong:
 
     {
             int a = foobar();
             uint64_t x = 7;
     }
 
-  Right::
+  Right:
 
     {
             int a;
