@@ -315,7 +315,7 @@ _public_ int sd_journal_sendv(const struct iovec *iov, int n) {
          * file and just pass a file descriptor of it to the other
          * side */
 
-        buffer_fd = mkostemp(path, O_CLOEXEC|O_RDWR);
+        buffer_fd = mkostemp(path, O_CLOEXEC);
         if (buffer_fd < 0)
                 return -errno;
 

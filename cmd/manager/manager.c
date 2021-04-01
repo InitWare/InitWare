@@ -2229,12 +2229,7 @@ int manager_open_serialization(Manager *m, FILE **_f) {
                 return -ENOMEM;
 
         RUN_WITH_UMASK(0077) {
-                fd = mkostemp(
-                        path,
-#ifndef Sys_Plat_FreeBSD /* this is already implied on FreeBSD */
-                        O_RDWR |
-#endif
-                        O_CLOEXEC);
+                fd = mkostemp(path, O_CLOEXEC);
         }
 
         if (fd < 0) {

@@ -335,7 +335,7 @@ int ask_password_agent(
         mkdir_p_label(AbsDir_PkgRunState "/ask-password", 0755);
 
         RUN_WITH_UMASK(0022) {
-                fd = mkostemp(temp, O_CLOEXEC|O_CREAT|O_WRONLY);
+                fd = mkostemp(temp, O_CLOEXEC);
         }
 
         if (fd < 0) {

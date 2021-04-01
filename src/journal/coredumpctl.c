@@ -473,7 +473,7 @@ static int run_gdb(sd_journal *j) {
         data = (const uint8_t*) data + 9;
         len -= 9;
 
-        fd = mkostemp(path, O_WRONLY);
+        fd = mkstemp(path);
         if (fd < 0) {
                 log_error("Failed to create temporary file: %m");
                 return -errno;

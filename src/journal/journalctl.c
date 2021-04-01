@@ -1130,7 +1130,7 @@ static int setup_keys(void) {
         state_size = FSPRG_stateinbytes(FSPRG_RECOMMENDED_SECPAR);
         state = alloca(state_size);
 
-        fd = open("/dev/random", O_RDONLY|O_CLOEXEC|O_NOCTTY);
+        fd = open("/dev/random", O_CLOEXEC);
         if (fd < 0) {
                 log_error("Failed to open /dev/random: %m");
                 r = -errno;
@@ -1157,7 +1157,7 @@ static int setup_keys(void) {
         n /= arg_interval;
 
         safe_close(fd);
-        fd = mkostemp(k, O_WRONLY|O_CLOEXEC|O_NOCTTY);
+        fd = mkostemp(k, O_CLOEXEC);
         if (fd < 0) {
                 log_error("Failed to open %s: %m", k);
                 r = -errno;
