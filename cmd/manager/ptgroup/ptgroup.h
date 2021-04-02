@@ -40,6 +40,7 @@ have been included with this software
 #define PTGROUP_H_
 
 #include "compat.h"
+#include "fdset.h"
 #include "set.h"
 
 typedef struct Manager Manager;
@@ -47,6 +48,8 @@ typedef struct Unit Unit;
 
 typedef struct PTGroup PTGroup;
 typedef struct PTManager PTManager;
+
+typedef struct cJSON cJSON;
 
 struct PTGroup {
         /* unique identifier */
@@ -130,11 +133,31 @@ int ptg_migrate_recursive(PTGroup *from, PTGroup *to, bool rem);
  */
 PTManager *ptmanager_new(Manager *manager, char *name);
 
+/**
+ * Create a new PTManager with the given Manager by deserialising from the given
+ * JSON object.
+ *
+ * @returns 0 if allocation fails.
+ */
+PTManager *ptmanager_new_from_json(Manager *manager, cJSON *obj);
+
+/** Find a PTGroup by its unique ID. */
+PTGroup *ptmanager_find_ptg_by_id(PTManager *ptm, int id);
+
 /** Notify a PTManager of a fork event. @returns -errno on failure. */
 int ptmanager_fork(PTManager *ptm, pid_t ppid, pid_t pid);
 
 /** Notify a PTManager of an exit event. @returns -errno on failure. */
 int ptmanager_exit(PTManager *ptm, pid_t pid);
+
+/**
+ * Serialise PTGroups state to a cJSON object. Sets \p out to the output cJSON
+ * object.
+ *
+ * @returns 0 on success.
+ * @returns -errno on failure.
+ */
+int ptmanager_to_json(PTManager *ptm, cJSON **out);
 
 /** Find the unit corresponding to a given PID. */
 Unit *manager_get_unit_by_pid(Manager *m, pid_t pid);

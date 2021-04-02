@@ -7,8 +7,7 @@ set(shared_src mkdir-label.c acpi-fpdt.c MurmurHash3.c
     env-util.c spawn-polkit-agent.c exit-status.c fdset.c strbuf.c
     fileio.c strv.c strxcpyx.c hashmap.c time-dst.c
     time-util.c install.c unit-name.c install-printf.c utf8.c label.c util.c
-    log.c
-    virt.c mkdir.c)
+    log.c cjson-util.c virt.c mkdir.c)
 
 if(Sys_Plat_Linux)
     list(APPEND shared_src linprocfs/fdset.c linprocfs/proc-util.c)
@@ -29,7 +28,8 @@ set(shared_src_Use_Libcap capability.c)
 
 add_library(initware-shared ${shared_src})
 target_include_directories(initware-shared PUBLIC head)
-target_link_libraries(initware-shared internal compat PkgConfig::DBus ${KVM_Libs})
+target_link_libraries(initware-shared internal compat initware-cjson
+    PkgConfig::DBus ${KVM_Libs})
 
 # ------------------------------------------------------------------------------
 add_library(initware-dbus dbus-common.c dbus-loop.c polkit.c)

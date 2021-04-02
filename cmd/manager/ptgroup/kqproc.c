@@ -19,7 +19,7 @@ have been included with this software
 #include "kqproc.h"
 #include "manager.h"
 
-int manager_setup_kqproc_watch(Manager *m) {
+int manager_setup_kqproc_watch(Manager *m, int with_fd) {
         struct epoll_event ev = {
                 .events = EPOLLIN,
                 .data.ptr = &m->kqproc_watch,
@@ -27,11 +27,14 @@ int manager_setup_kqproc_watch(Manager *m) {
         int r;
 
         m->kqproc_watch.type = WATCH_KQPROC;
-        m->kqproc_watch.fd = kqueue();
-        if (m->kqproc_watch.fd < 0) {
-                log_error("Failed to open Kernel Queue: %m\n");
-                return -errno;
-        }
+        if (with_fd <= -1) {
+                m->kqproc_watch.fd = kqueue();
+                if (m->kqproc_watch.fd < 0) {
+                        log_error("Failed to open Kernel Queue: %m\n");
+                        return -errno;
+                }
+        } else
+                m->kqproc_watch.fd = with_fd;
 
         r = epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->kqproc_watch.fd, &ev);
         if (r < 0) {
@@ -49,13 +52,10 @@ void manager_kqproc_event(Manager *m) {
 
         nEv = kevent(m->kqproc_watch.fd, NULL, 0, &ev, 1, &ts);
 
-        if (nEv < 0)
-        {
+        if (nEv < 0) {
                 log_error("Error waiting on PROC Kernel Queue: %s\n", strerror(errno));
                 return;
-        }
-        else if (!nEv)
-        {
+        } else if (!nEv) {
                 log_warning("No events from PROC Kernel Queue\n");
                 return;
         }
@@ -66,7 +66,7 @@ void manager_kqproc_event(Manager *m) {
                 ptmanager_fork(m->pt_manager, ev.data, ev.ident);
         else if (ev.fflags & NOTE_EXIT)
                 ptmanager_exit(m->pt_manager, ev.ident);
-        else if (ev.fflags  & NOTE_TRACKERR)
+        else if (ev.fflags & NOTE_TRACKERR)
                 log_error("NOTE_TRACKERR received from Kernel Queue\n");
 }
 

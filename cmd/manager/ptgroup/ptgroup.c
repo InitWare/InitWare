@@ -13,7 +13,9 @@ have been included with this software
         All rights reserved.
 *********************************************************************/
 
+
 #include "ptgroup.h"
+#include "cjson-util.h"
 #include "special.h"
 #include "strv.h"
 #include "unit.h"
@@ -72,6 +74,56 @@ fail:
         set_free(grp->groups);
         set_free(grp->processes);
         return -1;
+}
+
+static int ptgroup_init_from_json(PTGroup *grp, PTGroup *parent, cJSON *obj) {
+        cJSON *oCld;
+        cJSON *oProc;
+
+        grp->name = xcJSON_steal_valuestring(cJSON_GetObjectItem(obj, "name"));
+        grp->parent = parent;
+        grp->full_name = xcJSON_steal_valuestring(cJSON_GetObjectItem(obj, "full_name"));
+        grp->id = cJSON_GetNumberValue(cJSON_GetObjectItem(obj, "id"));
+
+        grp->groups = set_new(trivial_hash_func, trivial_compare_func);
+        if (!grp->groups)
+                goto fail;
+
+        grp->processes = set_new(trivial_hash_func, trivial_compare_func);
+        if (!grp->processes)
+                goto fail;
+
+        cJSON_ArrayForEach(oCld, cJSON_GetObjectItem(obj, "groups")) {
+                PTGroup *subgrp = malloc0(sizeof *subgrp);
+
+                if (!subgrp)
+                        goto fail;
+
+                if (ptgroup_init_from_json(subgrp, grp, oCld) < 0)
+                        goto fail;
+
+                if (set_put(grp->groups, subgrp) < 0)
+                        goto fail;
+        }
+
+        cJSON_ArrayForEach(oProc, cJSON_GetObjectItem(obj, "processes")) {
+                pid_t pid = cJSON_GetNumberValue(oProc);
+
+                assert(oProc > 0);
+
+                if (set_put(grp->processes, PID_TO_PTR(pid)) < 0)
+                        goto fail;
+        }
+
+        return 0;
+
+fail:
+        /* FIXME: properly recursive deletion */
+        free(grp->name);
+        free(grp->full_name);
+        set_free(grp->groups);
+        set_free(grp->processes);
+        return -ENOMEM;
 }
 
 static void ptgroup_free(PTGroup *grp) {
@@ -165,7 +217,25 @@ static int ptgroup_fork(PTGroup *grp, pid_t ppid, pid_t pid) {
         return 0;
 }
 
-PTGroup *ptgroup_find_by_pid(PTGroup *grp, pid_t pid) {
+static PTGroup *ptgroup_find_by_id(PTGroup *grp, int id) {
+        PTGroup *r;
+        PTGroup *cld;
+        Iterator i;
+
+        if (grp->id == id)
+                return grp;
+
+        SET_FOREACH (cld, grp->groups, i) {
+                r = ptgroup_find_by_id(cld, id);
+                if (r != NULL)
+                        return r;
+        }
+
+        return NULL;
+}
+
+
+static PTGroup *ptgroup_find_by_pid(PTGroup *grp, pid_t pid) {
         PTGroup *r;
         PTGroup *cld;
         void *pp;
@@ -221,12 +291,82 @@ int _ptgroup_move_or_add(PTGroup *grp, PTManager *ptm, pid_t pid) {
         return prev ? 1 : 2;
 }
 
+/* JSONise into an empty object already created */
+static int ptgroup_to_json_into(PTGroup *grp, cJSON *oGrp) {
+        if (!cJSON_AddNumberToObject(oGrp, "id", grp->id))
+                return -ENOMEM;
+        if (!cJSON_AddStringToObject(oGrp, "name", grp->name))
+                return -ENOMEM;
+        if (!cJSON_AddStringToObject(oGrp, "full_name", grp->full_name))
+                return -ENOMEM;
+        if (!set_isempty(grp->groups)) {
+                cJSON *oGroups;
+                PTGroup *cld;
+                Iterator i;
+
+                oGroups = cJSON_AddArrayToObject(oGrp, "groups");
+                if (!oGroups)
+                        return -ENOMEM;
+
+                SET_FOREACH (cld, grp->groups, i) {
+                        cJSON *oCld;
+                        int r;
+
+                        oCld = cJSON_CreateObject();
+                        if (!oCld)
+                                return -ENOMEM;
+
+                        if (!cJSON_AddItemToArray(oGroups, oCld)) {
+                                cJSON_Delete(oCld);
+                                return -ENOMEM;
+                        }
+
+                        r = ptgroup_to_json_into(cld, oCld);
+                        if (r < 0)
+                                return r;
+                }
+        }
+        if (!set_isempty(grp->processes)) {
+                Iterator i;
+                cJSON *oProcs;
+                void *pp;
+
+                oProcs = cJSON_AddArrayToObject(oGrp, "processes");
+                if (!oProcs)
+                        return -ENOMEM;
+
+                SET_FOREACH (pp, grp->processes, i) {
+                        cJSON *oProc;
+
+                        oProc = cJSON_CreateNumber(PTR_TO_PID(pp));
+                        if (!oProc)
+                                return -ENOMEM;
+                        if (!cJSON_AddItemToArray(oProcs, oProc))
+                                return -ENOMEM;
+                }
+        }
+
+        return 0;
+}
+
 /**
  * PTGroup public interface
  */
 
 PTGroup *ptgroup_new(PTGroup *parent, char *name) {
-        PTGroup *grp = malloc0(sizeof(PTGroup));
+
+        PTGroup *cld;
+        Iterator i;
+        PTGroup *grp;
+
+        SET_FOREACH (cld, parent->processes, i) {
+                if (streq(cld->name, name)) {
+                        log_debug("Returning existing PTGroup %s\n", cld->full_name);
+                        return cld;
+                }
+        }
+
+        grp = malloc0(sizeof(PTGroup));
         if (!grp)
                 return NULL;
         if (ptgroup_init(grp, parent, name) < 0) {
@@ -240,6 +380,20 @@ PTGroup *ptgroup_new(PTGroup *parent, char *name) {
 
         log_debug("ptgroup: allocated new group %s\n", grp->full_name);
         return grp;
+}
+
+int ptgroup_attach_many(PTGroup *grp, PTManager *ptm, Set *pids) {
+        Iterator i;
+        void *pp;
+        int r = 0;
+
+        SET_FOREACH (pp, pids, i) {
+                int r2 = ptgroup_attach(grp, ptm, PTR_TO_PID(pp));
+                if (r2 < 0)
+                        r = r2;
+        }
+
+        return r;
 }
 
 bool ptg_is_empty(PTGroup *grp) {
@@ -313,17 +467,34 @@ PTManager *ptmanager_new(Manager *manager, char *name) {
         return ptm;
 }
 
-int ptgroup_attach_many(PTGroup *grp, PTManager *ptm, Set *pids) {
-        Iterator i;
-        void *pp;
-        int r = 0;
+PTManager *ptmanager_new_from_json(Manager *manager, cJSON *obj) {
+        PTManager *ptm = malloc0(sizeof(PTManager));
+        if (!ptm)
+                return NULL;
+        ptm->manager = manager;
 
-        SET_FOREACH (pp, pids, i) {
-                int r2 = ptgroup_attach(grp, ptm, PTR_TO_PID(pp));
-                if (r2 < 0)
-                        r = r2;
+        if (ptgroup_init_from_json(&ptm->group, NULL, obj) < 0) {
+                free(ptm);
+                return NULL;
         }
 
+        return ptm;
+}
+
+PTGroup *ptmanager_find_ptg_by_id(PTManager *ptm, int id) {
+        return ptgroup_find_by_id(&ptm->group, id);
+}
+
+/** Notify a PTManager of an exit event. @returns -errno on failure. */
+int ptmanager_exit(PTManager *ptm, pid_t pid) {
+        int r = ptgroup_exit(ptm, &ptm->group, pid);
+        if (!r)
+                log_warning("Exited PID %lu was not in any of our groups", (unsigned long) pid);
+        if (!hashmap_contains(ptm->manager->watch_pids1, PID_TO_PTR(pid)) &&
+            !hashmap_contains(ptm->manager->watch_pids2, PID_TO_PTR(pid)))
+                log_error("Should probably not delete in this case!"); /* TODO: ! */
+        /* TODO: Should we generate a SIGCHLD event if the process is not a
+         * direct child of ours? */
         return r;
 }
 
@@ -344,17 +515,21 @@ int ptmanager_fork(PTManager *ptm, pid_t ppid, pid_t pid) {
         return r;
 }
 
-/** Notify a PTManager of an exit event. @returns -errno on failure. */
-int ptmanager_exit(PTManager *ptm, pid_t pid) {
-        int r = ptgroup_exit(ptm, &ptm->group, pid);
-        if (!r)
-                log_warning("Exited PID %lu was not in any of our groups", (unsigned long) pid);
-        if (!hashmap_contains(ptm->manager->watch_pids1, PID_TO_PTR(pid)) &&
-            !hashmap_contains(ptm->manager->watch_pids2, PID_TO_PTR(pid)))
-                log_error("Should probably not delete in this case!"); /* TODO: ! */
-        /* TODO: Should we generate a SIGCHLD event if the process is not a
-         * direct child of ours? */
-        return r;
+int ptmanager_to_json(PTManager *ptm, cJSON **out) {
+        cJSON *obj;
+        int r;
+
+        obj = cJSON_CreateObject();
+        if (!obj)
+                return -ENOMEM;
+
+        r = ptgroup_to_json_into(&ptm->group, obj);
+        if (r < 0)
+                return r;
+
+        *out = obj;
+
+        return 0;
 }
 
 /**
@@ -413,7 +588,7 @@ static int unit_create_ptgroups(Unit *u) {
         }
 
         if (u->ptgroup) {
-                /* TODO:  move any existing cgroup */
+                /* FIXME:  move any existing cgroup */
                 log_error("PTGroup already exists for unit %s\n", u->id);
                 abort();
                 return -EEXIST;

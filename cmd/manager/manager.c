@@ -45,32 +45,33 @@
 #include "systemd/sd-id128.h"
 #include "systemd/sd-messages.h"
 
-#include "manager.h"
-#include "transaction.h"
-#include "hashmap.h"
-#include "macro.h"
-#include "strv.h"
-#include "log.h"
-#include "util.h"
-#include "mkdir.h"
-#include "ratelimit.h"
-#include "locale-setup.h"
-#include "mount-setup.h"
-#include "unit-name.h"
-#include "dbus-unit.h"
-#include "dbus-job.h"
-#include "missing.h"
-#include "path-lookup.h"
-#include "special.h"
-#include "bus-errors.h"
-#include "exit-status.h"
-#include "virt.h"
-#include "watchdog.h"
-#include "cgroup-util.h"
-#include "path-util.h"
+#include "cJSON.h"
 #include "audit-fd.h"
 #include "boot-timestamps.h"
+#include "bus-errors.h"
+#include "cgroup-util.h"
+#include "dbus-job.h"
+#include "dbus-unit.h"
 #include "env-util.h"
+#include "exit-status.h"
+#include "hashmap.h"
+#include "locale-setup.h"
+#include "log.h"
+#include "macro.h"
+#include "manager.h"
+#include "missing.h"
+#include "mkdir.h"
+#include "mount-setup.h"
+#include "path-lookup.h"
+#include "path-util.h"
+#include "ratelimit.h"
+#include "special.h"
+#include "strv.h"
+#include "transaction.h"
+#include "unit-name.h"
+#include "util.h"
+#include "virt.h"
+#include "watchdog.h"
 
 #ifdef Use_KQProc
 #        include "ptgroup/kqproc.h"
@@ -618,16 +619,20 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
 #endif
 
 #ifdef Use_KQProc
-        r = manager_setup_kqproc_watch(m);
-        if (r < 0)
-                goto fail;
+        if (!reexecuting) {
+                r = manager_setup_kqproc_watch(m, -1);
+                if (r < 0)
+                        goto fail;
+        }
 #endif
 
 #ifdef Use_PTGroups
-        m->pt_manager = ptmanager_new(m, strdup(running_as == SYSTEMD_SYSTEM ? "sys:" : "usr:"));
-        if (!m->pt_manager) {
-                log_error("Failed to allocate root PT group\n");
-                r = -ENOMEM;
+        if (!reexecuting) {
+                m->pt_manager = ptmanager_new(m, strdup(running_as == SYSTEMD_SYSTEM ? "sys:" : "usr:"));
+                if (!m->pt_manager) {
+                        log_error("Failed to allocate root PT group\n");
+                        r = -ENOMEM;
+                }
         }
 #endif
 
@@ -2251,18 +2256,76 @@ int manager_open_serialization(Manager *m, FILE **_f) {
         return 0;
 }
 
+#ifdef Use_PTGroups
+static int manager_serialize_ptgroups(Manager *m, FILE *f, FDSet *fds, cJSON *out) {
+        cJSON *oPtm = NULL, *oPtg_unit = NULL;
+        Iterator i;
+        PTGroup *key;
+        Unit *val;
+        int r;
+
+        oPtg_unit = cJSON_CreateObject();
+
+        r = ptmanager_to_json(m->pt_manager, &oPtm);
+        if (r < 0)
+                goto finish;
+
+        HASHMAP_FOREACH_KEY (val, key, m->ptgroup_unit, i) {
+                if (!cJSON_AddNumberToObject(oPtg_unit, val->id, key->id)) {
+                        r = -ENOMEM;
+                        break;
+                }
+        }
+
+        if (!cJSON_AddItemToObject(out, "pt_manager", oPtm)) {
+                r = -ENOMEM;
+                goto finish;
+        }
+
+        oPtm = NULL;
+
+        if (!cJSON_AddItemToObject(out, "ptgroup_unit", oPtg_unit)) {
+                r = -ENOMEM;
+                goto finish;
+        }
+
+        oPtg_unit = NULL;
+
+
+finish:
+        cJSON_Delete(oPtm);
+        cJSON_Delete(oPtg_unit);
+
+        return r;
+}
+#endif
+
 int manager_serialize(Manager *m, FILE *f, FDSet *fds, bool switching_root) {
+        /*
+         * The new approach is to just output a JSON object, but not everything
+         * has adopted that yet.
+         */
+        cJSON *obj;
+        char *sObj = NULL;
         Iterator i;
         Unit *u;
         const char *t;
         char **e;
         int r;
+#ifdef Use_KQProc
+        int kqproc_fd;
+#endif
 
         assert(m);
         assert(f);
         assert(fds);
 
-        m->n_reloading ++;
+        obj = cJSON_CreateObject();
+
+        if (!obj)
+                return -ENOMEM;
+
+        m->n_reloading++;
 
         fprintf(f, "current-job-id=%i\n", m->current_job_id);
         fprintf(f, "taint-usr=%s\n", yes_no(m->taint_usr));
@@ -2280,7 +2343,7 @@ int manager_serialize(Manager *m, FILE *f, FDSet *fds, bool switching_root) {
         }
 
         if (!switching_root) {
-                STRV_FOREACH(e, m->environment) {
+                STRV_FOREACH (e, m->environment) {
                         _cleanup_free_ char *ce;
 
                         ce = cescape(*e);
@@ -2291,9 +2354,40 @@ int manager_serialize(Manager *m, FILE *f, FDSet *fds, bool switching_root) {
 
         bus_serialize(m, f);
 
+#ifdef Use_PTGroups
+#        ifdef Use_KQProc
+        kqproc_fd = fdset_put_dup(fds, m->kqproc_watch.fd);
+        if (kqproc_fd < 0) {
+                r = kqproc_fd;
+                goto finish;
+        }
+
+        if (!cJSON_AddNumberToObject(obj, "kqproc_fd", kqproc_fd)) {
+                r = -ENOMEM;
+                goto finish;
+        }
+#        endif
+
+        r = manager_serialize_ptgroups(m, f, fds, obj);
+        if (r < 0) {
+                m->n_reloading--;
+                return r;
+        }
+#endif
+
         fputc('\n', f);
 
-        HASHMAP_FOREACH_KEY(u, t, m->units, i) {
+        sObj = cJSON_Print(obj);
+        if (!sObj) {
+                r = -ENOMEM;
+                goto finish;
+        }
+
+        fputs(sObj, f);
+
+        fputs("\n\n", f);
+
+        HASHMAP_FOREACH_KEY (u, t, m->units, i) {
                 if (u->id != t)
                         continue;
 
@@ -2303,13 +2397,13 @@ int manager_serialize(Manager *m, FILE *f, FDSet *fds, bool switching_root) {
 
                 r = unit_serialize(u, f, fds, !switching_root);
                 if (r < 0) {
-                        m->n_reloading --;
+                        m->n_reloading--;
                         return r;
                 }
         }
 
         assert(m->n_reloading > 0);
-        m->n_reloading --;
+        m->n_reloading--;
 
         if (ferror(f))
                 return -EIO;
@@ -2318,18 +2412,112 @@ int manager_serialize(Manager *m, FILE *f, FDSet *fds, bool switching_root) {
         if (r < 0)
                 return r;
 
+finish:
+
+        cJSON_Delete(obj);
+
         return 0;
+}
+
+/* deserialise the JSON serialisation object */
+int manager_deserialise_object(Manager *m, cJSON *obj, FDSet *fds) {
+        int r = 0;
+#ifdef Use_KQProc
+        cJSON *oKqproc_fd;
+#endif
+#ifdef Use_PTGroups
+        cJSON *oPtm;
+        cJSON *oPtg_unit;
+
+        cJSON *oEntry; /* hashmap entry */
+#endif
+
+#ifdef Use_KQProc
+        oKqproc_fd = cJSON_GetObjectItem(obj, "kqproc_fd");
+        if (!oKqproc_fd) {
+                log_error("Failed to deserialise PROC Kernel Queue FD\n");
+                r = -EINVAL;
+                goto finish;
+        } else {
+                int fd;
+
+                assert(cJSON_IsNumber(oKqproc_fd));
+
+                fd = cJSON_GetNumberValue(oKqproc_fd);
+                fd = fdset_remove(fds, fd);
+
+                assert(fd > 0);
+
+                r = manager_setup_kqproc_watch(m, fd);
+                if (r < 0)
+                        goto finish;
+        }
+#endif
+#ifdef Use_PTGroups
+        oPtm = cJSON_GetObjectItem(obj, "pt_manager");
+        oPtg_unit = cJSON_GetObjectItem(obj, "ptgroup_unit");
+
+        if (!oPtm || !oPtg_unit) {
+                log_error("Failed to deserialise PTGroups information\n");
+                r = -EINVAL;
+                goto finish;
+        }
+
+        m->pt_manager = ptmanager_new_from_json(m, oPtm);
+        if (!m->pt_manager) {
+                log_error("Failed to deserialise PTGroups\n");
+                r = -ENOMEM;
+                goto finish;
+        }
+
+        cJSON_ArrayForEach(oEntry, oPtg_unit) {
+                Unit *u;
+                PTGroup *grp;
+
+                r = manager_load_unit(m, oEntry->string, NULL, NULL, &u);
+
+                if (r < 0) {
+                        log_error("Failed to do initial load of unit %s\n", oEntry->string);
+                        goto finish;
+                }
+
+                grp = ptmanager_find_ptg_by_id(m->pt_manager, oEntry->valueint);
+
+                if (!grp) {
+                        log_error(
+                                "Failed to find PTGroup for ID %d (for unit %s)\n",
+                                oEntry->valueint,
+                                oEntry->string);
+                        goto finish;
+                }
+
+                r = hashmap_put(m->ptgroup_unit, grp, u);
+                if (r < 0) {
+                        log_error("Failed to insert PTGroup into hashmap: %m\n");
+                        goto finish;
+                }
+
+                u->cgroup_realized = 1;
+                u->ptgroup = grp;
+        }
+
+
+#endif
+
+finish:
+        return r;
 }
 
 int manager_deserialize(Manager *m, FILE *f, FDSet *fds) {
         int r = 0;
+        char **jsonv = NULL;
+        char *json = NULL;
+        cJSON *obj = NULL;
 
         assert(m);
         assert(f);
 
-        log_debug("Deserializing state...");
-
-        m->n_reloading ++;
+        m->n_reloading++;
 
         for (;;) {
                 char line[LINE_MAX], *l;
@@ -2352,48 +2540,48 @@ int manager_deserialize(Manager *m, FILE *f, FDSet *fds) {
                 if (startswith(l, "current-job-id=")) {
                         uint32_t id;
 
-                        if (safe_atou32(l+15, &id) < 0)
-                                log_debug("Failed to parse current job id value %s", l+15);
+                        if (safe_atou32(l + 15, &id) < 0)
+                                log_debug("Failed to parse current job id value %s", l + 15);
                         else
                                 m->current_job_id = MAX(m->current_job_id, id);
                 } else if (startswith(l, "n-installed-jobs=")) {
                         uint32_t n;
 
-                        if (safe_atou32(l+17, &n) < 0)
-                                log_debug("Failed to parse installed jobs counter %s", l+17);
+                        if (safe_atou32(l + 17, &n) < 0)
+                                log_debug("Failed to parse installed jobs counter %s", l + 17);
                         else
                                 m->n_installed_jobs += n;
                 } else if (startswith(l, "n-failed-jobs=")) {
                         uint32_t n;
 
-                        if (safe_atou32(l+14, &n) < 0)
-                                log_debug("Failed to parse failed jobs counter %s", l+14);
+                        if (safe_atou32(l + 14, &n) < 0)
+                                log_debug("Failed to parse failed jobs counter %s", l + 14);
                         else
                                 m->n_failed_jobs += n;
                 } else if (startswith(l, "taint-usr=")) {
                         int b;
 
-                        if ((b = parse_boolean(l+10)) < 0)
-                                log_debug("Failed to parse taint /usr flag %s", l+10);
+                        if ((b = parse_boolean(l + 10)) < 0)
+                                log_debug("Failed to parse taint /usr flag %s", l + 10);
                         else
                                 m->taint_usr = m->taint_usr || b;
                 } else if (startswith(l, "firmware-timestamp="))
-                        dual_timestamp_deserialize(l+19, &m->firmware_timestamp);
+                        dual_timestamp_deserialize(l + 19, &m->firmware_timestamp);
                 else if (startswith(l, "loader-timestamp="))
-                        dual_timestamp_deserialize(l+17, &m->loader_timestamp);
+                        dual_timestamp_deserialize(l + 17, &m->loader_timestamp);
                 else if (startswith(l, "kernel-timestamp="))
-                        dual_timestamp_deserialize(l+17, &m->kernel_timestamp);
+                        dual_timestamp_deserialize(l + 17, &m->kernel_timestamp);
                 else if (startswith(l, "initrd-timestamp="))
-                        dual_timestamp_deserialize(l+17, &m->initrd_timestamp);
+                        dual_timestamp_deserialize(l + 17, &m->initrd_timestamp);
                 else if (startswith(l, "userspace-timestamp="))
-                        dual_timestamp_deserialize(l+20, &m->userspace_timestamp);
+                        dual_timestamp_deserialize(l + 20, &m->userspace_timestamp);
                 else if (startswith(l, "finish-timestamp="))
-                        dual_timestamp_deserialize(l+17, &m->finish_timestamp);
+                        dual_timestamp_deserialize(l + 17, &m->finish_timestamp);
                 else if (startswith(l, "env=")) {
                         _cleanup_free_ char *uce = NULL;
                         char **e;
 
-                        uce = cunescape(l+4);
+                        uce = cunescape(l + 4);
                         if (!uce) {
                                 r = -ENOMEM;
                                 goto finish;
@@ -2412,8 +2600,52 @@ int manager_deserialize(Manager *m, FILE *f, FDSet *fds) {
         }
 
         for (;;) {
+                char line[LINE_MAX], *l;
+
+                if (!fgets(line, sizeof(line), f)) {
+                        if (feof(f))
+                                r = 0;
+                        else
+                                r = -errno;
+
+                        goto finish;
+                }
+
+                char_array_0(line);
+                l = strstrip(line);
+
+                if (l[0] == 0)
+                        break;
+
+                if (!jsonv)
+                        jsonv = strv_new(l, NULL);
+                else if (strv_extend(&jsonv, l) < 0) {
+                        r = log_oom();
+                        goto finish;
+                }
+        }
+
+        json = strv_join(jsonv, "\n");
+        strv_free(jsonv);
+        jsonv = NULL;
+
+        obj = cJSON_Parse(json);
+        if (!obj) {
+                log_error("Failed to parse serialised JSON.\n");
+                r = -EINVAL;
+                goto finish;
+        }
+
+        free(json);
+        json = NULL;
+
+        r = manager_deserialise_object(m, obj, fds);
+        if (!r)
+                goto finish;
+
+        for (;;) {
                 Unit *u;
-                char name[UNIT_NAME_MAX+2];
+                char name[UNIT_NAME_MAX + 2];
 
                 /* Start marker */
                 if (!fgets(name, sizeof(name), f)) {
@@ -2441,7 +2673,11 @@ finish:
                 r = -EIO;
 
         assert(m->n_reloading > 0);
-        m->n_reloading --;
+        m->n_reloading--;
+
+        free(json);
+        strv_free(jsonv);
+        cJSON_Delete(obj);
 
         return r;
 }

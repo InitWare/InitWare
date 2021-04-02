@@ -50,8 +50,8 @@ set(manager_core_src_linux dbus-cgroup.c cgroup.c swap.c dbus-swap.c mount.c
 add_library(manager-core ${manager_core_src})
 target_include_directories(manager-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(manager-core initware-shared initware-units initware-label
-    initware-dbus initware-id128 initware-daemon ${UDev_Libs} ${Cap_Libs}
-    PkgConfig::DBus Threads::Threads)
+    initware-dbus initware-id128 initware-daemon initware-cjson
+    ${UDev_Libs} ${Cap_Libs} PkgConfig::DBus Threads::Threads)
 
 add_executable(iw.manager main.c)
 target_link_libraries(iw.manager manager-core)

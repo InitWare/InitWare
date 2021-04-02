@@ -12,22 +12,7 @@ have been included with this software
     (c) 2021 David Mackay
         All rights reserved.
 *********************************************************************/
-/**
- * PTGroups using Kernel Queues.
- */
 
-#ifndef KQPROC_H_
-#define KQPROC_H_
+#include "cJSON.h"
 
-#include "ptgroup.h"
-
-typedef struct Manager Manager;
-
-/** setup the Kernel Queue (if with_fd == -1) and watch */
-int manager_setup_kqproc_watch(Manager *m, int with_fd);
-
-/** there has been activity on the Kernel Queue */
-void manager_kqproc_event(Manager *m);
-
-
-#endif
+char *xcJSON_steal_valuestring(cJSON *obj);
