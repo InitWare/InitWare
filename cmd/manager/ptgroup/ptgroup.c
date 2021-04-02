@@ -52,8 +52,10 @@ static char *ptgroup_full_name(PTGroup *grp) {
  * initialise the fields of a ptgroup - frees everything but the structure
  * itself on failure
  */
-static int ptgroup_init(PTGroup *grp, PTGroup *parent, char *name) {
-        grp->name = name;
+static int ptgroup_init(PTGroup *grp, PTGroup *parent, const char *name) {
+        grp->name = strdup(name);
+        if (!grp->name)
+                goto fail;
         grp->parent = parent;
         grp->full_name = ptgroup_full_name(grp);
         if (!grp->full_name)
@@ -396,6 +398,23 @@ int ptgroup_attach_many(PTGroup *grp, PTManager *ptm, Set *pids) {
         return r;
 }
 
+void ptg_release(PTGroup *grp) {
+        PTGroup *cld;
+        Iterator i;
+
+        assert(grp);
+
+        if (!ptg_is_empty_recursive(grp))
+                log_warning("Releasing non-empty PTGroup; processes will be lost\n");
+
+        SET_FOREACH (cld, grp->groups, i)
+                ptg_release(cld);
+
+        set_remove(grp->parent->groups, grp);
+
+        ptgroup_free(grp);
+}
+
 bool ptg_is_empty(PTGroup *grp) {
         assert(grp);
         return set_isempty(grp->processes);
@@ -405,6 +424,7 @@ bool ptg_is_empty(PTGroup *grp) {
 bool ptg_is_empty_recursive(PTGroup *grp) {
         PTGroup *cld;
         Iterator i;
+
         assert(grp);
 
         if (!ptg_is_empty(grp))

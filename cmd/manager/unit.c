@@ -469,6 +469,16 @@ void unit_free(Unit *u) {
                 free(u->cgroup_path);
         }
 
+#ifdef Use_PTGroups
+        /* we don't want to eliminate the PTGroup data we need for reloading */
+        if (!u->manager->n_reloading) {
+                if (u->ptgroup) {
+                        ptg_release(u->ptgroup);
+                        hashmap_remove(u->manager->ptgroup_unit, u->ptgroup);
+                }
+        }
+#endif
+
         free(u->description);
         strv_free(u->documentation);
         free(u->fragment_path);

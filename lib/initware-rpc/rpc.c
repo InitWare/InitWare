@@ -141,6 +141,7 @@ static int validate_request(JSONRPCConnection *conn, cJSON *obj) {
                 if (id)
                         jsonrpc_conn_reply_error(
                                 conn, id, kJEInvalidRequest, "Request has invalid method field.");
+                goto finish;
         }
 
         req = malloc(sizeof *req);
@@ -166,14 +167,16 @@ finish:
 
 static int validate_response(JSONRPCConnection *conn, cJSON *obj) {
         int r = 0;
-        cJSON *oId = cJSON_GetObjectItem(obj, "id");
-        cJSON *oErr = cJSON_GetObjectItem(obj, "error");
-        cJSON *oRes = cJSON_DetachItemFromObject(obj, "result");
+        cJSON *oId;
+        cJSON *oErr;
+        cJSON *oRes;
         cJSON *oErrCode;
         cJSON *oErrMsg;
         Response *resp;
 
+        oId = cJSON_GetObjectItem(obj, "id");
         oErr = cJSON_GetObjectItem(obj, "error");
+        oRes = cJSON_DetachItemFromObject(obj, "result");
 
         if (!oId || !cJSON_IsNumber(oId)) {
                 log_debug("JSON-RPC: Response has bad ID field.\n");
@@ -333,7 +336,7 @@ int jsonrpc_conn_receive(JSONRPCConnection *conn) {
                         goto finish;
                 }
 
-                if (cJSON_GetObjectItem(obj, "result") || (errObj = cJSON_GetObjectItem(obj, "error"))) {
+                if (cJSON_GetObjectItem(obj, "result") || cJSON_GetObjectItem(obj, "error")) {
                         /* it's a response object */
                         r = validate_response(conn, obj);
                         if (r < 0)
@@ -492,10 +495,11 @@ nomem:
 }
 
 int jsonrpc_conn_reply_error(JSONRPCConnection *conn, int id, int errNum, const char *msg) {
-        cJSON *err = cJSON_CreateObject();
-        cJSON *resp;
+        cJSON *err;
+        cJSON *resp = NULL;
         int r;
 
+        err = cJSON_CreateObject();
         if (!err)
                 return -ENOMEM;
 

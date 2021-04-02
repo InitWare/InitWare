@@ -2358,7 +2358,7 @@ int manager_serialize(Manager *m, FILE *f, FDSet *fds, bool switching_root) {
 #        ifdef Use_KQProc
         kqproc_fd = fdset_put_dup(fds, m->kqproc_watch.fd);
         if (kqproc_fd < 0) {
-                r = kqproc_fd;
+                r = -errno;
                 goto finish;
         }
 
@@ -2413,10 +2413,9 @@ int manager_serialize(Manager *m, FILE *f, FDSet *fds, bool switching_root) {
                 return r;
 
 finish:
-
         cJSON_Delete(obj);
 
-        return 0;
+        return r;
 }
 
 /* deserialise the JSON serialisation object */
@@ -2493,7 +2492,7 @@ int manager_deserialise_object(Manager *m, cJSON *obj, FDSet *fds) {
 
                 r = hashmap_put(m->ptgroup_unit, grp, u);
                 if (r < 0) {
-                        log_error("Failed to insert PTGroup into hashmap: %m\n");
+                        log_error("Failed to insert PTGroup into hashmap: %s\n", strerror(-r));
                         goto finish;
                 }
 
@@ -2706,7 +2705,7 @@ int manager_distribute_fds(Manager *m, FDSet *fds) {
 
 int manager_reload(Manager *m) {
         int r, q;
-        FILE *f;
+        FILE *f = NULL;
         FDSet *fds;
 
         assert(m);
