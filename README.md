@@ -67,4 +67,5 @@ Licencing
 ---------
 
 Most of InitWare is licensed under the GNU Library GPL, version 2.1 or later,
-but some files are under other terms. See [doc/Licences.md] for details.
+but some files are under other terms. See [doc/Licences.md](doc/Licences.md)
+for details.
