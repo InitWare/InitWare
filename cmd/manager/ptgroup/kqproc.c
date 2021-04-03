@@ -83,7 +83,7 @@ int ptgroup_attach(PTGroup *grp, PTManager *ptm, pid_t pid) {
                 return 1; /* moved group, but already tracked */
 
         EV_SET(&ev, pid, EVFILT_PROC, EV_ADD, NOTE_EXIT | NOTE_TRACK, 0, NULL);
-        r = kevent(ptm->manager->kqproc_watch.fd, &ev, 1, NULL, 0, NULL);
+        r = kevent(ptm->group.manager->kqproc_watch.fd, &ev, 1, NULL, 0, NULL);
 
         if (r < 0) {
                 log_error("Failed to watch PID %lld: %m", (long long) pid);

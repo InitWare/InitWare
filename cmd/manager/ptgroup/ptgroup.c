@@ -50,12 +50,14 @@ static char *ptgroup_full_name(PTGroup *grp) {
 
 /*
  * initialise the fields of a ptgroup - frees everything but the structure
- * itself on failure
+ * itself on failure. Sets manager to parent->manager if parent is set.
  */
 static int ptgroup_init(PTGroup *grp, PTGroup *parent, const char *name) {
         grp->name = strdup(name);
         if (!grp->name)
                 goto fail;
+        if (parent)
+                grp->manager = parent->manager;
         grp->parent = parent;
         grp->full_name = ptgroup_full_name(grp);
         if (!grp->full_name)
@@ -83,6 +85,8 @@ static int ptgroup_init_from_json(PTGroup *grp, PTGroup *parent, cJSON *obj) {
         cJSON *oProc;
 
         grp->name = xcJSON_steal_valuestring(cJSON_GetObjectItem(obj, "name"));
+        if (parent)
+                grp->manager = parent->manager;
         grp->parent = parent;
         grp->full_name = xcJSON_steal_valuestring(cJSON_GetObjectItem(obj, "full_name"));
         grp->id = cJSON_GetNumberValue(cJSON_GetObjectItem(obj, "id"));
@@ -174,7 +178,7 @@ static int ptgroup_exit(PTManager *ptm, PTGroup *grp, pid_t pid) {
                                         (unsigned long) pid);
                         log_debug("ptgroup %s: removed PID %lu\n", grp->full_name, (unsigned long) pid);
                         if (ptg_is_empty_recursive(grp))
-                                manager_notify_ptgroup_empty(ptm->manager, grp);
+                                manager_notify_ptgroup_empty(grp->manager, grp);
                         return 1;
                 }
 
@@ -182,7 +186,7 @@ static int ptgroup_exit(PTManager *ptm, PTGroup *grp, pid_t pid) {
                 r = ptgroup_exit(ptm, cld, pid);
                 if (r != 0) {
                         if (ptg_is_empty_recursive(grp))
-                                manager_notify_ptgroup_empty(ptm->manager, grp);
+                                manager_notify_ptgroup_empty(grp->manager, grp);
                         return r;
                 }
         }
@@ -401,6 +405,7 @@ int ptgroup_attach_many(PTGroup *grp, PTManager *ptm, Set *pids) {
 void ptg_release(PTGroup *grp) {
         PTGroup *cld;
         Iterator i;
+        Unit *u;
 
         assert(grp);
 
@@ -411,7 +416,14 @@ void ptg_release(PTGroup *grp) {
                 ptg_release(cld);
 
         set_remove(grp->parent->groups, grp);
+        u = hashmap_remove(grp->manager->ptgroup_unit, grp);
 
+        if (u) {
+                u->ptgroup = NULL;
+                u->cgroup_realized = 0;
+        }
+
+        log_debug("ptgroup: %s released\n", grp->full_name);
         ptgroup_free(grp);
 }
 
@@ -479,7 +491,7 @@ PTManager *ptmanager_new(Manager *manager, char *name) {
         PTManager *ptm = malloc0(sizeof(PTManager));
         if (!ptm)
                 return NULL;
-        ptm->manager = manager;
+        ptm->group.manager = manager;
         if (ptgroup_init(&ptm->group, NULL, name) < 0) {
                 free(ptm);
                 return NULL;
@@ -491,7 +503,7 @@ PTManager *ptmanager_new_from_json(Manager *manager, cJSON *obj) {
         PTManager *ptm = malloc0(sizeof(PTManager));
         if (!ptm)
                 return NULL;
-        ptm->manager = manager;
+        ptm->group.manager = manager;
 
         if (ptgroup_init_from_json(&ptm->group, NULL, obj) < 0) {
                 free(ptm);
@@ -510,8 +522,8 @@ int ptmanager_exit(PTManager *ptm, pid_t pid) {
         int r = ptgroup_exit(ptm, &ptm->group, pid);
         if (!r)
                 log_warning("Exited PID %lu was not in any of our groups", (unsigned long) pid);
-        if (!hashmap_contains(ptm->manager->watch_pids1, PID_TO_PTR(pid)) &&
-            !hashmap_contains(ptm->manager->watch_pids2, PID_TO_PTR(pid)))
+        if (!hashmap_contains(ptm->group.manager->watch_pids1, PID_TO_PTR(pid)) &&
+            !hashmap_contains(ptm->group.manager->watch_pids2, PID_TO_PTR(pid)))
                 log_error("Should probably not delete in this case!"); /* TODO: ! */
         /* TODO: Should we generate a SIGCHLD event if the process is not a
          * direct child of ours? */

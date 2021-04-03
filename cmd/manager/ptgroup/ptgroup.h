@@ -52,6 +52,9 @@ typedef struct PTManager PTManager;
 typedef struct cJSON cJSON;
 
 struct PTGroup {
+        /* associated manager */
+        Manager * manager;
+
         /* unique identifier */
         unsigned int id;
 
@@ -76,7 +79,6 @@ struct PTGroup {
 
 struct PTManager {
         PTGroup group;
-        Manager *manager;
 };
 
 /**
