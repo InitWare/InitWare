@@ -63,9 +63,25 @@ following:
 - GPerf
 - M4, Awk
 
+Building is done in the typical CMake way, i.e. `cmake && make && make install`.
+
 Licencing
 ---------
 
 Most of InitWare is licensed under the GNU Library GPL, version 2.1 or later,
 but some files are under other terms. See [doc/Licences.md](doc/Licences.md)
 for details.
+
+Further reading
+---------------
+
+- [Repository Tour](https://github.com/InitWare/InitWare/wiki/Repository-Tour):
+  A brief overview of the layout of the repository.
+- [C Style Guide](doc/Style.md): The standards of style by which code in C-like
+  languages is written in InitWare.
+- [Roadmap](https://github.com/InitWare/InitWare/wiki/Roadmap):
+  Future plans for InitWare.
+- [PTGroups](https://github.com/InitWare/InitWare/wiki/PTGroups):
+  Describes PTGroups, the simple abstraction layer over the PROC filter for
+  Kernel Queues, which provides advanced (CGroups-like) process tracking on the
+  BSD ports of InitWare.
