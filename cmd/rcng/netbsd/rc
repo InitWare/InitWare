@@ -1,0 +1,81 @@
+#!/bin/sh
+#
+# $NetBSD: rc,v 1.173 2017/03/20 16:02:48 christos Exp $
+#
+
+echo "/etc/rc:"
+
+export HOME=/
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin
+umask 022
+
+. /etc/rc.subr
+. /etc/rc.conf
+_rc_conf_loaded=true
+
+# rc.subr redefines echo and printf.  Undo that here.
+unset echo ; unalias echo
+unset printf ; unalias printf
+
+if ! checkyesno rc_configured; then
+	echo "/etc/rc.conf is not configured.  Multiuser boot aborted."
+	exit 1
+fi
+
+if [ "$1" = autoboot ]; then
+	autoboot=yes
+	rc_fast=yes	# run_rc_command(): do fast booting
+fi
+
+#
+# Completely ignore INT and QUIT at the outer level.  The rc_real_work()
+# function should do something different.
+#
+trap '' INT QUIT
+
+
+RC_PID=$$
+
+#
+# Get a list of all rc.d scripts, and use rcorder to choose
+# what order to execute them.
+#
+# For testing, allow RC_FILES_OVERRIDE from the environment to
+# override this.
+#
+scripts=$(for rcd in ${rc_directories:-/etc/rc.d}; do
+	test -d ${rcd} && echo ${rcd}/*;
+done)
+files=$(rcorder -s nostart ${rc_rcorder_flags} ${scripts})
+
+if [ -n "${RC_FILES_OVERRIDE}" ]; then
+	files="${RC_FILES_OVERRIDE}"
+fi
+
+echo "Running early startup scripts"
+
+#
+# Run the scripts in order.
+#
+for _rc_elem in $files; do
+	$_rc_elem enabled
+	_rc_elem_enabled=$?
+	[ $_rc_elem = /etc/rc.d/mountcritlocal ] && break
+	 $_rc_elem start
+done
+
+
+echo "Converting rcNG scripts to InitWare unit-files"
+
+for _rc_elem in $files; do
+	if [ -z $_past_mountcritlocal ] ; then
+		[ $_rc_elem = /etc/rc.d/mountcritlocal ] &&  _past_mountcritlocal=1
+	else
+		$_rc_elem enabled && $_rc_elem start
+	fi
+done
+
+printf "Starting InitWare manager"
+mkdir -m 0755 /var/run/InitWare
+mkfifo -m 0700 /var/run/InitWare/bootdone
+/usr/local/libexec/iw.manager 

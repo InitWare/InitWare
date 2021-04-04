@@ -1,6 +1,5 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
-#pragma once
+#ifndef SOCKET_UTIL_H_
+#define SOCKET_UTIL_H_
 
 /***
   This file is part of systemd.
@@ -20,11 +19,13 @@
   You should have received a copy of the GNU Lesser General Public License
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
+/* Copyright 2021 David Mackay. */
 
-#include <net/if.h>
-#include <netinet/in.h>
+
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <net/if.h>
+#include <netinet/in.h>
 
 #include "compat.h"
 #include "macro.h"
@@ -58,6 +59,11 @@
 #endif
 
 #ifndef Have_socket_struct_ucred
+/**
+ * A replica of Linux's struct ucred (an entirely inappropriate name).
+ * This is reasonable conjunction of the socket peer/sender credentials we
+ * expect all supported platforms to offer us.
+ */
 struct socket_ucred {
         pid_t pid;
         uid_t uid;
@@ -108,29 +114,29 @@ int socket_address_verify(const SocketAddress *a) _pure_;
 bool socket_address_can_accept(const SocketAddress *a) _pure_;
 
 int socket_address_listen(
-                const SocketAddress *a,
-                int backlog,
-                SocketAddressBindIPv6Only only,
-                const char *bind_to_device,
-                bool free_bind,
-                bool transparent,
-                mode_t directory_mode,
-                mode_t socket_mode,
-                const char *label,
-                int *ret);
+        const SocketAddress *a,
+        int backlog,
+        SocketAddressBindIPv6Only only,
+        const char *bind_to_device,
+        bool free_bind,
+        bool transparent,
+        mode_t directory_mode,
+        mode_t socket_mode,
+        const char *label,
+        int *ret);
 
 bool socket_address_is(const SocketAddress *a, const char *s, int type);
 bool socket_address_is_netlink(const SocketAddress *a, const char *s);
 
 bool socket_address_matches_fd(const SocketAddress *a, int fd);
 
-int make_socket_fd(const char* address, int flags);
+int make_socket_fd(const char *address, int flags);
 
 bool socket_address_equal(const SocketAddress *a, const SocketAddress *b) _pure_;
 
-const char* socket_address_get_path(const SocketAddress *a);
+const char *socket_address_get_path(const SocketAddress *a);
 
-const char* socket_address_bind_ipv6_only_to_string(SocketAddressBindIPv6Only b) _const_;
+const char *socket_address_bind_ipv6_only_to_string(SocketAddressBindIPv6Only b) _const_;
 SocketAddressBindIPv6Only socket_address_bind_ipv6_only_from_string(const char *s) _pure_;
 
 #ifdef Have_linux_netlink_h
@@ -139,3 +145,5 @@ int netlink_family_from_string(const char *s);
 #endif
 
 bool socket_ipv6_is_supported(void);
+
+#endif

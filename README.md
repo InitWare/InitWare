@@ -19,7 +19,8 @@ by alternative means.
 
 InitWare is differentiated from systemd by its superior portability, defined
 project scope, and a modular approach to questions of architecture.
-The [Roadmap](wiki/Roadmap) details some future plans.
+The [Roadmap](wiki/Roadmap) details some plans for the future development of
+the InitWare Suite.
 
 
 Requirements
@@ -70,7 +71,10 @@ Licencing
 
 Most of InitWare is licensed under the GNU Library GPL, version 2.1 or later,
 but some files are under other terms. See [doc/Licences.md](doc/Licences.md)
-for details.
+for details. In particular, where a file does not implement any algorithm or
+technology eligible for copyright (e.g. where the functionality is basic and
+obviously implementable only in one way), these are released explicitly into
+the public domain, as copyright would be anyway uneforceable.
 
 Further reading
 ---------------
@@ -85,3 +89,10 @@ Further reading
   Describes PTGroups, the simple abstraction layer over the PROC filter for
   Kernel Queues, which provides advanced (CGroups-like) process tracking on the
   BSD ports of InitWare.
+- [Porting Notes](https://github.com/InitWare/InitWare/wiki/Porting-Notes):
+  Notes on porting InitWare, and details of how the initial port (from GNU/Linux
+  to NetBSD) was done.
+<!-- - [Changes](https://github.com/InitWare/InitWare/wiki/Changes):
+  Enumerates in summary significant changes made to InitWare. A page worth
+  reading for anyone who wants to know in what respects InitWare differs from
+  systemd.-->
