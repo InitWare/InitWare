@@ -24,7 +24,7 @@ released into the Public Domain.
 
 #include "compat.h"
 
-int main(int argc, char **argv) {
+int main(int argc, char *argv[]) {
         int fd;
         char retcode;
         int r;

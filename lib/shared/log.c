@@ -646,6 +646,27 @@ int log_meta(
         return r;
 }
 
+int log_meta_errno(
+        int level,
+        int error,
+        const char*file,
+        int line,
+        const char *func,
+        const char *format, ...) {
+
+        int r;
+        va_list ap;
+
+        PROTECT_ERRNO;
+        errno = error;
+
+        va_start(ap, format);
+        r = log_metav(level, file, line, func, format, ap);
+        va_end(ap);
+
+        return -error;
+}
+
 int log_metav_object(
         int level,
         const char*file,

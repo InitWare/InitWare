@@ -1,6 +1,5 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
-#pragma once
+#ifndef UTIL_H_
+#define UTIL_H_
 
 /***
   This file is part of systemd.
@@ -20,6 +19,10 @@
   You should have received a copy of the GNU Lesser General Public License
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
+/*
+ * Copyright 2021 David Mackay. All rights reserved.
+ */
+
 
 #include <dirent.h>
 #include <fcntl.h>
@@ -77,7 +80,14 @@ union dirent_storage {
 size_t page_size(void);
 #define PAGE_ALIGN(l) ALIGN_TO((l), page_size())
 
+/**
+ * Are strings \p a and \p b equal?
+ */
 #define streq(a,b) (strcmp((a),(b)) == 0)
+/**
+ * Are up to the first \p n characters of strings \p a and \p b equal? Stops
+ * comparing after the first NUL byte in either string.
+ */
 #define strneq(a, b, n) (strncmp((a), (b), (n)) == 0)
 #define strcaseeq(a,b) (strcasecmp((a),(b)) == 0)
 #define strncaseeq(a, b, n) (strncasecmp((a), (b), (n)) == 0)
@@ -192,6 +202,13 @@ static inline int safe_atoi64(const char *s, int64_t *ret_i) {
 char *split(const char *c, size_t *l, const char *separator, char **state);
 char *split_quoted(const char *c, size_t *l, char **state);
 
+/**
+ * Do for each whitespace-separated word in \p s, each iteration storing the
+ * word \p word and its length in \p length, while using \p state for temporary
+ * state tracking.
+ *
+ * Does not mutate \p s.
+ */
 #define FOREACH_WORD(word, length, s, state)                            \
         for ((state) = NULL, (word) = split((s), &(length), WHITESPACE, &(state)); (word); (word) = split((s), &(length), WHITESPACE, &(state)))
 
@@ -780,4 +797,6 @@ union file_handle_union {
   struct file_handle handle;
   char padding[sizeof(struct file_handle) + MAX_HANDLE_SZ];
 };
+#endif
+
 #endif

@@ -77,6 +77,16 @@ int log_meta(
                 const char *func,
                 const char *format, ...) _printf_attr_(5,6);
 
+
+/** Logs, then returns -error. */
+int log_meta_errno(
+                int level, 
+                int error,
+                const char*file,
+                int line,
+                const char *func,
+                const char *fmt, ...) _printf_attr_(6, 7);
+
 int log_metav(
                 int level,
                 const char*file,
@@ -143,6 +153,12 @@ _noreturn_ void log_assert_failed_unreachable(
 #define log_notice(...)  log_meta(LOG_NOTICE,  __FILE__, __LINE__, __func__, __VA_ARGS__)
 #define log_warning(...) log_meta(LOG_WARNING, __FILE__, __LINE__, __func__, __VA_ARGS__)
 #define log_error(...)   log_meta(LOG_ERR,     __FILE__, __LINE__, __func__, __VA_ARGS__)
+
+#define log_debug_errno(error, ...)   log_meta_errno(LOG_DEBUG, error, __VA_ARGS__)
+#define log_info_errno(error, ...)    log_meta_errno(LOG_INFO, error, __VA_ARGS__)
+#define log_notice_errno(error, ...)  log_meta_errno(LOG_NOTICE, error, __VA_ARGS__)
+#define log_warning_errno(error, ...) log_meta_errno(LOG_WARNING, error, __VA_ARGS__)
+#define log_error_errno(error, ...)   log_meta_errno(LOG_ERR, error, __VA_ARGS__)
 
 #define log_struct(level, ...) log_struct_internal(level, __FILE__, __LINE__, __func__, __VA_ARGS__)
 

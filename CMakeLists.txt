@@ -200,7 +200,7 @@ set(RelDir_PkgLib "lib/${PkgDirName}" CACHE STRING
 "Relative to the install prefix, the directory for storing \
 system-provided, read-only InitWare configuration and unit0files. ")
 
-set(RelDir_PkgLibExecDir "${CMAKE_INSTALL_LIBEXECDIR}/${PkgDirName}"
+set(RelDir_PkgLibExec "${CMAKE_INSTALL_LIBEXECDIR}/${PkgDirName}"
   CACHE STRING
   "Relative to the install prefix, the directory for storing executables not \
 intended for running by the user, e.g. agents and generators.")
@@ -273,16 +273,18 @@ set(USER_GENERATOR_PATH ${usergeneratordir})
 
 # binary paths
 set(SYSTEMCTL_BINARY_PATH ${CMAKE_INSTALL_FULL_BINDIR}/iwctl)
-set(SYSTEMD_BINARY_PATH ${CMAKE_INSTALL_FULL_LIBEXECDIR}/iw.manager)
-set(SYSTEMD_CGROUP_AGENT_AGENT ${CMAKE_INSTALL_FULL_LIBEXECDIR}/iw.cgroups-agent)
-set(SYSTEMD_SHUTDOWN_BINARY_PATH ${CMAKE_INSTALL_FULL_LIBEXECDIR}/iw.shutdown)
-set(SYSTEMD_SLEEP_BINARY_PATH ${CMAKE_INSTALL_FULL_LIBEXECDIR}/iw.sleep)
+set(SYSTEMD_BINARY_PATH ${AbsDir_PkgLibExec}/iw.manager)
+set(SYSTEMD_CGROUP_AGENT_AGENT ${AbsDir_PkgLibExec}/iw.cgroups-agent)
+set(SYSTEMD_SHUTDOWN_BINARY_PATH ${AbsDir_PkgLibExec}/iw.shutdown)
+set(SYSTEMD_SLEEP_BINARY_PATH ${AbsDir_PkgLibExec}/iw.sleep)
 set(SYSTEMD_TTY_ASK_PASSWORD_AGENT_BINARY_PATH
-  ${CMAKE_INSTALL_FULL_LIBEXECDIR}/iw.tty-ask-password-agent)
+  ${AbsDir_PkgLibExec}/iw.tty-ask-password-agent)
 set(SYSTEMD_STDIO_BRIDGE_BINARY_PATH
-  ${CMAKE_INSTALL_FULL_LIBEXECDIR}/iw.stdio-bridge)
+  ${AbsDir_PkgLibExec}/iw.stdio-bridge)
 #todo: find
 set(POLKIT_AGENT_BINARY_PATH ${CMAKE_INSTALL_FULL_BINDIR}/pkttyagent)
+
+set(BinPath_Runrcng ${AbsDir_PkgLibExec}/runrcng.sh)
 
 #-------------------------------------------------------------------------------
 # actual building commands
@@ -297,6 +299,8 @@ target_include_directories(initware-cjson PUBLIC vendor/cJSON)
 add_subdirectory(lib)
 add_subdirectory(cmd)
 add_subdirectory(share)
+
+configure_file(lib/compat/head/compat.h.in lib/compat/head/compat.h)
 
 #-------------------------------------------------------------------------------
 # display enabled options

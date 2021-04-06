@@ -19,7 +19,9 @@
   You should have received a copy of the GNU Lesser General Public License
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
-/* Copyright 2021 David Mackay. */
+/*
+ * Copyright 2021 David Mackay. All rights reserved.
+ */
 
 
 #include <sys/socket.h>

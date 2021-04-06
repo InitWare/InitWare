@@ -81,6 +81,8 @@ Further reading
 
 - [Repository Tour](https://github.com/InitWare/InitWare/wiki/Repository-Tour):
   A brief overview of the layout of the repository.
+- [General Style Guide](doc/Style.md): Standards of style by which code and
+  documentation alike are written in InitWare.
 - [C Style Guide](doc/Style.md): The standards of style by which code in C-like
   languages is written in InitWare.
 - [Roadmap](https://github.com/InitWare/InitWare/wiki/Roadmap):
@@ -90,8 +92,12 @@ Further reading
   Kernel Queues, which provides advanced (CGroups-like) process tracking on the
   BSD ports of InitWare.
 - [Porting Notes](https://github.com/InitWare/InitWare/wiki/Porting-Notes):
-  Notes on porting InitWare, and details of how the initial port (from GNU/Linux
-  to NetBSD) was done.
+  Informal notes on how InitWare's initial port (from GNU/Linux to NetBSD) was
+  carried out.
+- [Contributors' Study Guide](https://github.com/InitWare/InitWare/wiki/Contributors'-Study-Guide):
+  A short reading list mainly focused on problems of service management on
+  Unix-like systems, written with potential contributors in mind.
+
 <!-- - [Changes](https://github.com/InitWare/InitWare/wiki/Changes):
   Enumerates in summary significant changes made to InitWare. A page worth
   reading for anyone who wants to know in what respects InitWare differs from
