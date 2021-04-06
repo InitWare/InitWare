@@ -56,8 +56,12 @@ static struct kinfo_proc *get_pid_info(pid_t pid) {
                 return NULL;
         else {
                 int cnt;
-                struct kinfo_proc *info = kvm_getprocs(g_kd, KERN_PROC_PID, pid, &cnt);
-                assert(cnt == 1);
+                struct kinfo_proc *info;
+
+                info = kvm_getprocs(g_kd, KERN_PROC_PID, pid, &cnt);
+                if (!cnt) /* maybe already wait()'d on */
+                        return NULL;
+
                 return info;
         }
 }
@@ -85,8 +89,13 @@ int get_process_state(pid_t pid) {
 
 int get_process_comm(pid_t pid, char **name) {
         struct kinfo_proc *info = get_pid_info(pid);
-        if (!info)
-                return -errno;
+        if (!info) {
+                *name = strdup("invalid-pid");
+                if (!*name)
+                        return -ENOMEM;
+                else
+                        return -errno;
+        }
         *name = strdup(info->p_comm);
         if (!*name)
                 return -ENOMEM;

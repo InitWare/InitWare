@@ -42,7 +42,5 @@ int main(int argc, char *argv[]) {
         if (r < 0)
                 err(EXIT_FAILURE, "Failed to read from named pipe at path %s", argv[1]);
 
-        printf("retcode: %d\n", retcode);
-
         return retcode;
 }

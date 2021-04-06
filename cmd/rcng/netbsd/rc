@@ -64,18 +64,15 @@ for _rc_elem in $files; do
 	 $_rc_elem start
 done
 
-
-echo "Converting rcNG scripts to InitWare unit-files"
-
-for _rc_elem in $files; do
-	if [ -z $_past_mountcritlocal ] ; then
-		[ $_rc_elem = /etc/rc.d/mountcritlocal ] &&  _past_mountcritlocal=1
-	else
-		$_rc_elem enabled && $_rc_elem start
-	fi
-done
-
 printf "Starting InitWare manager"
 mkdir -m 0755 /var/run/InitWare
-mkfifo -m 0700 /var/run/InitWare/bootdone
-/usr/local/libexec/iw.manager 
+rm -f /var/run/bootdone
+mkfifo -m 0700 /var/run/bootdone
+
+export LD_LIBRARY_PATH=/usr/local/lib:/usr/pkg/lib
+
+exec /usr/local/libexec/InitWare/iw.manager --system  &
+
+echo "Waiting for boot to finish..."
+/usr/local/libexec/InitWare/wait4pipe /var/run/bootdone
+echo "Boot done, exiting /etc/rc"

@@ -1072,8 +1072,10 @@ static int bus_init_private(Manager *m) {
         if (m->running_as == SYSTEMD_SYSTEM) {
 
                 /* We want the private bus only when running as init */
+#if 0 /* no we don't */
                 if (getpid() != 1)
                         return 0;
+#endif
 
                 unlink(AbsPath_System_Private_Bus);
                 m->private_bus = dbus_server_listen("unix:path=" AbsPath_System_Private_Bus, &error);

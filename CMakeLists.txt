@@ -186,12 +186,16 @@ set(PkgDirName "InitWare")
 endif()
 
 # Paths, either absolute ("full") or relative ("rel")
-set(AbsDir_PkgRunState "${Default_AbsDir_RunState}/${PkgDirName}"
+set(AbsDir_RunState "${Default_AbsDir_RunState}"
+  CACHE STRING
+  "Full path to the system runtime state directory, e.g. /var/run")
+
+set(AbsDir_PkgRunState "${AbsDir_RunState}/${PkgDirName}"
   CACHE STRING
   "Full path to the directory in which to store the run-time state of InitWare,
 e.g. /var/run/InitWare")
 
-set(AbsDir_User_RunStateBase "${Default_AbsDir_RunState}/user"
+set(AbsDir_User_RunStateBase "${AbsDir_RunState}/user"
   CACHE STRING
   "Full path to the directory in which to generate subdirectories for runtime
 state of each logged-in user, e.g. /var/run/user")
@@ -338,5 +342,6 @@ FShow("Prefix" CMAKE_INSTALL_PREFIX)
 FShow("  -> InitWare-internal executables" AbsDir_PkgLibExec)
 FShow("  -> System-provided InitWare data" AbsDir_PkgLib)
 FShow("  -> Node-specific InitWare data" AbsDir_PkgSysConf)
+FShow("System runtime state" AbsDir_RunState)
 FShow("User runtime state base" AbsDir_User_RunStateBase)
 FShow("InitWare runtime state" AbsDir_PkgRunState)

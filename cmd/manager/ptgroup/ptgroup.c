@@ -521,10 +521,10 @@ PTGroup *ptmanager_find_ptg_by_id(PTManager *ptm, int id) {
 int ptmanager_exit(PTManager *ptm, pid_t pid) {
         int r = ptgroup_exit(ptm, &ptm->group, pid);
         if (!r)
-                log_warning("Exited PID %lu was not in any of our groups", (unsigned long) pid);
+                log_debug("Exited PID %lu was not in any of our groups", (unsigned long) pid);
         if (!hashmap_contains(ptm->group.manager->watch_pids1, PID_TO_PTR(pid)) &&
             !hashmap_contains(ptm->group.manager->watch_pids2, PID_TO_PTR(pid)))
-                log_error("Should probably not delete in this case!"); /* TODO: ! */
+                log_debug("Should probably not delete in this case!"); /* TODO: ! */
         /* TODO: Should we generate a SIGCHLD event if the process is not a
          * direct child of ours? */
         return r;
@@ -540,7 +540,7 @@ int ptmanager_fork(PTManager *ptm, pid_t ppid, pid_t pid) {
 
         r = ptgroup_fork(&ptm->group, ppid, pid);
         if (!r)
-                log_warning(
+                log_debug(
                         "Newly forked PID %lu's parent %lu was not in any of our groups",
                         (unsigned long) ppid,
                         (unsigned long) pid);

@@ -528,7 +528,7 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
         m->current_job_id = 1; /* start as id #1, so that we can leave #0 around as "null-like" value */
 
         if (running_as == SYSTEMD_SYSTEM) {
-                m->runtime_state_dir = strdup(AbsDir_PkgRunState);
+                m->runtime_state_dir = strdup(AbsDir_RunState);
                 if (!m->runtime_state_dir) {
                         r = ENOMEM;
                         goto fail;
@@ -570,7 +570,7 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
                 log_error(
                         "Failed to create InitWare runtime state directory %s: %s",
                         m->iw_state_dir,
-                        strerror(r));
+                        strerror(-r));
                 goto fail;
         }
 
@@ -1730,12 +1730,17 @@ static int manager_process_signal_fd(Manager *m) {
                                 break;
 
                         case 24:
+#if 0
                                 if (m->running_as == SYSTEMD_USER) {
+#endif
                                         m->exit_code = MANAGER_EXIT;
                                         return 0;
+
+#if 0
                                 }
 
                                 /* This is a nop on init */
+#endif /* no it isn't */
                                 break;
 
                         case 26:

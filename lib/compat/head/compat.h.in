@@ -61,9 +61,11 @@
 
 #define DISTRIBUTION "@DISTRIBUTION@"
 
-#define AbsDir_User_RunStateBase "@AbsDir_User_RunStateBase@"
-#define AbsDir_PkgRunState "@AbsDirs_PkgRunState@"
+#define AbsDir_RunState "@AbsDir_RunState@"
+#define AbsDir_PkgRunState "@AbsDir_PkgRunState@"
 #define AbsDir_PkgSysConf "@AbsDir_PkgSysConf@"
+#define AbsDir_User_RunStateBase "@AbsDir_User_RunStateBase@"
+
 #define PkgDirName "@PkgDirName@"
 
 #define SYSTEM_CONFIG_FILE "@SYSTEM_CONFIG_FILE@"

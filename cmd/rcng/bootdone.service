@@ -1,0 +1,8 @@
+[Unit]
+Wants=LOGIN.service
+After=LOGIN.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c "/usr/bin/printf '\0' > /var/run/bootdone"

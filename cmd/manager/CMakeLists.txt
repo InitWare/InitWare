@@ -56,4 +56,4 @@ target_link_libraries(manager-core initware-shared initware-units initware-label
 add_executable(iw.manager main.c)
 target_link_libraries(iw.manager manager-core)
 
-install(TARGETS iw.manager RUNTIME DESTINATION ${AbsDir_PkgLibExec})
+install(TARGETS iw.manager RUNTIME DESTINATION ${RelDir_PkgLibExec})
