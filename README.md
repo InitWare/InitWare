@@ -31,7 +31,7 @@ The following platforms are supported:
 - DragonFly BSD (5.8+) as user manager.
 - FreeBSD (13.0+) as user manager.
 - GNU/Linux (3.6+) as system or user manager.
-- NetBSD (8.0+) as user manager.
+- NetBSD (8.0+) as systme or user manager.
 
 We hope to support (recent versions of) OpenBSD, and possibly also Illumos, in
 the near future.
@@ -63,6 +63,9 @@ following:
 - CMake 3.9+
 - GPerf
 - M4, Awk
+
+For building HTML documentation, OpenBSD's [ManDoc](https://mandoc.bsd.lv) is
+required.
 
 Building is done in the typical CMake way, i.e. `cmake && make && make install`.
 

@@ -9,7 +9,7 @@
           xmlns:html="http://www.w3.org/1999/xhtml"
           xmlns:db="http://docbook.org/ns/docbook">
   <info>
-    <date>April 7, 2021</date>
+    <date>April 8, 2021</date>
   </info>
 
   <refmeta>
@@ -26,7 +26,7 @@
   <refnamediv>
     <refname>iw_rcng</refname>
 
-    <refpurpose>Mewburn RC compatibility subsystem for InitWare</refpurpose>
+    <refpurpose>Mewburn RC compatibility for InitWare</refpurpose>
   </refnamediv>
 
   <refsection>
@@ -39,89 +39,155 @@
   <refsection>
     <title>Description</title>
 
-    <para>The InitWare Suite of Middleware is supplied with a compatibility
-    subsystem for Mewburn RC on those platforms for which it is the native RC
-    system. The compatibility subsystem is principally composed of a special
+    <para>DragonFlyBSD, FreeBSD, and NetBSD use <productname>Mewburn
+    RC</productname> as their native service management scheme, and InitWare
+    releases for those platforms include a compatibility layer for the Mewburn
+    RC system. RC scripts are converted into InitWare .service transient units
+    and run (if enabled) at boot. The generated units retain dependency
+    specifications and are first-class units, and may be overrided by
+    explicitly defined units or drop-ins.</para>
+
+    <para>TTY monitors are run as normal according to the /etc/ttys
+    file.</para>
+  </refsection>
+
+  <refsection>
+    <title>Implementation</title>
+
+    <para>The compatibility subsystem is principally composed of a special
     Stage 1 and Stage 3 Init (see <citerefentry>
         <refentrytitle>iw_bootstrap</refentrytitle>
 
         <manvolnum>7</manvolnum>
-      </citerefentry>) and a generator (see <citerefentry>
+      </citerefentry>) and a generator (as described above; see <citerefentry>
         <refentrytitle>iw_generator</refentrytitle>
 
         <manvolnum>7</manvolnum>
-      </citerefentry> to convert Mewburn RC scripts to InitWare
-    unitfiles.</para>
+      </citerefentry> for information on generators in general) to convert
+    Mewburn RC scripts to InitWare unitfiles.</para>
 
-    <para>Note that the native BSD <command>/sbin/init</command> is not
-    replaced. Instead, the InitWare manager is hooked into the system through
-    modified versions of the <command>/etc/rc</command> and
-    <command>/etc/rc.shutdown</command> scripts.</para>
-  </refsection>
+    <para>Note that the native BSD <citerefentry>
+        <refentrytitle>init</refentrytitle>
 
-  <refsection>
-    <title>Stage 1 Init</title>
+        <manvolnum>8</manvolnum>
+      </citerefentry> daemon <command>/sbin/init</command> is not replaced.
+    Instead, the InitWare manager is hooked into the system through modified
+    versions of the <command>/etc/rc</command> and
+    <command>/etc/rc.shutdown</command> scripts. /etc/ttys thus continues to
+    work exactly as is usual of BSD systems, since it's the responsibility of
+    the BSD init daemon.</para>
 
-    <para>Stage 1 Init is carried out thus:</para>
+    <refsection>
+      <title>RC script generation</title>
 
-    <itemizedlist>
-      <listitem>
-        <para>Kernel launches <command>/sbin/init</command>, the traditional
-        BSD init daemon, as is usual for a traditional UNIX system.</para>
-      </listitem>
+      <para>Generated unit files are created thus:</para>
 
-      <listitem>
-        <para><command>/sbin/init</command> invokes
-        <command>/etc/rc</command>, a shell script which InitWare replaced
-        with a reduced version during the installation process. The flow of
-        control passes to that script.</para>
-      </listitem>
+      <itemizedlist>
+        <listitem>
+          <para><constant>PROVIDE</constant> entries in the RC script are
+          converted into unit aliases.</para>
+        </listitem>
 
-      <listitem>
-        <para>InitWare's reduced <command>/etc/rc</command> runs in sequence
-        (according to an ordering determined by <citerefentry>
-            <refentrytitle>rcorder</refentrytitle>
+        <listitem>
+          <para><constant>REQUIRE</constant> entries are converted into unit
+          Wants= and After= dependencies.</para>
+        </listitem>
 
-            <manvolnum>8</manvolnum>
-          </citerefentry>) each RC script until it has executed the RC script
-        which completes the tasks required of Stage 1 Init (see <citerefentry>
-            <refentrytitle>iw_bootstrap</refentrytitle>
+        <listitem>
+          <para><constant>BEFORE</constant> entries are converted into unit
+          Before= dependencies, and the generated unit is installed into the
+          <filename>.wants</filename> drop-in folder of each target
+          unit</para>
+        </listitem>
 
-            <manvolnum>7</manvolnum>
-          </citerefentry>). On NetBSD, this is the
-        <command>mountcritlocal</command> RC script; on FreeBSD and DragonFly
-        BSD, <command>DISKS</command>.</para>
-      </listitem>
+        <listitem>
+          <para>If the RC script is enabled, the unit is added as a Wants= and
+          After= dependency of <filename>default.target</filename>, and thus
+          automatically started on boot.</para>
+        </listitem>
+      </itemizedlist>
+    </refsection>
 
-      <listitem>
-        <para>The InitWare manager <citerefentry>
-            <refentrytitle>iw.manager</refentrytitle>
+    <refsection>
+      <title>Stage 1 Init</title>
 
-            <manvolnum>8</manvolnum>
-          </citerefentry> is launched as a background process. At this point,
-        Stage 1 Init is essentially complete. However,
-        <command>/etc/rc</command> doesn't exit yet.</para>
-      </listitem>
+      <para>Stage 1 Init is carried out thus:</para>
 
-      <listitem>
-        <para><command>/etc/rc</command> now launches
-        <command>wait4pipe</command>, which waits for a byte to be written to
-        the named pipe <filename>/var/run/bootdone</filename>. The InitWare
-        special unit <filename>bootdone.service</filename> writes to that pipe
-        after either the success or failure of
-        <filename>LOGIN.service</filename> (a no-op RC script which depends on
-        all scripts which should run before system login becomes
-        possible).</para>
-      </listitem>
+      <itemizedlist>
+        <listitem>
+          <para>The BSD kernel launches <command>/sbin/init</command>, the
+          traditional BSD <citerefentry>
+              <refentrytitle>init</refentrytitle>
 
-      <listitem>
-        <para><command>wait4pipe</command> having exited,
-        <command>/etc/rc</command> completes execution and exits.
-        <command>/sbin/init</command> now reads
-        <filename>/etc/ttys</filename>, launching <command>getty</command>
-        instances on all terminals listed therein.</para>
-      </listitem>
-    </itemizedlist>
+              <manvolnum>8</manvolnum>
+            </citerefentry> daemon.</para>
+        </listitem>
+
+        <listitem>
+          <para><command>init</command> invokes <command>/etc/rc</command>,
+          the Run Control<citerefentry>
+              <refentrytitle>rc</refentrytitle>
+
+              <manvolnum>8</manvolnum>
+            </citerefentry> shell script. The default script supplied with the
+          BSD distribution is replaced with a modified script during the
+          InitWare installation process.</para>
+        </listitem>
+
+        <listitem>
+          <para>InitWare's modified <command>rc</command> runs early startup
+          scripts.</para>
+
+          <para>Each Mewburn RC script is run in sequence (according to an
+          ordering determined by <citerefentry>
+              <refentrytitle>rcorder</refentrytitle>
+
+              <manvolnum>8</manvolnum>
+            </citerefentry>) up until the RC script which completes the tasks
+          required of Stage 1 Init (see <citerefentry>
+              <refentrytitle>iw_bootstrap</refentrytitle>
+
+              <manvolnum>7</manvolnum>
+            </citerefentry>). On NetBSD, this is the
+          <command>mountcritlocal</command> RC script; on FreeBSD and
+          DragonFly BSD, <command>DISKS</command>.</para>
+        </listitem>
+
+        <listitem>
+          <para>The InitWare manager <citerefentry>
+              <refentrytitle>iw.manager</refentrytitle>
+
+              <manvolnum>8</manvolnum>
+            </citerefentry> is launched as a background process. At this
+          point, Stage 1 Init is essentially complete. However,
+          <command>rc</command> doesn't exit yet.</para>
+        </listitem>
+
+        <listitem>
+          <para><command>rc</command> now launches
+          <command>wait4pipe</command>, which waits for a byte to be written
+          to the named pipe <filename>/var/run/bootdone</filename>.</para>
+        </listitem>
+
+        <listitem>
+          <para>The InitWare special unit
+          <filename>bootdone.service</filename> writes to
+          <filename>/var/run/bootdone</filename> after either the success or
+          failure of <filename>LOGIN.service</filename> (the corresponding
+          unit to a no-op RC script, <filename>/etc/rc.d/LOGIN</filename>,
+          which depends on all scripts which should run before system login
+          becomes possible).</para>
+        </listitem>
+
+        <listitem>
+          <para><command>wait4pipe</command> having exited,
+          <command>/etc/rc</command> completes execution and exits.
+          <command>/sbin/init</command> now reads
+          <filename>/etc/ttys</filename>, launching <command>getty</command>
+          instances on all terminals listed therein.</para>
+        </listitem>
+      </itemizedlist>
+    </refsection>
   </refsection>
 
   <refsection>

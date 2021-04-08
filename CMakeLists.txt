@@ -300,6 +300,7 @@ target_include_directories(internal INTERFACE common head head/systemd)
 add_library(initware-cjson vendor/cJSON/cJSON.c)
 target_include_directories(initware-cjson PUBLIC vendor/cJSON)
 
+add_subdirectory(doc/manual)
 add_subdirectory(lib)
 add_subdirectory(cmd)
 add_subdirectory(share)

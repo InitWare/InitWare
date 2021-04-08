@@ -1,3 +1,6 @@
 [submodule "vendor/cJSON"]
 	path = vendor/cJSON
 	url = ../cJSON
+[submodule "vendor/docbook2mdoc"]
+	path = vendor/docbook2mdoc
+	url = ../docbook2mdoc.git
