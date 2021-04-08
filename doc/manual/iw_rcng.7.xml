@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<refentry version="5.1" xmlns="http://docbook.org/ns/docbook"
+          xmlns:xlink="http://www.w3.org/1999/xlink"
+          xmlns:xila="http://www.w3.org/2001/XInclude/local-attributes"
+          xmlns:xi="http://www.w3.org/2001/XInclude"
+          xmlns:trans="http://docbook.org/ns/transclusion"
+          xmlns:svg="http://www.w3.org/2000/svg"
+          xmlns:m="http://www.w3.org/1998/Math/MathML"
+          xmlns:html="http://www.w3.org/1999/xhtml"
+          xmlns:db="http://docbook.org/ns/docbook">
+  <info>
+    <date>April 7, 2021</date>
+  </info>
+
+  <refmeta>
+    <refentrytitle>iw_rcng</refentrytitle>
+
+    <manvolnum>7</manvolnum>
+
+    <refmiscinfo class="manual">Standards, Environments, Macros, Character
+    Sets, and Miscellany.</refmiscinfo>
+
+    <refmiscinfo class="source">InitWare</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>iw_rcng</refname>
+
+    <refpurpose>Mewburn RC compatibility subsystem for InitWare</refpurpose>
+  </refnamediv>
+
+  <refsection>
+    <title>Availability</title>
+
+    <para><constant>Plat_DragonFlyBSD</constant>,
+    <constant>Plat_FreeBSD</constant>, <constant>Plat_NetBSD</constant></para>
+  </refsection>
+
+  <refsection>
+    <title>Description</title>
+
+    <para>The InitWare Suite of Middleware is supplied with a compatibility
+    subsystem for Mewburn RC on those platforms for which it is the native RC
+    system. The compatibility subsystem is principally composed of a special
+    Stage 1 and Stage 3 Init (see <citerefentry>
+        <refentrytitle>iw_bootstrap</refentrytitle>
+
+        <manvolnum>7</manvolnum>
+      </citerefentry>) and a generator (see <citerefentry>
+        <refentrytitle>iw_generator</refentrytitle>
+
+        <manvolnum>7</manvolnum>
+      </citerefentry> to convert Mewburn RC scripts to InitWare
+    unitfiles.</para>
+
+    <para>Note that the native BSD <command>/sbin/init</command> is not
+    replaced. Instead, the InitWare manager is hooked into the system through
+    modified versions of the <command>/etc/rc</command> and
+    <command>/etc/rc.shutdown</command> scripts.</para>
+  </refsection>
+
+  <refsection>
+    <title>Stage 1 Init</title>
+
+    <para>Stage 1 Init is carried out thus:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>Kernel launches <command>/sbin/init</command>, the traditional
+        BSD init daemon, as is usual for a traditional UNIX system.</para>
+      </listitem>
+
+      <listitem>
+        <para><command>/sbin/init</command> invokes
+        <command>/etc/rc</command>, a shell script which InitWare replaced
+        with a reduced version during the installation process. The flow of
+        control passes to that script.</para>
+      </listitem>
+
+      <listitem>
+        <para>InitWare's reduced <command>/etc/rc</command> runs in sequence
+        (according to an ordering determined by <citerefentry>
+            <refentrytitle>rcorder</refentrytitle>
+
+            <manvolnum>8</manvolnum>
+          </citerefentry>) each RC script until it has executed the RC script
+        which completes the tasks required of Stage 1 Init (see <citerefentry>
+            <refentrytitle>iw_bootstrap</refentrytitle>
+
+            <manvolnum>7</manvolnum>
+          </citerefentry>). On NetBSD, this is the
+        <command>mountcritlocal</command> RC script; on FreeBSD and DragonFly
+        BSD, <command>DISKS</command>.</para>
+      </listitem>
+
+      <listitem>
+        <para>The InitWare manager <citerefentry>
+            <refentrytitle>iw.manager</refentrytitle>
+
+            <manvolnum>8</manvolnum>
+          </citerefentry> is launched as a background process. At this point,
+        Stage 1 Init is essentially complete. However,
+        <command>/etc/rc</command> doesn't exit yet.</para>
+      </listitem>
+
+      <listitem>
+        <para><command>/etc/rc</command> now launches
+        <command>wait4pipe</command>, which waits for a byte to be written to
+        the named pipe <filename>/var/run/bootdone</filename>. The InitWare
+        special unit <filename>bootdone.service</filename> writes to that pipe
+        after either the success or failure of
+        <filename>LOGIN.service</filename> (a no-op RC script which depends on
+        all scripts which should run before system login becomes
+        possible).</para>
+      </listitem>
+
+      <listitem>
+        <para><command>wait4pipe</command> having exited,
+        <command>/etc/rc</command> completes execution and exits.
+        <command>/sbin/init</command> now reads
+        <filename>/etc/ttys</filename>, launching <command>getty</command>
+        instances on all terminals listed therein.</para>
+      </listitem>
+    </itemizedlist>
+  </refsection>
+
+  <refsection>
+    <title>See Also</title>
+
+    <para><citerefentry>
+        <refentrytitle>iw_bootstrap</refentrytitle>
+
+        <manvolnum>7</manvolnum>
+      </citerefentry></para>
+  </refsection>
+</refentry>
