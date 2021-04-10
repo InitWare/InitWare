@@ -30,8 +30,9 @@ The following platforms are supported:
 
 - DragonFly BSD (5.8+) as user manager.
 - FreeBSD (13.0+) as user manager.
-- GNU/Linux (3.6+) as system or user manager.
-- NetBSD (8.0+) as systme or user manager.
+- GNU/Linux (3.6+) as system or user manager. n.b. GNU/Linux support is complete
+  but not yet set up to build; this will be corrected later.
+- NetBSD (8.0+) as system or user manager.
 
 We hope to support (recent versions of) OpenBSD, and possibly also Illumos, in
 the near future.
