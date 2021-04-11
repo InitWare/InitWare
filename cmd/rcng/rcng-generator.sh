@@ -63,8 +63,6 @@ if [ -n "${RC_FILES_OVERRIDE}" ]; then
 	files="${RC_FILES_OVERRIDE}"
 fi
 
-# echo "Converting rcNG scripts to InitWare unit-files"
-
 for _rc_elem in $files; do
 	if [ -z $_past_mountcritlocal ] ; then
 		[ $_rc_elem = /etc/rc.d/mountcritlocal ] &&  _past_mountcritlocal=1

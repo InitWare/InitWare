@@ -2,8 +2,6 @@ set (DOCBOOKS iw_rcng.7.xml)
 
 foreach(DOCBOOK_IN ${DOCBOOKS})
     get_filename_component(MAN_BASE ${DOCBOOK_IN} NAME_WLE)
-    message("Build Docbook ${MAN_BASE}")
-  
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${MAN_BASE}
         COMMAND $<TARGET_FILE:docbook2mdoc> ${DOCBOOK_IN}

@@ -15,10 +15,20 @@ have been included with this software
         All rights reserved.
 
 *********************************************************************/
+/**
+ * rcng2unit - generate unitfiles from a Mewburn RC script.
+ *
+ * rcng2unit [-e] [-s] -o /output/directory /etc/rc.d/script
+ *
+ * -e: Add the generated unit-file as a dependency of default.target
+ * -n: Generate a no-op unit file (i.e. for very early startup scripts ran
+ *     outwith initware.)
+ */
 
 #include <err.h>
 #include <limits.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include "install.h"
 #include "mkdir.h"

@@ -483,6 +483,23 @@ int ptg_migrate_recursive(PTGroup *from, PTGroup *to, bool rem) {
         return 0;
 }
 
+int ptg_to_json(PTGroup *grp, cJSON **out) {
+        cJSON *obj;
+        int r;
+
+        obj = cJSON_CreateObject();
+        if (!obj)
+                return -ENOMEM;
+
+        r = ptgroup_to_json_into(grp, obj);
+        if (r < 0)
+                return r;
+
+        *out = obj;
+
+        return 0;
+}
+
 /**
  * PTManager methods
  */
@@ -548,20 +565,7 @@ int ptmanager_fork(PTManager *ptm, pid_t ppid, pid_t pid) {
 }
 
 int ptmanager_to_json(PTManager *ptm, cJSON **out) {
-        cJSON *obj;
-        int r;
-
-        obj = cJSON_CreateObject();
-        if (!obj)
-                return -ENOMEM;
-
-        r = ptgroup_to_json_into(&ptm->group, obj);
-        if (r < 0)
-                return r;
-
-        *out = obj;
-
-        return 0;
+        return ptg_to_json(&ptm->group, out);
 }
 
 /**

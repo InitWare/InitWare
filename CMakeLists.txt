@@ -346,3 +346,11 @@ FShow("  -> Node-specific InitWare data" AbsDir_PkgSysConf)
 FShow("System runtime state" AbsDir_RunState)
 FShow("User runtime state base" AbsDir_User_RunStateBase)
 FShow("InitWare runtime state" AbsDir_PkgRunState)
+
+# finally, add relevant options to the M4 macro definitions
+foreach(option Sys_Plat_Linux Sys_Plat_BSD Sys_Plat_DragonFlyBSD
+  Sys_Plat_FreeBSD Sys_Plat_NetBSD Sys_Plat_OpenBSD)
+if(${option})
+  list(APPEND M4_Defs "-D${OPTION}=${${option}}")
+endif()
+endforeach()

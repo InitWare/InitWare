@@ -423,7 +423,9 @@ static int manager_setup_signals(Manager *m) {
                         SIGHUP,      /* Reload configuration */
                         SIGUSR1,     /* systemd/upstart: reconnect to D-Bus */
                         SIGUSR2,     /* systemd: dump status */
+#ifndef DEBUG
                         SIGINT,      /* Kernel sends us this on control-alt-del */
+#endif
                         SIGWINCH,    /* Kernel sends us this on kbrequest (alt-arrowup) */
 #ifdef SIGPWR
                         SIGPWR,      /* Some kernel drivers and upsd send us this on power failure */
@@ -1592,17 +1594,19 @@ static int manager_process_signal_fd(Manager *m) {
 
                         /* Fall through */
 
+// CHANGE:
+/*
                 case SIGINT:
                         if (m->running_as == SYSTEMD_SYSTEM) {
                                 manager_start_target(m, SPECIAL_CTRL_ALT_DEL_TARGET, JOB_REPLACE_IRREVERSIBLY);
                                 break;
                         }
-
+*/
                         /* Run the exit target if there is one, if not, just exit. */
-                        if (manager_start_target(m, SPECIAL_EXIT_TARGET, JOB_REPLACE) < 0) {
+/*                        if (manager_start_target(m, SPECIAL_EXIT_TARGET, JOB_REPLACE) < 0) {
                                 m->exit_code = MANAGER_EXIT;
                                 return 0;
-                        }
+                        }*/
 
                         break;
 

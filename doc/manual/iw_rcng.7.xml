@@ -47,8 +47,8 @@
     specifications and are first-class units, and may be overrided by
     explicitly defined units or drop-ins.</para>
 
-    <para>TTY monitors are run as normal according to the /etc/ttys
-    file.</para>
+    <para>TTY monitors are run as normal according to the
+    <filename>/etc/ttys</filename> file.</para>
   </refsection>
 
   <refsection>
@@ -125,7 +125,7 @@
 
         <listitem>
           <para><command>init</command> invokes <command>/etc/rc</command>,
-          the Run Control<citerefentry>
+          the Run Control <citerefentry>
               <refentrytitle>rc</refentrytitle>
 
               <manvolnum>8</manvolnum>
@@ -148,9 +148,9 @@
               <refentrytitle>iw_bootstrap</refentrytitle>
 
               <manvolnum>7</manvolnum>
-            </citerefentry>). On NetBSD, this is the
-          <command>mountcritlocal</command> RC script; on FreeBSD and
-          DragonFly BSD, <command>DISKS</command>.</para>
+            </citerefentry>). On NetBSD and DragonFly BSD, this is the
+          <command>mountcritlocal</command> RC script; on FreeBSD,
+          <command>FILESYSTEMS</command>.</para>
         </listitem>
 
         <listitem>

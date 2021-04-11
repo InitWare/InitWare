@@ -22,6 +22,7 @@
 #include <errno.h>
 
 #include "bus-errors.h"
+#include "cJSON.h"
 #include "cgroup-util.h"
 #include "dbus-common.h"
 #include "dbus-unit.h"
@@ -29,8 +30,8 @@
 #include "fileio.h"
 #include "log.h"
 #include "path-util.h"
+#include "selinux-access.h"
 #include "strv.h"
-#        include "selinux-access.h"
 
 const char bus_unit_interface[] _introspect_("Unit") = BUS_UNIT_INTERFACE;
 
@@ -386,6 +387,43 @@ static int bus_unit_append_load_error(DBusMessageIter *i, const char *property, 
 
         return 0;
 }
+
+#ifdef Use_PTGroups
+static int bus_unit_append_ptgroup(DBusMessageIter *i, const char *property, void *data) {
+        PTGroup *pt = data;
+        char *empty = "";
+        cJSON *json;
+        char *str = NULL;
+        int r = 0;
+
+        assert(i);
+        assert(property);
+
+        if (pt) {
+                r = ptg_to_json(pt, &json);
+
+                if (r < 0)
+                        goto finish;
+
+                str = cJSON_Print(json);
+                cJSON_Delete(json);
+        }
+
+
+        if (!str) {
+                r = -ENOMEM;
+                goto finish;
+        }
+
+        if (!dbus_message_iter_append_basic(i, DBUS_TYPE_STRING, pt ? &str : &empty))
+                r = -ENOMEM;
+
+finish:
+        free(str);
+
+        return r;
+}
+#endif
 
 static DBusHandlerResult bus_unit_message_dispatch(Unit *u, DBusConnection *connection, DBusMessage *message) {
         _cleanup_dbus_message_unref_ DBusMessage *reply = NULL;
@@ -1095,9 +1133,11 @@ const BusProperty bus_unit_properties[] = {
 };
 
 const BusProperty bus_unit_cgroup_properties[] = {
-        { "Slice",                bus_unit_append_slice,              "s", 0 },
-#ifdef Use_CGroup
-        { "ControlGroup",         bus_property_append_string,         "s", offsetof(Unit, cgroup_path),                                true },
+        { "Slice", bus_unit_append_slice, "s", 0 },
+#if defined(Use_CGroups)
+        { "ControlGroup", bus_property_append_string, "s", offsetof(Unit, cgroup_path), true },
+#elif defined(Use_PTGroups)
+        { "PTGroup", bus_unit_append_ptgroup, "s", offsetof(Unit, ptgroup), true },
 #endif
         {}
 };

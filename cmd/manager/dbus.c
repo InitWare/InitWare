@@ -319,10 +319,11 @@ static DBusHandlerResult api_bus_message_filter(DBusConnection *connection, DBus
 
         if (dbus_message_get_type(message) == DBUS_MESSAGE_TYPE_METHOD_CALL ||
             dbus_message_get_type(message) == DBUS_MESSAGE_TYPE_SIGNAL)
-                log_debug("Got D-Bus request: %s.%s() on %s",
-                          dbus_message_get_interface(message),
-                          dbus_message_get_member(message),
-                          dbus_message_get_path(message));
+                log_debug(
+                        "Got D-Bus request on API bus: %s.%s() on %s",
+                        dbus_message_get_interface(message),
+                        dbus_message_get_member(message),
+                        dbus_message_get_path(message));
 
         if (dbus_message_is_signal(message, DBUS_INTERFACE_LOCAL, "Disconnected")) {
                 log_debug("API D-Bus connection terminated.");
@@ -475,10 +476,11 @@ static DBusHandlerResult private_bus_message_filter(DBusConnection *connection, 
 
         if (dbus_message_get_type(message) == DBUS_MESSAGE_TYPE_METHOD_CALL ||
             dbus_message_get_type(message) == DBUS_MESSAGE_TYPE_SIGNAL)
-                log_debug("Got D-Bus request: %s.%s() on %s",
-                          dbus_message_get_interface(message),
-                          dbus_message_get_member(message),
-                          dbus_message_get_path(message));
+                log_debug(
+                        "Got D-Bus request on private bus: %s.%s() on %s",
+                        dbus_message_get_interface(message),
+                        dbus_message_get_member(message),
+                        dbus_message_get_path(message));
 
         if (dbus_message_is_signal(message, DBUS_INTERFACE_LOCAL, "Disconnected"))
                 shutdown_connection(m, connection);
@@ -529,7 +531,8 @@ unsigned bus_dispatch(Manager *m) {
         }
 
         if ((c = set_first(m->bus_connections_for_dispatch))) {
-                if (dbus_connection_dispatch(c) == DBUS_DISPATCH_COMPLETE)
+                int r = dbus_connection_dispatch(c);
+                if (r == DBUS_DISPATCH_COMPLETE)
                         set_move_one(m->bus_connections, m->bus_connections_for_dispatch, c);
 
                 return 1;

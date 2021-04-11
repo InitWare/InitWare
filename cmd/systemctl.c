@@ -2501,7 +2501,10 @@ typedef struct UnitStatusInfo {
 
         const char *fragment_path;
         const char *source_path;
+        /* cgroup path */
         const char *control_group;
+        /* ptgroup JSON representation */
+        const char *ptgroup;
 
         char **dropin_paths;
 
@@ -2780,6 +2783,9 @@ static void print_status_info(UnitStatusInfo *i, bool *ellipsized) {
         if (i->status_text)
                 printf("   Status: \"%s\"\n", i->status_text);
 
+        if (i->ptgroup)
+                printf("  PTGroup: %s\n", i->ptgroup);
+
         if (i->control_group &&
             (i->main_pid > 0 || i->control_pid > 0
 #ifdef Use_CGroups
@@ -2934,6 +2940,10 @@ static int status_property(const char *name, DBusMessageIter *iter, UnitStatusIn
 #endif
                         else if (streq(name, "ControlGroup"))
                                 i->control_group = s;
+#ifdef Use_PTGroups
+                        else if (streq(name, "PTGroup"))
+                                i->ptgroup = s;
+#endif
                         else if (streq(name, "StatusText"))
                                 i->status_text = s;
                         else if (streq(name, "PIDFile"))

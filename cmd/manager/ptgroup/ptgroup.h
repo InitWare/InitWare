@@ -91,6 +91,17 @@ struct PTManager {
 PTGroup *ptgroup_new(PTGroup *parent, char *name);
 
 /**
+ * Remove all references to a PTGroup, recursively invoking this function on all
+ * child PTGroups, then free the group.
+ *
+ * References are deleted from:
+ * - the parent group;
+ * - the ptgroup-to-unit hashmap of the manager;
+ * - the unit mapped to this ptgroup by that hashmap.
+ */
+void ptg_release(PTGroup *grp);
+
+/**
  * Attach a PID to a PTGroup. If attached to an existing PTGroup, the PID is
  * moved.
  *
@@ -124,6 +135,15 @@ int ptg_migrate(PTGroup *from, PTGroup *to);
  * The sub-group hierarchy is collapsed by this operation.
  */
 int ptg_migrate_recursive(PTGroup *from, PTGroup *to, bool rem);
+
+/**
+ * Serialise a PTGroup to JSON, storing name, full-name, ID, contained PIDs, and
+ * subgroups in full.
+ *
+ * @returns 0 and sets \p out to the cJSON object if successful.
+ * @returns -errno on failure.
+ */
+int ptg_to_json(PTGroup *grp, cJSON **out);
 
 /**
  * Create a new PTManager with the given Manager and name, which will form the
