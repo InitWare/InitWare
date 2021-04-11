@@ -407,12 +407,11 @@ static int bus_unit_append_ptgroup(DBusMessageIter *i, const char *property, voi
 
                 str = cJSON_Print(json);
                 cJSON_Delete(json);
-        }
 
-
-        if (!str) {
-                r = -ENOMEM;
-                goto finish;
+                if (!str) {
+                        r = -ENOMEM;
+                        goto finish;
+                }
         }
 
         if (!dbus_message_iter_append_basic(i, DBUS_TYPE_STRING, pt ? &str : &empty))
@@ -515,8 +514,9 @@ static DBusHandlerResult bus_unit_message_dispatch(Unit *u, DBusConnection *conn
 
         } else if (UNIT_VTABLE(u)->bus_message_handler)
                 return UNIT_VTABLE(u)->bus_message_handler(u, connection, message);
-        else
+        else {
                 return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+        }
 
         if (job_type != _JOB_TYPE_INVALID) {
                 const char *smode;

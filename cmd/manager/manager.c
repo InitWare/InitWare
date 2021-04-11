@@ -1594,19 +1594,17 @@ static int manager_process_signal_fd(Manager *m) {
 
                         /* Fall through */
 
-// CHANGE:
-/*
                 case SIGINT:
                         if (m->running_as == SYSTEMD_SYSTEM) {
                                 manager_start_target(m, SPECIAL_CTRL_ALT_DEL_TARGET, JOB_REPLACE_IRREVERSIBLY);
                                 break;
                         }
-*/
+
                         /* Run the exit target if there is one, if not, just exit. */
-/*                        if (manager_start_target(m, SPECIAL_EXIT_TARGET, JOB_REPLACE) < 0) {
+                        if (manager_start_target(m, SPECIAL_EXIT_TARGET, JOB_REPLACE) < 0) {
                                 m->exit_code = MANAGER_EXIT;
                                 return 0;
-                        }*/
+                        }
 
                         break;
 
