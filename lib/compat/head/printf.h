@@ -26,8 +26,12 @@
  * $FreeBSD$
  */
 
-#ifndef _PRINTF_H_
-#define _PRINTF_H_
+#include "compat.h"
+
+#include "parse-printf-format.h"
+
+#ifndef Have_printf_h
+#define Have_printf_h
 
 #include <stdio.h>
 #include <wchar.h>

@@ -133,6 +133,7 @@ check_include_file(endian.h Have_endian_h)
 check_include_file(malloc.h Have_malloc_h)
 check_include_file(mntent.h Have_mntent_h)
 check_include_file(mqueue.h Have_mqueue_h)
+check_include_file(printf.h Have_printf_h)
 
 check_library_exists(devattr udev_new "" Have_udev_as_devattr)
 check_library_exists(rt mq_open "" Have_mq_open_in_rt)
@@ -151,7 +152,7 @@ check_type_size_in("struct statfs" "sys/statfs.h;sys/statvfs.h" Have_statfs)
 check_type_size_in("struct statvfs" "sys/statvfs.h" Have_statvfs)
 check_type_size_in("struct ucred" "sys/socket.h" Have_socket_struct_ucred)
 check_symbol_exists(waitid "sys/wait.h" Have_waitid)
-
+check_symbol_exists(parse_printf_format "printf.h" Have_parse_printf_format)
 
 if(Have_mq_open_in_rt)
   set(Have_mq_open TRUE)

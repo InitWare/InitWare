@@ -27,6 +27,8 @@
 #include <sys/uio.h>
 #include <inttypes.h>
 
+#include "printf.h"
+
 #define _printf_attr_(a,b) __attribute__ ((format (printf, a, b)))
 #define _alloc_(...) __attribute__ ((alloc_size(__VA_ARGS__)))
 #define _sentinel_ __attribute__ ((sentinel))
@@ -237,7 +239,7 @@ static inline size_t IOVEC_INCREMENT(struct iovec *i, unsigned n, size_t k) {
         do {                                                                                         \
                 int _argtypes[128];                                                                  \
                 size_t _i, _k;                                                                       \
-                _k = 0; /* FIXME: parse_printf_format((format), ELEMENTSOF(_argtypes), _argtypes) */ \
+                _k = parse_printf_format((format), ELEMENTSOF(_argtypes), _argtypes);                \
                 assert(_k < ELEMENTSOF(_argtypes));                                                  \
                 for (_i = 0; _i < _k; _i++) {                                                        \
                         if (_argtypes[_i] & PA_FLAG_PTR) {                                           \

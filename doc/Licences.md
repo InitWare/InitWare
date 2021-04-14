@@ -1,6 +1,6 @@
 These files are of foreign origin, neither inherited from the systemd project
-nor written by the InitWare developers, and are therefore licenced differently
-to the rest of InitWare, which is LGPL v2.1:
+nor written by the InitWare developers, and licenced differently to the rest of
+InitWare, which is LGPL v2.1 or later:
 
 - `sd-daemon.[ch]`, `sd-readahead.[ch]`: MIT Licence.
 - `lib/shared/MurmurHash3.c`: in the public domain.

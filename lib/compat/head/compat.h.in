@@ -12,6 +12,9 @@
 #include <errno.h>
 #include <sys/types.h>
 
+/*
+ * include files
+ */
 #cmakedefine Have_asm_types_h
 #cmakedefine Have_linux_netlink_h
 #cmakedefine Have_linux_sched_h
@@ -21,32 +24,46 @@
 #cmakedefine Have_sys_statfs_h
 #cmakedefine Have_sys_statvfs_h
 #cmakedefine Have_sys_sysmacros_h
-#cmakedefine Have sys_vfs_h
+#cmakedefine Have_sys_vfs_h
 #cmakedefine Have_alloca_h
 #cmakedefine Have_byteswap_h
 #cmakedefine Have_endian_h
 #cmakedefine Have_malloc_h
 #cmakedefine Have_mntent_h
 #cmakedefine Have_mqueue_h
+#cmakedefine Have_printf_h
 
+/*
+ * functions
+ */
 #cmakedefine Have_environ
 #cmakedefine Have_waitid
-#cmakedefine Have_posix_fallocate
 #cmakedefine Have_get_current_dir_name
-#cmakedefine Have_program_invocation_short_name
 #cmakedefine Have_mempcpy
+#cmakedefine Have_parse_printf_format
+#cmakedefine Have_posix_fallocate
+#cmakedefine Have_program_invocation_short_name
 #cmakedefine Have___secure_getenv
 #cmakedefine Have_secure_getenv
 
+/*
+ * types
+ */
 #cmakedefine Have___compar_fn_t
 #cmakedefine Have_socket_struct_ucred
 #cmakedefine Have_statfs
 #cmakedefine Have_statvfs
 #cmakedefine Have_struct_cmsgcred
 
+/*
+ * compatibility Use-flags
+ */
 #cmakedefine Use_SystemdDBus
 #cmakedefine Use_SystemdCompat
 
+/*
+ * feature Use-flags
+ */
 #cmakedefine Use_CGroups
 #cmakedefine Use_KQProc
 #cmakedefine Use_Libcap
