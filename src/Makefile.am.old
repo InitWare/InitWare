@@ -19,32 +19,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with systemd; If not, see <http://www.gnu.org/licenses/>.
 
-ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
-AM_MAKEFLAGS = --no-print-directory
-AUTOMAKE_OPTIONS = color-tests parallel-tests
 
-SUBDIRS = . po
-
-# remove targets if the command fails
-.DELETE_ON_ERROR:
-
-# keep intermediate files
-.SECONDARY:
-
-# Keep the test-suite.log
-.PRECIOUS: $(TEST_SUITE_LOG) Makefile
-
-LIBSYSTEMD_LOGIN_CURRENT=9
-LIBSYSTEMD_LOGIN_REVISION=1
-LIBSYSTEMD_LOGIN_AGE=9
-
-LIBSYSTEMD_DAEMON_CURRENT=0
-LIBSYSTEMD_DAEMON_REVISION=10
-LIBSYSTEMD_DAEMON_AGE=0
-
-LIBSYSTEMD_ID128_CURRENT=0
-LIBSYSTEMD_ID128_REVISION=26
-LIBSYSTEMD_ID128_AGE=0
 
 LIBSYSTEMD_JOURNAL_CURRENT=11
 LIBSYSTEMD_JOURNAL_REVISION=3
@@ -83,45 +58,6 @@ systempresetdir=$(rootprefix)/lib/systemd/system-preset
 catalogdir=$(prefix)/lib/systemd/catalog
 kernelinstalldir = $(prefix)/lib/kernel/install.d
 
-
-CLEANFILES = $(BUILT_SOURCES)
-DISTCLEANFILES =
-EXTRA_DIST =
-BUILT_SOURCES =
-INSTALL_EXEC_HOOKS =
-UNINSTALL_EXEC_HOOKS =
-INSTALL_DATA_HOOKS =
-UNINSTALL_DATA_HOOKS =
-DISTCLEAN_LOCAL_HOOKS =
-CLEAN_LOCAL_HOOKS =
-pkginclude_HEADERS =
-noinst_LTLIBRARIES =
-lib_LTLIBRARIES =
-include_HEADERS =
-noinst_DATA =
-pkgconfiglib_DATA =
-polkitpolicy_in_in_files =
-polkitpolicy_in_files =
-polkitpolicy_files =
-dist_udevrules_DATA =
-nodist_udevrules_DATA =
-dist_pkgsysconf_DATA =
-dist_pkgdata_DATA =
-dist_dbuspolicy_DATA =
-dbusinterface_DATA =
-dist_dbussystemservice_DATA =
-check_PROGRAMS =
-check_DATA =
-tests=
-manual_tests =
-if ENABLE_TESTS
-noinst_PROGRAMS = $(manual_tests) $(tests)
-TESTS = $(tests)
-else
-noinst_PROGRAMS =
-TESTS =
-endif
-udevlibexec_PROGRAMS =
 
 AM_CPPFLAGS = \
 	-include $(top_builddir)/config.h \
