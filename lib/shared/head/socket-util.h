@@ -148,4 +148,7 @@ int netlink_family_from_string(const char *s);
 
 bool socket_ipv6_is_supported(void);
 
+/** Enable receipt of credentials on a datagram socket, if supported. */
+int socket_passcred(int fd);
+
 #endif

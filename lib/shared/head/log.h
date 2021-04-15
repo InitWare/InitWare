@@ -154,11 +154,14 @@ _noreturn_ void log_assert_failed_unreachable(
 #define log_warning(...) log_meta(LOG_WARNING, __FILE__, __LINE__, __func__, __VA_ARGS__)
 #define log_error(...)   log_meta(LOG_ERR,     __FILE__, __LINE__, __func__, __VA_ARGS__)
 
-#define log_debug_errno(error, ...)   log_meta_errno(LOG_DEBUG, error, __VA_ARGS__)
-#define log_info_errno(error, ...)    log_meta_errno(LOG_INFO, error, __VA_ARGS__)
-#define log_notice_errno(error, ...)  log_meta_errno(LOG_NOTICE, error, __VA_ARGS__)
-#define log_warning_errno(error, ...) log_meta_errno(LOG_WARNING, error, __VA_ARGS__)
-#define log_error_errno(error, ...)   log_meta_errno(LOG_ERR, error, __VA_ARGS__)
+#define log_debug_errno(error, ...) \
+        log_meta_errno(LOG_DEBUG, error, __FILE__, __LINE__, __func__, __VA_ARGS__)
+#define log_info_errno(error, ...) log_meta_errno(LOG_INFO, error, __FILE__, __LINE__, __func__, __VA_ARGS__)
+#define log_notice_errno(error, ...) \
+        log_meta_errno(LOG_NOTICE, error, __FILE__, __LINE__, __func__, __VA_ARGS__)
+#define log_warning_errno(error, ...) \
+        log_meta_errno(LOG_WARNING, error, __FILE__, __LINE__, __func__, __VA_ARGS__)
+#define log_error_errno(error, ...) log_meta_errno(LOG_ERR, error, __FILE__, __LINE__, __func__, __VA_ARGS__)
 
 #define log_struct(level, ...) log_struct_internal(level, __FILE__, __LINE__, __func__, __VA_ARGS__)
 

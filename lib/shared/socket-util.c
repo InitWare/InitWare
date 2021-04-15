@@ -19,18 +19,19 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <sys/ucred.h>
+#include <net/if.h>
+#include <arpa/inet.h>
 #include <assert.h>
+#include <errno.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
-#include <stdio.h>
-#include <net/if.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <stddef.h>
-#include <sys/ioctl.h>
 
 #include "macro.h"
 #include "util.h"
@@ -615,6 +616,56 @@ int make_socket_fd(const char* address, int flags) {
         }
 
         return fd;
+}
+
+int socket_fionread(int fd, int *bytes) {
+        return ioctl(fd, FIONREAD, bytes);
+}
+
+int socket_passcred(int fd) {
+        int one = 1;
+
+#ifdef SO_PASSCRED
+        if (setsockopt(fd, SOL_SOCKET, SO_PASSCRED, &one, sizeof(one)) == -1)
+                return -errno;
+        else
+#endif
+                return 0;
+}
+
+int cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred) {
+#ifdef SCM_CRED_OPT
+        if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_CRED_OPT &&
+            cmsg->cmsg_len == CMSG_LEN(sizeof(dgram_creds))) {
+                dgram_creds *creds = (dgram_creds *) CMSG_DATA(cmsg);
+                xucred->gid = creds->dgram_creds_gid;
+                xucred->uid = creds->dgram_creds_uid;
+                xucred->pid = creds->dgram_creds_pid;
+                return 1;
+        }
+#endif
+
+        return 0;
+}
+
+int socket_getpeercred(int fd, struct socket_ucred *xucred) {
+#ifdef SO_PEERCRED
+#elif defined(LOCAL_PEERCRED)
+        struct xucred cred;
+        socklen_t len = sizeof cred;
+
+        if (getsockopt(fd, 0, LOCAL_PEERCRED, &cred, &len) < 0)
+                return -errno;
+        xucred->gid = cred.cr_gid;
+        xucred->uid = cred.cr_uid;
+        xucred->pid = cred.cr_pid;
+
+        return 0;
+#elif defined(LOCAL_PEEREID)
+#        error Port me
+#endif
+
+        return -ENOTSUP;
 }
 
 #ifdef Have_linux_netlink_h
