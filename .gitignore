@@ -163,7 +163,6 @@
 *.log
 *.a
 *.cache
-*.html
 *.la
 *.lo
 *.o
