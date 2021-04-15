@@ -415,7 +415,8 @@ void ptg_release(PTGroup *grp) {
         SET_FOREACH (cld, grp->groups, i)
                 ptg_release(cld);
 
-        set_remove(grp->parent->groups, grp);
+        if (grp->parent)
+                set_remove(grp->parent->groups, grp);
         u = hashmap_remove(grp->manager->ptgroup_unit, grp);
 
         if (u) {

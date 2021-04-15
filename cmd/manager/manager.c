@@ -1,5 +1,17 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
+/*******************************************************************
 
+    LICENCE NOTICE
+
+These coded instructions, statements, and computer programs are part
+of the  InitWare Suite of Middleware,  and  they are protected under
+copyright law. They may not be distributed,  copied,  or used except
+under the provisions of  the  terms  of  the  Library General Public
+Licence version 2.1 or later, in the file "LICENSE.md", which should
+have been included with this software
+
+    (c) 2021 David Mackay
+        All rights reserved.
+*********************************************************************/
 /***
   This file is part of systemd.
 
@@ -2361,8 +2373,7 @@ int manager_serialize(Manager *m, FILE *f, FDSet *fds, bool switching_root) {
 
         bus_serialize(m, f);
 
-#ifdef Use_PTGroups
-#        ifdef Use_KQProc
+#ifdef Use_KQProc
         kqproc_fd = fdset_put_dup(fds, m->kqproc_watch.fd);
         if (kqproc_fd < 0) {
                 r = -errno;
@@ -2373,8 +2384,8 @@ int manager_serialize(Manager *m, FILE *f, FDSet *fds, bool switching_root) {
                 r = -ENOMEM;
                 goto finish;
         }
-#        endif
-
+#endif
+#ifdef Use_PTGroups
         r = manager_serialize_ptgroups(m, f, fds, obj);
         if (r < 0) {
                 m->n_reloading--;
@@ -2744,6 +2755,10 @@ int manager_reload(Manager *m) {
         }
 
         /* From here on there is no way back. */
+#ifdef Use_PTGroups
+        ptg_release(&m->pt_manager->group);
+        hashmap_clear(m->ptgroup_unit);
+#endif
         manager_clear_jobs_and_units(m);
         manager_undo_generators(m);
         lookup_paths_free(&m->lookup_paths);

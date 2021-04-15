@@ -85,9 +85,9 @@ $1.KillMode,                     config_parse_kill_mode,             0,         
 $1.KillSignal,                   config_parse_kill_signal,           0,                             offsetof($1, kill_context.kill_signal)'
 )m4_dnl
 m4_define(`CGROUP_CONTEXT_CONFIG_ITEMS',
+$1.Slice,                       config_parse_unit_slice,            0,                             0
 m4_ifdef(`Use_CGroups',
-`$1.Slice,                       config_parse_unit_slice,            0,                             0
-$1.CPUAccounting,                config_parse_bool,                  0,                             offsetof($1, cgroup_context.cpu_accounting)
+`$1.CPUAccounting,                config_parse_bool,                  0,                             offsetof($1, cgroup_context.cpu_accounting)
 $1.CPUShares,                    config_parse_cpu_shares,            0,                             offsetof($1, cgroup_context)
 $1.MemoryAccounting,             config_parse_bool,                  0,                             offsetof($1, cgroup_context.memory_accounting)
 $1.MemoryLimit,                  config_parse_memory_limit,          0,                             offsetof($1, cgroup_context)
