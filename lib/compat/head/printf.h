@@ -81,28 +81,6 @@ struct printf_info {
 	void 		*arg[__PRINTFMAXARG];
 };
 
-enum {
-	PA_INT		= (1 << 0),	/* int */
-	PA_CHAR		= (1 << 1),	/* int, cast to char */
-	PA_WCHAR	= (1 << 2),	/* wide char */
-	PA_STRING	= (1 << 3),	/* const char * (with '\0') */
-	PA_WSTRING	= (1 << 4),	/* const wchar_t * */
-	PA_POINTER	= (1 << 5),	/* void * */
-	PA_FLOAT	= (1 << 6),	/* float */
-	PA_DOUBLE	= (1 << 7) 	/* double */
-};
-
-#define	PA_FLAG_MASK		0xff0000
-#define	PA_FLAG_LONG_LONG	(1 << 16)
-#define	PA_FLAG_LONG		(1 << 17)
-#define	PA_FLAG_SHORT		(1 << 18)
-#define	PA_FLAG_PTR		(1 << 19)
-#define	PA_FLAG_QUAD		(1 << 20)
-#define	PA_FLAG_INTMAX		(1 << 21)
-#define	PA_FLAG_SIZE		(1 << 22)
-#define	PA_FLAG_PTRDIFF		(1 << 23)
-#define	PA_FLAG_LONG_DOUBLE	PA_FLAG_LONG_LONG
-
 typedef int printf_arginfo_function(const struct printf_info *, size_t, int *);
 typedef int printf_function(FILE *, const struct printf_info *, const void *const *);
 
@@ -118,9 +96,6 @@ void __printf_flush(struct __printf_io *io);
 int __printf_puts(struct __printf_io *io, const void *ptr, int len);
 int __printf_pad(struct __printf_io *io, int n, int zero);
 int __printf_out(struct __printf_io *io, const struct printf_info *pi, const void *ptr, int len);
-
-int __xvprintf(FILE *fp, const char *fmt0, va_list ap);
-extern int __use_xprintf;
 
 /* GLIBC compat */
 int register_printf_function(int spec, printf_function *render, printf_arginfo_function *arginfo);
