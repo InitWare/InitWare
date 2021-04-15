@@ -3507,8 +3507,10 @@ int show(DBusConnection *bus, char **args) {
                 return show_one(
                         args[0], bus, "/org/freedesktop/systemd1", show_properties, &new_line, &ellipsized);
 
-        if (show_status && strv_length(args) <= 1)
+        if (show_status && strv_length(args) <= 1) {
+                pager_open_if_enabled();
                 ret = show_all(args[0], bus, false, &new_line, &ellipsized);
+        }
         else
                 STRV_FOREACH (name, args + 1) {
                         uint32_t id;

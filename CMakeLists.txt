@@ -265,6 +265,7 @@ set(RelDir_UserUnitfiles ${RelDir_PkgLib}/user)
 set(userunitdir ${AbsDir_PkgLib}/user)
 set(usergeneratordir ${AbsDir_PkgLibExec}/user-generators)
 
+set(RelDir_SystemUnitfiles ${RelDir_PkgLib}/user)
 set(systemunitdir ${AbsDir_PkgLib}/system)
 set(systemgeneratordir ${AbsDir_PkgLibExec}/system-generators)
 
