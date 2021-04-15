@@ -99,8 +99,6 @@ struct ExecContext {
         ExecOutput std_output;
         ExecOutput std_error;
 
-        char *tcpwrap_name;
-
         char *tty_path;
 
         bool ignore_sigpipe;

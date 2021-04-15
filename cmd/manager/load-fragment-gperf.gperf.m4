@@ -74,7 +74,6 @@ $1.InaccessibleDirectories,      config_parse_path_strv,             0,         
 $1.PrivateTmp,                   config_parse_bool,                  0,                             offsetof($1, exec_context.private_tmp)
 $1.PrivateNetwork,               config_parse_bool,                  0,                             offsetof($1, exec_context.private_network)
 $1.MountFlags,                   config_parse_exec_mount_flags,      0,                             offsetof($1, exec_context)')m4_dnl
-$1.TCPWrapName,                  config_parse_unit_string_printf,    0,                             offsetof($1, exec_context.tcpwrap_name)
 $1.PAMName,                      config_parse_unit_string_printf,    0,                             offsetof($1, exec_context.pam_name)
 $1.IgnoreSIGPIPE,                config_parse_bool,                  0,                             offsetof($1, exec_context.ignore_sigpipe)
 $1.UtmpIdentifier,               config_parse_unit_string_printf,    0,                             offsetof($1, exec_context.utmp_id)'

@@ -49,7 +49,7 @@ typedef enum ExitStatus {
         EXIT_SIGNAL_MASK,
         EXIT_STDIN,
         EXIT_STDOUT,
-        EXIT_CHROOT,   /* 210 */
+        EXIT_CHROOT, /* 210 */
         EXIT_IOPRIO,
         EXIT_TIMERSLACK,
         EXIT_SECUREBITS,
@@ -59,10 +59,9 @@ typedef enum ExitStatus {
         EXIT_USER,
         EXIT_CAPABILITIES,
         EXIT_CGROUP,
-        EXIT_SETSID,   /* 220 */
+        EXIT_SETSID, /* 220 */
         EXIT_CONFIRM,
         EXIT_STDERR,
-        EXIT_TCPWRAP,
         EXIT_PAM,
         EXIT_NETWORK,
         EXIT_NAMESPACE,

@@ -445,7 +445,6 @@ const BusProperty bus_exec_context_properties[] = {
         { "User",                     bus_property_append_string,            "s", offsetof(ExecContext, user),                   true },
         { "Group",                    bus_property_append_string,            "s", offsetof(ExecContext, group),                  true },
         { "SupplementaryGroups",      bus_property_append_strv,             "as", offsetof(ExecContext, supplementary_groups),   true },
-        { "TCPWrapName",              bus_property_append_string,            "s", offsetof(ExecContext, tcpwrap_name),           true },
         { "PAMName",                  bus_property_append_string,            "s", offsetof(ExecContext, pam_name),               true },
         { "MountFlags",               bus_property_append_ul,                "t", offsetof(ExecContext, mount_flags)                  },
         { "SameProcessGroup",         bus_property_append_bool,              "b", offsetof(ExecContext, same_pgrp)                    },

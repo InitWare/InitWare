@@ -47,60 +47,58 @@
 #define LinLimits
 #endif
 
-#define BUS_EXEC_CONTEXT_INTERFACE                                      \
-        "  <property name=\"Environment\" type=\"as\" access=\"read\"/>\n" \
-        "  <property name=\"EnvironmentFiles\" type=\"a(sb)\" access=\"read\"/>\n" \
-        "  <property name=\"UMask\" type=\"u\" access=\"read\"/>\n"     \
-        "  <property name=\"LimitCPU\" type=\"t\" access=\"read\"/>\n"  \
-        "  <property name=\"LimitFSIZE\" type=\"t\" access=\"read\"/>\n" \
-        "  <property name=\"LimitDATA\" type=\"t\" access=\"read\"/>\n" \
-        "  <property name=\"LimitSTACK\" type=\"t\" access=\"read\"/>\n" \
-        "  <property name=\"LimitCORE\" type=\"t\" access=\"read\"/>\n" \
-        "  <property name=\"LimitRSS\" type=\"t\" access=\"read\"/>\n"  \
-        "  <property name=\"LimitNOFILE\" type=\"t\" access=\"read\"/>\n" \
-        "  <property name=\"LimitAS\" type=\"t\" access=\"read\"/>\n"   \
-        "  <property name=\"LimitNPROC\" type=\"t\" access=\"read\"/>\n" \
-        "  <property name=\"LimitMEMLOCK\" type=\"t\" access=\"read\"/>\n" \
-        LinLimits \
-        "  <property name=\"WorkingDirectory\" type=\"s\" access=\"read\"/>\n" \
-        "  <property name=\"RootDirectory\" type=\"s\" access=\"read\"/>\n" \
-        "  <property name=\"OOMScoreAdjust\" type=\"i\" access=\"read\"/>\n" \
-        "  <property name=\"Nice\" type=\"i\" access=\"read\"/>\n" \
-        "  <property name=\"IOScheduling\" type=\"i\" access=\"read\"/>\n" \
-        "  <property name=\"CPUSchedulingPolicy\" type=\"i\" access=\"read\"/>\n" \
-        "  <property name=\"CPUSchedulingPriority\" type=\"i\" access=\"read\"/>\n" \
-        "  <property name=\"CPUAffinity\" type=\"ay\" access=\"read\"/>\n" \
-        "  <property name=\"TimerSlackNSec\" type=\"t\" access=\"read\"/>\n" \
+#define BUS_EXEC_CONTEXT_INTERFACE                                                     \
+        "  <property name=\"Environment\" type=\"as\" access=\"read\"/>\n"             \
+        "  <property name=\"EnvironmentFiles\" type=\"a(sb)\" access=\"read\"/>\n"     \
+        "  <property name=\"UMask\" type=\"u\" access=\"read\"/>\n"                    \
+        "  <property name=\"LimitCPU\" type=\"t\" access=\"read\"/>\n"                 \
+        "  <property name=\"LimitFSIZE\" type=\"t\" access=\"read\"/>\n"               \
+        "  <property name=\"LimitDATA\" type=\"t\" access=\"read\"/>\n"                \
+        "  <property name=\"LimitSTACK\" type=\"t\" access=\"read\"/>\n"               \
+        "  <property name=\"LimitCORE\" type=\"t\" access=\"read\"/>\n"                \
+        "  <property name=\"LimitRSS\" type=\"t\" access=\"read\"/>\n"                 \
+        "  <property name=\"LimitNOFILE\" type=\"t\" access=\"read\"/>\n"              \
+        "  <property name=\"LimitAS\" type=\"t\" access=\"read\"/>\n"                  \
+        "  <property name=\"LimitNPROC\" type=\"t\" access=\"read\"/>\n"               \
+        "  <property name=\"LimitMEMLOCK\" type=\"t\" access=\"read\"/>\n" LinLimits   \
+        "  <property name=\"WorkingDirectory\" type=\"s\" access=\"read\"/>\n"         \
+        "  <property name=\"RootDirectory\" type=\"s\" access=\"read\"/>\n"            \
+        "  <property name=\"OOMScoreAdjust\" type=\"i\" access=\"read\"/>\n"           \
+        "  <property name=\"Nice\" type=\"i\" access=\"read\"/>\n"                     \
+        "  <property name=\"IOScheduling\" type=\"i\" access=\"read\"/>\n"             \
+        "  <property name=\"CPUSchedulingPolicy\" type=\"i\" access=\"read\"/>\n"      \
+        "  <property name=\"CPUSchedulingPriority\" type=\"i\" access=\"read\"/>\n"    \
+        "  <property name=\"CPUAffinity\" type=\"ay\" access=\"read\"/>\n"             \
+        "  <property name=\"TimerSlackNSec\" type=\"t\" access=\"read\"/>\n"           \
         "  <property name=\"CPUSchedulingResetOnFork\" type=\"b\" access=\"read\"/>\n" \
-        "  <property name=\"NonBlocking\" type=\"b\" access=\"read\"/>\n" \
-        "  <property name=\"StandardInput\" type=\"s\" access=\"read\"/>\n" \
-        "  <property name=\"StandardOutput\" type=\"s\" access=\"read\"/>\n" \
-        "  <property name=\"StandardError\" type=\"s\" access=\"read\"/>\n" \
-        "  <property name=\"TTYPath\" type=\"s\" access=\"read\"/>\n"   \
-        "  <property name=\"TTYReset\" type=\"b\" access=\"read\"/>\n"   \
-        "  <property name=\"TTYVHangup\" type=\"b\" access=\"read\"/>\n"   \
-        "  <property name=\"TTYVTDisallocate\" type=\"b\" access=\"read\"/>\n"   \
-        "  <property name=\"SyslogPriority\" type=\"i\" access=\"read\"/>\n" \
-        "  <property name=\"SyslogIdentifier\" type=\"s\" access=\"read\"/>\n" \
-        "  <property name=\"SyslogLevelPrefix\" type=\"b\" access=\"read\"/>\n" \
-        "  <property name=\"Capabilities\" type=\"s\" access=\"read\"/>\n" \
-        "  <property name=\"SecureBits\" type=\"i\" access=\"read\"/>\n" \
-        "  <property name=\"CapabilityBoundingSet\" type=\"t\" access=\"read\"/>\n" \
-        "  <property name=\"User\" type=\"s\" access=\"read\"/>\n"      \
-        "  <property name=\"Group\" type=\"s\" access=\"read\"/>\n"     \
-        "  <property name=\"SupplementaryGroups\" type=\"as\" access=\"read\"/>\n" \
-        "  <property name=\"TCPWrapName\" type=\"s\" access=\"read\"/>\n" \
-        "  <property name=\"PAMName\" type=\"s\" access=\"read\"/>\n"   \
-        "  <property name=\"ReadWriteDirectories\" type=\"as\" access=\"read\"/>\n" \
-        "  <property name=\"ReadOnlyDirectories\" type=\"as\" access=\"read\"/>\n" \
+        "  <property name=\"NonBlocking\" type=\"b\" access=\"read\"/>\n"              \
+        "  <property name=\"StandardInput\" type=\"s\" access=\"read\"/>\n"            \
+        "  <property name=\"StandardOutput\" type=\"s\" access=\"read\"/>\n"           \
+        "  <property name=\"StandardError\" type=\"s\" access=\"read\"/>\n"            \
+        "  <property name=\"TTYPath\" type=\"s\" access=\"read\"/>\n"                  \
+        "  <property name=\"TTYReset\" type=\"b\" access=\"read\"/>\n"                 \
+        "  <property name=\"TTYVHangup\" type=\"b\" access=\"read\"/>\n"               \
+        "  <property name=\"TTYVTDisallocate\" type=\"b\" access=\"read\"/>\n"         \
+        "  <property name=\"SyslogPriority\" type=\"i\" access=\"read\"/>\n"           \
+        "  <property name=\"SyslogIdentifier\" type=\"s\" access=\"read\"/>\n"         \
+        "  <property name=\"SyslogLevelPrefix\" type=\"b\" access=\"read\"/>\n"        \
+        "  <property name=\"Capabilities\" type=\"s\" access=\"read\"/>\n"             \
+        "  <property name=\"SecureBits\" type=\"i\" access=\"read\"/>\n"               \
+        "  <property name=\"CapabilityBoundingSet\" type=\"t\" access=\"read\"/>\n"    \
+        "  <property name=\"User\" type=\"s\" access=\"read\"/>\n"                     \
+        "  <property name=\"Group\" type=\"s\" access=\"read\"/>\n"                    \
+        "  <property name=\"SupplementaryGroups\" type=\"as\" access=\"read\"/>\n"     \
+        "  <property name=\"PAMName\" type=\"s\" access=\"read\"/>\n"                  \
+        "  <property name=\"ReadWriteDirectories\" type=\"as\" access=\"read\"/>\n"    \
+        "  <property name=\"ReadOnlyDirectories\" type=\"as\" access=\"read\"/>\n"     \
         "  <property name=\"InaccessibleDirectories\" type=\"as\" access=\"read\"/>\n" \
-        "  <property name=\"MountFlags\" type=\"t\" access=\"read\"/>\n" \
-        "  <property name=\"PrivateTmp\" type=\"b\" access=\"read\"/>\n" \
-        "  <property name=\"PrivateNetwork\" type=\"b\" access=\"read\"/>\n" \
-        "  <property name=\"SameProcessGroup\" type=\"b\" access=\"read\"/>\n" \
-        "  <property name=\"UtmpIdentifier\" type=\"s\" access=\"read\"/>\n" \
-        "  <property name=\"IgnoreSIGPIPE\" type=\"b\" access=\"read\"/>\n" \
-        "  <property name=\"NoNewPrivileges\" type=\"b\" access=\"read\"/>\n" \
+        "  <property name=\"MountFlags\" type=\"t\" access=\"read\"/>\n"               \
+        "  <property name=\"PrivateTmp\" type=\"b\" access=\"read\"/>\n"               \
+        "  <property name=\"PrivateNetwork\" type=\"b\" access=\"read\"/>\n"           \
+        "  <property name=\"SameProcessGroup\" type=\"b\" access=\"read\"/>\n"         \
+        "  <property name=\"UtmpIdentifier\" type=\"s\" access=\"read\"/>\n"           \
+        "  <property name=\"IgnoreSIGPIPE\" type=\"b\" access=\"read\"/>\n"            \
+        "  <property name=\"NoNewPrivileges\" type=\"b\" access=\"read\"/>\n"          \
         "  <property name=\"SystemCallFilter\" type=\"au\" access=\"read\"/>\n"
 
 #define BUS_EXEC_COMMAND_INTERFACE(name)                             \
