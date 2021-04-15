@@ -25,8 +25,6 @@
 #include <unistd.h>
 #include <sys/inotify.h>
 #include <sys/poll.h>
-#include <sys/vfs.h>
-#include <linux/magic.h>
 
 #include "sd-journal.h"
 #include "journal-def.h"
@@ -41,6 +39,16 @@
 #include "missing.h"
 #include "catalog.h"
 #include "replace-var.h"
+
+#ifdef Have_sys_statvfs_h
+#        include <sys/statvfs.h>
+#endif
+#ifdef Have_sys_vfs_h
+#        include <sys/vfs.h>
+#endif
+#ifdef Sys_Plat_Linux
+#        include <linux/magic.h>
+#endif
 
 #define JOURNAL_FILES_MAX 1024
 
@@ -1268,12 +1276,17 @@ static void check_network(sd_journal *j, int fd) {
         if (fstatfs(fd, &sfs) < 0)
                 return;
 
+#ifdef Sys_Plat_Linux
         j->on_network =
                 F_TYPE_EQUAL(sfs.f_type, CIFS_MAGIC_NUMBER) ||
                 F_TYPE_EQUAL(sfs.f_type, CODA_SUPER_MAGIC) ||
                 F_TYPE_EQUAL(sfs.f_type, NCP_SUPER_MAGIC) ||
                 F_TYPE_EQUAL(sfs.f_type, NFS_SUPER_MAGIC) ||
                 F_TYPE_EQUAL(sfs.f_type, SMB_SUPER_MAGIC);
+#else
+        unimplemented();
+        j->on_network = false;
+#endif
 }
 
 static bool file_has_type_prefix(const char *prefix, const char *filename) {
@@ -2723,7 +2736,7 @@ _public_ int sd_journal_get_catalog(sd_journal *j, char **ret) {
         if (r < 0)
                 return r;
 
-        r = catalog_get(CATALOG_DATABASE, id, &text);
+        r = catalog_get(AbsPath_CatalogDatabase, id, &text);
         if (r < 0)
                 return r;
 
@@ -2739,7 +2752,7 @@ _public_ int sd_journal_get_catalog_for_message_id(sd_id128_t id, char **ret) {
         if (!ret)
                 return -EINVAL;
 
-        return catalog_get(CATALOG_DATABASE, id, ret);
+        return catalog_get(AbsPath_CatalogDatabase, id, ret);
 }
 
 _public_ int sd_journal_set_data_threshold(sd_journal *j, size_t sz) {

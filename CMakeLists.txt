@@ -257,6 +257,8 @@ endif()
 # computed paths
 #-------------------------------------------------------------------------------
 
+# systemdstatedir
+set(AbsDir_InitWareStateDir ${CMAKE_INSTALL_LOCALSTATEDIR}/lib/${PkgDirName})
 set(AbsDir_PkgLib ${CMAKE_INSTALL_PREFIX}/${RelDir_PkgLib})
 set(AbsDir_PkgLibExec ${CMAKE_INSTALL_PREFIX}/${RelDir_PkgLibExec})
 set(AbsDir_PkgSysConf ${CMAKE_INSTALL_PREFIX}/${RelDir_PkgSysConf})
@@ -276,6 +278,9 @@ set(SYSTEM_GENERATOR_PATH ${systemgeneratordir})
 set(USER_CONFIG_UNIT_PATH ${AbsDir_PkgSysConf}/user)
 set(USER_DATA_UNIT_PATH ${userunitdir})
 set(USER_GENERATOR_PATH ${usergeneratordir})
+
+# data paths
+set(AbsPath_CatalogDatabase ${AbsDir_InitWareStateDir}/catalog/database)
 
 # binary paths
 set(SYSTEMCTL_BINARY_PATH ${CMAKE_INSTALL_FULL_BINDIR}/iwctl)

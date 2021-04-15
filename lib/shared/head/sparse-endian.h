@@ -21,7 +21,14 @@
 #ifndef SPARSE_ENDIAN_H
 #define SPARSE_ENDIAN_H
 
-#include <endian.h>
+#include "compat.h"
+
+#ifdef Have_sys_endian_h
+#        include <sys/endian.h>
+#endif
+#ifdef Have_endian_h
+#        include <endian.h>
+#endif
 #include <stdint.h>
 
 #ifdef __CHECKER__
