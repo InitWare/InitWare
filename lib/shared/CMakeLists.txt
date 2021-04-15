@@ -36,7 +36,7 @@ target_link_libraries(initware-shared internal compat initware-cjson
     PkgConfig::DBus ${KVM_Libs})
 
 # ------------------------------------------------------------------------------
-add_library(initware-dbus dbus-common.c dbus-loop.c polkit.c)
+add_library(initware-dbus dbus-common.c dbus-loop-kqueue.c polkit.c)
 target_include_directories(initware-dbus PUBLIC head)
 target_link_libraries(initware-dbus internal compat PkgConfig::DBus)
 

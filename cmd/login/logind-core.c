@@ -202,12 +202,14 @@ int manager_add_button(Manager *m, const char *name, Button **_button) {
                 return 0;
         }
 
+#ifdef Use_udev
         b = button_new(m, name);
         if (!b)
                 return -ENOMEM;
 
         if (_button)
                 *_button = b;
+#endif
 
         return 0;
 }
