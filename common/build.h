@@ -23,8 +23,8 @@
 
 #include "compat.h"
 
-#ifdef HAVE_PAM
-#define _PAM_FEATURE_ "+PAM"
+#ifdef Use_PAM
+#        define _PAM_FEATURE_ "+PAM"
 #else
 #define _PAM_FEATURE_ "-PAM"
 #endif

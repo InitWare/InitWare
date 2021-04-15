@@ -85,7 +85,7 @@ $1.KillMode,                     config_parse_kill_mode,             0,         
 $1.KillSignal,                   config_parse_kill_signal,           0,                             offsetof($1, kill_context.kill_signal)'
 )m4_dnl
 m4_define(`CGROUP_CONTEXT_CONFIG_ITEMS',
-$1.Slice,                       config_parse_unit_slice,            0,                             0
+`$1.Slice,                       config_parse_unit_slice,            0,                             0
 m4_ifdef(`Use_CGroups',
 `$1.CPUAccounting,                config_parse_bool,                  0,                             offsetof($1, cgroup_context.cpu_accounting)
 $1.CPUShares,                    config_parse_cpu_shares,            0,                             offsetof($1, cgroup_context)
@@ -98,7 +98,7 @@ $1.BlockIOWeight,                config_parse_blockio_weight,        0,         
 $1.BlockIODeviceWeight,          config_parse_blockio_device_weight, 0,                             offsetof($1, cgroup_context)
 $1.BlockIOReadBandwidth,         config_parse_blockio_bandwidth,     0,                             offsetof($1, cgroup_context)
 $1.BlockIOWriteBandwidth,        config_parse_blockio_bandwidth,     0,                             offsetof($1, cgroup_context)'
-))m4_dnl
+)')m4_dnl
 Unit.Description,                config_parse_unit_string_printf,    0,                             offsetof(Unit, description)
 Unit.Documentation,              config_parse_documentation,         0,                             offsetof(Unit, documentation)
 Unit.SourcePath,                 config_parse_path,                  0,                             offsetof(Unit, source_path)

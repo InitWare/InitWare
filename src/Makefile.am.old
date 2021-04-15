@@ -2614,7 +2614,7 @@ libsystemd_login_la_LIBADD = \
 libsystemd_login_internal_la_SOURCES = \
 	$(libsystemd_login_la_SOURCES)
 
-if HAVE_PAM
+if Use_PAM
 pam_systemd_la_SOURCES = \
 	src/login/pam-module.c
 

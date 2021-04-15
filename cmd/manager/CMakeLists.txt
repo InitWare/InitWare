@@ -31,21 +31,22 @@ set(manager_core_src unit.c unit-printf.c job.c manager.c transaction.c
     condition.c killall.c
     audit-fd.c async.c async.h
     ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.c
-    ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf-nulstr.c
-    ptgroup/ptgroup.c)
+    ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf-nulstr.c)
 
 if(Use_Libudev OR Use_Libdevattr)
   list(APPEND manager_core_src dbus-device.c device.c)
 endif()
 
 if(Use_KQProc)
-  list(APPEND manager_core_src ptgroup/kqproc.c)
+    list(APPEND manager_core_src ptgroup/kqproc.c ptgroup/ptgroup.c)
 endif()
 
-set(manager_core_src_linux dbus-cgroup.c cgroup.c swap.c dbus-swap.c mount.c
-    dbus-mount.c device.c dbus-device.c automount.c dbus-automount.c
-    selinux-access.c selinux-setup.c namespace.c c mount-setup.c
+if(Sys_Plat_Linux)
+    list(APPEND manager_core_src dbus-cgroup.c linux/cgroup.c swap.c dbus-swap.c mount.c
+    dbus-mount.c automount.c dbus-automount.c
+    selinux-access.c selinux-setup.c namespace.c mount-setup.c
     loopback-setup.c switch-root.c syscall-list.c)
+endif()
 
 add_library(manager-core ${manager_core_src})
 target_include_directories(manager-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

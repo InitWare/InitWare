@@ -22,7 +22,6 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
-#include <sys/ucred.h>
 #include <net/if.h>
 #include <arpa/inet.h>
 #include <assert.h>
@@ -40,6 +39,10 @@
 #include "socket-util.h"
 #include "missing.h"
 #include "fileio.h"
+
+#ifdef Have_sys_ucred_h
+#        include <sys/ucred.h>
+#endif
 
 int socket_address_parse(SocketAddress *a, const char *s) {
         int r;

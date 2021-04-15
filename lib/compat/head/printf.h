@@ -140,4 +140,6 @@ printf_render			__printf_render_time;
 printf_arginfo_function		__printf_arginfo_vis;
 printf_render 			__printf_render_vis;
 
-#endif /* !_PRINTF_H */
+#else
+#        include_next <printf.h>
+#endif /* !Have_printf_h */

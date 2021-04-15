@@ -37,8 +37,8 @@
 #include <glob.h>
 #include <libgen.h>
 
-#ifdef HAVE_PAM
-#include <security/pam_appl.h>
+#ifdef Use_PAM
+#        include <security/pam_appl.h>
 #endif
 
 #include "async.h"
@@ -726,7 +726,7 @@ static int enforce_user(const ExecContext *context, uid_t uid) {
         return 0;
 }
 
-#ifdef HAVE_PAM
+#ifdef Use_PAM
 
 static int null_conv(
                 int num_msg,
@@ -1325,7 +1325,7 @@ int exec_spawn(ExecCommand *command,
                         }
                 }
 
-#ifdef HAVE_PAM
+#ifdef Use_PAM
                 if (cgroup_path && context->user && context->pam_name) {
                         err = cg_set_task_access(SYSTEMD_CGROUP_CONTROLLER, cgroup_path, 0644, uid, gid);
                         if (err < 0) {
@@ -1352,7 +1352,7 @@ int exec_spawn(ExecCommand *command,
 
                 umask(context->umask);
 
-#ifdef HAVE_PAM
+#ifdef Use_PAM
                 if (apply_permissions && context->pam_name && username) {
                         err = setup_pam(context->pam_name, username, uid, context->tty_path, &pam_env, fds, n_fds);
                         if (err < 0) {

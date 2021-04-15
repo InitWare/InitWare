@@ -9,6 +9,10 @@ set(shared_src mkdir-label.c acpi-fpdt.c MurmurHash3.c
     time-util.c install.c unit-name.c install-printf.c utf8.c label.c util.c
     log.c cjson-util.c virt.c mkdir.c)
 
+if(Use_CGroups)
+    list(APPEND shared_src cgroup-show.c cgroup-util.c)
+endif()
+
 if(Sys_Plat_Linux)
     list(APPEND shared_src linprocfs/fdset.c linprocfs/proc-util.c)
 elseif(Sys_Plat_BSD)
