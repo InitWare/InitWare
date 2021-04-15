@@ -71,16 +71,18 @@ static bool valid_user_field(const char *p, size_t l) {
         return true;
 }
 
-static bool allow_object_pid(struct ucred *ucred) {
+static bool allow_object_pid(struct socket_ucred *ucred) {
         return ucred && ucred->uid == 0;
 }
 
 void server_process_native_message(
-                Server *s,
-                const void *buffer, size_t buffer_size,
-                struct ucred *ucred,
-                struct timeval *tv,
-                const char *label, size_t label_len) {
+        Server *s,
+        const void *buffer,
+        size_t buffer_size,
+        struct socket_ucred *ucred,
+        struct timeval *tv,
+        const char *label,
+        size_t label_len) {
 
         struct iovec *iovec = NULL;
         unsigned n = 0, j, tn = (unsigned) -1;
@@ -284,11 +286,7 @@ finish:
 }
 
 void server_process_native_file(
-                Server *s,
-                int fd,
-                struct ucred *ucred,
-                struct timeval *tv,
-                const char *label, size_t label_len) {
+        Server *s, int fd, struct socket_ucred *ucred, struct timeval *tv, const char *label, size_t label_len) {
 
         struct stat st;
         _cleanup_free_ void *p = NULL;
@@ -396,12 +394,9 @@ int server_open_native_socket(Server*s) {
         } else
                 fd_nonblock(s->native_fd, 1);
 
-        one = 1;
-        r = setsockopt(s->native_fd, SOL_SOCKET, SO_PASSCRED, &one, sizeof(one));
-        if (r < 0) {
-                log_error("SO_PASSCRED failed: %m");
-                return -errno;
-        }
+        r = socket_passcred(s->syslog_fd);
+        if (r < 0)
+                return log_error_errno(-r, "Enabling socket credential-passing failed: %m");
 
 #ifdef HAVE_SELINUX
         one = 1;

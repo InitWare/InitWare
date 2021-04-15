@@ -27,6 +27,7 @@ int server_open_dev_kmsg(Server *s);
 int server_read_dev_kmsg(Server *s);
 int server_flush_dev_kmsg(Server *s);
 
-void server_forward_kmsg(Server *s, int priority, const char *identifier, const char *message, struct ucred *ucred);
+void server_forward_kmsg(
+        Server *s, int priority, const char *identifier, const char *message, struct socket_ucred *ucred);
 
 int server_open_kernel_seqnum(Server *s);

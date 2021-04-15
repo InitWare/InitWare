@@ -19,11 +19,9 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/signalfd.h>
 #include <sys/ioctl.h>
-#include <linux/sockios.h>
-#include <sys/statvfs.h>
 #include <sys/mman.h>
+#include <sys/signalfd.h>
 #include <sys/timerfd.h>
 
 #include <libudev.h>
@@ -51,6 +49,14 @@
 #include "journald-stream.h"
 #include "journald-console.h"
 #include "journald-native.h"
+
+#ifdef Sys_Plat_Linux
+#        include <linux/sockios.h>
+#endif
+
+#ifdef Have_sys_statvfs_h
+#        include <sys/statvfs.h>
+#endif
 
 #ifdef HAVE_ACL
 #include <sys/acl.h>
@@ -495,14 +501,17 @@ static void write_to_journal(Server *s, uid_t uid, struct iovec *iovec, unsigned
 }
 
 static void dispatch_message_real(
-                Server *s,
-                struct iovec *iovec, unsigned n, unsigned m,
-                struct ucred *ucred,
-                struct timeval *tv,
-                const char *label, size_t label_len,
-                const char *unit_id,
-                int priority,
-                pid_t object_pid) {
+        Server *s,
+        struct iovec *iovec,
+        unsigned n,
+        unsigned m,
+        struct socket_ucred *ucred,
+        struct timeval *tv,
+        const char *label,
+        size_t label_len,
+        const char *unit_id,
+        int priority,
+        pid_t object_pid) {
 
         char    pid[sizeof("_PID=") + DECIMAL_STR_MAX(pid_t)],
                 uid[sizeof("_UID=") + DECIMAL_STR_MAX(uid_t)],
@@ -556,6 +565,7 @@ static void dispatch_message_real(
                         IOVEC_SET_STRING(iovec[n++], x);
                 }
 
+#ifdef Sys_Plat_Linux
                 r = get_process_exe(ucred->pid, &t);
                 if (r >= 0) {
                         x = strappenda("_EXE=", t);
@@ -563,6 +573,7 @@ static void dispatch_message_real(
                         IOVEC_SET_STRING(iovec[n++], x);
                 }
 
+                /* FIXME: */
                 r = get_process_cmdline(ucred->pid, 0, false, &t);
                 if (r >= 0) {
                         x = strappenda("_CMDLINE=", t);
@@ -576,6 +587,7 @@ static void dispatch_message_real(
                         free(t);
                         IOVEC_SET_STRING(iovec[n++], x);
                 }
+#endif
 
 #ifdef HAVE_AUDIT
                 r = audit_session_from_pid(ucred->pid, &audit);
@@ -682,6 +694,7 @@ static void dispatch_message_real(
                         IOVEC_SET_STRING(iovec[n++], x);
                 }
 
+#ifdef Sys_Plat_Linux
                 r = get_process_exe(object_pid, &t);
                 if (r >= 0) {
                         x = strappenda("OBJECT_EXE=", t);
@@ -695,6 +708,7 @@ static void dispatch_message_real(
                         free(t);
                         IOVEC_SET_STRING(iovec[n++], x);
                 }
+#endif
 
 #ifdef HAVE_AUDIT
                 r = audit_session_from_pid(object_pid, &audit);
@@ -796,7 +810,7 @@ void server_driver_message(Server *s, sd_id128_t message_id, const char *format,
         struct iovec iovec[N_IOVEC_META_FIELDS + 4];
         int n = 0;
         va_list ap;
-        struct ucred ucred = {};
+        struct socket_ucred ucred = {};
 
         assert(s);
         assert(format);
@@ -825,14 +839,17 @@ void server_driver_message(Server *s, sd_id128_t message_id, const char *format,
 }
 
 void server_dispatch_message(
-                Server *s,
-                struct iovec *iovec, unsigned n, unsigned m,
-                struct ucred *ucred,
-                struct timeval *tv,
-                const char *label, size_t label_len,
-                const char *unit_id,
-                int priority,
-                pid_t object_pid) {
+        Server *s,
+        struct iovec *iovec,
+        unsigned n,
+        unsigned m,
+        struct socket_ucred *ucred,
+        struct timeval *tv,
+        const char *label,
+        size_t label_len,
+        const char *unit_id,
+        int priority,
+        pid_t object_pid) {
 
         int rl, r;
         _cleanup_free_ char *path = NULL;
@@ -1166,7 +1183,7 @@ int process_event(Server *s, struct epoll_event *ev) {
                 for (;;) {
                         struct msghdr msghdr;
                         struct iovec iovec;
-                        struct ucred *ucred = NULL;
+                        struct socket_ucred *ucred = NULL;
                         struct timeval *tv = NULL;
                         struct cmsghdr *cmsg;
                         char *label = NULL;
@@ -1183,18 +1200,21 @@ int process_event(Server *s, struct epoll_event *ev) {
                                  * NAME_MAX. For now we use that, but
                                  * this should be updated one day when
                                  * the final limit is known.*/
-                                uint8_t buf[CMSG_SPACE(sizeof(struct ucred)) +
-                                            CMSG_SPACE(sizeof(struct timeval)) +
-                                            CMSG_SPACE(sizeof(int)) + /* fd */
-                                            CMSG_SPACE(NAME_MAX)]; /* selinux label */
+                                uint8_t
+                                        buf[CMSG_SPACE(sizeof(dgram_creds)) + CMSG_SPACE(sizeof(struct timeval)) +
+                                            CMSG_SPACE(sizeof(int)) /* fds */
+#ifdef SCM_SECURITY
+                                            + CMSG_SPACE(NAME_MAX) /* selinux label */
+#endif
+                                ];
                         } control;
                         ssize_t n;
                         int v;
                         int *fds = NULL;
                         unsigned n_fds = 0;
 
-                        if (ioctl(ev->data.fd, SIOCINQ, &v) < 0) {
-                                log_error("SIOCINQ failed: %m");
+                        if (socket_fionread(ev->data.fd, &v) < 0) {
+                                log_error("socket_fionread failed: %m");
                                 return -errno;
                         }
 
@@ -1237,17 +1257,18 @@ int process_event(Server *s, struct epoll_event *ev) {
 
                         for (cmsg = CMSG_FIRSTHDR(&msghdr); cmsg; cmsg = CMSG_NXTHDR(&msghdr, cmsg)) {
 
-                                if (cmsg->cmsg_level == SOL_SOCKET &&
-                                    cmsg->cmsg_type == SCM_CREDENTIALS &&
-                                    cmsg->cmsg_len == CMSG_LEN(sizeof(struct ucred)))
-                                        ucred = (struct ucred*) CMSG_DATA(cmsg);
+                                if (cmsg_readucred(cmsg, &ucred))
+                                        ;
+#ifdef SCM_SECURITY
                                 else if (cmsg->cmsg_level == SOL_SOCKET &&
                                          cmsg->cmsg_type == SCM_SECURITY) {
                                         label = (char*) CMSG_DATA(cmsg);
                                         label_len = cmsg->cmsg_len - CMSG_LEN(0);
-                                } else if (cmsg->cmsg_level == SOL_SOCKET &&
-                                           cmsg->cmsg_type == SO_TIMESTAMP &&
-                                           cmsg->cmsg_len == CMSG_LEN(sizeof(struct timeval)))
+                                }
+#endif
+                                else if (
+                                        cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SO_TIMESTAMP &&
+                                        cmsg->cmsg_len == CMSG_LEN(sizeof(struct timeval)))
                                         tv = (struct timeval*) CMSG_DATA(cmsg);
                                 else if (cmsg->cmsg_level == SOL_SOCKET &&
                                          cmsg->cmsg_type == SCM_RIGHTS) {
@@ -1590,9 +1611,11 @@ int server_init(Server *s) {
         if (r < 0)
                 return r;
 
+#ifdef Use_UDev
         s->udev = udev_new();
         if (!s->udev)
                 return -ENOMEM;
+#endif
 
         s->rate_limit = journal_rate_limit_new(s->rate_limit_interval,
                                                s->rate_limit_burst);
@@ -1660,6 +1683,8 @@ void server_done(Server *s) {
         if (s->mmap)
                 mmap_cache_unref(s->mmap);
 
+#ifdef Use_UDev
         if (s->udev)
                 udev_unref(s->udev);
+#endif
 }

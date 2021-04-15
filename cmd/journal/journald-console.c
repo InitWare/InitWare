@@ -44,11 +44,7 @@ static bool prefix_timestamp(void) {
 }
 
 void server_forward_console(
-                Server *s,
-                int priority,
-                const char *identifier,
-                const char *message,
-                struct ucred *ucred) {
+        Server *s, int priority, const char *identifier, const char *message, struct socket_ucred *ucred) {
 
         struct iovec iovec[5];
         char header_pid[16];

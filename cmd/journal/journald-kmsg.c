@@ -33,11 +33,7 @@
 #include "journald-syslog.h"
 
 void server_forward_kmsg(
-        Server *s,
-        int priority,
-        const char *identifier,
-        const char *message,
-        struct ucred *ucred) {
+        Server *s, int priority, const char *identifier, const char *message, struct socket_ucred *ucred) {
 
         struct iovec iovec[5];
         char header_priority[6], header_pid[16];
@@ -216,6 +212,7 @@ static void dev_kmsg_record(Server *s, char *p, size_t l) {
                 k = e + 1;
         }
 
+#ifdef Use_UDev
         if (kernel_device) {
                 struct udev_device *ud;
 
@@ -265,6 +262,7 @@ static void dev_kmsg_record(Server *s, char *p, size_t l) {
                         udev_device_unref(ud);
                 }
         }
+#endif
 
         if (asprintf(&source_time, "_SOURCE_MONOTONIC_TIMESTAMP=%llu", usec) >= 0)
                 IOVEC_SET_STRING(iovec[n++], source_time);

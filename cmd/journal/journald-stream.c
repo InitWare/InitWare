@@ -54,7 +54,7 @@ struct StdoutStream {
 
         int fd;
 
-        struct ucred ucred;
+        struct socket_ucred ucred;
 #ifdef HAVE_SELINUX
         security_context_t security_context;
 #endif
@@ -372,9 +372,9 @@ int stdout_stream_new(Server *s) {
         stream->fd = fd;
 
         len = sizeof(stream->ucred);
-        if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &stream->ucred, &len) < 0) {
-                log_error("Failed to determine peer credentials: %m");
-                r = -errno;
+        r = socket_getpeercred(fd, &stream->ucred);
+        if (r < 0) {
+                log_error("Failed to determine peer credentials: %s", strerror(-r));
                 goto fail;
         }
 

@@ -23,4 +23,5 @@
 
 #include "journald-server.h"
 
-void server_forward_console(Server *s, int priority, const char *identifier, const char *message, struct ucred *ucred);
+void server_forward_console(
+        Server *s, int priority, const char *identifier, const char *message, struct socket_ucred *ucred);

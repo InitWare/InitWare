@@ -33,7 +33,8 @@
 /* Warn once every 30s if we missed syslog message */
 #define WARN_FORWARD_SYSLOG_MISSED_USEC (30 * USEC_PER_SEC)
 
-static void forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned n_iovec, struct ucred *ucred, struct timeval *tv) {
+static void forward_syslog_iovec(
+        Server *s, const struct iovec *iovec, unsigned n_iovec, struct socket_ucred *ucred, struct timeval *tv) {
 
         union sockaddr_union sa = {
                 .un.sun_family = AF_UNIX,
@@ -49,13 +50,16 @@ static void forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned 
         struct cmsghdr *cmsg;
         union {
                 struct cmsghdr cmsghdr;
-                uint8_t buf[CMSG_SPACE(sizeof(struct ucred))];
+#ifdef Sys_Plat_Linux
+                uint8_t buf[CMSG_SPACE(sizeof(dgram_creds))];
+#endif
         } control;
 
         assert(s);
         assert(iovec);
         assert(n_iovec > 0);
 
+#ifdef Sys_Plat_Linux
         if (ucred) {
                 zero(control);
                 msghdr.msg_control = &control;
@@ -64,10 +68,11 @@ static void forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned 
                 cmsg = CMSG_FIRSTHDR(&msghdr);
                 cmsg->cmsg_level = SOL_SOCKET;
                 cmsg->cmsg_type = SCM_CREDENTIALS;
-                cmsg->cmsg_len = CMSG_LEN(sizeof(struct ucred));
-                memcpy(CMSG_DATA(cmsg), ucred, sizeof(struct ucred));
+                cmsg->cmsg_len = CMSG_LEN(sizeof(dgram_creds));
+                memcpy(CMSG_DATA(cmsg), ucred, sizeof(dgram_creds));
                 msghdr.msg_controllen = cmsg->cmsg_len;
         }
+#endif
 
         /* Forward the syslog message we received via /dev/log to
          * @AbsDir_PkgRunState@/syslog. Unfortunately we currently can't set
@@ -83,8 +88,9 @@ static void forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned 
                 return;
         }
 
+#ifdef Sys_Plat_Linux
         if (ucred && errno == ESRCH) {
-                struct ucred u;
+                struct socket_ucred u;
 
                 /* Hmm, presumably the sender process vanished
                  * by now, so let's fix it as good as we
@@ -92,7 +98,7 @@ static void forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned 
 
                 u = *ucred;
                 u.pid = getpid();
-                memcpy(CMSG_DATA(cmsg), &u, sizeof(struct ucred));
+                memcpy(CMSG_DATA(cmsg), &u, sizeof(dgram_creds));
 
                 if (sendmsg(s->syslog_fd, &msghdr, MSG_NOSIGNAL) >= 0)
                         return;
@@ -102,12 +108,14 @@ static void forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned 
                         return;
                 }
         }
+#endif
 
         if (errno != ENOENT)
                 log_debug("Failed to forward syslog message: %m");
 }
 
-static void forward_syslog_raw(Server *s, int priority, const char *buffer, struct ucred *ucred, struct timeval *tv) {
+static void forward_syslog_raw(
+        Server *s, int priority, const char *buffer, struct socket_ucred *ucred, struct timeval *tv) {
         struct iovec iovec;
 
         assert(s);
@@ -120,7 +128,13 @@ static void forward_syslog_raw(Server *s, int priority, const char *buffer, stru
         forward_syslog_iovec(s, &iovec, 1, ucred, tv);
 }
 
-void server_forward_syslog(Server *s, int priority, const char *identifier, const char *message, struct ucred *ucred, struct timeval *tv) {
+void server_forward_syslog(
+        Server *s,
+        int priority,
+        const char *identifier,
+        const char *message,
+        struct socket_ucred *ucred,
+        struct timeval *tv) {
         struct iovec iovec[5];
         char header_priority[6], header_time[64], header_pid[16];
         int n = 0;
@@ -349,7 +363,7 @@ static void syslog_skip_date(char **buf) {
 void server_process_syslog_message(
         Server *s,
         const char *buf,
-        struct ucred *ucred,
+        struct socket_ucred *ucred,
         struct timeval *tv,
         const char *label,
         size_t label_len) {
@@ -445,12 +459,9 @@ int server_open_syslog_socket(Server *s) {
         } else
                 fd_nonblock(s->syslog_fd, 1);
 
-        one = 1;
-        r = setsockopt(s->syslog_fd, SOL_SOCKET, SO_PASSCRED, &one, sizeof(one));
-        if (r < 0) {
-                log_error("SO_PASSCRED failed: %m");
-                return -errno;
-        }
+        r = socket_passcred(s->syslog_fd);
+        if (r < 0)
+                return log_error_errno(-r, "Enabling socket credential-passing failed: %m");
 
 #ifdef HAVE_SELINUX
         one = 1;
