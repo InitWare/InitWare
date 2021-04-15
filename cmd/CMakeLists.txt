@@ -1,7 +1,6 @@
 add_subdirectory(iwctl)
 add_subdirectory(manager)
 add_subdirectory(rcng)
-add_subdirectory(journal)
 
 set(DB2MDSRC ${PROJECT_SOURCE_DIR}/vendor/docbook2mdoc)
 add_executable(docbook2mdoc ${DB2MDSRC}/docbook2mdoc.c ${DB2MDSRC}/macro.c

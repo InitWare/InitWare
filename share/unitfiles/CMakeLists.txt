@@ -7,7 +7,7 @@ endforeach()
 
 foreach(unit_in
   debug-shell.service.in emergency.service.in halt-local.service.in
-  rescue.service.in journal-syslog.socket.in
+  rescue.service.in
   systemd-ask-password-console.path.in
   systemd-ask-password-console.service.in
   systemd-ask-password-wall.path.in
@@ -16,10 +16,6 @@ foreach(unit_in
   systemd-hibernate.service.in
   systemd-hostnamed.service.in
   systemd-hybrid-sleep.service.in
-  systemd-journal-flush.service.in
-  systemd-journal-gatewayd.service.in
-  systemd-journald.service.in
-  systemd-journald.socket.in
   systemd-logind.service.in
   systemd-nspawn@.service.in
   systemd-poweroff.service.in
@@ -55,8 +51,7 @@ set(system_unitfiles basic.target bluetooth.target cryptsetup-pre.target
     ${CMAKE_CURRENT_BINARY_DIR}/rescue.service rescue.target rpcbind.target
     shutdown.target sigpwr.target sleep.target slices.target smartcard.target
     sockets.target sound.target suspend.target swap.target sysinit.target
-    ${CMAKE_CURRENT_BINARY_DIR}/journal-syslog.socket system-update.target
-    system.slice
+    system-update.target system.slice
     ${CMAKE_CURRENT_BINARY_DIR}/systemd-ask-password-console.path
     ${CMAKE_CURRENT_BINARY_DIR}/systemd-ask-password-console.service
     ${CMAKE_CURRENT_BINARY_DIR}/systemd-ask-password-wall.path

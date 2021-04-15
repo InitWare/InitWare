@@ -176,8 +176,9 @@ _public_ int sd_id128_get_boot(sd_id128_t *ret) {
         }
 
         fd = open("/proc/sys/kernel/random/boot_id", O_RDONLY|O_CLOEXEC|O_NOCTTY);
-        if (fd < 0)
-                return -errno;
+        if (fd < 0) {
+                return 0;
+        }
 
         k = loop_read(fd, buf, 36, false);
         if (k < 0)

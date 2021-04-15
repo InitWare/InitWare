@@ -49,15 +49,23 @@
 #ifdef Have_socket_struct_ucred
 #        define socket_ucred ucred
 #        define dgram_creds struct ucred
+#        define sizeof_dgram_creds sizeof(dgram_creds)
 #        define dgram_creds_pid pid
 #        define dgram_creds_uid uid
 #        define dgram_creds_gid uid
 #elif defined(Have_struct_cmsgcred)
 #        define Cmsgcred
 #        define dgram_creds struct cmsgcred
+#        define sizeof_dgram_creds sizeof(dgram_creds)
 #        define dgram_creds_pid cmcred_pid
 #        define dgram_creds_uid cmcred_uid
 #        define dgram_creds_gid cmcred_gid
+#elif defined(LOCAL_CREDS) /* available on FreeBSD too, but no PID info - prefer this only on NetBSD */
+#        define dgram_creds struct sockcred
+#        define sizeof_dgram_creds sizeof(SOCKCREDSIZE(1))
+#        define dgram_creds_pid sc_pid
+#        define dgram_creds_uid sc_uid
+#        define dgram_creds_gid sc_gid
 #endif
 
 #ifndef Have_socket_struct_ucred

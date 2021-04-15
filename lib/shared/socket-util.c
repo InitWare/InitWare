@@ -636,7 +636,7 @@ int socket_passcred(int fd) {
 int cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred) {
 #ifdef SCM_CRED_OPT
         if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_CRED_OPT &&
-            cmsg->cmsg_len == CMSG_LEN(sizeof(dgram_creds))) {
+            cmsg->cmsg_len == CMSG_LEN(sizeof_dgram_creds)) {
                 dgram_creds *creds = (dgram_creds *) CMSG_DATA(cmsg);
                 xucred->gid = creds->dgram_creds_gid;
                 xucred->uid = creds->dgram_creds_uid;
@@ -662,7 +662,16 @@ int socket_getpeercred(int fd, struct socket_ucred *xucred) {
 
         return 0;
 #elif defined(LOCAL_PEEREID)
-#        error Port me
+        struct unpcbid unp;
+        socklen_t unpl = sizeof unp;
+
+        if (getsockopt(fd, 0, LOCAL_PEEREID, &unp, &unpl) < 0)
+                return -errno;
+        xucred->gid = unp.unp_egid;
+        xucred->uid = unp.unp_euid;
+        xucred->pid = unp.unp_pid;
+
+        return 0;
 #endif
 
         return -ENOTSUP;

@@ -277,7 +277,7 @@ static int create_socket(char **name) {
 
         if (r < 0) {
                 r = -errno;
-                log_error("bind() failed: %m");
+                log_error("bind() failed: %s", strerror(errno));
                 goto fail;
         }
 
