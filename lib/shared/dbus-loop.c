@@ -229,7 +229,7 @@ int bus_loop_dispatch(int fd) {
         if (n < 0)
                 return errno == EAGAIN || errno == EINTR ? 0 : -errno;
 
-        assert_se(d = event.data.ptr);
+        // assert_se(d = event.data.ptr);
 
         if (d->is_timeout) {
                 DBusTimeout *t = d->object;

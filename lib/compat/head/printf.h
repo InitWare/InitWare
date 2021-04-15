@@ -31,10 +31,12 @@
 #include "parse-printf-format.h"
 
 #ifndef Have_printf_h
-#define Have_printf_h
 
-#include <stdio.h>
-#include <wchar.h>
+#        ifndef PRINTF_H_
+#                define PRINTF_H_
+
+#                include <stdio.h>
+#                include <wchar.h>
 
 /*
  * The API defined by glibc allows a renderer to take multiple arguments
@@ -140,6 +142,7 @@ printf_render			__printf_render_time;
 printf_arginfo_function		__printf_arginfo_vis;
 printf_render 			__printf_render_vis;
 
-#else
+#        endif /* PRINTF_H_ */
+#else          /* !Have_printf_h */
 #        include_next <printf.h>
 #endif /* !Have_printf_h */

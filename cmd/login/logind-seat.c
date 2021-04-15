@@ -19,13 +19,12 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/ioctl.h>
 #include <assert.h>
 #include <errno.h>
-#include <unistd.h>
 #include <fcntl.h>
-#include <sys/ioctl.h>
-#include <linux/vt.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "systemd/sd-id128.h"
 #include "systemd/sd-messages.h"
@@ -34,6 +33,12 @@
 #include "util.h"
 #include "mkdir.h"
 #include "path-util.h"
+
+#ifdef Sys_Plat_Linux
+#        include <linux/vt.h>
+#elif defined(Sys_Plat_NetBSD)
+#        include <dev/wscons/wsdisplay_usl_io.h>
+#endif
 
 Seat *seat_new(Manager *m, const char *id) {
         Seat *s;
@@ -221,6 +226,7 @@ int seat_apply_acls(Seat *s, Session *old_active) {
 
         assert(s);
 
+#ifdef Use_udev
         r = devnode_acl_all(s->manager->udev,
                             s->id,
                             false,
@@ -229,6 +235,9 @@ int seat_apply_acls(Seat *s, Session *old_active) {
 
         if (r < 0)
                 log_error("Failed to apply ACLs: %s", strerror(-r));
+#else
+        r = 0;
+#endif
 
         return r;
 }

@@ -20,16 +20,22 @@
 ***/
 
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <pwd.h>
 #include <unistd.h>
-#include <linux/vt.h>
 
 #include "logind.h"
 #include "dbus-common.h"
 #include "strv.h"
+
+/* VTs are system-specific enough that we use platform ifdefs. */
+#ifdef Sys_Plat_Linux
+#        include <linux/vt.h>
+#elif defined(Sys_Plat_NetBSD)
+#        include <dev/wscons/wsdisplay_usl_io.h>
+#endif
 
 int manager_add_device(Manager *m, const char *sysfs, bool master, Device **_device) {
         Device *d;
@@ -250,6 +256,7 @@ void manager_drop_busname(Manager *m, const char *name) {
                 free(key);
 }
 
+#ifdef Use_udev
 int manager_process_seat_device(Manager *m, struct udev_device *d) {
         Device *device;
         int r;
@@ -279,10 +286,12 @@ int manager_process_seat_device(Manager *m, struct udev_device *d) {
                         return 0;
                 }
 
+#        ifdef Sys_Plat_Linux // FIXME: udev tags
                 /* ignore non-master devices for unknown seats */
                 master = udev_device_has_tag(d, "master-of-seat");
                 if (!master && !(seat = hashmap_get(m->seats, sn)))
                         return 0;
+#        endif
 
                 r = manager_add_device(m, udev_device_get_syspath(d), master, &device);
                 if (r < 0)
@@ -337,8 +346,10 @@ int manager_process_button_device(Manager *m, struct udev_device *d) {
 
         return 0;
 }
+#endif
 
 int manager_get_session_by_pid(Manager *m, pid_t pid, Session **session) {
+#ifdef Use_CGroups // FIXME: get unit by PID
         _cleanup_free_ char *unit = NULL;
         Session *s;
         int r;
@@ -359,9 +370,14 @@ int manager_get_session_by_pid(Manager *m, pid_t pid, Session **session) {
 
         *session = s;
         return 1;
+#else
+        unimplemented();
+        return 0;
+#endif
 }
 
 int manager_get_user_by_pid(Manager *m, pid_t pid, User **user) {
+#ifdef Use_CGroups // FIXME: get unit by PID
         _cleanup_free_ char *unit = NULL;
         User *u;
         int r;
@@ -382,6 +398,10 @@ int manager_get_user_by_pid(Manager *m, pid_t pid, User **user) {
 
         *user = u;
         return 1;
+#else
+        unimplemented();
+        return 0;
+#endif
 }
 
 int manager_get_idle_hint(Manager *m, dual_timestamp *t) {
@@ -440,6 +460,7 @@ bool manager_shall_kill(Manager *m, const char *user) {
 }
 
 static int vt_is_busy(int vtnr) {
+#if defined(Sys_Plat_Linux) || defined(Sys_Plat_NetBSD)
         struct vt_stat vt_stat;
         int r = 0, fd;
 
@@ -463,6 +484,9 @@ static int vt_is_busy(int vtnr) {
         safe_close(fd);
 
         return r;
+#else
+        return 0;
+#endif
 }
 
 int manager_spawn_autovt(Manager *m, int vtnr) {

@@ -23,7 +23,12 @@
 
 #include <sys/types.h>
 #include <stdbool.h>
+
+#include "compat.h"
+
+#ifdef Use_udev
 #include <libudev.h>
+#endif
 
 #ifdef HAVE_ACL
 
@@ -46,6 +51,7 @@ static inline int devnode_acl(const char *path,
         return 0;
 }
 
+#ifdef Use_udev
 static inline int devnode_acl_all(struct udev *udev,
                                   const char *seat,
                                   bool flush,
@@ -53,5 +59,6 @@ static inline int devnode_acl_all(struct udev *udev,
                                   bool add, uid_t new_uid) {
         return 0;
 }
+#endif
 
 #endif

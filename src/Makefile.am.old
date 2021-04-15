@@ -2451,32 +2451,6 @@ systemd_logind_LDADD = \
 	libsystemd-logind-core.la \
 	$(libsystemd_logind_core_la_LIBADD)
 
-libsystemd_logind_core_la_SOURCES = \
-	src/login/logind-core.c \
-	src/login/logind-dbus.c \
-	src/login/logind-device.c \
-	src/login/logind-device.h \
-	src/login/logind-button.c \
-	src/login/logind-button.h \
-	src/login/logind-action.c \
-	src/login/logind-action.h \
-	src/login/logind-seat.c \
-	src/login/logind-seat.h \
-	src/login/logind-session.c \
-	src/login/logind-session.h \
-	src/login/logind-session-device.c \
-	src/login/logind-session-device.h \
-	src/login/logind-user.c \
-	src/login/logind-user.h \
-	src/login/logind-inhibit.c \
-	src/login/logind-inhibit.h \
-	src/login/logind-session-dbus.c \
-	src/login/logind-seat-dbus.c \
-	src/login/logind-user-dbus.c \
-	src/login/logind-acl.h \
-	src/login/login-shared.c \
-	src/login/login-shared.h
-
 libsystemd_logind_core_la_CFLAGS = \
 	$(AM_CFLAGS) \
         $(DBUS_CFLAGS)

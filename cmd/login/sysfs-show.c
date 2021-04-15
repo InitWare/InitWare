@@ -62,6 +62,7 @@ static int show_sysfs_one(
                 if (isempty(sn))
                         sn = "seat0";
 
+#ifdef Sys_Plat_Linux // FIXME: udev tags
                 /* Explicitly also check for tag 'seat' here */
                 if (!streq(seat, sn) || !udev_device_has_tag(d, "seat")) {
                         udev_device_unref(d);
@@ -70,6 +71,7 @@ static int show_sysfs_one(
                 }
 
                 is_master = udev_device_has_tag(d, "master-of-seat");
+#endif
 
                 name = udev_device_get_sysattr_value(d, "name");
                 if (!name)
@@ -97,7 +99,11 @@ static int show_sysfs_one(
                                         if (isempty(lookahead_sn))
                                                 lookahead_sn = "seat0";
 
-                                        found = streq(seat, lookahead_sn) && udev_device_has_tag(lookahead_d, "seat");
+                                        found = streq(seat, lookahead_sn)
+#ifdef Sys_Plat_Linux // FIXME: udev tags
+                                                && udev_device_has_tag(lookahead_d, "seat")
+#endif
+                                                ;
                                         udev_device_unref(lookahead_d);
 
                                         if (found)

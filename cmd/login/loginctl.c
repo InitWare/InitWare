@@ -314,6 +314,7 @@ static int show_unit_cgroup(DBusConnection *bus, const char *interface, const ch
 
         dbus_message_iter_get_basic(&sub, &cgroup);
 
+#ifdef Use_CGroups
         if (isempty(cgroup))
                 return 0;
 
@@ -331,6 +332,7 @@ static int show_unit_cgroup(DBusConnection *bus, const char *interface, const ch
                 c = 0;
 
         show_cgroup_and_extra(SYSTEMD_CGROUP_CONTROLLER, cgroup, "\t\t  ", c, false, &leader, leader > 0, output_flags);
+#endif
         return 0;
 }
 
@@ -523,8 +525,11 @@ static void print_seat_status_info(SeatStatusInfo *i) {
                         c = 0;
 
                 printf("\t Devices:\n");
-
+#ifdef Use_udev
                 show_sysfs(i->id, "\t\t  ", c);
+#else
+                printf("\t\t  %s\n", i->id);
+#endif
         }
 }
 

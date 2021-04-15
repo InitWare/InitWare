@@ -19,21 +19,27 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <assert.h>
-#include <fcntl.h>
-#include <libudev.h>
-#include <linux/input.h>
-#include <linux/ioctl.h>
-#include <string.h>
+#include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
-#include <sys/types.h>
+#include <assert.h>
+#include <fcntl.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "dbus-common.h"
 #include "logind-session-device.h"
 #include "util.h"
 #include "missing.h"
+
+#ifdef Use_udev
+#        include <libudev.h>
+#endif
+
+#ifdef Sys_Plat_Linux
+#        include <linux/input.h>
+#        include <linux/ioctl.h>
+#endif
 
 enum SessionDeviceNotifications {
         SESSION_DEVICE_RESUME,
@@ -107,7 +113,11 @@ static int sd_eviocrevoke(int fd) {
 
         assert(fd >= 0);
 
+#ifdef EVOPCREVPLE
         r = ioctl(fd, EVIOCREVOKE, 1);
+#else
+        r = -1;
+#endif
         if (r < 0) {
                 r = -errno;
                 if (r == -EINVAL && !warned) {
@@ -124,9 +134,14 @@ static int sd_drmsetmaster(int fd) {
 
         assert(fd >= 0);
 
+#ifdef DRM_IOCTL_SET_MASTER
         r = ioctl(fd, DRM_IOCTL_SET_MASTER, 0);
         if (r < 0)
                 return -errno;
+#else
+        unimplemented();
+#endif
+
 
         return 0;
 }
@@ -136,9 +151,13 @@ static int sd_drmdropmaster(int fd) {
 
         assert(fd >= 0);
 
+#ifdef DRM_IOCTL_DROP_MASTER
         r = ioctl(fd, DRM_IOCTL_DROP_MASTER, 0);
         if (r < 0)
                 return -errno;
+#else
+        unimplemented();
+#endif
 
         return 0;
 }
@@ -256,6 +275,7 @@ static DeviceType detect_device_type(struct udev_device *dev) {
         const char *sysname, *subsystem;
         DeviceType type;
 
+#ifdef Use_udev
         sysname = udev_device_get_sysname(dev);
         subsystem = udev_device_get_subsystem(dev);
         type = DEVICE_TYPE_UNKNOWN;
@@ -267,11 +287,16 @@ static DeviceType detect_device_type(struct udev_device *dev) {
                 if (startswith(sysname, "event"))
                         type = DEVICE_TYPE_EVDEV;
         }
+#else
+        unimplemented();
+        type = DEVICE_TYPE_UNKNOWN;
+#endif
 
         return type;
 }
 
 static int session_device_verify(SessionDevice *sd) {
+#ifdef Use_udev
         struct udev_device *dev, *p = NULL;
         const char *sp, *node;
         int r;
@@ -342,6 +367,10 @@ static int session_device_verify(SessionDevice *sd) {
 err_dev:
         udev_device_unref(p ? : dev);
         return r;
+#else
+        unimplemented();
+        return 0;
+#endif
 }
 
 int session_device_new(Session *s, dev_t dev, SessionDevice **out) {

@@ -653,6 +653,7 @@ int cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred) {
 
 int socket_getpeercred(int fd, struct socket_ucred *xucred) {
 #ifdef SO_PEERCRED
+#        error Port me
 #elif defined(LOCAL_PEERCRED)
         struct xucred cred;
         socklen_t len = sizeof cred;

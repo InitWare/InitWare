@@ -20,12 +20,10 @@
 ***/
 
 #include <errno.h>
-#include <libudev.h>
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/epoll.h>
-#include <linux/vt.h>
 #include <sys/timerfd.h>
 
 #include <systemd/sd-daemon.h>
@@ -37,6 +35,17 @@
 #include "conf-parser.h"
 #include "mkdir.h"
 
+#ifdef Use_udev
+#        include <libudev.h>
+#endif
+
+#ifdef Sys_Plat_Linux
+#        include <linux/vt.h>
+#elif defined(Sys_Plat_NetBSD)
+#        include <dev/wscons/wsdisplay_usl_io.h>
+#endif
+
+
 Manager *manager_new(void) {
         Manager *m;
 
@@ -46,9 +55,11 @@ Manager *manager_new(void) {
 
         m->console_active_fd = -1;
         m->bus_fd = -1;
+#ifdef Use_udev
         m->udev_seat_fd = -1;
         m->udev_vcsa_fd = -1;
         m->udev_button_fd = -1;
+#endif
         m->epoll_fd = -1;
         m->reserve_vt_fd = -1;
 
@@ -95,11 +106,13 @@ Manager *manager_new(void) {
                 return NULL;
         }
 
+#ifdef Use_udev
         m->udev = udev_new();
         if (!m->udev) {
                 manager_free(m);
                 return NULL;
         }
+#endif
 
         return m;
 }
@@ -130,8 +143,10 @@ void manager_free(Manager *m) {
         while ((i = hashmap_first(m->inhibitors)))
                 inhibitor_free(i);
 
+#ifdef Sys_Plat_Linux // FIXME: evdev
         while ((b = hashmap_first(m->buttons)))
                 button_free(b);
+#endif
 
         while ((n = hashmap_first(m->busnames)))
                 free(hashmap_remove(m->busnames, n));
@@ -154,6 +169,7 @@ void manager_free(Manager *m) {
 
         safe_close(m->console_active_fd);
 
+#ifdef Use_udev
         if (m->udev_seat_monitor)
                 udev_monitor_unref(m->udev_seat_monitor);
         if (m->udev_device_monitor)
@@ -165,6 +181,7 @@ void manager_free(Manager *m) {
 
         if (m->udev)
                 udev_unref(m->udev);
+#endif
 
         if (m->bus) {
                 dbus_connection_flush(m->bus);
@@ -185,6 +202,7 @@ void manager_free(Manager *m) {
 }
 
 int manager_enumerate_devices(Manager *m) {
+#ifdef Use_udev
         struct udev_list_entry *item = NULL, *first = NULL;
         struct udev_enumerate *e;
         int r;
@@ -231,9 +249,13 @@ finish:
                 udev_enumerate_unref(e);
 
         return r;
+#else
+        return 0;
+#endif
 }
 
 int manager_enumerate_buttons(Manager *m) {
+#ifdef Use_udev
         struct udev_list_entry *item = NULL, *first = NULL;
         struct udev_enumerate *e;
         int r;
@@ -289,6 +311,9 @@ finish:
                 udev_enumerate_unref(e);
 
         return r;
+#else
+        return 0;
+#endif
 }
 
 int manager_enumerate_seats(Manager *m) {
@@ -495,6 +520,7 @@ int manager_enumerate_inhibitors(Manager *m) {
 }
 
 int manager_dispatch_seat_udev(Manager *m) {
+#ifdef Use_udev
         struct udev_device *d;
         int r;
 
@@ -508,9 +534,13 @@ int manager_dispatch_seat_udev(Manager *m) {
         udev_device_unref(d);
 
         return r;
+#else
+        return 0;
+#endif
 }
 
 static int manager_dispatch_device_udev(Manager *m) {
+#ifdef Use_udev
         struct udev_device *d;
         int r;
 
@@ -524,9 +554,13 @@ static int manager_dispatch_device_udev(Manager *m) {
         udev_device_unref(d);
 
         return r;
+#else
+        return 0;
+#endif
 }
 
 int manager_dispatch_vcsa_udev(Manager *m) {
+#ifdef Use_udev
         struct udev_device *d;
         int r = 0;
         const char *name;
@@ -548,9 +582,13 @@ int manager_dispatch_vcsa_udev(Manager *m) {
         udev_device_unref(d);
 
         return r;
+#else
+        return 0;
+#endif
 }
 
 int manager_dispatch_button_udev(Manager *m) {
+#ifdef Use_udev
         struct udev_device *d;
         int r;
 
@@ -564,6 +602,9 @@ int manager_dispatch_button_udev(Manager *m) {
         udev_device_unref(d);
 
         return r;
+#else
+        return 0;
+#endif
 }
 
 int manager_dispatch_console(Manager *m) {
@@ -629,12 +670,14 @@ static void manager_dispatch_other(Manager *m, int fd) {
                 return;
         }
 
+#ifdef Sys_Plat_Linux // FIXME: evdev
         b = hashmap_get(m->button_fds, INT_TO_PTR(fd + 1));
         if (b) {
                 assert(b->fd == fd);
                 button_process(b);
                 return;
         }
+#endif
 
         assert_not_reached("Got event for unknown fd");
 }
@@ -808,6 +851,7 @@ static int manager_connect_console(Manager *m) {
 }
 
 static int manager_connect_udev(Manager *m) {
+#ifdef Use_udev
         int r;
         struct epoll_event ev = {
                 .events = EPOLLIN,
@@ -824,9 +868,11 @@ static int manager_connect_udev(Manager *m) {
         if (!m->udev_seat_monitor)
                 return -ENOMEM;
 
+#ifdef Sys_Plat_Linux // FIXME: udev
         r = udev_monitor_filter_add_match_tag(m->udev_seat_monitor, "master-of-seat");
         if (r < 0)
                 return r;
+#endif
 
         r = udev_monitor_enable_receiving(m->udev_seat_monitor);
         if (r < 0)
@@ -874,9 +920,11 @@ static int manager_connect_udev(Manager *m) {
                 if (!m->udev_button_monitor)
                         return -ENOMEM;
 
+#        ifdef Sys_Plat_Linux // FIXME: udev
                 r = udev_monitor_filter_add_match_tag(m->udev_button_monitor, "power-switch");
                 if (r < 0)
                         return r;
+#        endif
 
                 r = udev_monitor_filter_add_match_subsystem_devtype(m->udev_button_monitor, "input", NULL);
                 if (r < 0)
@@ -920,6 +968,9 @@ static int manager_connect_udev(Manager *m) {
         }
 
         return 0;
+#else
+                return 0;
+#endif
 }
 
 void manager_gc(Manager *m, bool drop_not_started) {
@@ -1129,6 +1180,7 @@ static int manager_recheck_buttons(Manager *m) {
 
         assert(m);
 
+#ifdef Sys_Plat_Linux // FIXME: evdev
         HASHMAP_FOREACH(b, m->buttons, i) {
                 int q;
 
@@ -1138,6 +1190,7 @@ static int manager_recheck_buttons(Manager *m) {
                 if (q < 0)
                         r = q;
         }
+#endif
 
         return r;
 }

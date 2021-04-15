@@ -1,6 +1,7 @@
 add_subdirectory(iwctl)
 add_subdirectory(manager)
 add_subdirectory(rcng)
+add_subdirectory(login)
 
 set(DB2MDSRC ${PROJECT_SOURCE_DIR}/vendor/docbook2mdoc)
 add_executable(docbook2mdoc EXCLUDE_FROM_ALL ${DB2MDSRC}/docbook2mdoc.c

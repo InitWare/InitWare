@@ -370,11 +370,13 @@ int session_load(Session *s) {
                         s->vtnr = v;
         }
 
+#ifdef Use_Audit
         if (leader) {
                 k = parse_pid(leader, &s->leader);
                 if (k >= 0)
                         audit_session_from_pid(s->leader, &s->audit_id);
         }
+#endif
 
         if (type) {
                 SessionType t;

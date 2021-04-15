@@ -24,6 +24,7 @@
 #cmakedefine Have_sys_statfs_h
 #cmakedefine Have_sys_statvfs_h
 #cmakedefine Have_sys_sysmacros_h
+#cmakedefine Have_sys_ucred_h
 #cmakedefine Have_sys_vfs_h
 #cmakedefine Have_alloca_h
 #cmakedefine Have_byteswap_h
@@ -86,6 +87,7 @@
 #define AbsDir_RunState "@AbsDir_RunState@"
 #define AbsDir_User_RunStateBase "@AbsDir_User_RunStateBase@"
 #define AbsDir_PkgLib "@AbsDir_PkgLib@"
+#define AbsDir_PkgVarLib "@AbsDir_InitWareStateDir@"
 
 #define PkgDirName "@PkgDirName@"
 

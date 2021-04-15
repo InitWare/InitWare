@@ -20,11 +20,14 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "compat.h"
+
 #ifndef Have_parse_printf_format
 #define Have_parse_printf_format
 
 #include <stddef.h>
 
+#        ifndef Have_printf_h
 enum {             /* C type: */
        PA_INT,     /* int */
        PA_CHAR,    /* int, cast to char */
@@ -36,6 +39,7 @@ enum {             /* C type: */
        PA_DOUBLE,  /* double */
        PA_LAST
 };
+#        endif
 
 /* Flag bits that can be set in a type returned by `parse_printf_format'.  */
 #define PA_FLAG_MASK 0xff00

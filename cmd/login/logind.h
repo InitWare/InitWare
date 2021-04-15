@@ -21,16 +21,19 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdbool.h>
-#include <inttypes.h>
 #include <dbus/dbus.h>
-#include <libudev.h>
+#include <inttypes.h>
+#include <stdbool.h>
 
 #include "util.h"
 #include "audit.h"
 #include "list.h"
 #include "hashmap.h"
 #include "cgroup-util.h"
+
+#ifdef Use_udev
+#        include <libudev.h>
+#endif
 
 typedef struct Manager Manager;
 
@@ -57,6 +60,7 @@ struct Manager {
         IWLIST_HEAD(Session, session_gc_queue);
         IWLIST_HEAD(User, user_gc_queue);
 
+#ifdef Use_udev
         struct udev *udev;
         struct udev_monitor *udev_seat_monitor, *udev_device_monitor, *udev_vcsa_monitor, *udev_button_monitor;
 
@@ -64,6 +68,7 @@ struct Manager {
         int udev_device_fd;
         int udev_vcsa_fd;
         int udev_button_fd;
+#endif
 
         int console_active_fd;
         int bus_fd;
@@ -145,12 +150,14 @@ int manager_add_user_by_name(Manager *m, const char *name, User **_user);
 int manager_add_user_by_uid(Manager *m, uid_t uid, User **_user);
 int manager_add_inhibitor(Manager *m, const char* id, Inhibitor **_inhibitor);
 
+#ifdef Use_udev
 int manager_process_seat_device(Manager *m, struct udev_device *d);
 int manager_process_button_device(Manager *m, struct udev_device *d);
 
 int manager_dispatch_seat_udev(Manager *m);
 int manager_dispatch_vcsa_udev(Manager *m);
 int manager_dispatch_button_udev(Manager *m);
+#endif
 int manager_dispatch_console(Manager *m);
 int manager_dispatch_idle_action(Manager *m);
 
@@ -192,7 +199,7 @@ int manager_kill_unit(Manager *manager, const char *unit, KillWho who, int signo
 int manager_unit_is_active(Manager *manager, const char *unit);
 
 /* gperf lookup function */
-const struct ConfigPerfItem* logind_gperf_lookup(const char *key, unsigned length);
+const struct ConfigPerfItem *logind_gperf_lookup(const char *key, register size_t length);
 
 int manager_watch_busname(Manager *manager, const char *name);
 void manager_drop_busname(Manager *manager, const char *name);

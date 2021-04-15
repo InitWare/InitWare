@@ -80,8 +80,10 @@ int manager_handle_action(
                 supported = can_sleep("hibernate") > 0;
         else if (handle == HANDLE_HYBRID_SLEEP)
                 supported = can_sleep("hybrid-sleep") > 0;
+#ifdef KEXEC
         else if (handle == HANDLE_KEXEC)
                 supported = access(KEXEC, X_OK) >= 0;
+#endif
         else
                 supported = true;
 

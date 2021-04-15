@@ -23,7 +23,7 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "parse-printf-format.h"
+#include "printf.h"
 
 static const char *consume_nonarg(const char *fmt) {
         do {
@@ -97,25 +97,25 @@ enum type {
         MAXTYPE
 };
 
-static const short pa_types[MAXTYPE] = { [NONE] = PA_INT,
-                                         [PTR] = PA_POINTER,
-                                         [INT] = PA_INT,
-                                         [UINT] = PA_INT,
-                                         [ULLONG] = PA_INT | PA_FLAG_LONG_LONG,
-                                         [LONG] = PA_INT | PA_FLAG_LONG,
-                                         [ULONG] = PA_INT | PA_FLAG_LONG,
-                                         [SHORT] = PA_INT | PA_FLAG_SHORT,
-                                         [USHORT] = PA_INT | PA_FLAG_SHORT,
-                                         [CHAR] = PA_CHAR,
-                                         [UCHAR] = PA_CHAR,
-                                         [LLONG] = PA_INT | PA_FLAG_LONG_LONG,
-                                         [SIZET] = PA_INT | PA_FLAG_LONG,
-                                         [IMAX] = PA_INT | PA_FLAG_LONG_LONG,
-                                         [UMAX] = PA_INT | PA_FLAG_LONG_LONG,
-                                         [PDIFF] = PA_INT | PA_FLAG_LONG_LONG,
-                                         [UIPTR] = PA_INT | PA_FLAG_LONG,
-                                         [DBL] = PA_DOUBLE,
-                                         [LDBL] = PA_DOUBLE | PA_FLAG_LONG_DOUBLE };
+static const int pa_types[MAXTYPE] = { [NONE] = PA_INT,
+                                       [PTR] = PA_POINTER,
+                                       [INT] = PA_INT,
+                                       [UINT] = PA_INT,
+                                       [ULLONG] = PA_INT | PA_FLAG_LONG_LONG,
+                                       [LONG] = PA_INT | PA_FLAG_LONG,
+                                       [ULONG] = PA_INT | PA_FLAG_LONG,
+                                       [SHORT] = PA_INT | PA_FLAG_SHORT,
+                                       [USHORT] = PA_INT | PA_FLAG_SHORT,
+                                       [CHAR] = PA_CHAR,
+                                       [UCHAR] = PA_CHAR,
+                                       [LLONG] = PA_INT | PA_FLAG_LONG_LONG,
+                                       [SIZET] = PA_INT | PA_FLAG_LONG,
+                                       [IMAX] = PA_INT | PA_FLAG_LONG_LONG,
+                                       [UMAX] = PA_INT | PA_FLAG_LONG_LONG,
+                                       [PDIFF] = PA_INT | PA_FLAG_LONG_LONG,
+                                       [UIPTR] = PA_INT | PA_FLAG_LONG,
+                                       [DBL] = PA_DOUBLE,
+                                       [LDBL] = PA_DOUBLE | PA_FLAG_LONG_DOUBLE };
 
 #define S(x) [(x) - 'A']
 #define E(x) (STOP + (x))

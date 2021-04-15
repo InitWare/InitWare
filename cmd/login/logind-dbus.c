@@ -541,6 +541,7 @@ static int bus_manager_create_session(Manager *m, DBusMessage *message) {
                 return 0;
         }
 
+#ifdef Use_audit
         audit_session_from_pid(leader, &audit_id);
         if (audit_id > 0) {
                 /* Keep our session IDs and the audit session IDs in sync */
@@ -562,6 +563,7 @@ static int bus_manager_create_session(Manager *m, DBusMessage *message) {
                         id = NULL;
                 }
         }
+#endif
 
         if (!id) {
                 do {
@@ -812,6 +814,7 @@ fail:
         return r;
 }
 
+#ifdef Use_udev
 static int trigger_device(Manager *m, struct udev_device *d) {
         struct udev_enumerate *e;
         struct udev_list_entry *first, *item;
@@ -825,12 +828,14 @@ static int trigger_device(Manager *m, struct udev_device *d) {
                 goto finish;
         }
 
+#        ifdef Sys_Plat_Linux
         if (d) {
                 if (udev_enumerate_add_match_parent(e, d) < 0) {
                         r = -EIO;
                         goto finish;
                 }
         }
+#        endif
 
         if (udev_enumerate_scan_devices(e) < 0) {
                 r = -EIO;
@@ -877,10 +882,12 @@ static int attach_device(Manager *m, const char *seat, const char *sysfs) {
         if (!d)
                 return -ENODEV;
 
+#        ifdef Sys_Plat_Linux // FIXME: udev
         if (!udev_device_has_tag(d, "seat")) {
                 r = -ENODEV;
                 goto finish;
         }
+#        endif
 
         id_for_seat = udev_device_get_property_value(d, "ID_FOR_SEAT");
         if (!id_for_seat) {
@@ -943,6 +950,7 @@ static int flush_devices(Manager *m) {
 
         return trigger_device(m, NULL);
 }
+#endif
 
 static int have_multiple_sessions(
                 Manager *m,
@@ -2069,7 +2077,11 @@ static DBusHandlerResult manager_message_handler(
                 if (r < 0)
                         return bus_send_error_reply(connection, message, &error, r);
 
+#ifdef Use_udev
                 r = attach_device(m, seat, sysfs);
+#else
+                r = 0;
+#endif
                 if (r < 0)
                         return bus_send_error_reply(connection, message, NULL, -EINVAL);
 
@@ -2092,7 +2104,11 @@ static DBusHandlerResult manager_message_handler(
                 if (r < 0)
                         return bus_send_error_reply(connection, message, &error, r);
 
+#ifdef Use_udev
                 r = flush_devices(m);
+#else
+                r = 0;
+#endif
                 if (r < 0)
                         return bus_send_error_reply(connection, message, NULL, -EINVAL);
 

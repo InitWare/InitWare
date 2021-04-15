@@ -19,14 +19,13 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/epoll.h>
+#include <sys/ioctl.h>
 #include <assert.h>
-#include <string.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/ioctl.h>
+#include <string.h>
 #include <unistd.h>
-#include <linux/input.h>
-#include <sys/epoll.h>
 
 #include "conf-parser.h"
 #include "util.h"
@@ -34,6 +33,12 @@
 #include "special.h"
 #include "dbus-common.h"
 #include "sd-messages.h"
+
+#ifdef Sys_Plat_Linux
+#        include <linux/input.h>
+#elif defined(Sys_Plat_FreeBSD)
+#        include <dev/evdev/input.h>
+#endif
 
 Button* button_new(Manager *m, const char *name) {
         Button *b;
