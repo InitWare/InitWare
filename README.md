@@ -1,41 +1,79 @@
 ![InitWare](http://brand.initware.com/assets/page-logo.png)
 
 ***InitWare isn't ready to use yet!!***
-Unless you are doing so for fun and fun alone, or to contribute, you most
-likely do **not** want to try to install InitWare until a first release is made!
+Unless you are doing so for fun, to experiment, or to contribute, you most
+likely do **not** want to try to install InitWare until a first stable 
+release is made!
+
+***Installation is not yet automatic even on 'supported' platforms!!***
+It is a complex and involved process requiring an understanding of the
+intricacies of how the platform boots, and it is quite easy to render the
+system unbootable.
 
 The **InitWare Suite of Middleware** allows you to manage services
-and system resources as logical entities called units. Units are manageable by a
-uniform interface, may specify dependencies and other relationships to other
-units, and are automatically scheduled by the InitWare Manager, a service
-management (or "init") system.
+and system resources as logical entities called units.
 
-[Systemd](http://www.freedesktop.org/wiki/Software/systemd), version 208, is
-the original codebase from which InitWare has been forked.
-Similar APIs to systemd are still provided, with an option to build in
-*systemd mode*, in which the exact same D-Bus APIs are provided. Where feasible,
-core features of more recent releases of systemd will be ported or supported
-by alternative means.
+Units are manageable by a uniform interface, may specify dependencies and other
+relationships to other units, and are automatically scheduled by the InitWare
+Manager, a service management (or "init") system.
 
-InitWare is differentiated from systemd by its superior portability, defined
-project scope, and a modular approach to questions of architecture.
+Added to this is a login and user session manager which facilitates the
+tracking and management of users and their sessions, integrating with the
+system service manager to assist in tracking. A dedicated user service
+manager is provided each user so that they may manage services of their own.
+
+#### Origin
+
+InitWare is a fork of [systemd](http://www.freedesktop.org/wiki/Software/systemd).
+
+The systemd project is comprised by many programs and utilities. InitWare
+excludes from its scope a number of these. See
+[Dropped components](https://github.com/InitWare/InitWare/wiki/Dropped-components)
+for details on these.
+
+#### Compatibility with systemd
+
+InitWare aims for a high level of compatibility with the core interfaces of
+systemd. Unit-files, the `systemctl` and `loginctl` commands (provided as `iwctl`
+and `iwloginctl`), the systemd1 and Login1 D-Bus APIs, the sd_notify API, and
+several other interfaces are all subject to this aim.
+
+Comprehensive compatibility with every interface is impractical on some platforms;
+some unit options are entirely GNU/Linux-specific and while most have alternatives
+in spirit on other platforms (e.g. Linux namespaces and FreeBSD jails), a perfect
+mapping of semantics between these is not practical. Nonetheless, it is important
+to us that InitWare should be able to run with little or no modification the vast
+majority of systemd unit-files, and that they should behave reasonably.
+
+#### Differences from systemd
+
+InitWare differs from systemd in three principal manners:
+1. InitWare is highly portable.
+2. InitWare aims to be significantly more modular.
+3. InitWare is of significantly smaller scope, concerning itself only with
+   system, service, session, and login management.
+
 The [Roadmap](wiki/Roadmap) details some plans for the future development of
 the InitWare Suite.
 
 
-Requirements
-------------
+Platform Support
+----------------
 
 The following platforms are supported:
 
+- NetBSD (9.0+): InitWare's native platform. System, user, and login management
+  are all supported.
 - DragonFly BSD (5.8+) as user manager.
 - FreeBSD (13.0+) as user manager.
 - GNU/Linux (3.6+) as system or user manager. n.b. GNU/Linux support is complete
   but not yet set up to build; this will be corrected later.
-- NetBSD (8.0+) as system or user manager.
 
 We hope to support (recent versions of) OpenBSD, and possibly also Illumos, in
-the near future.
+the near future. Please see the [Support Matrix] for further information on
+platform support.
+
+[Support Matrix]: https://github.com/InitWare/InitWare/wiki/Support-Matrix
 
 **Required runtime dependencies**:
 
