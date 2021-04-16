@@ -70,7 +70,6 @@
 /systemd-quotacheck
 /systemd-random-seed
 /systemd-rc-local-generator
-/systemd-readahead
 /systemd-remount-api-vfs
 /systemd-remount-fs
 /systemd-reply-password
@@ -85,7 +84,6 @@
 /systemd-tmpfiles
 /systemd-tty-ask-password-agent
 /systemd-uaccess
-/systemd-udevd
 /systemd-update-utmp
 /systemd-user-sessions
 /systemd-vconsole-setup

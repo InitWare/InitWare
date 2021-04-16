@@ -731,34 +731,6 @@ man/systemd-random-seed.html: man/systemd-random-seed.service.html
 
 endif
 
-if ENABLE_READAHEAD
-MANPAGES += \
-	man/sd-readahead.3 \
-	man/sd_readahead.3 \
-	man/systemd-readahead-replay.service.8
-MANPAGES_ALIAS += \
-	man/systemd-readahead-collect.service.8 \
-	man/systemd-readahead-done.service.8 \
-	man/systemd-readahead-done.timer.8 \
-	man/systemd-readahead.8
-man/systemd-readahead-collect.service.8: man/systemd-readahead-replay.service.8
-man/systemd-readahead-done.service.8: man/systemd-readahead-replay.service.8
-man/systemd-readahead-done.timer.8: man/systemd-readahead-replay.service.8
-man/systemd-readahead.8: man/systemd-readahead-replay.service.8
-man/systemd-readahead-collect.service.html: man/systemd-readahead-replay.service.html
-	$(html-alias)
-
-man/systemd-readahead-done.service.html: man/systemd-readahead-replay.service.html
-	$(html-alias)
-
-man/systemd-readahead-done.timer.html: man/systemd-readahead-replay.service.html
-	$(html-alias)
-
-man/systemd-readahead.html: man/systemd-readahead-replay.service.html
-	$(html-alias)
-
-endif
-
 if ENABLE_TIMEDATED
 MANPAGES += \
 	man/systemd-timedated.service.8 \
