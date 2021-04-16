@@ -19,13 +19,12 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdio.h>
-#include <getopt.h>
-#include <error.h>
 #include <errno.h>
-#include <unistd.h>
+#include <getopt.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <systemd/sd-daemon.h>
 
@@ -49,7 +48,7 @@ static int help(void) {
                "     --ready            Inform the init system about service start-up completion\n"
                "     --pid[=PID]        Set main pid of daemon\n"
                "     --status=TEXT      Set status text\n"
-               "     --booted           Returns 0 if the system was booted up with systemd, non-zero otherwise\n"
+               "     --booted           Returns 0 if the system was booted up with systemd, non-zero otherwise\n",
                program_invocation_short_name);
 
         return 0;

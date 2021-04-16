@@ -63,7 +63,7 @@
 
 _sd_export_ int sd_listen_fds(int unset_environment) {
 
-#if defined(DISABLE_SYSTEMD) || !defined(__linux__)
+#if defined(DISABLE_SYSTEMD)
         return 0;
 #else
         int r, fd;
@@ -411,7 +411,7 @@ _sd_export_ int sd_is_mq(int fd, const char *path) {
 }
 
 _sd_export_ int sd_notify(int unset_environment, const char *state) {
-#if defined(DISABLE_SYSTEMD) || !defined(__linux__) || !defined(SOCK_CLOEXEC)
+#if defined(DISABLE_SYSTEMD) || !defined(SOCK_CLOEXEC)
         return 0;
 #else
         int fd = -1, r;
@@ -481,7 +481,7 @@ finish:
 }
 
 _sd_export_ int sd_notifyf(int unset_environment, const char *format, ...) {
-#if defined(DISABLE_SYSTEMD) || !defined(__linux__)
+#if defined(DISABLE_SYSTEMD)
         return 0;
 #else
         va_list ap;
@@ -503,7 +503,7 @@ _sd_export_ int sd_notifyf(int unset_environment, const char *format, ...) {
 }
 
 _sd_export_ int sd_booted(void) {
-#if defined(DISABLE_SYSTEMD) || !defined(__linux__)
+#if defined(DISABLE_SYSTEMD)
         return 0;
 #else
         struct stat st;

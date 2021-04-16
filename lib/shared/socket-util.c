@@ -628,18 +628,18 @@ int socket_fionread(int fd, int *bytes) {
 int socket_passcred(int fd) {
         int one = 1;
 
-#ifdef SO_PASSCRED
-        if (setsockopt(fd, SOL_SOCKET, SO_PASSCRED, &one, sizeof(one)) == -1)
+#ifdef SO_CREDOPT
+        if (setsockopt(fd, SO_CREDOPT_LEVEL, SO_CREDOPT, &one, sizeof(one)) == -1)
                 return -errno;
-        else
 #endif
+
                 return 0;
 }
 
 int cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred) {
-#ifdef SCM_CRED_OPT
-        if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_CRED_OPT &&
-            cmsg->cmsg_len == CMSG_LEN(sizeof_dgram_creds)) {
+#ifdef CMSG_TYPE_CREDS
+        /* FIXME: Consider checking cmsg_len */
+        if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == CMSG_TYPE_CREDS) {
                 dgram_creds *creds = (dgram_creds *) CMSG_DATA(cmsg);
                 xucred->gid = creds->dgram_creds_gid;
                 xucred->uid = creds->dgram_creds_uid;

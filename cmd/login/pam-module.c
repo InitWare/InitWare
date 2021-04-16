@@ -19,18 +19,15 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/file.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/file.h>
 #include <pwd.h>
-#include <endian.h>
-#include <sys/capability.h>
 
+#define NO_STATIC_MODULES // PAM on NetBSD is fucked up
+
+#include <security/pam_appl.h>
 #include <security/pam_modules.h>
-#include <security/_pam_macros.h>
-#include <security/pam_modutil.h>
-#include <security/pam_ext.h>
-#include <security/pam_misc.h>
 
 #include "util.h"
 #include "audit.h"
@@ -40,6 +37,28 @@
 #include "def.h"
 #include "socket-util.h"
 #include "fileio.h"
+
+#ifdef Have_sys_endian_h
+#        include <sys/endian.h>
+#endif
+
+#ifdef Have_endian_h
+#        include <endian.h>
+#endif
+
+#ifdef Sys_Plat_Linux
+#        include <security/_pam_macros.h>
+#        include <security/pam_ext.h>
+#        include <security/pam_misc.h>
+#        include <security/pam_modutil.h>
+#else
+#        define pam_syslog(handle, level, ...) printf(__VA_ARGS__)
+#        define pam_misc_setenv pam_setenv
+#endif
+
+#ifdef Use_Cap
+#        include <sys/capability.h>
+#endif
 
 static int parse_argv(pam_handle_t *handle,
                       int argc, const char **argv,
@@ -103,7 +122,7 @@ static int get_user_data(
                 return PAM_AUTH_ERR;
         }
 
-        pw = pam_modutil_getpwnam(handle, username);
+        pw = getpwnam(username);
         if (!pw) {
                 pam_syslog(handle, LOG_ERR, "Failed to get user data.");
                 return PAM_USER_UNKNOWN;
@@ -121,51 +140,50 @@ static int get_seat_from_display(const char *display, const char **seat, uint32_
         };
          _cleanup_free_ char *p = NULL, *tty = NULL;
          _cleanup_close_ int fd = -1;
-        struct ucred ucred;
-        socklen_t l;
-        int v, r;
+         struct socket_ucred ucred;
+         socklen_t l;
+         int v, r;
 
-        assert(display);
-        assert(vtnr);
+         assert(display);
+         assert(vtnr);
 
-        /* We deduce the X11 socket from the display name, then use
-         * SO_PEERCRED to determine the X11 server process, ask for
-         * the controlling tty of that and if it's a VC then we know
-         * the seat and the virtual terminal. Sounds ugly, is only
-         * semi-ugly. */
+         /* We deduce the X11 socket from the display name, then use
+          * SO_PEERCRED to determine the X11 server process, ask for
+          * the controlling tty of that and if it's a VC then we know
+          * the seat and the virtual terminal. Sounds ugly, is only
+          * semi-ugly. */
 
-        r = socket_from_display(display, &p);
-        if (r < 0)
-                return r;
-        strncpy(sa.un.sun_path, p, sizeof(sa.un.sun_path)-1);
+         r = socket_from_display(display, &p);
+         if (r < 0)
+                 return r;
+         strncpy(sa.un.sun_path, p, sizeof(sa.un.sun_path) - 1);
 
-        fd = socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC, 0);
-        if (fd < 0)
-                return -errno;
+         fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+         if (fd < 0)
+                 return -errno;
 
-        if (connect(fd, &sa.sa, offsetof(struct sockaddr_un, sun_path) + strlen(sa.un.sun_path)) < 0)
-                return -errno;
+         if (connect(fd, &sa.sa, offsetof(struct sockaddr_un, sun_path) + strlen(sa.un.sun_path)) < 0)
+                 return -errno;
 
-        l = sizeof(ucred);
-        r = getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &ucred, &l);
-        if (r < 0)
-                return -errno;
+         r = socket_getpeercred(fd, &ucred);
+         if (r < 0)
+                 return r;
 
-        r = get_ctty(ucred.pid, NULL, &tty);
-        if (r < 0)
-                return r;
+         r = get_ctty(ucred.pid, NULL, &tty);
+         if (r < 0)
+                 return r;
 
-        v = vtnr_from_tty(tty);
-        if (v < 0)
-                return v;
-        else if (v == 0)
-                return -ENOENT;
+         v = vtnr_from_tty(tty);
+         if (v < 0)
+                 return v;
+         else if (v == 0)
+                 return -ENOENT;
 
-        if (seat)
-                *seat = "seat0";
-        *vtnr = (uint32_t) v;
+         if (seat)
+                 *seat = "seat0";
+         *vtnr = (uint32_t) v;
 
-        return 0;
+         return 0;
 }
 
 _public_ PAM_EXTERN int pam_sm_open_session(
@@ -273,7 +291,11 @@ _public_ PAM_EXTERN int pam_sm_open_session(
         uid = pw->pw_uid;
         pid = getpid();
 
+#ifdef PAM_XDISPLAY
         pam_get_item(handle, PAM_XDISPLAY, (const void**) &display);
+#else
+        display = pam_getenv(handle, "DISPLAY");
+#endif
         pam_get_item(handle, PAM_TTY, (const void**) &tty);
         pam_get_item(handle, PAM_RUSER, (const void**) &remote_user);
         pam_get_item(handle, PAM_RHOST, (const void**) &remote_host);
@@ -570,3 +592,5 @@ finish:
 
         return r;
 }
+
+PAM_MODULE_ENTRY("pam_initware");

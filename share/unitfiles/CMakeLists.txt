@@ -32,7 +32,7 @@ foreach(unit_in
   systemd-user-sessions.service.in
   user@.service.in)
     get_filename_component(unit_out ${unit_in} NAME_WLE)
-    configure_file(${unit_in} ${unit_out})
+    configure_file(${unit_in} ${unit_out} @ONLY)
 endforeach()
 
 set(user_unitfiles user/exit.target user/default.target shutdown.target

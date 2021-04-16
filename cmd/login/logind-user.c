@@ -305,7 +305,7 @@ static int user_mkdir_runtime_path(User *u) {
         assert(u);
 
         r = mkdir_safe_label("/run/user", 0755, 0, 0);
-        if (r < 0) {
+        if (r < 0 && r != -EEXIST) {
                 log_error("Failed to create /run/user: %s", strerror(-r));
                 return r;
         }
@@ -317,7 +317,7 @@ static int user_mkdir_runtime_path(User *u) {
                 p = u->runtime_path;
 
         r = mkdir_safe_label(p, 0700, u->uid, u->gid);
-        if (r < 0) {
+        if (r < 0 && r != -EEXIST) {
                 log_error("Failed to create runtime directory %s: %s", p, strerror(-r));
                 free(p);
                 u->runtime_path = NULL;

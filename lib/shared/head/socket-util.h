@@ -41,12 +41,14 @@
 #endif
 
 #ifdef SCM_CREDENTIALS
-#        define SCM_CRED_OPT SCM_CREDENTIALS
+#        define CMSG_TYPE_CREDS SCM_CREDENTIALS
 #elif defined(SCM_CREDS)
-#        define SCM_CRED_OPT SCM_CREDS
+#        define CMSG_TYPE_CREDS SCM_CREDS
 #endif
 
 #ifdef Have_socket_struct_ucred
+#        define SO_CREDOPT_LEVEL SOL_SOCKET
+#        define SO_CREDOPT SO_PASSCRED
 #        define socket_ucred ucred
 #        define dgram_creds struct ucred
 #        define sizeof_dgram_creds sizeof(dgram_creds)
@@ -61,8 +63,10 @@
 #        define dgram_creds_uid cmcred_uid
 #        define dgram_creds_gid cmcred_gid
 #elif defined(LOCAL_CREDS) /* available on FreeBSD too, but no PID info - prefer this only on NetBSD */
+#        define SO_CREDOPT_LEVEL 0
+#        define SO_CREDOPT LOCAL_CREDS
 #        define dgram_creds struct sockcred
-#        define sizeof_dgram_creds sizeof(SOCKCREDSIZE(1))
+#        define sizeof_dgram_creds SOCKCREDSIZE(1)
 #        define dgram_creds_pid sc_pid
 #        define dgram_creds_uid sc_uid
 #        define dgram_creds_gid sc_gid
@@ -158,5 +162,9 @@ bool socket_ipv6_is_supported(void);
 
 /** Enable receipt of credentials on a datagram socket, if supported. */
 int socket_passcred(int fd);
+/** Get the credentials of a stream socket peer. */
+int socket_getpeercred(int fd, struct socket_ucred *xucred);
+/** Try to read credentials from a control message. */
+int cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred);
 
 #endif

@@ -137,10 +137,8 @@ static int do_provides(const char *name, const char *out_name, const char *out_d
         STRV_FOREACH (provide, provides) {
                 char *slink;
 
-                if (streq(*provide, name)) {
-                        // printf("Not symlinking default name %s.\n", name);
+                if (streq(*provide, name)) /* don't symlink default name */
                         continue;
-                }
                 slink = strjoin(out_dir, "/", *provide, ".service", NULL);
                 if (!slink)
                         return log_oom();

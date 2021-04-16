@@ -141,13 +141,17 @@ static int manager_setup_notify(Manager *m) {
                 return -errno;
         }
 
-#ifdef SO_PASSCRED
-        r = setsockopt(m->notify_watch.fd, SOL_SOCKET, SO_PASSCRED, &one, sizeof(one));
-        if (r < 0) {
-                log_error("SO_PASSCRED failed: %m");
-                return -errno;
+        if (m->running_as == SYSTEMD_SYSTEM) {
+                r = chmod(m->notify_socket, 0777);
+                if (r < 0) {
+                        log_error("bind() of %s failed: %m", sa.un.sun_path);
+                        return -errno;
+                }
         }
-#endif
+
+        r = socket_passcred(m->notify_watch.fd);
+        if (r < 0)
+                return log_error_errno(-r, "SO_PASSCRED failed: %m");
 
         r = epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->notify_watch.fd, &ev);
         if (r < 0) {
@@ -1391,8 +1395,8 @@ static int manager_process_notify_fd(Manager *m) {
 
                 union {
                         struct cmsghdr cmsghdr;
-#ifdef Dgram_Credpass_Linux
-                        uint8_t buf[CMSG_SPACE(sizeof(struct ucred))];
+#ifdef dgram_creds
+                        uint8_t buf[CMSG_SPACE(sizeof_dgram_creds)];
 #endif
                 } control = {};
 
@@ -1402,7 +1406,7 @@ static int manager_process_notify_fd(Manager *m) {
                         .msg_control = &control,
                         .msg_controllen = sizeof(control),
                 };
-                struct ucred *ucred;
+                struct socket_ucred ucred;
                 Unit *u;
 
                 n = recvmsg(m->notify_watch.fd, &msghdr, MSG_DONTWAIT);
@@ -1417,40 +1421,34 @@ static int manager_process_notify_fd(Manager *m) {
                 }
 
 
-#ifdef Dgram_Credpass_Linux
-                if (msghdr.msg_controllen < CMSG_LEN(sizeof(struct ucred)) ||
-                    control.cmsghdr.cmsg_level != SOL_SOCKET ||
-                    control.cmsghdr.cmsg_type != SCM_CREDENTIALS ||
-                    control.cmsghdr.cmsg_len != CMSG_LEN(sizeof(struct ucred))) {
-                        log_warning("Received notify message without credentials. Ignoring.");
-                        continue;
+#ifdef dgram_creds
+                n = cmsg_readucred(&control.cmsghdr, &ucred);
+                if (!n) {
+                        log_warning("Received notify message without credentials - refusing.\n");
+                        return 0;
                 }
 
-                ucred = (struct ucred*) CMSG_DATA(&control.cmsghdr);
-
-                assert((size_t) n < sizeof(buf));
-                buf[n] = 0;
-
-                u = manager_get_unit_by_pid(m, ucred->pid);
+                u = manager_get_unit_by_pid(m, ucred.pid);
                 if (u) {
-                        manager_invoke_notify_message(m, u, ucred->pid, buf, n);
+                        manager_invoke_notify_message(m, u, ucred.pid, buf, n);
                         found = true;
                 }
 
-                u = hashmap_get(m->watch_pids1, LONG_TO_PTR(ucred->pid));
+                u = hashmap_get(m->watch_pids1, LONG_TO_PTR(ucred.pid));
                 if (u) {
-                        manager_invoke_notify_message(m, u, ucred->pid, buf, n);
+                        manager_invoke_notify_message(m, u, ucred.pid, buf, n);
                         found = true;
                 }
 
-                u = hashmap_get(m->watch_pids2, LONG_TO_PTR(ucred->pid));
+                u = hashmap_get(m->watch_pids2, LONG_TO_PTR(ucred.pid));
                 if (u) {
-                        manager_invoke_notify_message(m, u, ucred->pid, buf, n);
+                        manager_invoke_notify_message(m, u, ucred.pid, buf, n);
                         found = true;
                 }
 
                 if (!found)
-                        log_warning("Cannot find unit for notify message of PID %lu.",(long unsigned) ucred->pid);
+                        log_warning(
+                                "Cannot find unit for notify message of PID %lu.", (long unsigned) ucred.pid);
 #else
                 log_warning("Notify messages are not implemented on this platform\n");
 #endif

@@ -608,7 +608,7 @@ static int enforce_groups(const ExecContext *context, const char *username, gid_
 #ifndef Sys_Plat_NetBSD
                 if (setresgid(gid, gid, gid) < 0)
 #else /* on NetBSD, setgid() sets real, effective, and saved GID */
-                if (setuid(gid) < 0)
+                if (setgid(gid) < 0)
 #endif
                         return -errno;
         }

@@ -20,6 +20,8 @@ project(InitWare)
 cmake_minimum_required(VERSION 3.9)
 cmake_policy(VERSION 3.9)
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # basic definitions
 
 set(PACKAGE_NAME InitWare)
@@ -271,7 +273,7 @@ set(RelDir_UserUnitfiles ${RelDir_PkgLib}/user)
 set(userunitdir ${AbsDir_PkgLib}/user)
 set(usergeneratordir ${AbsDir_PkgLibExec}/user-generators)
 
-set(RelDir_SystemUnitfiles ${RelDir_PkgLib}/user)
+set(RelDir_SystemUnitfiles ${RelDir_PkgLib}/system)
 set(systemunitdir ${AbsDir_PkgLib}/system)
 set(systemgeneratordir ${AbsDir_PkgLibExec}/system-generators)
 
