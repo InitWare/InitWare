@@ -401,7 +401,7 @@ _public_ PAM_EXTERN int pam_sm_open_session(
                               seat, vtnr, tty, display,
                               yes_no(remote), remote_user, remote_host);
 
-        reply = dbus_connection_send_with_reply_and_block(bus, m, -1, &error);
+        reply = dbus_connection_send_with_reply_and_block(bus, m, 8000, &error);
         if (!reply) {
                 pam_syslog(handle, LOG_ERR, "Failed to create session: %s", bus_error_message(&error));
                 r = PAM_SESSION_ERR;

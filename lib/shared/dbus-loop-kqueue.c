@@ -264,37 +264,43 @@ int bus_loop_open(DBusConnection *c) {
 
 int bus_loop_dispatch(int fd) {
         int n;
-        struct kevent kev = {};
-        EpollData *d;
 
-        assert(fd >= 0);
+        for (;;) {
+                struct kevent kev = {};
+                EpollData *d;
+                struct timespec nowait = {0,0};
 
-        n = kevent(fd, NULL, 0, &kev, 1, NULL);
-        if (n < 0)
-                return errno == EAGAIN || errno == EINTR ? 0 : -errno;
+                assert(fd >= 0);
 
-        assert_se(d = INT_TO_PTR(kev.udata));
+                n = kevent(fd, NULL, 0, &kev, 1, &nowait);
+                if (n < 0)
+                        return errno == EAGAIN || errno == EINTR ? 0 : -errno;
+                else if (n == 0)
+                        return 0;
 
-        if (d->is_timeout) {
-                DBusTimeout *t = d->object;
+                assert_se(d = INT_TO_PTR(kev.udata));
 
-                if (dbus_timeout_get_enabled(t))
-                        dbus_timeout_handle(t);
-        } else {
-                DBusWatch *w = d->object;
+                if (d->is_timeout) {
+                        DBusTimeout *t = d->object;
 
-                if (dbus_watch_get_enabled(w)) {
-                        int dbevents;
+                        if (dbus_timeout_get_enabled(t))
+                                dbus_timeout_handle(t);
+                } else {
+                        DBusWatch *w = d->object;
 
-                        if (kev.filter == EVFILT_WRITE)
-                                dbevents |= DBUS_WATCH_WRITABLE;
-                        else
-                                dbevents |= DBUS_WATCH_READABLE;
-                        if (kev.flags & EV_EOF)
-                                dbevents |= DBUS_WATCH_HANGUP;
-                        if (kev.flags & EV_ERROR)
-                                dbevents |= DBUS_WATCH_ERROR;
-                        dbus_watch_handle(w, dbevents);
+                        if (dbus_watch_get_enabled(w)) {
+                                int dbevents;
+
+                                if (kev.filter == EVFILT_WRITE)
+                                        dbevents |= DBUS_WATCH_WRITABLE;
+                                else
+                                        dbevents |= DBUS_WATCH_READABLE;
+                                if (kev.flags & EV_EOF)
+                                        dbevents |= DBUS_WATCH_HANGUP;
+                                if (kev.flags & EV_ERROR)
+                                        dbevents |= DBUS_WATCH_ERROR;
+                                dbus_watch_handle(w, dbevents);
+                        }
                 }
         }
 
