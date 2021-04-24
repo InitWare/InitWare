@@ -96,8 +96,7 @@ static void show_pid_array(
         for (i = 0; i < n_pids; i++) {
                 char *t = NULL;
 
-                get_process_comm(pids[i], &t);
-                // get_process_cmdline(pids[i], n_columns, true, &t);
+                get_process_cmdline(pids[i], n_columns, true, &t);
 
                 printf("%s%s%*lu %s\n",
                        prefix,

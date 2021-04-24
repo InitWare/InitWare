@@ -593,4 +593,6 @@ finish:
         return r;
 }
 
+#ifdef OPENPAM
 PAM_MODULE_ENTRY("pam_initware");
+#endif

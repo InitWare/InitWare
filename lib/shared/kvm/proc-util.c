@@ -16,10 +16,12 @@ have been included with this software
 #include <assert.h>
 
 #include "kvm.h"
+#include "strv.h"
 #include "util.h"
 
 #if defined(Sys_Plat_NetBSD)
 #        define kinfo_proc kinfo_proc2
+#        define kvm_getargv kvm_getargv2
 #        define kvm_getprocs(kd, op, arg, cnt) kvm_getproc2(kd, op, arg, sizeof(struct kinfo_proc2), cnt)
 #elif defined(Sys_Plat_DragonFlyBSD)
 #        define p_ppid kp_ppid
@@ -99,6 +101,31 @@ int get_process_comm(pid_t pid, char **name) {
         *name = strdup(info->p_comm);
         if (!*name)
                 return -ENOMEM;
+        return 0;
+}
+
+int get_process_cmdline(pid_t pid, size_t max_length, bool comm_fallback, char **line) {
+        struct kinfo_proc *info;
+        char **argv;
+
+        info = get_pid_info(pid);
+
+        if (!info) {
+                *line = strdup("[invalid-pid]");
+                if (!*line)
+                        return -ENOMEM;
+                else
+                        return -errno;
+        }
+
+        argv = kvm_getargv(g_kd, info, max_length);
+        if (!argv)
+                return -ENOMEM;
+
+        *line = strv_join(argv, " ");
+        if (!*line)
+                return -ENOMEM;
+
         return 0;
 }
 
