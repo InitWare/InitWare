@@ -21,7 +21,7 @@ add_custom_command(
   )
 
 set(manager_core_src unit.c unit-printf.c job.c manager.c transaction.c
-    load-fragment.c service.c  target.c
+    load-fragment.c service.c  target.c event.c
     snapshot.c socket.c timer.c path.c slice.c scope.c load-dropin.c execute.c
     kill.c dbus.c dbus-manager.c dbus-unit.c dbus-job.c dbus-service.c
     dbus-socket.c dbus-timer.c dbus-target.c dbus-snapshot.c dbus-path.c
@@ -51,7 +51,7 @@ endif()
 add_library(manager-core ${manager_core_src})
 target_include_directories(manager-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(manager-core initware-shared initware-units initware-label
-    initware-dbus initware-id128 initware-daemon initware-cjson
+    initware-dbus initware-id128 initware-daemon initware-cjson initware-ev
     ${UDev_Libs} ${Cap_Libs} PkgConfig::DBus Threads::Threads)
 
 add_executable(iw.manager main.c)

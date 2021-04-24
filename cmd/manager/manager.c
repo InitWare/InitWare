@@ -56,8 +56,9 @@ have been included with this software
 #include "systemd/sd-daemon.h"
 #include "systemd/sd-id128.h"
 #include "systemd/sd-messages.h"
-
 #include "cJSON.h"
+#include "ev.h"
+
 #include "audit-fd.h"
 #include "boot-timestamps.h"
 #include "bus-errors.h"
@@ -523,6 +524,13 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
         m = new0(Manager, 1);
         if (!m)
                 return -ENOMEM;
+
+        /* initialise libev event loop */
+        m->evloop = ev_default_loop(EVFLAG_NOSIGMASK);
+        if (!m->evloop) {
+                log_error("Failed to create event loop: %s", strerror(r));
+                goto fail;
+        }
 
 #ifdef ENABLE_EFI
         if (running_as == SYSTEMD_SYSTEM && detect_container(NULL) <= 0)
@@ -1875,14 +1883,6 @@ static int process_event(Manager *m, struct epoll_event *ev) {
                 device_fd_event(m, ev->events);
                 break;
 #endif
-
-        case WATCH_DBUS_WATCH:
-                bus_watch_event(m, w, ev->events);
-                break;
-
-        case WATCH_DBUS_TIMEOUT:
-                bus_timeout_event(m, w, ev->events);
-                break;
 
         case WATCH_TIME_CHANGE: {
                 Unit *u;

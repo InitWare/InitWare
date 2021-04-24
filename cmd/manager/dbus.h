@@ -30,9 +30,6 @@ void bus_done(Manager *m);
 
 unsigned bus_dispatch(Manager *m);
 
-void bus_watch_event(Manager *m, Watch *w, int events);
-void bus_timeout_event(Manager *m, Watch *w, int events);
-
 int bus_query_pid(Manager *m, const char *name);
 
 int bus_broadcast(Manager *m, DBusMessage *message);

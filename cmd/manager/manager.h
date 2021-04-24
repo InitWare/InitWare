@@ -51,7 +51,8 @@ typedef enum ManagerExitCode {
         _MANAGER_EXIT_CODE_INVALID = -1
 } ManagerExitCode;
 
-enum WatchType {
+enum WatchType
+{
         WATCH_INVALID,
         WATCH_SIGNAL,
         WATCH_NOTIFY,
@@ -61,8 +62,6 @@ enum WatchType {
         WATCH_MOUNT,
         WATCH_SWAP,
         WATCH_UDEV,
-        WATCH_DBUS_WATCH,
-        WATCH_DBUS_TIMEOUT,
         WATCH_TIME_CHANGE,
         WATCH_JOBS_IN_PROGRESS,
         WATCH_IDLE_PIPE,
@@ -96,6 +95,10 @@ struct Watch {
 #include "unit-name.h"
 
 struct Manager {
+
+        /* The event loop. We just make this ev_default_loop. */
+        struct ev_loop *evloop;
+
         /* Note that the set of units we know of is allowed to be
          * inconsistent. However the subset of it that is loaded may
          * not, and the list of jobs may neither. */
