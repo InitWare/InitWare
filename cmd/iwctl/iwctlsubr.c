@@ -1,15 +1,16 @@
-#include "iwctl.h"
-#include "log.h"
 #include "build.h"
 #include "bus-errors.h"
 #include "cgroup-show.h"
 #include "cgroup-util.h"
+#include "cjson-util.h"
 #include "conf-parser.h"
 #include "dbus-common.h"
 #include "exit-status.h"
 #include "fileio.h"
 #include "initreq.h"
+#include "iwctl.h"
 #include "list.h"
+#include "log.h"
 #include "macro.h"
 #include "pager.h"
 #include "path-lookup.h"
@@ -2387,8 +2388,8 @@ typedef struct UnitStatusInfo {
         const char *source_path;
         /* cgroup path */
         const char *control_group;
-        /* ptgroup JSON representation */
-        const char *ptgroup;
+        /* ptgroup JSON object */
+        cJSON *ptgroup;
 
         char **dropin_paths;
 
@@ -2578,7 +2579,7 @@ static void print_status_info(UnitStatusInfo *i, bool *ellipsized) {
         if (i->accept)
                 printf(" Accepted: %u; Connected: %u\n", i->n_accepted, i->n_connections);
 
-        IWLIST_FOREACH(exec, p, i->exec) {
+        IWLIST_FOREACH (exec, p, i->exec) {
                 _cleanup_free_ char *argv = NULL;
                 bool good;
 
@@ -2667,15 +2668,38 @@ static void print_status_info(UnitStatusInfo *i, bool *ellipsized) {
         if (i->status_text)
                 printf("   Status: \"%s\"\n", i->status_text);
 
-        if (i->ptgroup)
-                printf("  PTGroup: %s\n", i->ptgroup);
+        if (i->ptgroup) {
+                unsigned c;
 
+                printf("   PTGroup: %s\n", cJSON_GetObjectItem(i->ptgroup, "full_name")->valuestring);
+
+                if (arg_transport != TRANSPORT_SSH) {
+                        unsigned k = 0;
+                        pid_t extra[2];
+                        char prefix[] = "           ";
+
+                        c = columns();
+                        if (c > sizeof(prefix) - 1)
+                                c -= sizeof(prefix) - 1;
+                        else
+                                c = 0;
+
+                        if (i->main_pid > 0)
+                                extra[k++] = i->main_pid;
+
+                        if (i->control_pid > 0)
+                                extra[k++] = i->control_pid;
+
+                        //printf("%s\n", cJSON_Print(i->ptgroup));
+                        show_ptgroup_and_extra(i->ptgroup, prefix, c, false, extra, k, flags);
+                }
+        }
+
+#ifdef Use_CGroups
         if (i->control_group &&
             (i->main_pid > 0 || i->control_pid > 0
-#ifdef Use_CGroups
-            || cg_is_empty_recursive(SYSTEMD_CGROUP_CONTROLLER, i->control_group, false) == 0
-#endif
-            )) {
+             || cg_is_empty_recursive(SYSTEMD_CGROUP_CONTROLLER, i->control_group, false) == 0
+             )) {
                 unsigned c;
 
                 printf("   CGroup: %s\n", i->control_group);
@@ -2697,14 +2721,11 @@ static void print_status_info(UnitStatusInfo *i, bool *ellipsized) {
                         if (i->control_pid > 0)
                                 extra[k++] = i->control_pid;
 
-#ifdef Use_CGroups
                         show_cgroup_and_extra(
                                 SYSTEMD_CGROUP_CONTROLLER, i->control_group, prefix, c, false, extra, k, flags);
-#else
-                printf("No");
-#endif
                 }
         }
+#endif
 
         if (i->id && arg_transport != TRANSPORT_SSH) {
                 printf("\n");
@@ -2825,8 +2846,11 @@ static int status_property(const char *name, DBusMessageIter *iter, UnitStatusIn
                         else if (streq(name, "ControlGroup"))
                                 i->control_group = s;
 #ifdef Use_PTGroups
-                        else if (streq(name, "PTGroup"))
-                                i->ptgroup = s;
+                        else if (streq(name, "PTGroup")) {
+                                i->ptgroup = cJSON_Parse(s);
+                                if (!i->ptgroup)
+                                        return -EINVAL;
+                        }
 #endif
                         else if (streq(name, "StatusText"))
                                 i->status_text = s;
@@ -3510,8 +3534,7 @@ int show(DBusConnection *bus, char **args) {
         if (show_status && strv_length(args) <= 1) {
                 pager_open_if_enabled();
                 ret = show_all(args[0], bus, false, &new_line, &ellipsized);
-        }
-        else
+        } else
                 STRV_FOREACH (name, args + 1) {
                         uint32_t id;
 
