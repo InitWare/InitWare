@@ -4,3 +4,6 @@
 [submodule "vendor/docbook2mdoc"]
 	path = vendor/docbook2mdoc
 	url = ../docbook2mdoc.git
+[submodule "vendor/libev"]
+	path = vendor/libev
+	url = ../libev.git
