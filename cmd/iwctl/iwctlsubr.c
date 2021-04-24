@@ -2668,6 +2668,7 @@ static void print_status_info(UnitStatusInfo *i, bool *ellipsized) {
         if (i->status_text)
                 printf("   Status: \"%s\"\n", i->status_text);
 
+#ifdef Use_PTGroups
         if (i->ptgroup) {
                 unsigned c;
 
@@ -2690,10 +2691,10 @@ static void print_status_info(UnitStatusInfo *i, bool *ellipsized) {
                         if (i->control_pid > 0)
                                 extra[k++] = i->control_pid;
 
-                        //printf("%s\n", cJSON_Print(i->ptgroup));
                         show_ptgroup_and_extra(i->ptgroup, prefix, c, false, extra, k, flags);
                 }
         }
+#endif
 
 #ifdef Use_CGroups
         if (i->control_group &&

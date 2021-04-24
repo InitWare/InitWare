@@ -28,21 +28,21 @@ AccessModifierOffset: -4
 AlignAfterOpenBracket: AlwaysBreak
 AlignEscapedNewlines: Left
 AlignOperands:   false
+AllowShortEnumsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: None
 AlwaysBreakBeforeMultilineStrings: true
 AlwaysBreakTemplateDeclarations: Yes
 BinPackArguments: false
 BinPackParameters: false
 BraceWrapping:
-  AfterEnum:       false
   SplitEmptyFunction: false
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
-BreakBeforeBraces: Custom
+BreakBeforeBraces: Mozilla
 BreakInheritanceList: BeforeComma
 BreakBeforeTernaryOperators: false
 BreakStringLiterals: false
-ColumnLimit:     109
+ColumnLimit:     104
 CompactNamespaces: true
 ConstructorInitializerAllOnOneLineOrOnePerLine: true
 ConstructorInitializerIndentWidth: 8
