@@ -49,8 +49,6 @@ have been included with this software
 #define MANAGER_MAX_NAMES 131072 /* 128K */
 
 typedef struct Manager Manager;
-typedef enum WatchType WatchType;
-typedef struct Watch Watch;
 
 typedef enum ManagerExitCode {
         MANAGER_RUNNING,
@@ -65,27 +63,6 @@ typedef enum ManagerExitCode {
         _MANAGER_EXIT_CODE_MAX,
         _MANAGER_EXIT_CODE_INVALID = -1
 } ManagerExitCode;
-
-enum WatchType
-{
-        WATCH_INVALID,
-        WATCH_SIGNAL,
-        WATCH_MOUNT,
-        WATCH_SWAP,
-        WATCH_UDEV,
-        WATCH_TIME_CHANGE,
-};
-
-struct Watch {
-        int fd;
-        WatchType type;
-        union {
-                struct Unit *unit;
-                struct Job *job;
-        } data;
-        bool fd_is_dupped:1;
-        bool socket_accept:1;
-};
 
 #include "unit.h"
 #include "job.h"
@@ -151,13 +128,9 @@ struct Manager {
 
         ev_io notify_watch;
         ev_io signalfd_watch;
-#if 0
-        Watch time_change_watch;
-#endif
+
         ev_timer jobs_in_progress_watch;
         ev_io idle_pipe_watch; /* watches idle_pipe [2] */
-
-        int epoll_fd;
 
         unsigned n_snapshots;
 
@@ -187,18 +160,18 @@ struct Manager {
         /* Data specific to the device subsystem */
         struct udev* udev;
         struct udev_monitor* udev_monitor;
-        Watch udev_watch;
+        ev_io udev_watch;
         Hashmap *devices_by_sysfs;
 
         /* Data specific to the mount subsystem */
         FILE *proc_self_mountinfo;
-        Watch mount_watch;
+        ev_io mount_watch;
 
         /* Data specific to the swap filesystem */
         FILE *proc_swaps;
         Hashmap *swaps_by_proc_swaps;
         bool request_reload;
-        Watch swap_watch;
+        ev_io swap_watch;
 
         /* Data specific to the D-Bus subsystem */
         DBusConnection *api_bus, *system_bus;
@@ -380,7 +353,5 @@ void manager_set_show_status(Manager *m, bool b);
 void manager_status_printf(Manager *m, bool ephemeral, const char *status, const char *format, ...) _printf_attr_(4,5);
 
 Set *manager_get_units_requiring_mounts_for(Manager *m, const char *path);
-
-void watch_init(Watch *w);
 
 #endif

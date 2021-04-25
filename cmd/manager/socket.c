@@ -33,13 +33,12 @@ have been included with this software
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
+#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/epoll.h>
-#include <signal.h>
-#include <arpa/inet.h>
 #include <mqueue.h>
+#include <signal.h>
+#include <unistd.h>
 #ifdef HAVE_XATTR
 //#include <attr/xattr.h>
 #endif

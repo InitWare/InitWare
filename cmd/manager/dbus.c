@@ -138,25 +138,6 @@ static dbus_bool_t bus_add_watch(DBusWatch *watch, void *data)
         ev_io_init(ev, bus_io_cb, dbus_watch_get_unix_fd(watch), events);
         ev->data = watch;
 
-        /*
-        /* Hmm, bloody D-Bus creates multiple watches on the
-         * same fd. epoll() does not like that. As a dirty
-         * hack we simply dup() the fd and hence get a second
-         * one we can safely add to the epoll().
-
-        if ((w->fd = dup(w->fd)) < 0) {
-                free(w);
-                return FALSE;
-        }
-
-        if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, w->fd, &ev) < 0) {
-                safe_close(w->fd);
-                free(w);
-                return FALSE;
-        }
-
-        w->fd_is_dupped = true;*/
-
         if (dbus_watch_get_enabled(watch))
                 ev_io_start(m->evloop, ev);
 

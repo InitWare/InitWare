@@ -31,21 +31,19 @@ have been included with this software
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <sys/poll.h>
+#include <sys/reboot.h>
+#include <sys/signalfd.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 #include <assert.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <string.h>
-#include <sys/epoll.h>
-#include <sys/ioctl.h>
-#include <sys/poll.h>
-#include <sys/reboot.h>
-#include <sys/signalfd.h>
-#include <sys/stat.h>
-#include <sys/timerfd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -359,50 +357,6 @@ static void close_idle_pipe(Manager *m)
 #pragma endregion
 
 
-static int manager_setup_time_change(Manager *m) {
-#if 0 // FIXME: libevify ??
-        struct epoll_event ev = {
-                .events = EPOLLIN,
-                .data.ptr = &m->time_change_watch,
-        };
-
-        /* We only care for the cancellation event, hence we set the
-         * timeout to the latest possible value. */
-        struct itimerspec its = {
-                .it_value.tv_sec = TIME_T_MAX,
-        };
-        assert_cc(sizeof(time_t) == sizeof(TIME_T_MAX));
-
-        assert(m->time_change_watch.type == WATCH_INVALID);
-
-        /* Uses TFD_TIMER_CANCEL_ON_SET to get notifications whenever
-         * CLOCK_REALTIME makes a jump relative to CLOCK_MONOTONIC */
-
-        m->time_change_watch.type = WATCH_TIME_CHANGE;
-        m->time_change_watch.fd = timerfd_create(CLOCK_REALTIME, TFD_NONBLOCK|TFD_CLOEXEC);
-        if (m->time_change_watch.fd < 0) {
-                log_error("Failed to create timerfd: %m");
-                return -errno;
-        }
-
-        if (timerfd_settime(m->time_change_watch.fd, TFD_TIMER_ABSTIME|TFD_TIMER_CANCEL_ON_SET, &its, NULL) < 0) {
-                log_debug("Failed to set up TFD_TIMER_CANCEL_ON_SET, ignoring: %m");
-                m->time_change_watch.fd = safe_close(m->time_change_watch.fd);
-                watch_init(&m->time_change_watch);
-                return 0;
-        }
-
-        if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->time_change_watch.fd, &ev) < 0) {
-                log_error("Failed to add timer change fd to epoll: %m");
-                return -errno;
-        }
-
-        log_debug("Set up TFD_TIMER_CANCEL_ON_SET timerfd.");
-#endif
-
-        return 0;
-}
-
 static int enable_special_signals(Manager *m) {
         int fd;
 
@@ -574,12 +528,9 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
         m->pin_cgroupfs_fd = -1;
         m->idle_pipe[0] = m->idle_pipe[1] = m->idle_pipe[2] = m->idle_pipe[3] = -1;
 
-        watch_init(&m->mount_watch);
-        watch_init(&m->swap_watch);
-        watch_init(&m->udev_watch);
-#if 0 // FIXME: libevify ?
-        watch_init(&m->time_change_watch);
-#endif
+        ev_io_zero(m->mount_watch);
+        ev_io_zero(m->swap_watch);
+        ev_io_zero(m->udev_watch);
         ev_io_zero(m->signalfd_watch);
         ev_timer_zero(m->jobs_in_progress_watch);
 
@@ -692,10 +643,6 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
 #endif
 
         r = manager_setup_notify(m);
-        if (r < 0)
-                goto fail;
-
-        r = manager_setup_time_change(m);
         if (r < 0)
                 goto fail;
 
@@ -1830,73 +1777,6 @@ static int manager_process_signal_fd(Manager *m) {
         return 0;
 }
 
-static int process_event(Manager *m, struct epoll_event *ev) {
-        int r;
-        Watch *w;
-
-        assert(m);
-        assert(ev);
-
-        assert_se(w = ev->data.ptr);
-
-        if (w->type == WATCH_INVALID)
-                return 0;
-
-        switch (w->type) {
-
-#ifdef Sys_Plat_Linux
-        case WATCH_MOUNT:
-                /* Some mount table change, intended for the mount subsystem */
-                mount_fd_event(m, ev->events);
-                break;
-
-        case WATCH_SWAP:
-                /* Some swap table change, intended for the swap subsystem */
-                swap_fd_event(m, ev->events);
-                break;
-#endif
-
-#ifdef Use_udev
-        case WATCH_UDEV:
-                /* Some notification from udev, intended for the device subsystem */
-                device_fd_event(m, ev->events);
-                break;
-#endif
-
-#if 0 // FIXME: libevify ??
-        case WATCH_TIME_CHANGE: {
-                Unit *u;
-                Iterator i;
-
-                log_struct(LOG_INFO,
-                           MESSAGE_ID(SD_MESSAGE_TIME_CHANGE),
-                           "MESSAGE=Time has been changed",
-                           NULL);
-
-                /* Restart the watch */
-                epoll_ctl(m->epoll_fd, EPOLL_CTL_DEL, m->time_change_watch.fd,
-                          NULL);
-                safe_close(m->time_change_watch.fd);
-                watch_init(&m->time_change_watch);
-                manager_setup_time_change(m);
-
-                HASHMAP_FOREACH(u, m->units, i) {
-                        if (UNIT_VTABLE(u)->time_change)
-                                UNIT_VTABLE(u)->time_change(u);
-                }
-
-                break;
-        }
-#endif
-
-        default:
-                log_error("event type=%i", w->type);
-                assert_not_reached("Unknown epoll event type.");
-        }
-
-        return 0;
-}
-
 int manager_loop(Manager *m) {
         int r;
 
@@ -1918,7 +1798,6 @@ int manager_loop(Manager *m) {
                 return r;
 
         while (m->exit_code == MANAGER_RUNNING) {
-                struct epoll_event event;
                 int n;
                 int wait_msec = -1;
 
@@ -3140,11 +3019,4 @@ Set *manager_get_units_requiring_mounts_for(Manager *m, const char *path) {
         path_kill_slashes(p);
 
         return hashmap_get(m->units_requiring_mounts_for, streq(p, "/") ? "" : p);
-}
-
-void watch_init(Watch *w) {
-        assert(w);
-
-        w->type = WATCH_INVALID;
-        w->fd = -1;
 }

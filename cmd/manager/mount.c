@@ -1630,6 +1630,11 @@ static void mount_shutdown(Manager *m) {
         }
 }
 
+static void mount_io_cb()
+{
+        mount_fd_event(m, ev->events);
+}
+
 static int mount_enumerate(Manager *m) {
         int r;
         assert(m);

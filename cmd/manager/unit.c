@@ -31,15 +31,13 @@ have been included with this software
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/poll.h>
+#include <sys/stat.h>
 #include <assert.h>
 #include <errno.h>
-#include <string.h>
-#include <sys/epoll.h>
-#include <sys/timerfd.h>
-#include <sys/poll.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-#include <sys/stat.h>
 
 #include "systemd/sd-id128.h"
 #include "systemd/sd-messages.h"
