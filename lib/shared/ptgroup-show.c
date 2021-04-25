@@ -123,7 +123,6 @@ static int show_ptgroup_one(
         _cleanup_free_ pid_t *pids = NULL;
         char *p = NULL;
         pid_t pid;
-        int r;
         cJSON *oPid = NULL;
 
         cJSON_ArrayForEach(oPid, cJSON_GetObjectItem(ptgroup, "processes")) {
@@ -148,9 +147,6 @@ static int show_ptgroup_one(
                 assert(n < n_allocated);
                 pids[n++] = pid;
         }
-
-        if (r < 0)
-                return r;
 
         if (n > 0)
                 show_pid_array(pids, n, prefix, n_columns, false, more, kernel_threads, flags);
@@ -285,7 +281,6 @@ int show_ptgroup_and_extra(
         int r;
 
         assert(ptgroup);
-
         r = show_ptgroup(ptgroup, prefix, n_columns, kernel_threads, flags);
         if (r < 0)
                 return r;

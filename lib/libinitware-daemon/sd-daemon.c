@@ -416,6 +416,7 @@ _sd_export_ int sd_notify(int unset_environment, const char *state) {
 #else
         int fd = -1, r;
         struct msghdr msghdr;
+        struct cmsghdr *cmsg = NULL;
         struct iovec iovec;
         union sockaddr_union sockaddr;
         const char *e;
@@ -461,6 +462,20 @@ _sd_export_ int sd_notify(int unset_environment, const char *state) {
 
         msghdr.msg_iov = &iovec;
         msghdr.msg_iovlen = 1;
+
+#ifdef __FreeBSD__
+        /* CMSG_SPACE(0) may return value different than zero, which results in
+         * miscalculated controllen. */
+        msghdr.msg_controllen = CMSG_SPACE(sizeof(struct cmsgcred));
+
+        msghdr.msg_control = alloca(msghdr.msg_controllen);
+
+        cmsg = CMSG_FIRSTHDR(&msghdr);
+        /* SCM_CREDS must be explicitly attached. */
+        cmsg->cmsg_level = SOL_SOCKET;
+        cmsg->cmsg_type = SCM_CREDS;
+        cmsg->cmsg_len = CMSG_LEN(sizeof(struct cmsgcred));
+#endif
 
         if (sendmsg(fd, &msghdr, MSG_NOSIGNAL) < 0) {
                 r = -errno;
