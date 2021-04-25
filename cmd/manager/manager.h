@@ -127,7 +127,6 @@ struct Manager {
         char *notify_socket;
 
         ev_io notify_watch;
-        ev_io signalfd_watch;
 
         ev_timer jobs_in_progress_watch;
         ev_io idle_pipe_watch; /* watches idle_pipe [2] */

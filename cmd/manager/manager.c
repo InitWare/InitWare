@@ -35,7 +35,6 @@ have been included with this software
 #include <sys/ioctl.h>
 #include <sys/poll.h>
 #include <sys/reboot.h>
-#include <sys/signalfd.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <assert.h>
@@ -217,7 +216,7 @@ static int manager_watch_jobs_in_progress(Manager *m)
                 goto err;
         }
 
-        log_debug("Set up jobs progress timerfd.");
+        log_debug("Set up jobs progress timer.");
 
         return 0;
 
@@ -234,7 +233,7 @@ static void manager_unwatch_jobs_in_progress(Manager *m) {
         ev_timer_zero(m->jobs_in_progress_watch);
         m->jobs_in_progress_iteration = 0;
 
-        log_debug("Closed jobs progress timerfd.");
+        log_debug("Closed jobs progress timer.");
 }
 
 #define CYLON_BUFFER_EXTRA (2*strlen(ANSI_RED_ON) + strlen(ANSI_HIGHLIGHT_RED_ON) + 2*strlen(ANSI_HIGHLIGHT_OFF))
@@ -319,6 +318,9 @@ static int manager_watch_idle_pipe(Manager *m)
 {
         int r;
 
+        if (ev_is_active(&m->idle_pipe_watch))
+                return 0;
+
         if (m->idle_pipe_watch.fd < 0)
                 return 0;
 
@@ -388,19 +390,9 @@ static int enable_special_signals(Manager *m) {
         return 0;
 }
 
-static int manager_process_signal_fd(Manager *m);
+static void manager_signal_cb(struct ev_loop *evloop, ev_signal *watch, int revents);
+static void manager_sigrt_signal_cb(struct ev_loop *evloop, ev_signal *watch, int revents);
 
-static void signalfd_io_cb(struct ev_loop *evloop, ev_io *watch, int revents)
-{
-        int r;
-
-        /* An incoming signal? */
-        if (revents != EV_READ)
-                return (void) log_error("Bad events on SignalFD: %d\n", revents);
-
-        if ((r = manager_process_signal_fd(watch->data)) < 0)
-                return (void) log_error("Failed to process SignalFD: %s\n", strerror(-r));
-}
 
 static int manager_setup_signals(Manager *m) {
         sigset_t mask;
@@ -408,6 +400,43 @@ static int manager_setup_signals(Manager *m) {
                 .sa_handler = SIG_DFL,
                 .sa_flags = SA_NOCLDSTOP|SA_RESTART,
         };
+        int signals[] = {
+                SIGCHLD, /* Child died */
+                SIGTERM, /* Reexecute daemon */
+                SIGHUP,  /* Reload configuration */
+                SIGUSR1, /* systemd/upstart: reconnect to D-Bus */
+                SIGUSR2, /* systemd: dump status */
+#ifndef DEBUG
+                SIGINT, /* Kernel sends us this on control-alt-del */
+#endif
+                SIGWINCH, /* Kernel sends us this on kbrequest (alt-arrowup) */
+#ifdef SIGPWR
+                SIGPWR, /* Some kernel drivers and upsd send us this on power failure */
+#endif
+#ifdef SIGRTMIN
+                SIGRTMIN + 0,  /* systemd: start default.target */
+                SIGRTMIN + 1,  /* systemd: isolate rescue.target */
+                SIGRTMIN + 2,  /* systemd: isolate emergency.target */
+                SIGRTMIN + 3,  /* systemd: start halt.target */
+                SIGRTMIN + 4,  /* systemd: start poweroff.target */
+                SIGRTMIN + 5,  /* systemd: start reboot.target */
+                SIGRTMIN + 6,  /* systemd: start kexec.target */
+                SIGRTMIN + 13, /* systemd: Immediate halt */
+                SIGRTMIN + 14, /* systemd: Immediate poweroff */
+                SIGRTMIN + 15, /* systemd: Immediate reboot */
+                SIGRTMIN + 16, /* systemd: Immediate kexec */
+                SIGRTMIN + 20, /* systemd: enable status messages */
+                SIGRTMIN + 21, /* systemd: disable status messages */
+                SIGRTMIN + 22, /* systemd: set log level to LOG_DEBUG */
+                SIGRTMIN + 23, /* systemd: set log level to LOG_INFO */
+                SIGRTMIN + 24, /* systemd: Immediate exit (--user only) */
+                SIGRTMIN + 26, /* systemd: set log target to journal-or-kmsg */
+                SIGRTMIN + 27, /* systemd: set log target to console */
+                SIGRTMIN + 28, /* systemd: set log target to kmsg */
+                SIGRTMIN + 29, /* systemd: set log target to syslog-or-kmsg */
+#endif
+        };
+        static ev_signal ev_signals[255] = {};
 
         assert(m);
 
@@ -416,54 +445,17 @@ static int manager_setup_signals(Manager *m) {
 
         assert_se(sigemptyset(&mask) == 0);
 
-        sigset_add_many(&mask,
-                        SIGCHLD,     /* Child died */
-                        SIGTERM,     /* Reexecute daemon */
-                        SIGHUP,      /* Reload configuration */
-                        SIGUSR1,     /* systemd/upstart: reconnect to D-Bus */
-                        SIGUSR2,     /* systemd: dump status */
-#ifndef DEBUG
-                        SIGINT,      /* Kernel sends us this on control-alt-del */
-#endif
-                        SIGWINCH,    /* Kernel sends us this on kbrequest (alt-arrowup) */
-#ifdef SIGPWR
-                        SIGPWR,      /* Some kernel drivers and upsd send us this on power failure */
-#endif
-#ifdef SIGRTMIN
-                        SIGRTMIN+0,  /* systemd: start default.target */
-                        SIGRTMIN+1,  /* systemd: isolate rescue.target */
-                        SIGRTMIN+2,  /* systemd: isolate emergency.target */
-                        SIGRTMIN+3,  /* systemd: start halt.target */
-                        SIGRTMIN+4,  /* systemd: start poweroff.target */
-                        SIGRTMIN+5,  /* systemd: start reboot.target */
-                        SIGRTMIN+6,  /* systemd: start kexec.target */
-                        SIGRTMIN+13, /* systemd: Immediate halt */
-                        SIGRTMIN+14, /* systemd: Immediate poweroff */
-                        SIGRTMIN+15, /* systemd: Immediate reboot */
-                        SIGRTMIN+16, /* systemd: Immediate kexec */
-                        SIGRTMIN+20, /* systemd: enable status messages */
-                        SIGRTMIN+21, /* systemd: disable status messages */
-                        SIGRTMIN+22, /* systemd: set log level to LOG_DEBUG */
-                        SIGRTMIN+23, /* systemd: set log level to LOG_INFO */
-                        SIGRTMIN+24, /* systemd: Immediate exit (--user only) */
-                        SIGRTMIN+26, /* systemd: set log target to journal-or-kmsg */
-                        SIGRTMIN+27, /* systemd: set log target to console */
-                        SIGRTMIN+28, /* systemd: set log target to kmsg */
-                        SIGRTMIN+29, /* systemd: set log target to syslog-or-kmsg */
-#endif
-                        -1);
-        assert_se(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
+        for (int i = 0; i < ELEMENTSOF(signals); i++) {
+                ev_signal_init(
+                        &ev_signals[i],
+                        signals[i] >= SIGRTMIN ? manager_sigrt_signal_cb : manager_signal_cb,
+                        signals[i]);
+                ev_signals[i].data = m;
+                assert_se(sigaddset(&mask, signals[i]) == 0);
+                ev_signal_start(m->evloop, &ev_signals[i]);
+        }
 
-        ev_io_init(
-                &m->signalfd_watch,
-                signalfd_io_cb,
-                signalfd(-1, &mask, SFD_NONBLOCK | SFD_CLOEXEC),
-                EV_READ);
-        if (m->signalfd_watch.fd < 0)
-                return -errno;
-
-        m->signalfd_watch.data = m;
-        ev_io_start(m->evloop, &m->signalfd_watch);
+        // assert_se(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 
         if (m->running_as == SYSTEMD_SYSTEM)
                 return enable_special_signals(m);
@@ -531,7 +523,6 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
         ev_io_zero(m->mount_watch);
         ev_io_zero(m->swap_watch);
         ev_io_zero(m->udev_watch);
-        ev_io_zero(m->signalfd_watch);
         ev_timer_zero(m->jobs_in_progress_watch);
 
         m->dev_autofs_fd = -1;
@@ -832,12 +823,7 @@ void manager_free(Manager *m)
         hashmap_free(m->watch_pids2);
         hashmap_free(m->watch_bus);
 
-        ev_io_stop(m->evloop, &m->signalfd_watch);
-        safe_close(m->signalfd_watch.fd);
         safe_close(m->notify_watch.fd);
-#if 0
-        safe_close(m->time_change_watch.fd);
-#endif
         manager_unwatch_jobs_in_progress(m);
 
         free(m->notify_socket);
@@ -1535,246 +1521,215 @@ static int manager_start_target(Manager *m, const char *name, JobMode mode) {
         return r;
 }
 
-static int manager_process_signal_fd(Manager *m) {
-        ssize_t n;
-        struct signalfd_siginfo sfsi;
-        bool sigchld = false;
+static void manager_sigrt_signal_cb(struct ev_loop *evloop, ev_signal *watch, int revents)
+{
+        /* Starting SIGRTMIN+0 */
+        static const char *const target_table[] = {
+                [0] = SPECIAL_DEFAULT_TARGET,   [1] = SPECIAL_RESCUE_TARGET,
+                [2] = SPECIAL_EMERGENCY_TARGET, [3] = SPECIAL_HALT_TARGET,
+                [4] = SPECIAL_POWEROFF_TARGET,  [5] = SPECIAL_REBOOT_TARGET,
+                [6] = SPECIAL_KEXEC_TARGET
+        };
 
-        assert(m);
+        /* Starting SIGRTMIN+13, so that target halt and system halt are 10 apart */
+        static const ManagerExitCode code_table[] = {
+                [0] = MANAGER_HALT, [1] = MANAGER_POWEROFF, [2] = MANAGER_REBOOT, [3] = MANAGER_KEXEC
+        };
 
-        for (;;) {
-                n = read(m->signalfd_watch.fd, &sfsi, sizeof(sfsi));
-                if (n != sizeof(sfsi)) {
+        Manager *m = watch->data;
 
-                        if (n >= 0)
-                                return -EIO;
+        if ((int) watch->signum >= SIGRTMIN + 0 &&
+            (int) watch->signum < SIGRTMIN + (int) ELEMENTSOF(target_table)) {
+                int idx = (int) watch->signum - SIGRTMIN;
+                manager_start_target(
+                        m, target_table[idx], (idx == 1 || idx == 2) ? JOB_ISOLATE : JOB_REPLACE);
+                return;
+        }
 
-                        if (errno == EINTR || errno == EAGAIN)
-                                break;
+        if ((int) watch->signum >= SIGRTMIN + 13 &&
+            (int) watch->signum < SIGRTMIN + 13 + (int) ELEMENTSOF(code_table)) {
+                m->exit_code = code_table[watch->signum - SIGRTMIN - 13];
+                return;
+        }
 
-                        return -errno;
-                }
+        switch (watch->signum - SIGRTMIN) {
 
-                if (sfsi.ssi_pid > 0) {
-                        _cleanup_free_ char *p = NULL;
+        case 20:
+                log_debug("Enabling showing of status.");
+                manager_set_show_status(m, true);
+                break;
 
-                        get_process_comm(sfsi.ssi_pid, &p);
+        case 21:
+                log_debug("Disabling showing of status.");
+                manager_set_show_status(m, false);
+                break;
 
-                        log_full(sfsi.ssi_signo == SIGCHLD ||
-                                 (sfsi.ssi_signo == SIGTERM && m->running_as == SYSTEMD_USER)
-                                 ? LOG_DEBUG : LOG_INFO,
-                                 "Received SIG%s from PID %lu (%s).",
-                                 signal_to_string(sfsi.ssi_signo),
-                                 (unsigned long) sfsi.ssi_pid, strna(p));
-                } else
-                        log_full(sfsi.ssi_signo == SIGCHLD ||
-                                 (sfsi.ssi_signo == SIGTERM && m->running_as == SYSTEMD_USER)
-                                 ? LOG_DEBUG : LOG_INFO,
-                                 "Received SIG%s.",
-                                 signal_to_string(sfsi.ssi_signo));
+        case 22:
+                log_set_max_level(LOG_DEBUG);
+                log_notice("Setting log level to debug.");
+                break;
 
-                switch (sfsi.ssi_signo) {
+        case 23:
+                log_set_max_level(LOG_INFO);
+                log_notice("Setting log level to info.");
+                break;
 
-                case SIGCHLD:
-                        sigchld = true;
-                        break;
-
-                case SIGTERM:
-                        if (m->running_as == SYSTEMD_SYSTEM) {
-                                /* This is for compatibility with the
-                                 * original sysvinit */
-                                m->exit_code = MANAGER_REEXECUTE;
-                                break;
-                        }
-
-                        /* Fall through */
-
-                case SIGINT:
-                        if (m->running_as == SYSTEMD_SYSTEM) {
-                                manager_start_target(m, SPECIAL_CTRL_ALT_DEL_TARGET, JOB_REPLACE_IRREVERSIBLY);
-                                break;
-                        }
-
-                        /* Run the exit target if there is one, if not, just exit. */
-                        if (manager_start_target(m, SPECIAL_EXIT_TARGET, JOB_REPLACE) < 0) {
-                                m->exit_code = MANAGER_EXIT;
-                                return 0;
-                        }
-
-                        break;
-
-                case SIGWINCH:
-                        if (m->running_as == SYSTEMD_SYSTEM)
-                                manager_start_target(m, SPECIAL_KBREQUEST_TARGET, JOB_REPLACE);
-
-                        /* This is a nop on non-init */
-                        break;
-
-#ifdef SIGPWR
-                case SIGPWR:
-                        if (m->running_as == SYSTEMD_SYSTEM)
-                                manager_start_target(m, SPECIAL_SIGPWR_TARGET, JOB_REPLACE);
-
-                        /* This is a nop on non-init */
-                        break;
-#endif
-
-                case SIGUSR1: {
-                        Unit *u;
-
-                        u = manager_get_unit(m, SPECIAL_DBUS_SERVICE);
-
-                        if (!u || UNIT_IS_ACTIVE_OR_RELOADING(unit_active_state(u))) {
-                                log_info("Trying to reconnect to bus...");
-                                bus_init(m, true);
-                        }
-
-                        if (!u || !UNIT_IS_ACTIVE_OR_ACTIVATING(unit_active_state(u))) {
-                                log_info("Loading D-Bus service...");
-                                manager_start_target(m, SPECIAL_DBUS_SERVICE, JOB_REPLACE);
-                        }
-
-                        break;
-                }
-
-                case SIGUSR2: {
-                        FILE *f;
-                        char *dump = NULL;
-                        size_t size;
-
-                        if (!(f = open_memstream(&dump, &size))) {
-                                log_warning("Failed to allocate memory stream.");
-                                break;
-                        }
-
-                        manager_dump_units(m, f, "\t");
-                        manager_dump_jobs(m, f, "\t");
-
-                        if (ferror(f)) {
-                                fclose(f);
-                                free(dump);
-                                log_warning("Failed to write status stream");
-                                break;
-                        }
-
-                        fclose(f);
-                        log_dump(LOG_INFO, dump);
-                        free(dump);
-
-                        break;
-                }
-
-                case SIGHUP:
-                        m->exit_code = MANAGER_RELOAD;
-                        break;
-
-                default: {
-
-#ifdef SIGRTMIN
-                        /* Starting SIGRTMIN+0 */
-                        static const char * const target_table[] = {
-                                [0] = SPECIAL_DEFAULT_TARGET,
-                                [1] = SPECIAL_RESCUE_TARGET,
-                                [2] = SPECIAL_EMERGENCY_TARGET,
-                                [3] = SPECIAL_HALT_TARGET,
-                                [4] = SPECIAL_POWEROFF_TARGET,
-                                [5] = SPECIAL_REBOOT_TARGET,
-                                [6] = SPECIAL_KEXEC_TARGET
-                        };
-
-                        /* Starting SIGRTMIN+13, so that target halt and system halt are 10 apart */
-                        static const ManagerExitCode code_table[] = {
-                                [0] = MANAGER_HALT,
-                                [1] = MANAGER_POWEROFF,
-                                [2] = MANAGER_REBOOT,
-                                [3] = MANAGER_KEXEC
-                        };
-
-                        if ((int) sfsi.ssi_signo >= SIGRTMIN+0 &&
-                            (int) sfsi.ssi_signo < SIGRTMIN+(int) ELEMENTSOF(target_table)) {
-                                int idx = (int) sfsi.ssi_signo - SIGRTMIN;
-                                manager_start_target(m, target_table[idx],
-                                                     (idx == 1 || idx == 2) ? JOB_ISOLATE : JOB_REPLACE);
-                                break;
-                        }
-
-                        if ((int) sfsi.ssi_signo >= SIGRTMIN+13 &&
-                            (int) sfsi.ssi_signo < SIGRTMIN+13+(int) ELEMENTSOF(code_table)) {
-                                m->exit_code = code_table[sfsi.ssi_signo - SIGRTMIN - 13];
-                                break;
-                        }
-
-                        switch (sfsi.ssi_signo - SIGRTMIN) {
-
-                        case 20:
-                                log_debug("Enabling showing of status.");
-                                manager_set_show_status(m, true);
-                                break;
-
-                        case 21:
-                                log_debug("Disabling showing of status.");
-                                manager_set_show_status(m, false);
-                                break;
-
-                        case 22:
-                                log_set_max_level(LOG_DEBUG);
-                                log_notice("Setting log level to debug.");
-                                break;
-
-                        case 23:
-                                log_set_max_level(LOG_INFO);
-                                log_notice("Setting log level to info.");
-                                break;
-
-                        case 24:
+        case 24:
 #if 0
                                 if (m->running_as == SYSTEMD_USER) {
 #endif
-                                        m->exit_code = MANAGER_EXIT;
-                                        return 0;
+                m->exit_code = MANAGER_EXIT;
+                return;
 
 #if 0
                                 }
 
                                 /* This is a nop on init */
 #endif /* no it isn't */
-                                break;
+                break;
 
-                        case 26:
-                                log_set_target(LOG_TARGET_JOURNAL_OR_KMSG);
-                                log_notice("Setting log target to journal-or-kmsg.");
-                                break;
+        case 26:
+                log_set_target(LOG_TARGET_JOURNAL_OR_KMSG);
+                log_notice("Setting log target to journal-or-kmsg.");
+                break;
 
-                        case 27:
-                                log_set_target(LOG_TARGET_CONSOLE);
-                                log_notice("Setting log target to console.");
-                                break;
+        case 27:
+                log_set_target(LOG_TARGET_CONSOLE);
+                log_notice("Setting log target to console.");
+                break;
 
-                        case 28:
-                                log_set_target(LOG_TARGET_KMSG);
-                                log_notice("Setting log target to kmsg.");
-                                break;
+        case 28:
+                log_set_target(LOG_TARGET_KMSG);
+                log_notice("Setting log target to kmsg.");
+                break;
 
-                        case 29:
-                                log_set_target(LOG_TARGET_SYSLOG_OR_KMSG);
-                                log_notice("Setting log target to syslog-or-kmsg.");
-                                break;
+        case 29:
+                log_set_target(LOG_TARGET_SYSLOG_OR_KMSG);
+                log_notice("Setting log target to syslog-or-kmsg.");
+                break;
 
-                        default:
-#endif
-                                log_warning("Got unhandled signal <%s>.", signal_to_string(sfsi.ssi_signo));
-#ifdef SIGRTMIN
-                        }
-#endif
+        default:
+                log_warning("Unhandled signal %s", signal_to_string(watch->signum));
+        }
+}
+
+static void manager_signal_cb(struct ev_loop *evloop, ev_signal *watch, int revents)
+{
+        Manager *m = watch->data;
+        ssize_t n;
+        bool sigchld = false;
+
+        assert(m);
+
+        log_full(
+                watch->signum == SIGCHLD || (watch->signum == SIGTERM && m->running_as == SYSTEMD_USER) ?
+                        LOG_DEBUG :
+                        LOG_INFO,
+                "Received SIG%s.",
+                signal_to_string(watch->signum));
+
+        switch (watch->signum) {
+
+        case SIGCHLD:
+                sigchld = true;
+                break;
+
+        case SIGTERM:
+                if (m->running_as == SYSTEMD_SYSTEM) {
+                        /* This is for compatibility with the
+                         * original sysvinit */
+                        m->exit_code = MANAGER_REEXECUTE;
+                        break;
                 }
+
+                /* Fall through */
+
+        case SIGINT:
+                if (m->running_as == SYSTEMD_SYSTEM) {
+                        manager_start_target(m, SPECIAL_CTRL_ALT_DEL_TARGET, JOB_REPLACE_IRREVERSIBLY);
+                        break;
                 }
 
+                /* Run the exit target if there is one, if not, just exit. */
+                if (manager_start_target(m, SPECIAL_EXIT_TARGET, JOB_REPLACE) < 0) {
+                        m->exit_code = MANAGER_EXIT;
+                        return;
+                }
+
+                break;
+
+        case SIGWINCH:
+                if (m->running_as == SYSTEMD_SYSTEM)
+                        manager_start_target(m, SPECIAL_KBREQUEST_TARGET, JOB_REPLACE);
+
+                /* This is a nop on non-init */
+                break;
+
+#ifdef SIGPWR
+        case SIGPWR:
+                if (m->running_as == SYSTEMD_SYSTEM)
+                        manager_start_target(m, SPECIAL_SIGPWR_TARGET, JOB_REPLACE);
+
+                /* This is a nop on non-init */
+                break;
+#endif
+
+        case SIGUSR1: {
+                Unit *u;
+
+                u = manager_get_unit(m, SPECIAL_DBUS_SERVICE);
+
+                if (!u || UNIT_IS_ACTIVE_OR_RELOADING(unit_active_state(u))) {
+                        log_info("Trying to reconnect to bus...");
+                        bus_init(m, true);
+                }
+
+                if (!u || !UNIT_IS_ACTIVE_OR_ACTIVATING(unit_active_state(u))) {
+                        log_info("Loading D-Bus service...");
+                        manager_start_target(m, SPECIAL_DBUS_SERVICE, JOB_REPLACE);
+                }
+
+                break;
         }
 
-        if (sigchld)
-                return manager_dispatch_sigchld(m);
+        case SIGUSR2: {
+                FILE *f;
+                char *dump = NULL;
+                size_t size;
 
-        return 0;
+                if (!(f = open_memstream(&dump, &size))) {
+                        log_warning("Failed to allocate memory stream.");
+                        break;
+                }
+
+                manager_dump_units(m, f, "\t");
+                manager_dump_jobs(m, f, "\t");
+
+                if (ferror(f)) {
+                        fclose(f);
+                        free(dump);
+                        log_warning("Failed to write status stream");
+                        break;
+                }
+
+                fclose(f);
+                log_dump(LOG_INFO, dump);
+                free(dump);
+
+                break;
+        }
+
+        case SIGHUP:
+                m->exit_code = MANAGER_RELOAD;
+                break;
+
+        default:
+                log_warning("Got unhandled signal <%s>.", signal_to_string(watch->signum));
+        }
+
+
+        if (sigchld)
+                return (void) manager_dispatch_sigchld(m);
 }
 
 int manager_loop(Manager *m) {
@@ -1842,7 +1797,6 @@ int manager_loop(Manager *m) {
 #endif
 
                 n = ev_run(m->evloop, EVRUN_ONCE);
-                printf("N: %d\n", n);
         }
 
         return m->exit_code;
@@ -2315,7 +2269,10 @@ int manager_deserialise_object(Manager *m, cJSON *obj, FDSet *fds) {
 
                 r = hashmap_put(m->ptgroup_unit, grp, u);
                 if (r < 0) {
-                        log_error("Failed to insert PTGroup into hashmap: %s\n", strerror(-r));
+                        log_error(
+                                "Failed to insert PTGroup for unit %s into hashmap: %s\n",
+                                u->id,
+                                strerror(-r));
                         goto finish;
                 }
 
