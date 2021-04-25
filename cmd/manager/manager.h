@@ -26,6 +26,8 @@
 #include <stdio.h>
 #include <dbus/dbus.h>
 
+#include "ev.h"
+
 #include "cgroup-util.h"
 #include "fdset.h"
 #include "ptgroup/ptgroup.h"
@@ -64,11 +66,6 @@ enum WatchType
         WATCH_UDEV,
         WATCH_TIME_CHANGE,
         WATCH_JOBS_IN_PROGRESS,
-        WATCH_IDLE_PIPE,
-#ifdef Use_KQProc
-        /** an event on the process tracker kernel queue */
-        WATCH_KQPROC,
-#endif
 };
 
 struct Watch {
@@ -77,8 +74,6 @@ struct Watch {
         union {
                 struct Unit *unit;
                 struct Job *job;
-                DBusWatch *bus_watch;
-                DBusTimeout *bus_timeout;
         } data;
         bool fd_is_dupped:1;
         bool socket_accept:1;
@@ -98,6 +93,8 @@ struct Manager {
 
         /* The event loop. We just make this ev_default_loop. */
         struct ev_loop *evloop;
+
+        /* Event sources. */
 
         /* Note that the set of units we know of is allowed to be
          * inconsistent. However the subset of it that is loaded may
@@ -148,7 +145,7 @@ struct Manager {
         Watch signal_watch;
         Watch time_change_watch;
         Watch jobs_in_progress_watch;
-        Watch idle_pipe_watch;
+        ev_io idle_pipe_watch; /* watches idle_pipe [2] */
 
         int epoll_fd;
 
@@ -292,10 +289,10 @@ struct Manager {
 
 #ifdef Use_KQProc
         /**
-         * Watch for the Kernel Queue on which PROC events are received.
+         * I/O event for the Kernel Queue on which PROC events are received.
          * (The Kernel Queue itself is in the .fd member.)
          */
-        Watch kqproc_watch;
+        ev_io kqproc_io;
 #endif
 
 #ifdef Use_PTGroups

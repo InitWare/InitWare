@@ -13,67 +13,57 @@ have been included with this software
         All rights reserved.
 *********************************************************************/
 
-#include <sys/epoll.h>
 #include <sys/event.h>
 
 #include "kqproc.h"
 #include "manager.h"
 
-int manager_setup_kqproc_watch(Manager *m, int with_fd) {
-        struct epoll_event ev = {
-                .events = EPOLLIN,
-                .data.ptr = &m->kqproc_watch,
-        };
-        int r;
-
-        m->kqproc_watch.type = WATCH_KQPROC;
-        if (with_fd <= -1) {
-                m->kqproc_watch.fd = kqueue();
-                if (m->kqproc_watch.fd < 0) {
-                        log_error("Failed to open Kernel Queue: %m\n");
-                        return -errno;
-                }
-        } else
-                m->kqproc_watch.fd = with_fd;
-
-        r = epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->kqproc_watch.fd, &ev);
-        if (r < 0) {
-                log_error("Failed to add Kernel Queue for PROC events to epoll: %m");
-                return -errno;
-        }
-
-        return 0;
-}
-
-void manager_kqproc_event(Manager *m) {
-        struct kevent ev;
-        int nEv;
+static void kqproc_io_cb(struct ev_loop *evloop, ev_io *ev, int revents)
+{
+        Manager *m = ev->data;
+        struct kevent kev;
+        int nKev;
         struct timespec ts = { 0, 0 };
 
-        nEv = kevent(m->kqproc_watch.fd, NULL, 0, &ev, 1, &ts);
+        nKev = kevent(ev->fd, NULL, 0, &kev, 1, &ts);
 
-        if (nEv < 0) {
+        if (nKev < 0) {
                 log_error("Error waiting on PROC Kernel Queue: %s\n", strerror(errno));
                 return;
-        } else if (!nEv) {
+        } else if (!nKev) {
                 log_warning("No events from PROC Kernel Queue\n");
                 return;
         }
 
-        assert(ev.filter == EVFILT_PROC);
+        assert(kev.filter == EVFILT_PROC);
 
-        if (ev.fflags & NOTE_CHILD)
-                ptmanager_fork(m->pt_manager, ev.data, ev.ident);
-        else if (ev.fflags & NOTE_EXIT)
-                ptmanager_exit(m->pt_manager, ev.ident);
-        else if (ev.fflags & NOTE_TRACKERR)
+        if (kev.fflags & NOTE_CHILD)
+                ptmanager_fork(m->pt_manager, kev.data, kev.ident);
+        else if (kev.fflags & NOTE_EXIT)
+                ptmanager_exit(m->pt_manager, kev.ident);
+        else if (kev.fflags & NOTE_TRACKERR)
                 log_error("NOTE_TRACKERR received from Kernel Queue\n");
 }
 
 
+int manager_setup_kqproc_watch(Manager *m, int with_fd)
+{
+        if (with_fd <= -1) {
+                with_fd = kqueue();
+                if (with_fd < 0) {
+                        log_error("Failed to open Kernel Queue: %m\n");
+                        return -errno;
+                }
+        }
+
+        ev_io_init(&m->kqproc_io, kqproc_io_cb, with_fd, EV_READ);
+        return 0;
+}
+
 extern int _ptgroup_move_or_add(PTGroup *grp, PTManager *ptm, pid_t pid);
 
-int ptgroup_attach(PTGroup *grp, PTManager *ptm, pid_t pid) {
+int ptgroup_attach(PTGroup *grp, PTManager *ptm, pid_t pid)
+{
         int r = _ptgroup_move_or_add(grp, ptm, pid);
         struct kevent ev;
 
@@ -83,7 +73,7 @@ int ptgroup_attach(PTGroup *grp, PTManager *ptm, pid_t pid) {
                 return 1; /* moved group, but already tracked */
 
         EV_SET(&ev, pid, EVFILT_PROC, EV_ADD, NOTE_EXIT | NOTE_TRACK, 0, NULL);
-        r = kevent(ptm->group.manager->kqproc_watch.fd, &ev, 1, NULL, 0, NULL);
+        r = kevent(ptm->group.manager->kqproc_io.fd, &ev, 1, NULL, 0, NULL);
 
         if (r < 0) {
                 log_error("Failed to watch PID %lld: %m", (long long) pid);

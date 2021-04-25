@@ -165,6 +165,8 @@ static int manager_setup_notify(Manager *m) {
         return 0;
 }
 
+#pragma region Jobs - in - progress and Idle
+
 static int manager_jobs_in_progress_mod_timer(Manager *m) {
         struct itimerspec its = {
                 .it_value.tv_sec = JOBS_IN_PROGRESS_WAIT_SEC,
@@ -296,52 +298,61 @@ static void manager_print_jobs_in_progress(Manager *m) {
         m->jobs_in_progress_iteration++;
 }
 
-static int manager_watch_idle_pipe(Manager *m) {
-        struct epoll_event ev = {
-                .events = EPOLLIN,
-                .data.ptr = &m->idle_pipe_watch,
-        };
+static void manager_unwatch_idle_pipe(Manager *m);
+static void close_idle_pipe(Manager *m);
+
+static void idle_pipe_io_cb(struct ev_loop *evloop, ev_io *ev, int revents)
+{
+        Manager *m = ev->data;
+
+        assert(revents & EV_READ);
+
+        m->no_console_output = m->n_on_console > 0;
+        manager_unwatch_idle_pipe(m);
+        close_idle_pipe(m);
+}
+
+static int manager_watch_idle_pipe(Manager *m)
+{
         int r;
 
-        if (m->idle_pipe_watch.type != WATCH_INVALID)
+        if (m->idle_pipe_watch.fd < 0)
                 return 0;
 
         if (m->idle_pipe[2] < 0)
                 return 0;
 
-        m->idle_pipe_watch.type = WATCH_IDLE_PIPE;
-        m->idle_pipe_watch.fd = m->idle_pipe[2];
-        if (m->idle_pipe_watch.fd < 0) {
-                log_error("Failed to create timerfd: %m");
-                r = -errno;
-                goto err;
-        }
-
-        if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->idle_pipe_watch.fd, &ev) < 0) {
-                log_error("Failed to add idle_pipe fd to epoll: %m");
-                r = -errno;
-                goto err;
-        }
-
+        ev_io_init(&m->idle_pipe_watch, idle_pipe_io_cb, m->idle_pipe[2], EV_READ);
+        m->idle_pipe_watch.data = m;
+        ev_io_start(m->evloop, &m->idle_pipe_watch);
         log_debug("Set up idle_pipe watch.");
 
         return 0;
 
 err:
         safe_close(m->idle_pipe_watch.fd);
-        watch_init(&m->idle_pipe_watch);
+        m->idle_pipe_watch.fd = -1;
         return r;
 }
 
 static void manager_unwatch_idle_pipe(Manager *m) {
-        if (m->idle_pipe_watch.type != WATCH_IDLE_PIPE)
+        if (m->idle_pipe_watch.fd < 0)
                 return;
 
-        assert_se(epoll_ctl(m->epoll_fd, EPOLL_CTL_DEL, m->idle_pipe_watch.fd, NULL) >= 0);
-        watch_init(&m->idle_pipe_watch);
+        ev_io_stop(m->evloop, &m->idle_pipe_watch);
+        m->idle_pipe_watch.fd = -1;
 
         log_debug("Closed idle_pipe watch.");
 }
+
+static void close_idle_pipe(Manager *m)
+{
+        close_pipe(m->idle_pipe);
+        close_pipe(m->idle_pipe + 2);
+}
+
+#pragma endregion
+
 
 static int manager_setup_time_change(Manager *m) {
         struct epoll_event ev = {
@@ -825,11 +836,6 @@ static void manager_clear_jobs_and_units(Manager *m) {
 
         m->n_on_console = 0;
         m->n_running_jobs = 0;
-}
-
-static void close_idle_pipe(Manager *m) {
-        close_pipe(m->idle_pipe);
-        close_pipe(m->idle_pipe + 2);
 }
 
 void manager_free(Manager *m) {
@@ -1918,28 +1924,6 @@ static int process_event(Manager *m, struct epoll_event *ev) {
                 break;
         }
 
-        case WATCH_IDLE_PIPE: {
-                m->no_console_output = m->n_on_console > 0;
-
-                manager_unwatch_idle_pipe(m);
-                close_idle_pipe(m);
-                break;
-        }
-
-#ifdef Use_KQProc
-        case WATCH_KQPROC: {
-
-                if (ev->events != EPOLLIN) {
-                        log_warning("Unexpected event on PROC events Kernel Queue\n");
-                        return -EINVAL;
-                }
-
-                manager_kqproc_event(m);
-
-                break;
-        }
-#endif
-
         default:
                 log_error("event type=%i", w->type);
                 assert_not_reached("Unknown epoll event type.");
@@ -2372,7 +2356,7 @@ int manager_serialize(Manager *m, FILE *f, FDSet *fds, bool switching_root) {
         bus_serialize(m, f);
 
 #ifdef Use_KQProc
-        kqproc_fd = fdset_put_dup(fds, m->kqproc_watch.fd);
+        kqproc_fd = fdset_put_dup(fds, m->kqproc_io.fd);
         if (kqproc_fd < 0) {
                 r = -errno;
                 goto finish;
