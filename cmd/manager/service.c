@@ -1,5 +1,17 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
+/*******************************************************************
 
+    LICENCE NOTICE
+
+These coded instructions, statements, and computer programs are part
+of the  InitWare Suite of Middleware,  and  they are protected under
+copyright law. They may not be distributed,  copied,  or used except
+under the provisions of  the  terms  of  the  Library General Public
+Licence version 2.1 or later, in the file "LICENSE.md", which should
+have been included with this software
+
+    (c) 2021 David Mackay
+        All rights reserved.
+*********************************************************************/
 /***
   This file is part of systemd.
 
@@ -26,9 +38,10 @@
 #include <sys/reboot.h>
 
 #include "async.h"
+#include "ev-util.h"
 #include "manager.h"
-#include "unit.h"
 #include "service.h"
+#include "unit.h"
 #include "load-fragment.h"
 #include "load-dropin.h"
 #include "log.h"
@@ -134,8 +147,8 @@ static void service_init(Unit *u) {
         s->restart_usec = u->manager->default_restart_usec;
         s->type = _SERVICE_TYPE_INVALID;
 
-        watch_init(&s->watchdog_watch);
-        watch_init(&s->timer_watch);
+        ev_timer_zero(s->watchdog_watch);
+        ev_timer_zero(s->timer_watch);
 
 #ifdef HAVE_SYSV_COMPAT
         s->sysv_start_priority = -1;
@@ -268,7 +281,7 @@ static void service_handle_watchdog(Service *s) {
                 return;
         }
 
-        r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, s->watchdog_usec - offset, &s->watchdog_watch);
+        r = unit_watch_timer(UNIT(s), s->watchdog_usec - offset, &s->watchdog_watch);
         if (r < 0)
                 log_warning_unit(UNIT(s)->id,
                                  "%s failed to install watchdog timer: %s",
@@ -1660,7 +1673,7 @@ static int service_coldplug(Unit *u) {
 
                                 k = s->deserialized_state == SERVICE_AUTO_RESTART ? s->restart_usec : s->timeout_start_usec;
 
-                                r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, k, &s->timer_watch);
+                                r = unit_watch_timer(UNIT(s), k, &s->timer_watch);
                                 if (r < 0)
                                         return r;
                         }
@@ -1828,8 +1841,7 @@ static int service_spawn(
         }
 
         if (timeout && s->timeout_start_usec) {
-                r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true,
-                                     s->timeout_start_usec, &s->timer_watch);
+                r = unit_watch_timer(UNIT(s), s->timeout_start_usec, &s->timer_watch);
                 if (r < 0)
                         goto fail;
         } else
@@ -2002,7 +2014,7 @@ static void service_enter_dead(Service *s, ServiceResult f, bool allow_restart) 
              !set_contains(s->restart_ignore_status.signal, INT_TO_PTR(s->main_exec_status.status)))
                 ) {
 
-                r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, s->restart_usec, &s->timer_watch);
+                r = unit_watch_timer(UNIT(s), s->restart_usec, &s->timer_watch);
                 if (r < 0)
                         goto fail;
 
@@ -2092,8 +2104,7 @@ static void service_enter_signal(Service *s, ServiceState state, ServiceResult f
 
         if (r > 0) {
                 if (s->timeout_stop_usec > 0) {
-                        r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true,
-                                             s->timeout_stop_usec, &s->timer_watch);
+                        r = unit_watch_timer(UNIT(s), s->timeout_stop_usec, &s->timer_watch);
                         if (r < 0)
                                 goto fail;
                 }
@@ -2362,7 +2373,7 @@ static void service_enter_restart(Service *s) {
                 log_info_unit(UNIT(s)->id,
                               "Stop job pending for unit, delaying automatic restart.");
 
-                r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, s->restart_usec, &s->timer_watch);
+                r = unit_watch_timer(UNIT(s), s->restart_usec, &s->timer_watch);
                 if (r < 0)
                         goto fail;
 
@@ -3012,7 +3023,8 @@ static int service_demand_pid_file(Service *s) {
         return service_watch_pid_file(s);
 }
 
-static void service_fd_event(Unit *u, int fd, uint32_t events, Watch *w) {
+static void service_fd_event(Unit *u, int fd, int revents, ev_io *w)
+{
         Service *s = SERVICE(u);
 
         assert(s);
@@ -3023,7 +3035,7 @@ static void service_fd_event(Unit *u, int fd, uint32_t events, Watch *w) {
 
         log_debug_unit(u->id, "inotify event for %s", u->id);
 
-        if (path_spec_fd_event(s->pid_file_pathspec, events) < 0)
+        if (path_spec_fd_event(s->pid_file_pathspec, revents) < 0)
                 goto fail;
 
         if (service_retry_pid_file(s) == 0)
@@ -3376,7 +3388,7 @@ static void service_sigchld_event(Unit *u, pid_t pid, int code, int status) {
                 service_notify_cgroup_empty_event(u);
 }
 
-static void service_timer_event(Unit *u, uint64_t elapsed, Watch* w) {
+static void service_timer_event(Unit *u, uint64_t elapsed, ev_timer* w) {
         Service *s = SERVICE(u);
 
         assert(s);

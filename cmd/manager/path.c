@@ -20,7 +20,6 @@
 ***/
 
 #include <sys/inotify.h>
-#include <sys/epoll.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <unistd.h>
@@ -67,7 +66,7 @@ int path_spec_watch(PathSpec *s, Unit *u) {
                 goto fail;
         }
 
-        r = unit_watch_fd(u, s->inotify_fd, EPOLLIN, &s->watch);
+        r = unit_watch_fd(u, s->inotify_fd, EV_READ, &s->watch);
         if (r < 0)
                 goto fail;
 
@@ -154,14 +153,15 @@ void path_spec_unwatch(PathSpec *s, Unit *u) {
         s->inotify_fd = safe_close(s->inotify_fd);
 }
 
-int path_spec_fd_event(PathSpec *s, uint32_t events) {
+int path_spec_fd_event(PathSpec *s, int events)
+{
         _cleanup_free_ uint8_t *buf = NULL;
         struct inotify_event *e;
         ssize_t k;
         int l;
         int r = 0;
 
-        if (events != EPOLLIN) {
+        if (events != EV_READ) {
                 log_error("Got invalid poll event on inotify.");
                 return -EINVAL;
         }
@@ -663,7 +663,8 @@ _pure_ static const char *path_sub_state_to_string(Unit *u) {
         return path_state_to_string(PATH(u)->state);
 }
 
-static void path_fd_event(Unit *u, int fd, uint32_t events, Watch *w) {
+static void path_fd_event(Unit *u, int fd, int revents, ev_io *w)
+{
         Path *p = PATH(u);
         PathSpec *s;
         int changed;
@@ -686,7 +687,7 @@ static void path_fd_event(Unit *u, int fd, uint32_t events, Watch *w) {
                 goto fail;
         }
 
-        changed = path_spec_fd_event(s, events);
+        changed = path_spec_fd_event(s, revents);
         if (changed < 0)
                 goto fail;
 

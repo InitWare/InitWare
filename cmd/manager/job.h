@@ -148,7 +148,8 @@ struct Job {
         JobType type;
         JobState state;
 
-        Watch timer_watch;
+        ev_timer timer_watch;
+        usec_t begin_usec;
 
         /* There can be more than one client, because of job merging. */
         IWLIST_HEAD(JobBusClient, bus_client_list);
@@ -213,7 +214,6 @@ void job_add_to_run_queue(Job *j);
 void job_add_to_dbus_queue(Job *j);
 
 int job_start_timer(Job *j);
-void job_timer_event(Job *j, uint64_t n_elapsed, Watch *w);
 
 int job_run_and_invalidate(Job *j);
 int job_finish_and_invalidate(Job *j, JobResult result, bool recursive);

@@ -19,11 +19,11 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/epoll.h>
-#include <sys/timerfd.h>
 #include <errno.h>
 #include <unistd.h>
 #include <dbus/dbus.h>
+
+#include "ev.h"
 
 #include "dbus.h"
 #include "log.h"
@@ -99,212 +99,150 @@ static void bus_dispatch_status(DBusConnection *bus, DBusDispatchStatus status, 
                 set_move_one(m->bus_connections_for_dispatch, m->bus_connections, bus);
 }
 
-void bus_watch_event(Manager *m, Watch *w, int events) {
-        assert(m);
-        assert(w);
+#pragma region Events
 
-        /* This is called by the event loop whenever there is
-         * something happening on D-Bus' file handles. */
+static void bus_io_cb(struct ev_loop *evloop, ev_io *ev, int revents)
+{
+        DBusWatchFlags flags = 0;
+        DBusWatch *watch = (DBusWatch *) ev->data;
 
-        if (!dbus_watch_get_enabled(w->data.bus_watch))
+        if (revents & EV_READ)
+                flags |= DBUS_WATCH_READABLE;
+        if (revents & EV_WRITE)
+                flags |= DBUS_WATCH_WRITABLE;
+
+        if (!dbus_watch_get_enabled(watch))
                 return;
-
-        dbus_watch_handle(w->data.bus_watch, bus_events_to_flags(events));
+        dbus_watch_handle(watch, flags);
 }
 
-static dbus_bool_t bus_add_watch(DBusWatch *bus_watch, void *data) {
+static dbus_bool_t bus_add_watch(DBusWatch *watch, void *data)
+{
         Manager *m = data;
-        Watch *w;
-        struct epoll_event ev;
+        ev_io *ev;
+        unsigned watchflags;
+        int events = 0;
 
-        assert(bus_watch);
+        assert(watch);
         assert(m);
 
-        if (!(w = new0(Watch, 1)))
+        if (!(ev = new0(ev_io, 1)))
                 return FALSE;
 
-        w->fd = dbus_watch_get_unix_fd(bus_watch);
-        w->type = WATCH_DBUS_WATCH;
-        w->data.bus_watch = bus_watch;
+        watchflags = dbus_watch_get_flags(watch);
+        if (watchflags & DBUS_WATCH_READABLE)
+                events |= EV_READ;
+        if (watchflags & DBUS_WATCH_WRITABLE)
+                events |= EV_WRITE;
 
-        zero(ev);
-        ev.events = bus_flags_to_events(bus_watch);
-        ev.data.ptr = w;
+        ev_io_init(ev, bus_io_cb, dbus_watch_get_unix_fd(watch), events);
+        ev->data = watch;
 
-        if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, w->fd, &ev) < 0) {
+        if (dbus_watch_get_enabled(watch))
+                ev_io_start(m->evloop, ev);
 
-                if (errno != EEXIST) {
-                        free(w);
-                        return FALSE;
-                }
-
-                /* Hmm, bloody D-Bus creates multiple watches on the
-                 * same fd. epoll() does not like that. As a dirty
-                 * hack we simply dup() the fd and hence get a second
-                 * one we can safely add to the epoll(). */
-
-                if ((w->fd = dup(w->fd)) < 0) {
-                        free(w);
-                        return FALSE;
-                }
-
-                if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, w->fd, &ev) < 0) {
-                        safe_close(w->fd);
-                        free(w);
-                        return FALSE;
-                }
-
-                w->fd_is_dupped = true;
-        }
-
-        dbus_watch_set_data(bus_watch, w, NULL);
+        dbus_watch_set_data(watch, ev, NULL);
 
         return TRUE;
 }
 
-static void bus_remove_watch(DBusWatch *bus_watch, void *data) {
+static void bus_remove_watch(DBusWatch *watch, void *data)
+{
         Manager *m = data;
-        Watch *w;
+        ev_io *ev;
 
-        assert(bus_watch);
+        ev = dbus_watch_get_data(watch);
+        assert(ev);
         assert(m);
 
-        w = dbus_watch_get_data(bus_watch);
-        if (!w)
+        ev_io_stop(m->evloop, ev);
+        free(ev);
+
+        /* safe_close(w->fd); */
+}
+
+static void bus_toggle_watch(DBusWatch *watch, void *data)
+{
+        Manager *m = data;
+        ev_io *ev;
+
+        ev = dbus_watch_get_data(watch);
+        assert(ev);
+        assert(m);
+
+        if (dbus_watch_get_enabled(watch))
+                ev_io_start(m->evloop, ev);
+        else
+                ev_io_stop(m->evloop, ev);
+}
+
+static void bus_timer_cb(struct ev_loop *evloop, ev_timer *timer, int revents)
+{
+        DBusTimeout *timeout = timer->data;
+
+        if (!(dbus_timeout_get_enabled(timeout)))
                 return;
 
-        assert(w->type == WATCH_DBUS_WATCH);
-        assert_se(epoll_ctl(m->epoll_fd, EPOLL_CTL_DEL, w->fd, NULL) >= 0);
-
-        safe_close(w->fd);
-
-        free(w);
+        dbus_timeout_handle(timeout);
 }
 
-static void bus_toggle_watch(DBusWatch *bus_watch, void *data) {
+static dbus_bool_t bus_add_timeout(DBusTimeout *timeout, void *data)
+{
         Manager *m = data;
-        Watch *w;
-        struct epoll_event ev;
+        ev_timer *timer;
+        double interval;
 
-        assert(bus_watch);
+        assert(timer);
         assert(m);
 
-        w = dbus_watch_get_data(bus_watch);
-        if (!w)
-                return;
-
-        assert(w->type == WATCH_DBUS_WATCH);
-
-        zero(ev);
-        ev.events = bus_flags_to_events(bus_watch);
-        ev.data.ptr = w;
-
-        assert_se(epoll_ctl(m->epoll_fd, EPOLL_CTL_MOD, w->fd, &ev) == 0);
-}
-
-static int bus_timeout_arm(Manager *m, Watch *w) {
-        struct itimerspec its = {};
-
-        assert(m);
-        assert(w);
-
-        if (dbus_timeout_get_enabled(w->data.bus_timeout)) {
-                timespec_store(&its.it_value, dbus_timeout_get_interval(w->data.bus_timeout) * USEC_PER_MSEC);
-                its.it_interval = its.it_value;
-        }
-
-        if (timerfd_settime(w->fd, 0, &its, NULL) < 0)
-                return -errno;
-
-        return 0;
-}
-
-void bus_timeout_event(Manager *m, Watch *w, int events) {
-        assert(m);
-        assert(w);
-
-        /* This is called by the event loop whenever there is
-         * something happening on D-Bus' file handles. */
-
-        if (!(dbus_timeout_get_enabled(w->data.bus_timeout)))
-                return;
-
-        dbus_timeout_handle(w->data.bus_timeout);
-}
-
-static dbus_bool_t bus_add_timeout(DBusTimeout *timeout, void *data) {
-        Manager *m = data;
-        Watch *w;
-        struct epoll_event ev;
-
-        assert(timeout);
-        assert(m);
-
-        if (!(w = new0(Watch, 1)))
+        if (!(timer = new0(ev_timer, 1)))
                 return FALSE;
 
-        if ((w->fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK|TFD_CLOEXEC)) < 0)
-                goto fail;
+        interval = dbus_timeout_get_interval(timeout) / 1000.0;
 
-        w->type = WATCH_DBUS_TIMEOUT;
-        w->data.bus_timeout = timeout;
+        ev_timer_init(timer, bus_timer_cb, interval, interval);
+        timer->data = timeout;
 
-        if (bus_timeout_arm(m, w) < 0)
-                goto fail;
+        if (dbus_timeout_get_enabled(timeout))
+                ev_timer_start(m->evloop, timer);
 
-        zero(ev);
-        ev.events = EPOLLIN;
-        ev.data.ptr = w;
-
-        if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, w->fd, &ev) < 0)
-                goto fail;
-
-        dbus_timeout_set_data(timeout, w, NULL);
+        dbus_timeout_set_data(timeout, timer, NULL);
 
         return TRUE;
-
-fail:
-        safe_close(w->fd);
-
-        free(w);
-        return FALSE;
 }
 
-static void bus_remove_timeout(DBusTimeout *timeout, void *data) {
+static void bus_remove_timeout(DBusTimeout *timeout, void *data)
+{
         Manager *m = data;
-        Watch *w;
+        ev_timer *timer;
 
-        assert(timeout);
+        timer = dbus_timeout_get_data(timeout);
+        assert(timer);
         assert(m);
 
-        w = dbus_timeout_get_data(timeout);
-        if (!w)
-                return;
-
-        assert(w->type == WATCH_DBUS_TIMEOUT);
-
-        assert_se(epoll_ctl(m->epoll_fd, EPOLL_CTL_DEL, w->fd, NULL) >= 0);
-        safe_close(w->fd);
-        free(w);
+        ev_timer_stop(m->evloop, timer);
+        free(timer);
 }
 
-static void bus_toggle_timeout(DBusTimeout *timeout, void *data) {
+static void bus_toggle_timeout(DBusTimeout *timeout, void *data)
+{
         Manager *m = data;
-        Watch *w;
-        int r;
+        ev_timer *timer;
 
-        assert(timeout);
+        timer = dbus_timeout_get_data(timeout);
+        assert(timer);
         assert(m);
 
-        w = dbus_timeout_get_data(timeout);
-        if (!w)
-                return;
+        ev_timer_stop(m->evloop, timer);
 
-        assert(w->type == WATCH_DBUS_TIMEOUT);
-
-        if ((r = bus_timeout_arm(m, w)) < 0)
-                log_error("Failed to rearm timer: %s", strerror(-r));
+        if (dbus_timeout_get_enabled(timeout)) {
+                double interval = dbus_timeout_get_interval(timeout) / 1000.0;
+                ev_timer_set(timer, interval, interval);
+                ev_timer_start(m->evloop, timer);
+        }
 }
+
+#pragma endregion
 
 static DBusHandlerResult api_bus_message_filter(DBusConnection *connection, DBusMessage *message, void *data) {
         Manager *m = data;

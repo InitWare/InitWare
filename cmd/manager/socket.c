@@ -1,5 +1,17 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
+/*******************************************************************
 
+    LICENCE NOTICE
+
+These coded instructions, statements, and computer programs are part
+of the  InitWare Suite of Middleware,  and  they are protected under
+copyright law. They may not be distributed,  copied,  or used except
+under the provisions of  the  terms  of  the  Library General Public
+Licence version 2.1 or later, in the file "LICENSE.md", which should
+have been included with this software
+
+    (c) 2021 David Mackay
+        All rights reserved.
+*********************************************************************/
 /***
   This file is part of systemd.
 
@@ -21,35 +33,35 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
+#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/epoll.h>
-#include <signal.h>
-#include <arpa/inet.h>
 #include <mqueue.h>
+#include <signal.h>
+#include <unistd.h>
 #ifdef HAVE_XATTR
 //#include <attr/xattr.h>
 #endif
 
-#include "unit.h"
-#include "socket.h"
-#include "netinet/tcp.h"
-#include "log.h"
+#include "dbus-common.h"
+#include "dbus-socket.h"
+#include "def.h"
+#include "ev-util.h"
+#include "exit-status.h"
+#include "label.h"
 #include "load-dropin.h"
 #include "load-fragment.h"
-#include "strv.h"
+#include "log.h"
+#include "missing.h"
 #include "mkdir.h"
+#include "netinet/tcp.h"
 #include "path-util.h"
+#include "socket.h"
+#include "special.h"
+#include "strv.h"
 #include "unit-name.h"
 #include "unit-printf.h"
-#include "dbus-socket.h"
-#include "missing.h"
-#include "special.h"
-#include "dbus-common.h"
-#include "label.h"
-#include "exit-status.h"
-#include "def.h"
+#include "unit.h"
 
 static const UnitActiveState state_translation_table[_SOCKET_STATE_MAX] = {
         [SOCKET_DEAD] = UNIT_INACTIVE,
@@ -92,6 +104,7 @@ static void socket_init(Unit *u) {
 #ifdef Use_CGroups
         cgroup_context_init(&s->cgroup_context);
 #endif
+        ev_timer_zero(s->timer_watch);
 
         s->control_command_id = _SOCKET_EXEC_COMMAND_INVALID;
 }
@@ -1111,12 +1124,14 @@ static int socket_watch_fds(Socket *s) {
                 if (p->fd < 0)
                         continue;
 
+#if 0 // FIXME: libev
                 p->fd_watch.socket_accept =
                         s->accept &&
                         p->type == SOCKET_SOCKET &&
                         socket_address_can_accept(&p->address);
+#endif
 
-                if ((r = unit_watch_fd(UNIT(s), p->fd, EPOLLIN, &p->fd_watch)) < 0)
+                if ((r = unit_watch_fd(UNIT(s), p->fd, EV_READ, &p->fd_watch)) < 0)
                         goto fail;
         }
 
@@ -1196,7 +1211,7 @@ static int socket_coldplug(Unit *u) {
                         if (r < 0)
                                 return r;
 
-                        r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, s->timeout_usec, &s->timer_watch);
+                        r = unit_watch_timer(UNIT(s), s->timeout_usec, &s->timer_watch);
                         if (r < 0)
                                 return r;
                 }
@@ -1236,7 +1251,7 @@ static int socket_spawn(Socket *s, ExecCommand *c, pid_t *_pid) {
         unit_realize_ptgroup(UNIT(s));
 #endif
 
-        r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, s->timeout_usec, &s->timer_watch);
+        r = unit_watch_timer(UNIT(s), s->timeout_usec, &s->timer_watch);
         if (r < 0)
                 goto fail;
 
@@ -1418,7 +1433,7 @@ static void socket_enter_signal(Socket *s, SocketState state, SocketResult f) {
                 goto fail;
 
         if (r > 0) {
-                r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, s->timeout_usec, &s->timer_watch);
+                r = unit_watch_timer(UNIT(s), s->timeout_usec, &s->timer_watch);
                 if (r < 0)
                         goto fail;
 
@@ -2149,7 +2164,8 @@ _pure_ static bool socket_check_gc(Unit *u) {
         return s->n_connections > 0;
 }
 
-static void socket_fd_event(Unit *u, int fd, uint32_t events, Watch *w) {
+static void socket_fd_event(Unit *u, int fd, int revents, ev_io *w)
+{
         Socket *s = SOCKET(u);
         int cfd = -1;
 
@@ -2161,20 +2177,14 @@ static void socket_fd_event(Unit *u, int fd, uint32_t events, Watch *w) {
 
         log_debug_unit(u->id, "Incoming traffic on %s", u->id);
 
-        if (events != EPOLLIN) {
+        if (revents != EV_READ) {
 
-                if (events & EPOLLHUP)
-                        log_error_unit(u->id,
-                                       "%s: Got POLLHUP on a listening socket. The service probably invoked shutdown() on it, and should better not do that.",
-                                       u->id);
-                else
-                        log_error_unit(u->id,
-                                       "%s: Got unexpected poll event (0x%x) on socket.",
-                                       u->id, events);
+                log_error_unit(u->id, "%s: Got unexpected poll event (0x%x) on socket.", u->id, revents);
 
                 goto fail;
         }
 
+#if 0 // FIXME: libev
         if (w->socket_accept) {
                 for (;;) {
 
@@ -2194,6 +2204,7 @@ static void socket_fd_event(Unit *u, int fd, uint32_t events, Watch *w) {
 
                 socket_apply_socket_options(s, cfd);
         }
+#endif
 
         socket_enter_running(s, cfd);
         return;
@@ -2303,7 +2314,8 @@ static void socket_sigchld_event(Unit *u, pid_t pid, int code, int status) {
         unit_add_to_dbus_queue(u);
 }
 
-static void socket_timer_event(Unit *u, uint64_t elapsed, Watch *w) {
+static void socket_timer_event(Unit *u, uint64_t elapsed, ev_timer *w)
+{
         Socket *s = SOCKET(u);
 
         assert(s);

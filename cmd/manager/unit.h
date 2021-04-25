@@ -1,7 +1,17 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
+/*******************************************************************
 
-#pragma once
+    LICENCE NOTICE
 
+These coded instructions, statements, and computer programs are part
+of the  InitWare Suite of Middleware,  and  they are protected under
+copyright law. They may not be distributed,  copied,  or used except
+under the provisions of  the  terms  of  the  Library General Public
+Licence version 2.1 or later, in the file "LICENSE.md", which should
+have been included with this software
+
+    (c) 2021 David Mackay
+        All rights reserved.
+*********************************************************************/
 /***
   This file is part of systemd.
 
@@ -21,9 +31,13 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#pragma once
+
 #include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include "ev.h"
 
 typedef struct Unit Unit;
 typedef struct UnitVTable UnitVTable;
@@ -375,9 +389,9 @@ struct UnitVTable {
         /* Return true when this unit is suitable for snapshotting */
         bool (*check_snapshot)(Unit *u);
 
-        void (*fd_event)(Unit *u, int fd, uint32_t events, Watch *w);
+        void (*fd_event)(Unit *u, int fd, int revents, ev_io *w);
         void (*sigchld_event)(Unit *u, pid_t pid, int code, int status);
-        void (*timer_event)(Unit *u, uint64_t n_elapsed, Watch *w);
+        void (*timer_event)(Unit *u, uint64_t n_elapsed, ev_timer *w);
 
         /* Reset failed state if we are in failed state */
         void (*reset_failed)(Unit *u);
@@ -546,8 +560,8 @@ int unit_kill_common(Unit *u, KillWho who, int signo, pid_t main_pid, pid_t cont
 
 void unit_notify(Unit *u, UnitActiveState os, UnitActiveState ns, bool reload_success);
 
-int unit_watch_fd(Unit *u, int fd, uint32_t events, Watch *w);
-void unit_unwatch_fd(Unit *u, Watch *w);
+int unit_watch_fd(Unit *u, int fd, uint32_t events, ev_io *w);
+void unit_unwatch_fd(Unit *u, ev_io *w);
 
 int unit_watch_pid(Unit *u, pid_t pid);
 void unit_unwatch_pid(Unit *u, pid_t pid);
@@ -556,8 +570,13 @@ void unit_unwatch_all_pids(Unit *u);
 
 void unit_tidy_watch_pids(Unit *u, pid_t except1, pid_t except2);
 
-int unit_watch_timer(Unit *u, clockid_t, bool relative, usec_t usec, Watch *w);
-void unit_unwatch_timer(Unit *u, Watch *w);
+/* Watch a relative, monotonic timer. */
+int unit_watch_timer(Unit *u, usec_t usec, ev_timer *watch);
+void unit_unwatch_timer(Unit *u, ev_timer *watch);
+
+/* Watch an absolute, realtime timer. */
+int unit_watch_periodic(Unit *u, usec_t usec, ev_periodic *watch);
+void unit_unwatch_periodic(Unit *u, ev_periodic *watch);
 
 int unit_watch_bus_name(Unit *u, const char *name);
 void unit_unwatch_bus_name(Unit *u, const char *name);

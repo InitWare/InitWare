@@ -511,7 +511,7 @@ static int swap_coldplug(Unit *u) {
                         if (r < 0)
                                 return r;
 
-                        r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, s->timeout_usec, &s->timer_watch);
+                        r = unit_watch_timer(UNIT(s), s->timeout_usec, &s->timer_watch);
                         if (r < 0)
                                 return r;
                 }
@@ -576,7 +576,7 @@ static int swap_spawn(Swap *s, ExecCommand *c, pid_t *_pid) {
 
         unit_realize_cgroup(UNIT(s));
 
-        r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, s->timeout_usec, &s->timer_watch);
+        r = unit_watch_timer(UNIT(s), s->timeout_usec, &s->timer_watch);
         if (r < 0)
                 goto fail;
 
@@ -650,7 +650,7 @@ static void swap_enter_signal(Swap *s, SwapState state, SwapResult f) {
                 goto fail;
 
         if (r > 0) {
-                r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, s->timeout_usec, &s->timer_watch);
+                r = unit_watch_timer(UNIT(s), s->timeout_usec, &s->timer_watch);
                 if (r < 0)
                         goto fail;
 
@@ -974,7 +974,8 @@ static void swap_sigchld_event(Unit *u, pid_t pid, int code, int status) {
         u->manager->request_reload = true;
 }
 
-static void swap_timer_event(Unit *u, uint64_t elapsed, Watch *w) {
+static void swap_timer_event(Unit *u, uint64_t elapsed, ev_timer *w)
+{
         Swap *s = SWAP(u);
 
         assert(s);

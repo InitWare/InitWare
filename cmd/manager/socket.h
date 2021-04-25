@@ -1,7 +1,17 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
+/*******************************************************************
 
-#pragma once
+    LICENCE NOTICE
 
+These coded instructions, statements, and computer programs are part
+of the  InitWare Suite of Middleware,  and  they are protected under
+copyright law. They may not be distributed,  copied,  or used except
+under the provisions of  the  terms  of  the  Library General Public
+Licence version 2.1 or later, in the file "LICENSE.md", which should
+have been included with this software
+
+    (c) 2021 David Mackay
+        All rights reserved.
+*********************************************************************/
 /***
   This file is part of systemd.
 
@@ -20,6 +30,9 @@
   You should have received a copy of the GNU Lesser General Public License
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
+
+#ifndef SOCKET_H_
+#define SOCKET_H_
 
 typedef struct Socket Socket;
 
@@ -87,7 +100,7 @@ typedef struct SocketPort {
 
         SocketAddress address;
         char *path;
-        Watch fd_watch;
+        ev_io fd_watch;
 
         IWLIST_FIELDS(struct SocketPort, port);
 } SocketPort;
@@ -118,7 +131,7 @@ struct Socket {
 
         SocketState state, deserialized_state;
 
-        Watch timer_watch;
+        ev_timer timer_watch;
 
         ExecCommand* control_command;
         SocketExecCommand control_command_id;
@@ -182,3 +195,5 @@ const char* socket_result_to_string(SocketResult i) _const_;
 SocketResult socket_result_from_string(const char *s) _pure_;
 
 const char* socket_port_type_to_string(SocketPort *p) _pure_;
+
+#endif

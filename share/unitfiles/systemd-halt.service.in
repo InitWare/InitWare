@@ -14,4 +14,4 @@ After=shutdown.target umount.target final.target
 
 [Service]
 Type=oneshot
-ExecStart=@SYSTEMCTL@ --force halt
+ExecStart=@SYSTEMCTL_BINARY_PATH@ --force halt

@@ -1,7 +1,17 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
+/*******************************************************************
 
-#pragma once
+    LICENCE NOTICE
 
+These coded instructions, statements, and computer programs are part
+of the  InitWare Suite of Middleware,  and  they are protected under
+copyright law. They may not be distributed,  copied,  or used except
+under the provisions of  the  terms  of  the  Library General Public
+Licence version 2.1 or later, in the file "LICENSE.md", which should
+have been included with this software
+
+    (c) 2021 David Mackay
+        All rights reserved.
+*********************************************************************/
 /***
   This file is part of systemd.
 
@@ -21,10 +31,15 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#ifndef MANAGER_H_
+#define MANAGER_H_
+
 #include <stdbool.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <dbus/dbus.h>
+
+#include "ev.h"
 
 #include "cgroup-util.h"
 #include "fdset.h"
@@ -34,8 +49,6 @@
 #define MANAGER_MAX_NAMES 131072 /* 128K */
 
 typedef struct Manager Manager;
-typedef enum WatchType WatchType;
-typedef struct Watch Watch;
 
 typedef enum ManagerExitCode {
         MANAGER_RUNNING,
@@ -51,40 +64,6 @@ typedef enum ManagerExitCode {
         _MANAGER_EXIT_CODE_INVALID = -1
 } ManagerExitCode;
 
-enum WatchType {
-        WATCH_INVALID,
-        WATCH_SIGNAL,
-        WATCH_NOTIFY,
-        WATCH_FD,
-        WATCH_UNIT_TIMER,
-        WATCH_JOB_TIMER,
-        WATCH_MOUNT,
-        WATCH_SWAP,
-        WATCH_UDEV,
-        WATCH_DBUS_WATCH,
-        WATCH_DBUS_TIMEOUT,
-        WATCH_TIME_CHANGE,
-        WATCH_JOBS_IN_PROGRESS,
-        WATCH_IDLE_PIPE,
-#ifdef Use_KQProc
-        /** an event on the process tracker kernel queue */
-        WATCH_KQPROC,
-#endif
-};
-
-struct Watch {
-        int fd;
-        WatchType type;
-        union {
-                struct Unit *unit;
-                struct Job *job;
-                DBusWatch *bus_watch;
-                DBusTimeout *bus_timeout;
-        } data;
-        bool fd_is_dupped:1;
-        bool socket_accept:1;
-};
-
 #include "unit.h"
 #include "job.h"
 #include "hashmap.h"
@@ -96,6 +75,12 @@ struct Watch {
 #include "unit-name.h"
 
 struct Manager {
+
+        /* The event loop. We just make this ev_default_loop. */
+        struct ev_loop *evloop;
+
+        /* Event sources. */
+
         /* Note that the set of units we know of is allowed to be
          * inconsistent. However the subset of it that is loaded may
          * not, and the list of jobs may neither. */
@@ -141,13 +126,10 @@ struct Manager {
 
         char *notify_socket;
 
-        Watch notify_watch;
-        Watch signal_watch;
-        Watch time_change_watch;
-        Watch jobs_in_progress_watch;
-        Watch idle_pipe_watch;
+        ev_io notify_watch;
 
-        int epoll_fd;
+        ev_timer jobs_in_progress_watch;
+        ev_io idle_pipe_watch; /* watches idle_pipe [2] */
 
         unsigned n_snapshots;
 
@@ -177,18 +159,18 @@ struct Manager {
         /* Data specific to the device subsystem */
         struct udev* udev;
         struct udev_monitor* udev_monitor;
-        Watch udev_watch;
+        ev_io udev_watch;
         Hashmap *devices_by_sysfs;
 
         /* Data specific to the mount subsystem */
         FILE *proc_self_mountinfo;
-        Watch mount_watch;
+        ev_io mount_watch;
 
         /* Data specific to the swap filesystem */
         FILE *proc_swaps;
         Hashmap *swaps_by_proc_swaps;
         bool request_reload;
-        Watch swap_watch;
+        ev_io swap_watch;
 
         /* Data specific to the D-Bus subsystem */
         DBusConnection *api_bus, *system_bus;
@@ -289,10 +271,10 @@ struct Manager {
 
 #ifdef Use_KQProc
         /**
-         * Watch for the Kernel Queue on which PROC events are received.
+         * I/O event for the Kernel Queue on which PROC events are received.
          * (The Kernel Queue itself is in the .fd member.)
          */
-        Watch kqproc_watch;
+        ev_io kqproc_io;
 #endif
 
 #ifdef Use_PTGroups
@@ -371,4 +353,4 @@ void manager_status_printf(Manager *m, bool ephemeral, const char *status, const
 
 Set *manager_get_units_requiring_mounts_for(Manager *m, const char *path);
 
-void watch_init(Watch *w);
+#endif

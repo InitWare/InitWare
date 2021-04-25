@@ -20,7 +20,6 @@
 ***/
 
 #include <errno.h>
-#include <sys/epoll.h>
 
 #include "unit.h"
 #include "device.h"
@@ -531,6 +530,11 @@ static void device_shutdown(Manager *m) {
         m->devices_by_sysfs = NULL;
 }
 
+static void udev_io_cb(struct ev_loop *evloop, ev_io *watch, int revents)
+{
+        device_fd_event(watch->data, revents);
+}
+
 static int device_enumerate(Manager *m) {
         int r;
         struct udev_enumerate *e = NULL;
@@ -539,8 +543,6 @@ static int device_enumerate(Manager *m) {
         assert(m);
 
         if (!m->udev) {
-                struct epoll_event ev;
-
                 if (!(m->udev = udev_new()))
                 {
                         log_error("udev_new() failed\n");
@@ -578,15 +580,11 @@ static int device_enumerate(Manager *m) {
                         goto fail;
                 }
 
-                m->udev_watch.type = WATCH_UDEV;
-                m->udev_watch.fd = udev_monitor_get_fd(m->udev_monitor);
-
-                zero(ev);
-                ev.events = EPOLLIN;
-                ev.data.ptr = &m->udev_watch;
-
-                if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->udev_watch.fd, &ev) < 0)
-                        return -errno;
+                ev_io_init(&m->udev_watch, udev_io_cb, udev_monitor_get_fd(m->udev_monitor), EV_READ);
+                m->udev_watch.data = m;
+                ev_io_start(m->evloop, &m->udev_watch);
+                /* if (failed to add watch)
+                        return -errno; */
         }
 
         if (!(e = udev_enumerate_new(m->udev))) {
@@ -641,12 +639,12 @@ void device_fd_event(Manager *m, int events) {
 
         assert(m);
 
-        if (events != EPOLLIN) {
+        if (events != EV_READ) {
                 static RATELIMIT_DEFINE(limit, 10*USEC_PER_SEC, 5);
 
                 if (!ratelimit_test(&limit))
                         log_error("Failed to get udev event: %m");
-                if (!(events & EPOLLIN))
+                if (!(events & EV_READ))
                         return;
         }
 

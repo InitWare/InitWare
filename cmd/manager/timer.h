@@ -1,7 +1,17 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
+/*******************************************************************
 
-#pragma once
+    LICENCE NOTICE
 
+These coded instructions, statements, and computer programs are part
+of the  InitWare Suite of Middleware,  and  they are protected under
+copyright law. They may not be distributed,  copied,  or used except
+under the provisions of  the  terms  of  the  Library General Public
+Licence version 2.1 or later, in the file "LICENSE.md", which should
+have been included with this software
+
+    (c) 2021 David Mackay
+        All rights reserved.
+*********************************************************************/
 /***
   This file is part of systemd.
 
@@ -21,7 +31,12 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#ifndef TIMER_H_
+#define TIMER_H_
+
 typedef struct Timer Timer;
+
+#include "ev.h"
 
 #include "unit.h"
 #include "calendarspec.h"
@@ -75,8 +90,8 @@ struct Timer {
 
         TimerState state, deserialized_state;
 
-        Watch monotonic_watch;
-        Watch realtime_watch;
+        ev_timer monotonic_watch;
+        ev_periodic realtime_watch;
 
         TimerResult result;
 
@@ -95,3 +110,7 @@ TimerBase timer_base_from_string(const char *s) _pure_;
 
 const char* timer_result_to_string(TimerResult i) _const_;
 TimerResult timer_result_from_string(const char *s) _pure_;
+
+void timer_periodic_event(Timer *t, ev_periodic *watch);
+
+#endif
