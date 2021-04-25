@@ -66,6 +66,7 @@ have been included with this software
 #include "dbus-job.h"
 #include "dbus-unit.h"
 #include "env-util.h"
+#include "ev-util.h"
 #include "exit-status.h"
 #include "hashmap.h"
 #include "locale-setup.h"
@@ -167,48 +168,41 @@ static int manager_setup_notify(Manager *m) {
 
 #pragma region Jobs - in - progress and Idle
 
-static int manager_jobs_in_progress_mod_timer(Manager *m) {
-        struct itimerspec its = {
-                .it_value.tv_sec = JOBS_IN_PROGRESS_WAIT_SEC,
-                .it_interval.tv_sec = JOBS_IN_PROGRESS_PERIOD_SEC,
-        };
+static void manager_print_jobs_in_progress(Manager *m);
 
-        if (m->jobs_in_progress_watch.type != WATCH_JOBS_IN_PROGRESS)
+static void jobs_in_progress_timer_cb(struct ev_loop *evloop, ev_timer *watch, int revents)
+{
+        Manager *m = watch->data;
+        assert(m);
+        manager_print_jobs_in_progress(m);
+}
+
+static int manager_jobs_in_progress_mod_timer(Manager *m) {
+        if (m->jobs_in_progress_watch.data != m)
                 return 0;
 
-        if (timerfd_settime(m->jobs_in_progress_watch.fd, 0, &its, NULL) < 0)
-                return -errno;
+        ev_timer_again(m->evloop, &m->jobs_in_progress_watch);
 
         return 0;
 }
 
-static int manager_watch_jobs_in_progress(Manager *m) {
-        struct epoll_event ev = {
-                .events = EPOLLIN,
-                .data.ptr = &m->jobs_in_progress_watch,
-        };
+static int manager_watch_jobs_in_progress(Manager *m)
+{
         int r;
 
-        if (m->jobs_in_progress_watch.type != WATCH_INVALID)
+        if (ev_is_active(&m->jobs_in_progress_watch))
                 return 0;
 
-        m->jobs_in_progress_watch.type = WATCH_JOBS_IN_PROGRESS;
-        m->jobs_in_progress_watch.fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK|TFD_CLOEXEC);
-        if (m->jobs_in_progress_watch.fd < 0) {
-                log_error("Failed to create timerfd: %m");
-                r = -errno;
-                goto err;
-        }
+        ev_timer_init(
+                &m->jobs_in_progress_watch,
+                jobs_in_progress_timer_cb,
+                JOBS_IN_PROGRESS_WAIT_SEC,
+                JOBS_IN_PROGRESS_PERIOD_SEC);
+        m->jobs_in_progress_watch.data = m;
 
         r = manager_jobs_in_progress_mod_timer(m);
         if (r < 0) {
                 log_error("Failed to set up timer for jobs progress watch: %s", strerror(-r));
-                goto err;
-        }
-
-        if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->jobs_in_progress_watch.fd, &ev) < 0) {
-                log_error("Failed to add jobs progress timer fd to epoll: %m");
-                r = -errno;
                 goto err;
         }
 
@@ -217,18 +211,16 @@ static int manager_watch_jobs_in_progress(Manager *m) {
         return 0;
 
 err:
-        safe_close(m->jobs_in_progress_watch.fd);
-        watch_init(&m->jobs_in_progress_watch);
+        zero(m->jobs_in_progress_watch);
         return r;
 }
 
 static void manager_unwatch_jobs_in_progress(Manager *m) {
-        if (m->jobs_in_progress_watch.type != WATCH_JOBS_IN_PROGRESS)
+        if (!ev_is_active(&m->jobs_in_progress_watch))
                 return;
 
-        assert_se(epoll_ctl(m->epoll_fd, EPOLL_CTL_DEL, m->jobs_in_progress_watch.fd, NULL) >= 0);
-        safe_close(m->jobs_in_progress_watch.fd);
-        watch_init(&m->jobs_in_progress_watch);
+        ev_timer_stop(m->evloop, &m->jobs_in_progress_watch);
+        ev_timer_zero(m->jobs_in_progress_watch);
         m->jobs_in_progress_iteration = 0;
 
         log_debug("Closed jobs progress timerfd.");
@@ -559,7 +551,7 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
         watch_init(&m->swap_watch);
         watch_init(&m->udev_watch);
         watch_init(&m->time_change_watch);
-        watch_init(&m->jobs_in_progress_watch);
+        ev_timer_zero(m->jobs_in_progress_watch);
 
         m->epoll_fd = m->dev_autofs_fd = -1;
         m->current_job_id = 1; /* start as id #1, so that we can leave #0 around as "null-like" value */
@@ -838,7 +830,8 @@ static void manager_clear_jobs_and_units(Manager *m) {
         m->n_running_jobs = 0;
 }
 
-void manager_free(Manager *m) {
+void manager_free(Manager *m)
+{
         UnitType c;
         int i;
 
@@ -870,7 +863,7 @@ void manager_free(Manager *m) {
         safe_close(m->signal_watch.fd);
         safe_close(m->notify_watch.fd);
         safe_close(m->time_change_watch.fd);
-        safe_close(m->jobs_in_progress_watch.fd);
+        manager_unwatch_jobs_in_progress(m);
 
         free(m->notify_socket);
 
@@ -884,7 +877,10 @@ void manager_free(Manager *m) {
 
         set_free_free(m->unit_path_cache);
 
+        manager_unwatch_idle_pipe(m);
         close_idle_pipe(m);
+
+        ev_default_destroy();
 
         free(m->switch_root);
         free(m->switch_root_init);
@@ -1911,16 +1907,6 @@ static int process_event(Manager *m, struct epoll_event *ev) {
                                 UNIT_VTABLE(u)->time_change(u);
                 }
 
-                break;
-        }
-
-        case WATCH_JOBS_IN_PROGRESS: {
-                uint64_t v;
-
-                /* not interested in the data */
-                read(w->fd, &v, sizeof(v));
-
-                manager_print_jobs_in_progress(m);
                 break;
         }
 

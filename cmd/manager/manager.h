@@ -1,7 +1,17 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
+/*******************************************************************
 
-#pragma once
+    LICENCE NOTICE
 
+These coded instructions, statements, and computer programs are part
+of the  InitWare Suite of Middleware,  and  they are protected under
+copyright law. They may not be distributed,  copied,  or used except
+under the provisions of  the  terms  of  the  Library General Public
+Licence version 2.1 or later, in the file "LICENSE.md", which should
+have been included with this software
+
+    (c) 2021 David Mackay
+        All rights reserved.
+*********************************************************************/
 /***
   This file is part of systemd.
 
@@ -20,6 +30,9 @@
   You should have received a copy of the GNU Lesser General Public License
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
+
+#ifndef MANAGER_H_
+#define MANAGER_H_
 
 #include <stdbool.h>
 #include <inttypes.h>
@@ -65,7 +78,6 @@ enum WatchType
         WATCH_SWAP,
         WATCH_UDEV,
         WATCH_TIME_CHANGE,
-        WATCH_JOBS_IN_PROGRESS,
 };
 
 struct Watch {
@@ -144,7 +156,7 @@ struct Manager {
         Watch notify_watch;
         Watch signal_watch;
         Watch time_change_watch;
-        Watch jobs_in_progress_watch;
+        ev_timer jobs_in_progress_watch;
         ev_io idle_pipe_watch; /* watches idle_pipe [2] */
 
         int epoll_fd;
@@ -372,3 +384,5 @@ void manager_status_printf(Manager *m, bool ephemeral, const char *status, const
 Set *manager_get_units_requiring_mounts_for(Manager *m, const char *path);
 
 void watch_init(Watch *w);
+
+#endif
