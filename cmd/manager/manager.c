@@ -1844,29 +1844,6 @@ static int process_event(Manager *m, struct epoll_event *ev) {
                 UNIT_VTABLE(w->data.unit)->fd_event(w->data.unit, w->fd, ev->events, w);
                 break;
 
-        case WATCH_UNIT_TIMER:
-        case WATCH_JOB_TIMER: {
-                uint64_t v;
-                ssize_t k;
-
-                /* Some timer event, to be dispatched to the units */
-                k = read(w->fd, &v, sizeof(v));
-                if (k != sizeof(v)) {
-
-                        if (k < 0 && (errno == EINTR || errno == EAGAIN))
-                                break;
-
-                        log_error("Failed to read timer event counter: %s", k < 0 ? strerror(-k) : "Short read");
-                        return k < 0 ? -errno : -EIO;
-                }
-
-                if (w->type == WATCH_UNIT_TIMER)
-                        UNIT_VTABLE(w->data.unit)->timer_event(w->data.unit, v, w);
-                else
-                        job_timer_event(w->data.job, v, w);
-                break;
-        }
-
 #ifdef Sys_Plat_Linux
         case WATCH_MOUNT:
                 /* Some mount table change, intended for the mount subsystem */

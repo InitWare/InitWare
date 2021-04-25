@@ -156,7 +156,7 @@ static void mount_init(Unit *u) {
          * already trying to comply its last one. */
         m->exec_context.same_pgrp = true;
 
-        m->timer_watch.type = WATCH_INVALID;
+        ev_timer_zero(m->timer_watch);
 
         m->control_command_id = _MOUNT_EXEC_COMMAND_INVALID;
 
@@ -720,7 +720,7 @@ static int mount_coldplug(Unit *u) {
                         if (r < 0)
                                 return r;
 
-                        r = unit_watch_timer(UNIT(m), CLOCK_MONOTONIC, true, m->timeout_usec, &m->timer_watch);
+                        r = unit_watch_timer(UNIT(m), m->timeout_usec, &m->timer_watch);
                         if (r < 0)
                                 return r;
                 }
@@ -779,7 +779,7 @@ static int mount_spawn(Mount *m, ExecCommand *c, pid_t *_pid) {
 
         unit_realize_cgroup(UNIT(m));
 
-        r = unit_watch_timer(UNIT(m), CLOCK_MONOTONIC, true, m->timeout_usec, &m->timer_watch);
+        r = unit_watch_timer(UNIT(m), m->timeout_usec, &m->timer_watch);
         if (r < 0)
                 goto fail;
 
@@ -853,7 +853,7 @@ static void mount_enter_signal(Mount *m, MountState state, MountResult f) {
                 goto fail;
 
         if (r > 0) {
-                r = unit_watch_timer(UNIT(m), CLOCK_MONOTONIC, true, m->timeout_usec, &m->timer_watch);
+                r = unit_watch_timer(UNIT(m), m->timeout_usec, &m->timer_watch);
                 if (r < 0)
                         goto fail;
 
@@ -1307,7 +1307,8 @@ static void mount_sigchld_event(Unit *u, pid_t pid, int code, int status) {
         unit_add_to_dbus_queue(u);
 }
 
-static void mount_timer_event(Unit *u, uint64_t elapsed, Watch *w) {
+static void mount_timer_event(Unit *u, uint64_t elapsed, ev_timer *w)
+{
         Mount *m = MOUNT(u);
 
         assert(m);

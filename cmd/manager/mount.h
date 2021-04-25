@@ -110,7 +110,7 @@ struct Mount {
         MountExecCommand control_command_id;
         pid_t control_pid;
 
-        Watch timer_watch;
+        ev_timer timer_watch;
 };
 
 extern const UnitVTable mount_vtable;

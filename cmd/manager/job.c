@@ -1,5 +1,17 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
+/*******************************************************************
 
+    LICENCE NOTICE
+
+These coded instructions, statements, and computer programs are part
+of the  InitWare Suite of Middleware,  and  they are protected under
+copyright law. They may not be distributed,  copied,  or used except
+under the provisions of  the  terms  of  the  Library General Public
+Licence version 2.1 or later, in the file "LICENSE.md", which should
+have been included with this software
+
+    (c) 2021 David Mackay
+        All rights reserved.
+*********************************************************************/
 /***
   This file is part of systemd.
 
@@ -24,8 +36,10 @@
 #include <sys/timerfd.h>
 #include <sys/epoll.h>
 
+#include "ev-util.h"
 #include "systemd/sd-id128.h"
 #include "systemd/sd-messages.h"
+
 #include "set.h"
 #include "unit.h"
 #include "macro.h"
@@ -66,7 +80,7 @@ Job* job_new_raw(Unit *unit) {
         j->manager = unit->manager;
         j->unit = unit;
         j->type = _JOB_TYPE_INVALID;
-        j->timer_watch.type = WATCH_INVALID;
+        ev_timer_zero(j->timer_watch);
 
         return j;
 }
@@ -104,13 +118,10 @@ void job_free(Job *j) {
         if (j->in_dbus_queue)
                 IWLIST_REMOVE(Job, dbus_queue, j->manager->dbus_job_queue, j);
 
-        if (j->timer_watch.type != WATCH_INVALID) {
-                assert(j->timer_watch.type == WATCH_JOB_TIMER);
-                assert(j->timer_watch.data.job == j);
-                assert(j->timer_watch.fd >= 0);
+        if (ev_is_active(&j->timer_watch)) {
+                assert(j->timer_watch.data == j);
 
-                assert_se(epoll_ctl(j->manager->epoll_fd, EPOLL_CTL_DEL, j->timer_watch.fd, NULL) >= 0);
-                safe_close(j->timer_watch.fd);
+                ev_timer_stop(j->manager->evloop, &j->timer_watch);
         }
 
         while ((cl = j->bus_client_list)) {
@@ -861,47 +872,29 @@ finish:
         return 0;
 }
 
-int job_start_timer(Job *j) {
-        struct itimerspec its = {};
-        struct epoll_event ev = {
-                .data.ptr = &j->timer_watch,
-                .events = EPOLLIN,
-        };
-        int fd, r;
+void job_timer_cb(struct ev_loop *evloop, ev_timer *watch, int revents)
+{
+        Job *j = watch->data;
 
-        if (j->unit->job_timeout <= 0 ||
-            j->timer_watch.type == WATCH_JOB_TIMER)
+        assert(j);
+        assert(watch == &j->timer_watch);
+
+        log_warning_unit(j->unit->id, "Job %s/%s timed out.", j->unit->id, job_type_to_string(j->type));
+        job_finish_and_invalidate(j, JOB_TIMEOUT, true);
+}
+
+int job_start_timer(Job *j)
+{
+
+        if (j->unit->job_timeout <= 0 || ev_is_active(&j->timer_watch))
                 return 0;
 
-        assert(j->timer_watch.type == WATCH_INVALID);
-
-        if ((fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK|TFD_CLOEXEC)) < 0) {
-                r = -errno;
-                goto fail;
-        }
-
-        timespec_store(&its.it_value, j->unit->job_timeout);
-
-        if (timerfd_settime(fd, 0, &its, NULL) < 0) {
-                r = -errno;
-                goto fail;
-        }
-
-        if (epoll_ctl(j->manager->epoll_fd, EPOLL_CTL_ADD, fd, &ev) < 0) {
-                r = -errno;
-                goto fail;
-        }
-
-        j->timer_watch.type = WATCH_JOB_TIMER;
-        j->timer_watch.fd = fd;
-        j->timer_watch.data.job = j;
+        j->begin_usec = now(CLOCK_MONOTONIC);
+        ev_timer_init(&j->timer_watch, job_timer_cb, j->unit->job_timeout / USEC_PER_SEC, 0.);
+        j->timer_watch.data = j;
+        ev_timer_start(j->manager->evloop, &j->timer_watch);
 
         return 0;
-
-fail:
-        safe_close(fd);
-
-        return r;
 }
 
 void job_add_to_run_queue(Job *j) {
@@ -941,15 +934,6 @@ char *job_dbus_path(Job *j) {
         return p;
 }
 
-void job_timer_event(Job *j, uint64_t n_elapsed, Watch *w) {
-        assert(j);
-        assert(w == &j->timer_watch);
-
-        log_warning_unit(j->unit->id, "Job %s/%s timed out.",
-                         j->unit->id, job_type_to_string(j->type));
-        job_finish_and_invalidate(j, JOB_TIMEOUT, true);
-}
-
 int job_serialize(Job *j, FILE *f, FDSet *fds) {
         fprintf(f, "job-id=%u\n", j->id);
         fprintf(f, "job-type=%s\n", job_type_to_string(j->type));
@@ -962,12 +946,8 @@ int job_serialize(Job *j, FILE *f, FDSet *fds) {
          * them. job_send_message() will fallback to broadcasting. */
         fprintf(f, "job-forgot-bus-clients=%s\n",
                 yes_no(j->forgot_bus_clients || j->bus_client_list));
-        if (j->timer_watch.type == WATCH_JOB_TIMER) {
-                int copy = fdset_put_dup(fds, j->timer_watch.fd);
-                if (copy < 0)
-                        return copy;
-                fprintf(f, "job-timer-watch-fd=%d\n", copy);
-        }
+        if (j->begin_usec > 0)
+                fprintf(f, "job-begin=%llu", (unsigned long long) j->begin_usec);
 
         /* End marker */
         fputc('\n', f);
@@ -1047,36 +1027,39 @@ int job_deserialize(Job *j, FILE *f, FDSet *fds) {
                                 log_debug("Failed to parse job forgot_bus_clients flag %s", v);
                         else
                                 j->forgot_bus_clients = j->forgot_bus_clients || b;
-                } else if (streq(l, "job-timer-watch-fd")) {
-                        int fd;
-                        if (safe_atoi(v, &fd) < 0 || fd < 0 || !fdset_contains(fds, fd))
-                                log_debug("Failed to parse job-timer-watch-fd value %s", v);
-                        else {
-                                if (j->timer_watch.type == WATCH_JOB_TIMER)
-                                        safe_close(j->timer_watch.fd);
+                } else if (streq(l, "job-begin")) {
+                        unsigned long long ull;
 
-                                j->timer_watch.type = WATCH_JOB_TIMER;
-                                j->timer_watch.fd = fdset_remove(fds, fd);
-                                j->timer_watch.data.job = j;
-                        }
+                        if (sscanf(v, "%llu", &ull) != 1)
+                                log_debug("Failed to parse job-begin value %s", v);
+                        else
+                                j->begin_usec = ull;
                 }
         }
 }
 
 int job_coldplug(Job *j) {
-        struct epoll_event ev = {
-                .data.ptr = &j->timer_watch,
-                .events = EPOLLIN,
-        };
+        dual_timestamp ts;
+        double val;
 
         if (j->state == JOB_WAITING)
                 job_add_to_run_queue(j);
 
-        if (j->timer_watch.type != WATCH_JOB_TIMER)
+        if (j->begin_usec <= 0)
                 return 0;
 
-        if (epoll_ctl(j->manager->epoll_fd, EPOLL_CTL_ADD, j->timer_watch.fd, &ev) < 0)
-                return -errno;
+        if (ev_is_active(&j->timer_watch))
+                ev_timer_stop(j->manager->evloop, &j->timer_watch);
+
+        dual_timestamp_get(&ts);
+
+        val = ((j->begin_usec + j->unit->job_timeout) / USEC_PER_SEC) - ts.monotonic;
+        if (val < 0)
+                val = 0.0001; /* almost immediately, if already timed out */
+
+        ev_timer_init(&j->timer_watch, job_timer_cb, val, 0.);
+        j->timer_watch.data = j;
+        ev_timer_start(j->manager->evloop, &j->timer_watch);
 
         return 0;
 }

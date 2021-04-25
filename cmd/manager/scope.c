@@ -1,5 +1,17 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
+/*******************************************************************
 
+    LICENCE NOTICE
+
+These coded instructions, statements, and computer programs are part
+of the  InitWare Suite of Middleware,  and  they are protected under
+copyright law. They may not be distributed,  copied,  or used except
+under the provisions of  the  terms  of  the  Library General Public
+Licence version 2.1 or later, in the file "LICENSE.md", which should
+have been included with this software
+
+    (c) 2021 David Mackay
+        All rights reserved.
+*********************************************************************/
 /***
   This file is part of systemd.
 
@@ -23,14 +35,15 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "unit.h"
-#include "scope.h"
+#include "dbus-scope.h"
+#include "ev-util.h"
+#include "load-dropin.h"
 #include "load-fragment.h"
 #include "log.h"
-#include "dbus-scope.h"
+#include "scope.h"
 #include "special.h"
 #include "unit-name.h"
-#include "load-dropin.h"
+#include "unit.h"
 
 static const UnitActiveState state_translation_table[_SCOPE_STATE_MAX] = {
         [SCOPE_DEAD] = UNIT_INACTIVE,
@@ -49,7 +62,7 @@ static void scope_init(Unit *u) {
 
         s->timeout_stop_usec = u->manager->default_timeout_stop_usec;
 
-        watch_init(&s->timer_watch);
+        ev_timer_zero(s->timer_watch);
 
 #ifdef Use_CGroups
         cgroup_context_init(&s->cgroup_context);
@@ -168,7 +181,7 @@ static int scope_coldplug(Unit *u) {
 
                 if ((s->deserialized_state == SCOPE_STOP_SIGKILL || s->deserialized_state == SCOPE_STOP_SIGTERM)
                     && s->timeout_stop_usec > 0) {
-                        r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, s->timeout_stop_usec, &s->timer_watch);
+                        r = unit_watch_timer(UNIT(s), s->timeout_stop_usec, &s->timer_watch);
                         if (r < 0)
 
                                 return r;
@@ -241,7 +254,7 @@ static void scope_enter_signal(Scope *s, ScopeState state, ScopeResult f) {
 
         if (r > 0) {
                 if (s->timeout_stop_usec > 0) {
-                        r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, s->timeout_stop_usec, &s->timer_watch);
+                        r = unit_watch_timer(UNIT(s), s->timeout_stop_usec, &s->timer_watch);
                         if (r < 0)
                                 goto fail;
                 }
@@ -421,7 +434,8 @@ static void scope_sigchld_event(Unit *u, pid_t pid, int code, int status) {
                 scope_notify_cgroup_empty_event(u);
 }
 
-static void scope_timer_event(Unit *u, uint64_t elapsed, Watch*w) {
+static void scope_timer_event(Unit *u, uint64_t elapsed, ev_timer *w)
+{
         Scope *s = SCOPE(u);
 
         assert(s);

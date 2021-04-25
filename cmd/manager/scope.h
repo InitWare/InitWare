@@ -60,7 +60,7 @@ struct Scope {
 
         char *controller;
 
-        Watch timer_watch;
+        ev_timer timer_watch;
 };
 
 extern const UnitVTable scope_vtable;

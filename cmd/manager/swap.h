@@ -96,7 +96,7 @@ struct Swap {
         SwapExecCommand control_command_id;
         pid_t control_pid;
 
-        Watch timer_watch;
+        ev_timer timer_watch;
 
         /* In order to be able to distinguish dependencies on
         different device nodes we might end up creating multiple

@@ -148,7 +148,8 @@ struct Job {
         JobType type;
         JobState state;
 
-        Watch timer_watch;
+        ev_timer timer_watch;
+        usec_t begin_usec;
 
         /* There can be more than one client, because of job merging. */
         IWLIST_HEAD(JobBusClient, bus_client_list);

@@ -1,5 +1,17 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
+/*******************************************************************
 
+    LICENCE NOTICE
+
+These coded instructions, statements, and computer programs are part
+of the  InitWare Suite of Middleware,  and  they are protected under
+copyright law. They may not be distributed,  copied,  or used except
+under the provisions of  the  terms  of  the  Library General Public
+Licence version 2.1 or later, in the file "LICENSE.md", which should
+have been included with this software
+
+    (c) 2021 David Mackay
+        All rights reserved.
+*********************************************************************/
 /***
   This file is part of systemd.
 
@@ -32,24 +44,25 @@
 //#include <attr/xattr.h>
 #endif
 
-#include "unit.h"
-#include "socket.h"
-#include "netinet/tcp.h"
-#include "log.h"
+#include "dbus-common.h"
+#include "dbus-socket.h"
+#include "def.h"
+#include "ev-util.h"
+#include "exit-status.h"
+#include "label.h"
 #include "load-dropin.h"
 #include "load-fragment.h"
-#include "strv.h"
+#include "log.h"
+#include "missing.h"
 #include "mkdir.h"
+#include "netinet/tcp.h"
 #include "path-util.h"
+#include "socket.h"
+#include "special.h"
+#include "strv.h"
 #include "unit-name.h"
 #include "unit-printf.h"
-#include "dbus-socket.h"
-#include "missing.h"
-#include "special.h"
-#include "dbus-common.h"
-#include "label.h"
-#include "exit-status.h"
-#include "def.h"
+#include "unit.h"
 
 static const UnitActiveState state_translation_table[_SOCKET_STATE_MAX] = {
         [SOCKET_DEAD] = UNIT_INACTIVE,
@@ -92,6 +105,7 @@ static void socket_init(Unit *u) {
 #ifdef Use_CGroups
         cgroup_context_init(&s->cgroup_context);
 #endif
+        ev_timer_zero(s->timer_watch);
 
         s->control_command_id = _SOCKET_EXEC_COMMAND_INVALID;
 }
@@ -1196,7 +1210,7 @@ static int socket_coldplug(Unit *u) {
                         if (r < 0)
                                 return r;
 
-                        r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, s->timeout_usec, &s->timer_watch);
+                        r = unit_watch_timer(UNIT(s), s->timeout_usec, &s->timer_watch);
                         if (r < 0)
                                 return r;
                 }
@@ -1236,7 +1250,7 @@ static int socket_spawn(Socket *s, ExecCommand *c, pid_t *_pid) {
         unit_realize_ptgroup(UNIT(s));
 #endif
 
-        r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, s->timeout_usec, &s->timer_watch);
+        r = unit_watch_timer(UNIT(s), s->timeout_usec, &s->timer_watch);
         if (r < 0)
                 goto fail;
 
@@ -1418,7 +1432,7 @@ static void socket_enter_signal(Socket *s, SocketState state, SocketResult f) {
                 goto fail;
 
         if (r > 0) {
-                r = unit_watch_timer(UNIT(s), CLOCK_MONOTONIC, true, s->timeout_usec, &s->timer_watch);
+                r = unit_watch_timer(UNIT(s), s->timeout_usec, &s->timer_watch);
                 if (r < 0)
                         goto fail;
 
@@ -2303,7 +2317,8 @@ static void socket_sigchld_event(Unit *u, pid_t pid, int code, int status) {
         unit_add_to_dbus_queue(u);
 }
 
-static void socket_timer_event(Unit *u, uint64_t elapsed, Watch *w) {
+static void socket_timer_event(Unit *u, uint64_t elapsed, ev_timer *w)
+{
         Socket *s = SOCKET(u);
 
         assert(s);

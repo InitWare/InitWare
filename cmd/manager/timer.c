@@ -21,6 +21,7 @@
 
 #include <errno.h>
 
+#include "ev-util.h"
 #include "unit.h"
 #include "unit-name.h"
 #include "timer.h"
@@ -44,8 +45,8 @@ static void timer_init(Unit *u) {
 
         t->next_elapse_monotonic = (usec_t) -1;
         t->next_elapse_realtime = (usec_t) -1;
-        watch_init(&t->monotonic_watch);
-        watch_init(&t->realtime_watch);
+        ev_timer_zero(t->monotonic_watch);
+        ev_periodic_zero(t->realtime_watch);
 }
 
 void timer_free_values(Timer *t) {
@@ -71,7 +72,7 @@ static void timer_done(Unit *u) {
         timer_free_values(t);
 
         unit_unwatch_timer(u, &t->monotonic_watch);
-        unit_unwatch_timer(u, &t->realtime_watch);
+        unit_unwatch_periodic(u, &t->realtime_watch);
 }
 
 static int timer_verify(Timer *t) {
@@ -190,7 +191,7 @@ static void timer_set_state(Timer *t, TimerState state) {
 
         if (state != TIMER_WAITING) {
                 unit_unwatch_timer(UNIT(t), &t->monotonic_watch);
-                unit_unwatch_timer(UNIT(t), &t->realtime_watch);
+                unit_unwatch_periodic(UNIT(t), &t->realtime_watch);
         }
 
         if (state != old_state)
@@ -332,12 +333,22 @@ static void timer_enter_waiting(Timer *t, bool initial) {
 
         if (found_monotonic) {
                 char buf[FORMAT_TIMESPAN_MAX];
-                log_debug_unit(UNIT(t)->id,
-                               "%s: Monotonic timer elapses in %s.",
-                               UNIT(t)->id,
-                               format_timespan(buf, sizeof(buf), t->next_elapse_monotonic > ts.monotonic ? t->next_elapse_monotonic - ts.monotonic : 0, 0));
+                log_debug_unit(
+                        UNIT(t)->id,
+                        "%s: Monotonic timer elapses in %s.",
+                        UNIT(t)->id,
+                        format_timespan(
+                                buf,
+                                sizeof(buf),
+                                t->next_elapse_monotonic  > ts.monotonic ?
+                                        t->next_elapse_monotonic - ts.monotonic :
+                                        0,
+                                0));
 
-                r = unit_watch_timer(UNIT(t), CLOCK_MONOTONIC, false, t->next_elapse_monotonic, &t->monotonic_watch);
+                r = unit_watch_timer(
+                        UNIT(t),
+                        t->next_elapse_monotonic - ts.monotonic,
+                        &t->monotonic_watch);
                 if (r < 0)
                         goto fail;
         } else
@@ -350,11 +361,11 @@ static void timer_enter_waiting(Timer *t, bool initial) {
                                UNIT(t)->id,
                                format_timestamp(buf, sizeof(buf), t->next_elapse_realtime));
 
-                r = unit_watch_timer(UNIT(t), CLOCK_REALTIME, false, t->next_elapse_realtime, &t->realtime_watch);
+                r = unit_watch_periodic(UNIT(t), t->next_elapse_realtime, &t->realtime_watch);
                 if (r < 0)
                         goto fail;
         } else
-                unit_unwatch_timer(UNIT(t), &t->realtime_watch);
+                unit_unwatch_periodic(UNIT(t), &t->realtime_watch);
 
         timer_set_state(t, TIMER_WAITING);
         return;
@@ -476,7 +487,7 @@ _pure_ static const char *timer_sub_state_to_string(Unit *u) {
         return timer_state_to_string(TIMER(u)->state);
 }
 
-static void timer_timer_event(Unit *u, uint64_t elapsed, Watch *w) {
+static void timer_timer_event(Unit *u, uint64_t elapsed, ev_timer *w) {
         Timer *t = TIMER(u);
 
         assert(t);
@@ -487,6 +498,11 @@ static void timer_timer_event(Unit *u, uint64_t elapsed, Watch *w) {
 
         log_debug_unit(u->id, "Timer elapsed on %s", u->id);
         timer_enter_running(t);
+}
+
+void timer_periodic_event(Timer *t, ev_periodic *watch)
+{
+        timer_timer_event(UNIT(t), 1, NULL);
 }
 
 static void timer_trigger_notify(Unit *u, Unit *other) {

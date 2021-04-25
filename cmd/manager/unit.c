@@ -43,23 +43,25 @@ have been included with this software
 
 #include "systemd/sd-id128.h"
 #include "systemd/sd-messages.h"
-#include "set.h"
-#include "unit.h"
-#include "macro.h"
-#include "strv.h"
-#include "path-util.h"
-#include "load-fragment.h"
-#include "load-dropin.h"
-#include "log.h"
-#include "unit-name.h"
-#include "dbus-unit.h"
-#include "special.h"
+
+#include "bus-errors.h"
 #include "cgroup-util.h"
+#include "dbus-unit.h"
+#include "ev-util.h"
+#include "fileio-label.h"
+#include "label.h"
+#include "load-dropin.h"
+#include "load-fragment.h"
+#include "log.h"
+#include "macro.h"
 #include "missing.h"
 #include "mkdir.h"
-#include "label.h"
-#include "fileio-label.h"
-#include "bus-errors.h"
+#include "path-util.h"
+#include "set.h"
+#include "special.h"
+#include "strv.h"
+#include "unit-name.h"
+#include "unit.h"
 
 const UnitVTable * const unit_vtable[_UNIT_TYPE_MAX] = {
         [UNIT_SERVICE] = &service_vtable,
@@ -1873,7 +1875,8 @@ int unit_watch_all_pids(Unit *u) {
 #endif
 }
 
-void unit_tidy_watch_pids(Unit *u, pid_t except1, pid_t except2) {
+void unit_tidy_watch_pids(Unit *u, pid_t except1, pid_t except2)
+{
         Iterator i;
         void *e;
 
@@ -1881,7 +1884,7 @@ void unit_tidy_watch_pids(Unit *u, pid_t except1, pid_t except2) {
 
         /* Cleans dead PIDs from our list */
 
-        SET_FOREACH(e, u->pids, i) {
+        SET_FOREACH (e, u->pids, i) {
                 pid_t pid = PTR_TO_LONG(e);
 
                 if (pid == except1 || pid == except2)
@@ -1892,89 +1895,100 @@ void unit_tidy_watch_pids(Unit *u, pid_t except1, pid_t except2) {
         }
 }
 
-int unit_watch_timer(Unit *u, clockid_t clock_id, bool relative, usec_t usec, Watch *w) {
-        struct itimerspec its = {};
-        int flags, fd;
-        bool ours;
+#pragma region Timers &Periodics
+
+static void unit_timer_cb(struct ev_loop *evloop, ev_timer *watch, int revents)
+{
+        UNIT_VTABLE((Unit *) watch->data)->timer_event(watch->data, 1, watch);
+}
+
+static void unit_periodic_cb(struct ev_loop *evloop, ev_periodic *watch, int revents)
+{
+        Unit *u = watch->data;
+        assert(u->type == UNIT_TIMER);
+        timer_periodic_event(TIMER(u), watch);
+}
+
+int unit_watch_timer(Unit *u, usec_t usec, ev_timer *watch)
+{
+        double val;
 
         assert(u);
-        assert(w);
-        assert(w->type == WATCH_INVALID || (w->type == WATCH_UNIT_TIMER && w->data.unit == u));
+        assert(watch);
+        assert(!ev_is_active(watch) || watch->data == u);
 
-        /* This will try to reuse the old timer if there is one */
+        if (usec <= 0)
+                /* go off almost immediately */
+                val = 0.0001;
+        else
+                val = (double) usec / USEC_PER_SEC;
 
-        if (w->type == WATCH_UNIT_TIMER) {
-                assert(w->data.unit == u);
-                assert(w->fd >= 0);
+        if (ev_is_active(watch)) {
+                assert(watch->data == u);
 
-                ours = false;
-                fd = w->fd;
-        } else if (w->type == WATCH_INVALID) {
-
-                ours = true;
-                fd = timerfd_create(clock_id, TFD_NONBLOCK|TFD_CLOEXEC);
-                if (fd < 0)
-                        return -errno;
-        } else
-                assert_not_reached("Invalid watch type");
-
-        if (usec <= 0) {
-                /* Set absolute time in the past, but not 0, since we
-                 * don't want to disarm the timer */
-                its.it_value.tv_sec = 0;
-                its.it_value.tv_nsec = 1;
-
-                flags = TFD_TIMER_ABSTIME;
-        } else {
-                timespec_store(&its.it_value, usec);
-                flags = relative ? 0 : TFD_TIMER_ABSTIME;
+                ev_timer_stop(u->manager->evloop, watch);
         }
 
-        /* This will also flush the elapse counter */
-        if (timerfd_settime(fd, flags, &its, NULL) < 0)
-                goto fail;
-
-        if (w->type == WATCH_INVALID) {
-                struct epoll_event ev = {
-                        .data.ptr = w,
-                        .events = EPOLLIN,
-                };
-
-                if (epoll_ctl(u->manager->epoll_fd, EPOLL_CTL_ADD, fd, &ev) < 0)
-                        goto fail;
-        }
-
-        w->type = WATCH_UNIT_TIMER;
-        w->fd = fd;
-        w->data.unit = u;
+        ev_timer_init(watch, unit_timer_cb, val, 0.);
+        watch->data = u;
+        ev_timer_start(u->manager->evloop, watch);
 
         return 0;
-
-fail:
-        if (ours)
-                safe_close(fd);
-
-        return -errno;
 }
 
-void unit_unwatch_timer(Unit *u, Watch *w) {
+void unit_unwatch_timer(Unit *u, ev_timer *watch)
+{
         assert(u);
-        assert(w);
+        assert(watch);
 
-        if (w->type == WATCH_INVALID)
+        if (!ev_is_active(watch))
                 return;
 
-        assert(w->type == WATCH_UNIT_TIMER);
-        assert(w->data.unit == u);
-        assert(w->fd >= 0);
+        assert(watch->data == u);
 
-        assert_se(epoll_ctl(u->manager->epoll_fd, EPOLL_CTL_DEL, w->fd, NULL) >= 0);
-        safe_close(w->fd);
-
-        w->fd = -1;
-        w->type = WATCH_INVALID;
-        w->data.unit = NULL;
+        ev_timer_stop(u->manager->evloop, watch);
+        ev_timer_zero(watch);
 }
+
+int unit_watch_periodic(Unit *u, usec_t usec, ev_periodic *watch)
+{
+        double val;
+
+        assert(u);
+        assert(watch);
+        assert(!ev_is_active(watch) || watch->data == u);
+
+        val = (double) usec / USEC_PER_SEC;
+
+        if (ev_is_active(watch)) {
+                assert(watch->data == u);
+
+                ev_periodic_stop(u->manager->evloop, watch);
+        }
+
+        ev_periodic_init(watch, unit_periodic_cb, val, 0., 0);
+        watch->data = u;
+
+        ev_periodic_start(u->manager->evloop, watch);
+
+        return 0;
+}
+
+void unit_unwatch_periodic(Unit *u, ev_periodic *watch)
+{
+        assert(u);
+        assert(watch);
+
+        if (!ev_is_active(watch))
+                return;
+
+        assert(watch->data == u);
+
+        ev_periodic_stop(u->manager->evloop, watch);
+        ev_periodic_zero(watch);
+}
+
+#pragma endregion
 
 bool unit_job_is_applicable(Unit *u, JobType j) {
         assert(u);

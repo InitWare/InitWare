@@ -1,7 +1,17 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
+/*******************************************************************
 
-#pragma once
+    LICENCE NOTICE
 
+These coded instructions, statements, and computer programs are part
+of the  InitWare Suite of Middleware,  and  they are protected under
+copyright law. They may not be distributed,  copied,  or used except
+under the provisions of  the  terms  of  the  Library General Public
+Licence version 2.1 or later, in the file "LICENSE.md", which should
+have been included with this software
+
+    (c) 2021 David Mackay
+        All rights reserved.
+*********************************************************************/
 /***
   This file is part of systemd.
 
@@ -20,6 +30,9 @@
   You should have received a copy of the GNU Lesser General Public License
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
+
+#ifndef SERVICE_H_
+#define SERVICE_H_
 
 typedef struct Service Service;
 
@@ -130,7 +143,7 @@ struct Service {
 
         dual_timestamp watchdog_timestamp;
         usec_t watchdog_usec;
-        Watch watchdog_watch;
+        ev_timer watchdog_watch;
 
         ExecCommand* exec_command[_SERVICE_EXEC_COMMAND_MAX];
 
@@ -195,7 +208,7 @@ struct Service {
 
         UnitRef accept_socket;
 
-        Watch timer_watch;
+        ev_timer timer_watch;
         PathSpec *pid_file_pathspec;
 
         NotifyAccess notify_access;
@@ -227,3 +240,5 @@ ServiceResult service_result_from_string(const char *s) _pure_;
 
 const char* start_limit_action_to_string(StartLimitAction i) _const_;
 StartLimitAction start_limit_action_from_string(const char *s) _pure_;
+
+#endif

@@ -72,8 +72,6 @@ enum WatchType
         WATCH_SIGNAL,
         WATCH_NOTIFY,
         WATCH_FD,
-        WATCH_UNIT_TIMER,
-        WATCH_JOB_TIMER,
         WATCH_MOUNT,
         WATCH_SWAP,
         WATCH_UDEV,
