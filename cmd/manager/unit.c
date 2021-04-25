@@ -1743,7 +1743,7 @@ void unit_unwatch_fd(Unit *u, ev_io *w)
 
         assert(w->data == u);
         ev_io_stop(u->manager->evloop, w);
-        ev_io_zero(w);
+        ev_io_zero(*w);
 }
 
 int unit_watch_pid(Unit *u, pid_t pid) {

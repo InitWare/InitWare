@@ -19,15 +19,14 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <errno.h>
-#include <limits.h>
 #include <sys/mount.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/epoll.h>
 #include <sys/stat.h>
-#include <linux/auto_fs4.h>
 #include <linux/auto_dev-ioctl.h>
+#include <linux/auto_fs4.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <unistd.h>
 
 #include "unit.h"
 #include "automount.h"

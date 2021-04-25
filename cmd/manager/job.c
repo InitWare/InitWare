@@ -33,8 +33,6 @@ have been included with this software
 
 #include <assert.h>
 #include <errno.h>
-#include <sys/timerfd.h>
-#include <sys/epoll.h>
 
 #include "ev-util.h"
 #include "systemd/sd-id128.h"

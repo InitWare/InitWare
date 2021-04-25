@@ -110,25 +110,41 @@ have been included with this software
 
 #define TIME_T_MAX (time_t)((1UL << ((sizeof(time_t) << 3) - 1)) - 1)
 
-static int manager_setup_notify(Manager *m) {
+static int manager_process_notify_fd(Manager *m);
+
+static void notify_io_cb(struct ev_loop *evloop, ev_io *watch, int revents)
+{
+        int r;
+
+        /* An incoming daemon notification event? */
+        if (revents != EV_READ)
+                return (void) log_error("Bad events on notification socket: %d\n", revents);
+
+        if ((r = manager_process_notify_fd(watch->data)) < 0)
+                return (void) log_error("Failed to process notify FD: %s\n", strerror(-r));
+}
+
+static int manager_setup_notify(Manager *m)
+{
         union {
                 struct sockaddr sa;
                 struct sockaddr_un un;
         } sa = {
                 .sa.sa_family = AF_UNIX,
         };
-        struct epoll_event ev = {
-                .events = EPOLLIN,
-                .data.ptr = &m->notify_watch,
-        };
-        int one = 1, r;
+        int one = 1, r, fd;
 
         m->notify_socket = strjoin(m->iw_state_dir, "/notify", NULL);
         if (!m->notify_socket)
                 return log_oom();
 
-        m->notify_watch.type = WATCH_NOTIFY;
-        m->notify_watch.fd = socket(AF_UNIX, SOCK_DGRAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0);
+
+        ev_io_init(
+                &m->notify_watch,
+                notify_io_cb,
+                socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0),
+                EV_READ);
+
         if (m->notify_watch.fd < 0) {
                 log_error("Failed to allocate notification socket: %m");
                 return -errno;
@@ -155,11 +171,8 @@ static int manager_setup_notify(Manager *m) {
         if (r < 0)
                 return log_error_errno(-r, "SO_PASSCRED failed: %m");
 
-        r = epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->notify_watch.fd, &ev);
-        if (r < 0) {
-                log_error("Failed to add notification socket fd to epoll: %m");
-                return -errno;
-        }
+        m->notify_watch.data = m;
+        ev_io_start(m->evloop, &m->notify_watch);
 
         log_debug("Using notification socket %s", m->notify_socket);
 
@@ -347,6 +360,7 @@ static void close_idle_pipe(Manager *m)
 
 
 static int manager_setup_time_change(Manager *m) {
+#if 0 // FIXME: libevify ??
         struct epoll_event ev = {
                 .events = EPOLLIN,
                 .data.ptr = &m->time_change_watch,
@@ -384,6 +398,7 @@ static int manager_setup_time_change(Manager *m) {
         }
 
         log_debug("Set up TFD_TIMER_CANCEL_ON_SET timerfd.");
+#endif
 
         return 0;
 }
@@ -419,12 +434,22 @@ static int enable_special_signals(Manager *m) {
         return 0;
 }
 
+static int manager_process_signal_fd(Manager *m);
+
+static void signalfd_io_cb(struct ev_loop *evloop, ev_io *watch, int revents)
+{
+        int r;
+
+        /* An incoming signal? */
+        if (revents != EV_READ)
+                return (void) log_error("Bad events on SignalFD: %d\n", revents);
+
+        if ((r = manager_process_signal_fd(watch->data)) < 0)
+                return (void) log_error("Failed to process SignalFD: %s\n", strerror(-r));
+}
+
 static int manager_setup_signals(Manager *m) {
         sigset_t mask;
-        struct epoll_event ev = {
-                .events = EPOLLIN,
-                .data.ptr = &m->signal_watch,
-        };
         struct sigaction sa = {
                 .sa_handler = SIG_DFL,
                 .sa_flags = SA_NOCLDSTOP|SA_RESTART,
@@ -475,13 +500,16 @@ static int manager_setup_signals(Manager *m) {
                         -1);
         assert_se(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 
-        m->signal_watch.type = WATCH_SIGNAL;
-        m->signal_watch.fd = signalfd(-1, &mask, SFD_NONBLOCK|SFD_CLOEXEC);
-        if (m->signal_watch.fd < 0)
+        ev_io_init(
+                &m->signalfd_watch,
+                signalfd_io_cb,
+                signalfd(-1, &mask, SFD_NONBLOCK | SFD_CLOEXEC),
+                EV_READ);
+        if (m->signalfd_watch.fd < 0)
                 return -errno;
 
-        if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->signal_watch.fd, &ev) < 0)
-                return -errno;
+        m->signalfd_watch.data = m;
+        ev_io_start(m->evloop, &m->signalfd_watch);
 
         if (m->running_as == SYSTEMD_SYSTEM)
                 return enable_special_signals(m);
@@ -546,14 +574,16 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
         m->pin_cgroupfs_fd = -1;
         m->idle_pipe[0] = m->idle_pipe[1] = m->idle_pipe[2] = m->idle_pipe[3] = -1;
 
-        watch_init(&m->signal_watch);
         watch_init(&m->mount_watch);
         watch_init(&m->swap_watch);
         watch_init(&m->udev_watch);
+#if 0 // FIXME: libevify ?
         watch_init(&m->time_change_watch);
+#endif
+        ev_io_zero(m->signalfd_watch);
         ev_timer_zero(m->jobs_in_progress_watch);
 
-        m->epoll_fd = m->dev_autofs_fd = -1;
+        m->dev_autofs_fd = -1;
         m->current_job_id = 1; /* start as id #1, so that we can leave #0 around as "null-like" value */
 
         if (running_as == SYSTEMD_SYSTEM) {
@@ -631,10 +661,6 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
 
         m->watch_bus = hashmap_new(string_hash_func, string_compare_func);
         if (!m->watch_bus)
-                goto fail;
-
-        m->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
-        if (m->epoll_fd < 0)
                 goto fail;
 
         r = manager_setup_signals(m);
@@ -859,10 +885,12 @@ void manager_free(Manager *m)
         hashmap_free(m->watch_pids2);
         hashmap_free(m->watch_bus);
 
-        safe_close(m->epoll_fd);
-        safe_close(m->signal_watch.fd);
+        ev_io_stop(m->evloop, &m->signalfd_watch);
+        safe_close(m->signalfd_watch.fd);
         safe_close(m->notify_watch.fd);
+#if 0
         safe_close(m->time_change_watch.fd);
+#endif
         manager_unwatch_jobs_in_progress(m);
 
         free(m->notify_socket);
@@ -1568,7 +1596,7 @@ static int manager_process_signal_fd(Manager *m) {
         assert(m);
 
         for (;;) {
-                n = read(m->signal_watch.fd, &sfsi, sizeof(sfsi));
+                n = read(m->signalfd_watch.fd, &sfsi, sizeof(sfsi));
                 if (n != sizeof(sfsi)) {
 
                         if (n >= 0)
@@ -1816,28 +1844,6 @@ static int process_event(Manager *m, struct epoll_event *ev) {
 
         switch (w->type) {
 
-        case WATCH_SIGNAL:
-
-                /* An incoming signal? */
-                if (ev->events != EPOLLIN)
-                        return -EINVAL;
-
-                if ((r = manager_process_signal_fd(m)) < 0)
-                        return r;
-
-                break;
-
-        case WATCH_NOTIFY:
-
-                /* An incoming daemon notification event? */
-                if (ev->events != EPOLLIN)
-                        return -EINVAL;
-
-                if ((r = manager_process_notify_fd(m)) < 0)
-                        return r;
-
-                break;
-
 #ifdef Sys_Plat_Linux
         case WATCH_MOUNT:
                 /* Some mount table change, intended for the mount subsystem */
@@ -1857,6 +1863,7 @@ static int process_event(Manager *m, struct epoll_event *ev) {
                 break;
 #endif
 
+#if 0 // FIXME: libevify ??
         case WATCH_TIME_CHANGE: {
                 Unit *u;
                 Iterator i;
@@ -1880,6 +1887,7 @@ static int process_event(Manager *m, struct epoll_event *ev) {
 
                 break;
         }
+#endif
 
         default:
                 log_error("event type=%i", w->type);
@@ -1954,29 +1962,8 @@ int manager_loop(Manager *m) {
                         continue;
 #endif
 
-                /* Sleep for half the watchdog time */
-                if (m->runtime_watchdog > 0 && m->running_as == SYSTEMD_SYSTEM) {
-                        wait_msec = (int) (m->runtime_watchdog / 2 / USEC_PER_MSEC);
-                        if (wait_msec <= 0)
-                                wait_msec = 1;
-                } else
-                        wait_msec = -1;
-
-                n = epoll_wait(m->epoll_fd, &event, 1, wait_msec);
-                if (n < 0) {
-
-                        if (errno == EINTR)
-                                continue;
-
-                        return -errno;
-                } else if (n == 0)
-                        continue;
-
-                assert(n == 1);
-
-                r = process_event(m, &event);
-                if (r < 0)
-                        return r;
+                n = ev_run(m->evloop, EVRUN_ONCE);
+                printf("N: %d\n", n);
         }
 
         return m->exit_code;

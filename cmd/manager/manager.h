@@ -70,7 +70,6 @@ enum WatchType
 {
         WATCH_INVALID,
         WATCH_SIGNAL,
-        WATCH_NOTIFY,
         WATCH_MOUNT,
         WATCH_SWAP,
         WATCH_UDEV,
@@ -150,9 +149,11 @@ struct Manager {
 
         char *notify_socket;
 
-        Watch notify_watch;
-        Watch signal_watch;
+        ev_io notify_watch;
+        ev_io signalfd_watch;
+#if 0
         Watch time_change_watch;
+#endif
         ev_timer jobs_in_progress_watch;
         ev_io idle_pipe_watch; /* watches idle_pipe [2] */
 

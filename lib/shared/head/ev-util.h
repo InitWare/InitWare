@@ -24,7 +24,7 @@ have been included with this software
 #define ev_io_zero(watch)       \
         do {                    \
                 zero(watch);   \
-                watch->fd = -1; \
+                (&watch)->fd = -1; \
         } while (0);
 
 /* Clear a timer watch. */

@@ -57,6 +57,7 @@ int manager_setup_kqproc_watch(Manager *m, int with_fd)
         }
 
         ev_io_init(&m->kqproc_io, kqproc_io_cb, with_fd, EV_READ);
+        m->kqproc_io.data = m;
         ev_io_start(m->evloop, &m->kqproc_io);
         return 0;
 }
