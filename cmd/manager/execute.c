@@ -37,10 +37,6 @@
 #include <glob.h>
 #include <libgen.h>
 
-#ifdef Use_PAM
-#        include <security/pam_appl.h>
-#endif
-
 #include "async.h"
 #include "capability.h"
 #include "def.h"
@@ -62,6 +58,10 @@
 #include "unit.h"
 #include "util.h"
 #include "utmp-wtmp.h"
+
+#ifdef Use_PAM
+#        include <security/pam_appl.h>
+#endif
 
 #ifdef Have_sys_prctl_h
 #include <sys/prctl.h>
@@ -836,7 +836,11 @@ static int setup_pam(
                  * and this will make PR_SET_PDEATHSIG work in most cases.
                  * If this fails, ignore the error - but expect sd-pam threads
                  * to fail to exit normally */
+#        ifndef Sys_Plat_NetBSD
                 if (setresuid(uid, uid, uid) < 0)
+#        else
+                if (setuid(uid) < 0)
+#        endif
                         log_error("Error: Failed to setresuid() in sd-pam: %s", strerror(-r));
 
                 /* Wait until our parent died. This will only work if
@@ -844,7 +848,7 @@ static int setup_pam(
                  * will not allow unprivileged parents kill their privileged
                  * children this way. We rely on the control groups kill logic
                  * to do the rest for us. */
-                if (prctl(PR_SET_PDEATHSIG, SIGTERM) < 0)
+                if (exit_with_parent() < 0)
                         goto child_finish;
 
                 /* Check if our parent process might already have
@@ -1325,7 +1329,7 @@ int exec_spawn(ExecCommand *command,
                         }
                 }
 
-#ifdef Use_PAM
+#if defined(Use_PAM) && defined(Use_CGroups)
                 if (cgroup_path && context->user && context->pam_name) {
                         err = cg_set_task_access(SYSTEMD_CGROUP_CONTROLLER, cgroup_path, 0644, uid, gid);
                         if (err < 0) {

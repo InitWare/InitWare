@@ -71,6 +71,7 @@
 #cmakedefine Use_MQueue
 #cmakedefine Use_Libudev
 #cmakedefine Use_Libdevattr
+#cmakedefine Use_PAM
 
 
 #define PACKAGE_NAME "@PACKAGE_NAME@"

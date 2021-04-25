@@ -187,7 +187,7 @@ int show_ptgroup(cJSON *ptgroup, const char *prefix, unsigned n_columns, bool ke
                         printf("%s%s%s\n",
                                prefix,
                                draw_special_char(DRAW_TREE_BRANCH),
-                               cJSON_GetObjectItem(last, "full_name")->valuestring);
+                               cJSON_GetObjectItem(last, "name")->valuestring);
 
                         if (!p1) {
                                 p1 = strappend(prefix, draw_special_char(DRAW_TREE_VERT));
@@ -212,7 +212,7 @@ int show_ptgroup(cJSON *ptgroup, const char *prefix, unsigned n_columns, bool ke
                 printf("%s%s%s\n",
                        prefix,
                        draw_special_char(DRAW_TREE_RIGHT),
-                       cJSON_GetObjectItem(last, "full_name")->valuestring);
+                       cJSON_GetObjectItem(last, "name")->valuestring);
 
                 if (!p2) {
                         p2 = strappend(prefix, "  ");
