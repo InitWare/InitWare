@@ -3023,7 +3023,8 @@ static int service_demand_pid_file(Service *s) {
         return service_watch_pid_file(s);
 }
 
-static void service_fd_event(Unit *u, int fd, uint32_t events, Watch *w) {
+static void service_fd_event(Unit *u, int fd, int revents, ev_io *w)
+{
         Service *s = SERVICE(u);
 
         assert(s);
@@ -3034,7 +3035,7 @@ static void service_fd_event(Unit *u, int fd, uint32_t events, Watch *w) {
 
         log_debug_unit(u->id, "inotify event for %s", u->id);
 
-        if (path_spec_fd_event(s->pid_file_pathspec, events) < 0)
+        if (path_spec_fd_event(s->pid_file_pathspec, revents) < 0)
                 goto fail;
 
         if (service_retry_pid_file(s) == 0)

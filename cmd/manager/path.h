@@ -51,7 +51,7 @@ typedef enum PathType {
 typedef struct PathSpec {
         char *path;
 
-        Watch watch;
+        ev_io watch;
 
         IWLIST_FIELDS(struct PathSpec, spec);
 
@@ -64,7 +64,7 @@ typedef struct PathSpec {
 
 int path_spec_watch(PathSpec *s, Unit *u);
 void path_spec_unwatch(PathSpec *s, Unit *u);
-int path_spec_fd_event(PathSpec *s, uint32_t events);
+int path_spec_fd_event(PathSpec *s, int events);
 void path_spec_done(PathSpec *s);
 
 static inline bool path_spec_owns_inotify_fd(PathSpec *s, int fd) {

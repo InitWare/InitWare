@@ -256,7 +256,7 @@ static int automount_coldplug(Unit *u) {
 
                         assert(a->pipe_fd >= 0);
 
-                        r = unit_watch_fd(UNIT(a), a->pipe_fd, EPOLLIN, &a->pipe_watch);
+                        r = unit_watch_fd(UNIT(a), a->pipe_fd, EV_READ, &a->pipe_watch);
                         if (r < 0)
                                 return r;
                 }
@@ -524,7 +524,7 @@ static void automount_enter_waiting(Automount *a) {
 
         ioctl_fd = safe_close(ioctl_fd);
 
-        r = unit_watch_fd(UNIT(a), p[0], EPOLLIN, &a->pipe_watch);
+        r = unit_watch_fd(UNIT(a), p[0], EV_READ, &a->pipe_watch);
         if (r < 0)
                 goto fail;
 
@@ -735,7 +735,8 @@ static bool automount_check_gc(Unit *u) {
         return UNIT_VTABLE(UNIT_TRIGGER(u))->check_gc(UNIT_TRIGGER(u));
 }
 
-static void automount_fd_event(Unit *u, int fd, uint32_t events, Watch *w) {
+static void automount_fd_event(Unit *u, int fd, int revents, ev_io *w)
+{
         Automount *a = AUTOMOUNT(u);
         union autofs_v5_packet_union packet;
         ssize_t l;
@@ -744,7 +745,7 @@ static void automount_fd_event(Unit *u, int fd, uint32_t events, Watch *w) {
         assert(a);
         assert(fd == a->pipe_fd);
 
-        if (events != EPOLLIN) {
+        if (revents != EV_READ) {
                 log_error_unit(u->id, "Got invalid poll event on pipe.");
                 goto fail;
         }

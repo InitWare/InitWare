@@ -1709,44 +1709,41 @@ void unit_notify(Unit *u, UnitActiveState os, UnitActiveState ns, bool reload_su
         unit_add_to_gc_queue(u);
 }
 
-int unit_watch_fd(Unit *u, int fd, uint32_t events, Watch *w) {
-        struct epoll_event ev = {
-                .data.ptr = w,
-                .events = events,
-        };
+static void unit_fd_io_cb(struct ev_loop *loop, ev_io *watch, int revents)
+{
+        Unit *u = watch->data;
+        UNIT_VTABLE(u)->fd_event(watch->data, watch->fd, revents, watch);
+}
 
+int unit_watch_fd(Unit *u, int fd, uint32_t events, ev_io *w)
+{
         assert(u);
         assert(fd >= 0);
         assert(w);
-        assert(w->type == WATCH_INVALID || (w->type == WATCH_FD && w->fd == fd && w->data.unit == u));
+        assert(!ev_is_active(w) || (w->fd == fd && w->data == u));
 
-        if (epoll_ctl(u->manager->epoll_fd,
-                      w->type == WATCH_INVALID ? EPOLL_CTL_ADD : EPOLL_CTL_MOD,
-                      fd,
-                      &ev) < 0)
-                return -errno;
-
-        w->fd = fd;
-        w->type = WATCH_FD;
-        w->data.unit = u;
+        if (ev_is_active(w))
+                ev_io_modify(w, events);
+        else {
+                ev_io_init(w, unit_fd_io_cb, fd, events);
+                w->data = u;
+                ev_io_start(u->manager->evloop, w);
+        }
 
         return 0;
 }
 
-void unit_unwatch_fd(Unit *u, Watch *w) {
+void unit_unwatch_fd(Unit *u, ev_io *w)
+{
         assert(u);
         assert(w);
 
-        if (w->type == WATCH_INVALID)
+        if (!ev_is_active(w))
                 return;
 
-        assert(w->type == WATCH_FD);
-        assert(w->data.unit == u);
-        assert_se(epoll_ctl(u->manager->epoll_fd, EPOLL_CTL_DEL, w->fd, NULL) >= 0);
-
-        w->fd = -1;
-        w->type = WATCH_INVALID;
-        w->data.unit = NULL;
+        assert(w->data == u);
+        ev_io_stop(u->manager->evloop, w);
+        ev_io_zero(w);
 }
 
 int unit_watch_pid(Unit *u, pid_t pid) {

@@ -1125,12 +1125,14 @@ static int socket_watch_fds(Socket *s) {
                 if (p->fd < 0)
                         continue;
 
+#if 0 // FIXME: libev
                 p->fd_watch.socket_accept =
                         s->accept &&
                         p->type == SOCKET_SOCKET &&
                         socket_address_can_accept(&p->address);
+#endif
 
-                if ((r = unit_watch_fd(UNIT(s), p->fd, EPOLLIN, &p->fd_watch)) < 0)
+                if ((r = unit_watch_fd(UNIT(s), p->fd, EV_READ, &p->fd_watch)) < 0)
                         goto fail;
         }
 
@@ -2163,7 +2165,8 @@ _pure_ static bool socket_check_gc(Unit *u) {
         return s->n_connections > 0;
 }
 
-static void socket_fd_event(Unit *u, int fd, uint32_t events, Watch *w) {
+static void socket_fd_event(Unit *u, int fd, int revents, ev_io *w)
+{
         Socket *s = SOCKET(u);
         int cfd = -1;
 
@@ -2175,20 +2178,14 @@ static void socket_fd_event(Unit *u, int fd, uint32_t events, Watch *w) {
 
         log_debug_unit(u->id, "Incoming traffic on %s", u->id);
 
-        if (events != EPOLLIN) {
+        if (revents != EV_READ) {
 
-                if (events & EPOLLHUP)
-                        log_error_unit(u->id,
-                                       "%s: Got POLLHUP on a listening socket. The service probably invoked shutdown() on it, and should better not do that.",
-                                       u->id);
-                else
-                        log_error_unit(u->id,
-                                       "%s: Got unexpected poll event (0x%x) on socket.",
-                                       u->id, events);
+                log_error_unit(u->id, "%s: Got unexpected poll event (0x%x) on socket.", u->id, revents);
 
                 goto fail;
         }
 
+#if 0 // FIXME: libev
         if (w->socket_accept) {
                 for (;;) {
 
@@ -2208,6 +2205,7 @@ static void socket_fd_event(Unit *u, int fd, uint32_t events, Watch *w) {
 
                 socket_apply_socket_options(s, cfd);
         }
+#endif
 
         socket_enter_running(s, cfd);
         return;

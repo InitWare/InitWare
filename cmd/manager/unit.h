@@ -389,7 +389,7 @@ struct UnitVTable {
         /* Return true when this unit is suitable for snapshotting */
         bool (*check_snapshot)(Unit *u);
 
-        void (*fd_event)(Unit *u, int fd, uint32_t events, Watch *w);
+        void (*fd_event)(Unit *u, int fd, int revents, ev_io *w);
         void (*sigchld_event)(Unit *u, pid_t pid, int code, int status);
         void (*timer_event)(Unit *u, uint64_t n_elapsed, ev_timer *w);
 
@@ -560,8 +560,8 @@ int unit_kill_common(Unit *u, KillWho who, int signo, pid_t main_pid, pid_t cont
 
 void unit_notify(Unit *u, UnitActiveState os, UnitActiveState ns, bool reload_success);
 
-int unit_watch_fd(Unit *u, int fd, uint32_t events, Watch *w);
-void unit_unwatch_fd(Unit *u, Watch *w);
+int unit_watch_fd(Unit *u, int fd, uint32_t events, ev_io *w);
+void unit_unwatch_fd(Unit *u, ev_io *w);
 
 int unit_watch_pid(Unit *u, pid_t pid);
 void unit_unwatch_pid(Unit *u, pid_t pid);

@@ -100,7 +100,7 @@ typedef struct SocketPort {
 
         SocketAddress address;
         char *path;
-        Watch fd_watch;
+        ev_io fd_watch;
 
         IWLIST_FIELDS(struct SocketPort, port);
 } SocketPort;

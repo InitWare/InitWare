@@ -1838,12 +1838,6 @@ static int process_event(Manager *m, struct epoll_event *ev) {
 
                 break;
 
-        case WATCH_FD:
-
-                /* Some fd event, to be dispatched to the units */
-                UNIT_VTABLE(w->data.unit)->fd_event(w->data.unit, w->fd, ev->events, w);
-                break;
-
 #ifdef Sys_Plat_Linux
         case WATCH_MOUNT:
                 /* Some mount table change, intended for the mount subsystem */

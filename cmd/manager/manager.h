@@ -71,7 +71,6 @@ enum WatchType
         WATCH_INVALID,
         WATCH_SIGNAL,
         WATCH_NOTIFY,
-        WATCH_FD,
         WATCH_MOUNT,
         WATCH_SWAP,
         WATCH_UDEV,
