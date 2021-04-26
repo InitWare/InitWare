@@ -19,11 +19,9 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/epoll.h>
 #include <sys/ioctl.h>
 #include <assert.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -74,8 +72,7 @@ void button_free(Button *b) {
         hashmap_remove(b->manager->buttons, b->name);
 
         if (b->fd >= 0) {
-                hashmap_remove(b->manager->button_fds, INT_TO_PTR(b->fd + 1));
-                assert_se(epoll_ctl(b->manager->epoll_fd, EPOLL_CTL_DEL, b->fd, NULL) == 0);
+                ev_io_stop(b->manager->evloop, &b->watch);
 
                 /* If the device has been unplugged close() returns
                  * ENODEV, let's ignore this, hence we don't use
@@ -104,62 +101,6 @@ int button_set_seat(Button *b, const char *sn) {
         return 0;
 }
 
-int button_open(Button *b) {
-        char name[256], *p;
-        struct epoll_event ev;
-        int r;
-
-        assert(b);
-
-        if (b->fd >= 0) {
-                close(b->fd);
-                b->fd = -1;
-        }
-
-        p = strappend("/dev/input/", b->name);
-        if (!p)
-                return log_oom();
-
-        b->fd = open(p, O_RDWR|O_CLOEXEC|O_NOCTTY|O_NONBLOCK);
-        free(p);
-        if (b->fd < 0) {
-                log_warning("Failed to open %s: %m", b->name);
-                return -errno;
-        }
-
-        if (ioctl(b->fd, EVIOCGNAME(sizeof(name)), name) < 0) {
-                log_error("Failed to get input name: %m");
-                r = -errno;
-                goto fail;
-        }
-
-        zero(ev);
-        ev.events = EPOLLIN;
-        ev.data.u32 = FD_OTHER_BASE + b->fd;
-
-        if (epoll_ctl(b->manager->epoll_fd, EPOLL_CTL_ADD, b->fd, &ev) < 0) {
-                log_error("Failed to add to epoll: %m");
-                r = -errno;
-                goto fail;
-        }
-
-        r = hashmap_put(b->manager->button_fds, INT_TO_PTR(b->fd + 1), b);
-        if (r < 0) {
-                log_error("Failed to add to hash map: %s", strerror(-r));
-                assert_se(epoll_ctl(b->manager->epoll_fd, EPOLL_CTL_DEL, b->fd, NULL) == 0);
-                goto fail;
-        }
-
-        log_info("Watching system buttons on /dev/input/%s (%s)", b->name, name);
-
-        return 0;
-
-fail:
-        close(b->fd);
-        b->fd = -1;
-        return r;
-}
-
 static int button_handle(
                 Button *b,
                 InhibitWhat inhibit_key,
@@ -180,7 +121,15 @@ static int button_handle(
         return 0;
 }
 
-int button_process(Button *b) {
+void button_io_cb(struct ev_loop *loop, ev_io *watch, int revents)
+{
+        int r = button_process(watch->data);
+        if (r < 0)
+                log_error("Error processing button input: %s\n", strerror(-r));
+}
+
+int button_process(Button *b)
+{
         struct input_event ev;
         ssize_t l;
 
@@ -254,6 +203,55 @@ int button_process(Button *b) {
         }
 
         return 0;
+}
+
+
+int button_open(Button *b)
+{
+        char name[256], *p;
+        int r;
+
+        assert(b);
+
+        if (b->fd >= 0) {
+                close(b->fd);
+                b->fd = -1;
+        }
+
+        p = strappend("/dev/input/", b->name);
+        if (!p)
+                return log_oom();
+
+        b->fd = open(p, O_RDWR | O_CLOEXEC | O_NOCTTY | O_NONBLOCK);
+        free(p);
+        if (b->fd < 0) {
+                log_warning("Failed to open %s: %m", b->name);
+                return -errno;
+        }
+
+        if (ioctl(b->fd, EVIOCGNAME(sizeof(name)), name) < 0) {
+                log_error("Failed to get input name: %m");
+                r = -errno;
+                goto fail;
+        }
+
+        ev_io_init(&b->watch, button_io_cb, b->fd, EV_READ);
+        b->watch.data = b;
+
+        r = ev_io_start(b->manager->evloop, &b->watch);
+        if (r < 0) {
+                log_error("Failed to add I/O event for button: %s", strerror(-r));
+                goto fail;
+        }
+
+        log_info("Watching system buttons on /dev/input/%s (%s)", b->name, name);
+
+        return 0;
+
+fail:
+        close(b->fd);
+        b->fd = -1;
+        return r;
 }
 
 int button_recheck(Button *b) {

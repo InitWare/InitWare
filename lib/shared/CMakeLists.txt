@@ -32,18 +32,13 @@ set(shared_src_Use_Libcap capability.c)
 
 add_library(initware-shared ${shared_src})
 target_include_directories(initware-shared PUBLIC head)
-target_link_libraries(initware-shared internal compat initware-cjson
+target_link_libraries(initware-shared internal compat initware-cjson initware-ev
     PkgConfig::DBus ${KVM_Libs})
 
 # ------------------------------------------------------------------------------
-if(Sys_Plat_BSD)
-    list(APPEND IWDBus_srcs dbus-loop-kqueue.c)
-else()
-    list(APPEND IWDBus_srcs dbus-loop.c)
-endif()
-add_library(initware-dbus dbus-common.c polkit.c ${IWDBus_srcs})
+add_library(initware-dbus dbus-common.c polkit.c dbus-loop-libev.c)
 target_include_directories(initware-dbus PUBLIC head)
-target_link_libraries(initware-dbus internal compat PkgConfig::DBus)
+target_link_libraries(initware-dbus internal compat initware-ev PkgConfig::DBus)
 
 # ------------------------------------------------------------------------------
 add_library(initware-units install.c install-printf.c path-lookup.c specifier.c)

@@ -68,7 +68,7 @@ struct Inhibitor {
         dual_timestamp since;
 
         char *fifo_path;
-        int fifo_fd;
+        ev_io fifo_watch;
 };
 
 Inhibitor* inhibitor_new(Manager *m, const char *id);

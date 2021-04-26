@@ -21,7 +21,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/epoll.h>
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
@@ -56,7 +55,7 @@ Inhibitor* inhibitor_new(Manager *m, const char* id) {
         }
 
         i->manager = m;
-        i->fifo_fd = -1;
+        ev_io_zero(i->fifo_watch);
 
         return i;
 }
@@ -271,6 +270,16 @@ finish:
         return r;
 }
 
+static void fifo_cb(struct ev_loop *loop, ev_io *watch, int revents)
+{
+        Inhibitor *i = watch->data;
+
+        assert(i);
+
+        inhibitor_stop(i);
+        inhibitor_free(i);
+}
+
 int inhibitor_create_fifo(Inhibitor *i) {
         int r;
 
@@ -290,21 +299,17 @@ int inhibitor_create_fifo(Inhibitor *i) {
         }
 
         /* Open reading side */
-        if (i->fifo_fd < 0) {
-                struct epoll_event ev = {};
+        if (i->fifo_watch.fd < 0) {
+                int fd;
 
-                i->fifo_fd = open(i->fifo_path, O_RDONLY|O_CLOEXEC|O_NDELAY);
-                if (i->fifo_fd < 0)
+                fd = open(i->fifo_path, O_RDONLY | O_CLOEXEC | O_NDELAY);
+                if (fd < 0)
                         return -errno;
 
-                r = hashmap_put(i->manager->inhibitor_fds, INT_TO_PTR(i->fifo_fd + 1), i);
-                if (r < 0)
-                        return r;
+                ev_io_init(&i->fifo_watch, fifo_cb, fd, EV_READ);
+                i->fifo_watch.data = i;
 
-                ev.events = 0;
-                ev.data.u32 = FD_OTHER_BASE + i->fifo_fd;
-
-                if (epoll_ctl(i->manager->epoll_fd, EPOLL_CTL_ADD, i->fifo_fd, &ev) < 0)
+                if (ev_io_start(i->manager->evloop, &i->fifo_watch))
                         return -errno;
         }
 
@@ -319,10 +324,8 @@ int inhibitor_create_fifo(Inhibitor *i) {
 void inhibitor_remove_fifo(Inhibitor *i) {
         assert(i);
 
-        if (i->fifo_fd >= 0) {
-                assert_se(hashmap_remove(i->manager->inhibitor_fds, INT_TO_PTR(i->fifo_fd + 1)) == i);
-                assert_se(epoll_ctl(i->manager->epoll_fd, EPOLL_CTL_DEL, i->fifo_fd, NULL) == 0);
-                i->fifo_fd = safe_close(i->fifo_fd);
+        if (i->fifo_watch.fd >= 0) {
+                ev_io_stop_close_zero(i->manager->evloop, &i->fifo_watch);
         }
 
         if (i->fifo_path) {
@@ -339,7 +342,7 @@ InhibitWhat manager_inhibit_what(Manager *m, InhibitMode mm) {
 
         assert(m);
 
-        HASHMAP_FOREACH(i, m->inhibitor_fds, j)
+        HASHMAP_FOREACH (i, m->inhibitors, j)
                 if (i->mode == mm)
                         what |= i->what;
 
@@ -379,7 +382,7 @@ bool manager_is_inhibited(
         assert(m);
         assert(w > 0 && w < _INHIBIT_WHAT_MAX);
 
-        HASHMAP_FOREACH(i, m->inhibitor_fds, j) {
+        HASHMAP_FOREACH (i, m->inhibitors, j) {
                 if (!(i->what & w))
                         continue;
 

@@ -23,17 +23,16 @@
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/epoll.h>
-#include <sys/timerfd.h>
 
 #include <systemd/sd-daemon.h>
 
-#include "logind.h"
+#include "conf-parser.h"
 #include "dbus-common.h"
 #include "dbus-loop.h"
-#include "strv.h"
-#include "conf-parser.h"
+#include "ev-util.h"
+#include "logind.h"
 #include "mkdir.h"
+#include "strv.h"
 
 #ifdef Use_udev
 #        include <libudev.h>
@@ -53,14 +52,13 @@ Manager *manager_new(void) {
         if (!m)
                 return NULL;
 
-        m->console_active_fd = -1;
-        m->bus_fd = -1;
+        ev_io_zero(m->console_active_watch);
 #ifdef Use_udev
-        m->udev_seat_fd = -1;
-        m->udev_vcsa_fd = -1;
-        m->udev_button_fd = -1;
+        ev_io_zero(m->udev_device_watch);
+        ev_io_zero(m->udev_seat_watch);
+        ev_io_zero(m->udev_vcsa_watch);
+        ev_io_zero(m->udev_button_watch);
 #endif
-        m->epoll_fd = -1;
         m->reserve_vt_fd = -1;
 
         m->n_autovts = 6;
@@ -72,7 +70,7 @@ Manager *manager_new(void) {
         m->handle_lid_switch = HANDLE_SUSPEND;
         m->lid_switch_ignore_inhibited = true;
 
-        m->idle_action_fd = -1;
+        ev_timer_zero(m->idle_action_watch);
         m->idle_action_usec = 30 * USEC_PER_MINUTE;
         m->idle_action = HANDLE_IGNORE;
         m->idle_action_not_before_usec = now(CLOCK_MONOTONIC);
@@ -88,14 +86,8 @@ Manager *manager_new(void) {
         m->user_units = hashmap_new(string_hash_func, string_compare_func);
         m->session_units = hashmap_new(string_hash_func, string_compare_func);
 
-        m->session_fds = hashmap_new(trivial_hash_func, trivial_compare_func);
-        m->inhibitor_fds = hashmap_new(trivial_hash_func, trivial_compare_func);
-        m->button_fds = hashmap_new(trivial_hash_func, trivial_compare_func);
-        m->timer_fds = hashmap_new(trivial_hash_func, trivial_compare_func);
-
-        if (!m->devices || !m->seats || !m->sessions || !m->users || !m->inhibitors || !m->buttons || !m->busnames ||
-            !m->user_units || !m->session_units ||
-            !m->session_fds || !m->inhibitor_fds || !m->button_fds || !m->timer_fds) {
+        if (!m->devices || !m->seats || !m->sessions || !m->users || !m->inhibitors || !m->buttons ||
+            !m->busnames || !m->user_units || !m->session_units) {
                 manager_free(m);
                 return NULL;
         }
@@ -162,12 +154,7 @@ void manager_free(Manager *m) {
         hashmap_free(m->user_units);
         hashmap_free(m->session_units);
 
-        hashmap_free(m->session_fds);
-        hashmap_free(m->inhibitor_fds);
-        hashmap_free(m->button_fds);
-        hashmap_free(m->timer_fds);
-
-        safe_close(m->console_active_fd);
+        ev_io_stop_close_zero(m->evloop, &m->console_active_watch);
 
 #ifdef Use_udev
         if (m->udev_seat_monitor)
@@ -189,10 +176,11 @@ void manager_free(Manager *m) {
                 dbus_connection_unref(m->bus);
         }
 
-        safe_close(m->bus_fd);
-        safe_close(m->epoll_fd);
+        ev_timer_stop(m->evloop, &m->idle_action_watch);
+
         safe_close(m->reserve_vt_fd);
-        safe_close(m->idle_action_fd);
+
+        ev_default_destroy();
 
         strv_free(m->kill_only_users);
         strv_free(m->kill_exclude_users);
@@ -519,57 +507,57 @@ int manager_enumerate_inhibitors(Manager *m) {
         return r;
 }
 
-int manager_dispatch_seat_udev(Manager *m) {
 #ifdef Use_udev
+static void manager_dispatch_seat_udev(struct ev_loop *loop, ev_io *watch, int revents)
+{
         struct udev_device *d;
         int r;
+        Manager *m = watch->data;
 
         assert(m);
 
         d = udev_monitor_receive_device(m->udev_seat_monitor);
         if (!d)
-                return -ENOMEM;
+                return (void) log_oom();
 
         r = manager_process_seat_device(m, d);
         udev_device_unref(d);
 
-        return r;
-#else
-        return 0;
-#endif
+        if (r < 0)
+                log_error("Error dispatching UDev event: %s\n", strerror(-r));
 }
 
-static int manager_dispatch_device_udev(Manager *m) {
-#ifdef Use_udev
+static void manager_dispatch_device_udev(struct ev_loop *loop, ev_io *watch, int revents)
+{
         struct udev_device *d;
         int r;
+        Manager *m = watch->data;
 
         assert(m);
 
         d = udev_monitor_receive_device(m->udev_device_monitor);
         if (!d)
-                return -ENOMEM;
+                return (void) log_oom();
 
         r = manager_process_seat_device(m, d);
         udev_device_unref(d);
 
-        return r;
-#else
-        return 0;
-#endif
+        if (r < 0)
+                log_error("Error dispatching UDev event: %s\n", strerror(-r));
 }
 
-int manager_dispatch_vcsa_udev(Manager *m) {
-#ifdef Use_udev
+static void manager_dispatch_vcsa_udev(struct ev_loop *loop, ev_io *watch, int revents)
+{
         struct udev_device *d;
         int r = 0;
         const char *name;
+        Manager *m = watch->data;
 
         assert(m);
 
         d = udev_monitor_receive_device(m->udev_vcsa_monitor);
         if (!d)
-                return -ENOMEM;
+                return (void) log_oom();
 
         name = udev_device_get_sysname(d);
 
@@ -581,31 +569,29 @@ int manager_dispatch_vcsa_udev(Manager *m) {
 
         udev_device_unref(d);
 
-        return r;
-#else
-        return 0;
-#endif
+        if (r < 0)
+                log_error("Error dispatching UDev event: %s\n", strerror(-r));
 }
 
-int manager_dispatch_button_udev(Manager *m) {
-#ifdef Use_udev
+static void manager_dispatch_button_udev(struct ev_loop *loop, ev_io *watch, int revents)
+{
         struct udev_device *d;
         int r;
+        Manager *m = watch->data;
 
         assert(m);
 
         d = udev_monitor_receive_device(m->udev_button_monitor);
         if (!d)
-                return -ENOMEM;
+                return (void) log_oom();
 
         r = manager_process_button_device(m, d);
         udev_device_unref(d);
 
-        return r;
-#else
-        return 0;
-#endif
+        if (r < 0)
+                log_error("Error dispatching UDev event: %s\n", strerror(-r));
 }
+#endif
 
 int manager_dispatch_console(Manager *m) {
         assert(m);
@@ -639,60 +625,12 @@ static int manager_reserve_vt(Manager *m) {
         return 0;
 }
 
-static void manager_dispatch_other(Manager *m, int fd) {
-        Session *s;
-        Inhibitor *i;
-        Button *b;
-
-        assert_se(m);
-        assert_se(fd >= 0);
-
-        s = hashmap_get(m->session_fds, INT_TO_PTR(fd + 1));
-        if (s) {
-                assert(s->fifo_fd == fd);
-                session_remove_fifo(s);
-                session_stop(s);
-                return;
-        }
-
-        s = hashmap_get(m->timer_fds, INT_TO_PTR(fd + 1));
-        if (s) {
-                assert(s->timer_fd == fd);
-                session_stop(s);
-                return;
-        }
-
-        i = hashmap_get(m->inhibitor_fds, INT_TO_PTR(fd + 1));
-        if (i) {
-                assert(i->fifo_fd == fd);
-                inhibitor_stop(i);
-                inhibitor_free(i);
-                return;
-        }
-
-#ifdef Sys_Plat_Linux // FIXME: evdev
-        b = hashmap_get(m->button_fds, INT_TO_PTR(fd + 1));
-        if (b) {
-                assert(b->fd == fd);
-                button_process(b);
-                return;
-        }
-#endif
-
-        assert_not_reached("Got event for unknown fd");
-}
-
 static int manager_connect_bus(Manager *m) {
         DBusError error;
         int r;
-        struct epoll_event ev = {
-                .events = EPOLLIN,
-                .data.u32 = FD_BUS,
-        };
 
         assert(m);
         assert(!m->bus);
-        assert(m->bus_fd < 0);
 
         dbus_error_init(&error);
 
@@ -798,13 +736,8 @@ static int manager_connect_bus(Manager *m) {
                 goto fail;
         }
 
-        m->bus_fd = bus_loop_open(m->bus);
-        if (m->bus_fd < 0) {
-                r = m->bus_fd;
-                goto fail;
-        }
-
-        if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->bus_fd, &ev) < 0)
+        r = bus_loop_open(m->evloop, m->bus);
+        if (r < 0)
                 goto fail;
 
         return 0;
@@ -815,25 +748,29 @@ fail:
         return r;
 }
 
-static int manager_connect_console(Manager *m) {
-        struct epoll_event ev = {
-                .events = 0,
-                .data.u32 = FD_CONSOLE,
-        };
+static void console_io_cb(struct ev_loop *evloop, ev_io *watch, int revents)
+{
+        manager_dispatch_console(watch->data);
+}
+
+/* PORTME: */
+static int manager_connect_console(Manager *m)
+{
+        int fd;
 
         assert(m);
-        assert(m->console_active_fd < 0);
+        assert(m->console_active_watch.fd < 0);
 
         /* On certain architectures (S390 and Xen, and containers),
            /dev/tty0 does not exist, so don't fail if we can't open
            it. */
         if (access("/dev/tty0", F_OK) < 0) {
-                m->console_active_fd = -1;
+                m->console_active_watch.fd = -1;
                 return 0;
         }
 
-        m->console_active_fd = open("/sys/class/tty/tty0/active", O_RDONLY|O_NOCTTY|O_CLOEXEC);
-        if (m->console_active_fd < 0) {
+        fd = open("/sys/class/tty/tty0/active", O_RDONLY | O_NOCTTY | O_CLOEXEC);
+        if (fd < 0) {
 
                 /* On some systems the device node /dev/tty0 may exist
                  * even though /sys/class/tty/tty0 does not. */
@@ -844,19 +781,19 @@ static int manager_connect_console(Manager *m) {
                 return -errno;
         }
 
-        if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->console_active_fd, &ev) < 0)
+        ev_io_init(&m->console_active_watch, console_io_cb, fd, EV_READ);
+        m->console_active_watch.data = m;
+
+        if (ev_io_start(m->evloop, &m->console_active_watch) < 0)
                 return -errno;
 
         return 0;
 }
 
-static int manager_connect_udev(Manager *m) {
+static int manager_connect_udev(Manager *m)
+{
 #ifdef Use_udev
         int r;
-        struct epoll_event ev = {
-                .events = EPOLLIN,
-                .data.u32 = FD_SEAT_UDEV,
-        };
 
         assert(m);
         assert(!m->udev_seat_monitor);
@@ -878,9 +815,14 @@ static int manager_connect_udev(Manager *m) {
         if (r < 0)
                 return r;
 
-        m->udev_seat_fd = udev_monitor_get_fd(m->udev_seat_monitor);
 
-        if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->udev_seat_fd, &ev) < 0)
+        ev_io_init(
+                &m->udev_seat_watch,
+                manager_dispatch_seat_udev,
+                udev_monitor_get_fd(m->udev_seat_monitor),
+                EV_READ);
+        m->udev_seat_watch.data = m;
+        if (ev_io_start(m->evloop, &m->udev_seat_watch) < 0)
                 return -errno;
 
         m->udev_device_monitor = udev_monitor_new_from_netlink(m->udev, "udev");
@@ -903,11 +845,13 @@ static int manager_connect_udev(Manager *m) {
         if (r < 0)
                 return r;
 
-        m->udev_device_fd = udev_monitor_get_fd(m->udev_device_monitor);
-        zero(ev);
-        ev.events = EPOLLIN;
-        ev.data.u32 = FD_DEVICE_UDEV;
-        if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->udev_device_fd, &ev) < 0)
+        ev_io_init(
+                &m->udev_device_watch,
+                manager_dispatch_device_udev,
+                udev_monitor_get_fd(m->udev_device_monitor),
+                EV_READ);
+        m->udev_device_watch.data = m;
+        if (ev_io_start(m->evloop, &m->udev_device_watch) < 0)
                 return -errno;
 
         /* Don't watch keys if nobody cares */
@@ -934,17 +878,18 @@ static int manager_connect_udev(Manager *m) {
                 if (r < 0)
                         return r;
 
-                m->udev_button_fd = udev_monitor_get_fd(m->udev_button_monitor);
-
-                zero(ev);
-                ev.events = EPOLLIN;
-                ev.data.u32 = FD_BUTTON_UDEV;
-                if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->udev_button_fd, &ev) < 0)
+                ev_io_init(
+                        &m->udev_button_watch,
+                        manager_dispatch_button_udev,
+                        udev_monitor_get_fd(m->udev_button_monitor),
+                        EV_READ);
+                m->udev_button_watch.data = m;
+                if (ev_io_start(m->evloop, &m->udev_button_watch) < 0)
                         return -errno;
         }
 
         /* Don't bother watching VCSA devices, if nobody cares */
-        if (m->n_autovts > 0 && m->console_active_fd >= 0) {
+        if (m->n_autovts > 0 && m->console_active_watch.fd >= 0) {
 
                 m->udev_vcsa_monitor = udev_monitor_new_from_netlink(m->udev, "udev");
                 if (!m->udev_vcsa_monitor)
@@ -958,18 +903,19 @@ static int manager_connect_udev(Manager *m) {
                 if (r < 0)
                         return r;
 
-                m->udev_vcsa_fd = udev_monitor_get_fd(m->udev_vcsa_monitor);
-
-                zero(ev);
-                ev.events = EPOLLIN;
-                ev.data.u32 = FD_VCSA_UDEV;
-                if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->udev_vcsa_fd, &ev) < 0)
+                ev_io_init(
+                        &m->udev_vcsa_watch,
+                        manager_dispatch_vcsa_udev,
+                        udev_monitor_get_fd(m->udev_vcsa_monitor),
+                        EV_READ);
+                m->udev_vcsa_watch.data = m;
+                if (ev_io_start(m->evloop, &m->udev_vcsa_watch) < 0)
                         return -errno;
         }
 
         return 0;
 #else
-                return 0;
+        return 0;
 #endif
 }
 
@@ -1020,18 +966,23 @@ void manager_gc(Manager *m, bool drop_not_started) {
         }
 }
 
-int manager_dispatch_idle_action(Manager *m) {
+static void idle_action_timer_cb(struct ev_loop *loop, ev_timer *watch, int revents)
+{
+        manager_dispatch_idle_action(watch->data);
+}
+
+int manager_dispatch_idle_action(Manager *m)
+{
         struct dual_timestamp since;
         struct itimerspec its = {};
         int r;
         usec_t n;
+        ev_tstamp wait_secs;
 
         assert(m);
 
-        if (m->idle_action == HANDLE_IGNORE ||
-            m->idle_action_usec <= 0) {
-                r = 0;
-                goto finish;
+        if (m->idle_action == HANDLE_IGNORE || m->idle_action_usec <= 0) {
+                return 0;
         }
 
         n = now(CLOCK_MONOTONIC);
@@ -1039,7 +990,7 @@ int manager_dispatch_idle_action(Manager *m) {
         r = manager_get_idle_hint(m, &since);
         if (r <= 0)
                 /* Not idle. Let's check if after a timeout it might be idle then. */
-                timespec_store(&its.it_value, n + m->idle_action_usec);
+                wait_secs = (n + m->idle_action_usec) / USEC_PER_SEC;
         else {
                 /* Idle! Let's see if it's time to do something, or if
                  * we shall sleep for longer. */
@@ -1052,44 +1003,26 @@ int manager_dispatch_idle_action(Manager *m) {
                         m->idle_action_not_before_usec = n;
                 }
 
-                timespec_store(&its.it_value, MAX(since.monotonic, m->idle_action_not_before_usec) + m->idle_action_usec);
+                wait_secs = (n - MAX(since.monotonic, m->idle_action_not_before_usec) +
+                             m->idle_action_usec) /
+                        USEC_PER_SEC;
         }
 
-        if (m->idle_action_fd < 0) {
-                struct epoll_event ev = {
-                        .events = EPOLLIN,
-                        .data.u32 = FD_IDLE_ACTION,
-                };
-
-                m->idle_action_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK|TFD_CLOEXEC);
-                if (m->idle_action_fd < 0) {
-                        log_error("Failed to create idle action timer: %m");
-                        r = -errno;
-                        goto finish;
-                }
-
-                if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->idle_action_fd, &ev) < 0) {
-                        log_error("Failed to add idle action timer to epoll: %m");
-                        r = -errno;
-                        goto finish;
-                }
+        if (!ev_is_active(&m->idle_action_watch)) {
+                ev_init(&m->idle_action_watch, idle_action_timer_cb);
         }
 
-        if (timerfd_settime(m->idle_action_fd, TFD_TIMER_ABSTIME, &its, NULL) < 0) {
-                log_error("Failed to reset timerfd: %m");
-                r = -errno;
-                goto finish;
+        ev_timer_set(&m->idle_action_watch, 0., wait_secs);
+        if (ev_timer_again(m->evloop, &m->idle_action_watch) < 0) {
+                log_error("Failed to start timer: %m");
+                return -errno;
         }
 
         return 0;
-
-finish:
-        m->idle_action_fd = safe_close(m->idle_action_fd);
-
-        return r;
 }
 
-int manager_startup(Manager *m) {
+int manager_startup(Manager *m)
+{
         int r;
         Seat *seat;
         Session *session;
@@ -1098,11 +1031,11 @@ int manager_startup(Manager *m) {
         Iterator i;
 
         assert(m);
-        assert(m->epoll_fd <= 0);
+        assert(m->evloop == NULL);
 
-        m->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
-        if (m->epoll_fd < 0)
-                return -errno;
+        m->evloop = ev_default_loop(0);
+        if (m->evloop < 0)
+                return -ENOMEM;
 
         /* Connect to console */
         r = manager_connect_console(m);
@@ -1199,7 +1132,6 @@ int manager_run(Manager *m) {
         assert(m);
 
         for (;;) {
-                struct epoll_event event;
                 int n;
                 int msec = -1;
 
@@ -1225,51 +1157,13 @@ int manager_run(Manager *m) {
                         msec = x >= y ? 0 : (int) ((y - x) / USEC_PER_MSEC);
                 }
 
-                n = epoll_wait(m->epoll_fd, &event, 1, msec);
+                n = ev_run(m->evloop, EVRUN_ONCE);
                 if (n < 0) {
                         if (errno == EINTR || errno == EAGAIN)
                                 continue;
 
-                        log_error("epoll() failed: %m");
+                        log_error("ev_run failed: %s", strerror(-n));
                         return -errno;
-                }
-
-                if (n == 0)
-                        continue;
-
-                switch (event.data.u32) {
-
-                case FD_SEAT_UDEV:
-                        manager_dispatch_seat_udev(m);
-                        break;
-
-                case FD_DEVICE_UDEV:
-                        manager_dispatch_device_udev(m);
-                        break;
-
-                case FD_VCSA_UDEV:
-                        manager_dispatch_vcsa_udev(m);
-                        break;
-
-                case FD_BUTTON_UDEV:
-                        manager_dispatch_button_udev(m);
-                        break;
-
-                case FD_CONSOLE:
-                        manager_dispatch_console(m);
-                        break;
-
-                case FD_IDLE_ACTION:
-                        manager_dispatch_idle_action(m);
-                        break;
-
-                case FD_BUS:
-                        bus_loop_dispatch(m->bus_fd);
-                        break;
-
-                default:
-                        if (event.data.u32 >= FD_OTHER_BASE)
-                                manager_dispatch_other(m, event.data.u32 - FD_OTHER_BASE);
                 }
         }
 

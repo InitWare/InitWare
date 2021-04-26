@@ -25,11 +25,12 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
-#include "util.h"
 #include "audit.h"
-#include "list.h"
-#include "hashmap.h"
 #include "cgroup-util.h"
+#include "ev-util.h"
+#include "hashmap.h"
+#include "list.h"
+#include "util.h"
 
 #ifdef Use_udev
 #        include <libudev.h>
@@ -64,15 +65,14 @@ struct Manager {
         struct udev *udev;
         struct udev_monitor *udev_seat_monitor, *udev_device_monitor, *udev_vcsa_monitor, *udev_button_monitor;
 
-        int udev_seat_fd;
-        int udev_device_fd;
-        int udev_vcsa_fd;
-        int udev_button_fd;
+        ev_io udev_seat_watch;
+        ev_io udev_device_watch;
+        ev_io udev_vcsa_watch;
+        ev_io udev_button_watch;
 #endif
 
-        int console_active_fd;
-        int bus_fd;
-        int epoll_fd;
+        ev_io console_active_watch;
+        struct ev_loop *evloop;
 
         unsigned n_autovts;
 
@@ -90,8 +90,6 @@ struct Manager {
         Hashmap *session_units;
         Hashmap *user_units;
 
-        Hashmap *session_fds;
-        Hashmap *inhibitor_fds;
         Hashmap *button_fds;
         Hashmap *timer_fds;
 
@@ -111,7 +109,7 @@ struct Manager {
         char *action_job;
         usec_t action_timestamp;
 
-        int idle_action_fd; /* the timer_fd */
+        ev_timer idle_action_watch;
         usec_t idle_action_usec;
         usec_t idle_action_not_before_usec;
         HandleAction idle_action;
@@ -125,17 +123,6 @@ struct Manager {
         bool suspend_key_ignore_inhibited;
         bool hibernate_key_ignore_inhibited;
         bool lid_switch_ignore_inhibited;
-};
-
-enum {
-        FD_SEAT_UDEV,
-        FD_DEVICE_UDEV,
-        FD_VCSA_UDEV,
-        FD_BUTTON_UDEV,
-        FD_CONSOLE,
-        FD_BUS,
-        FD_IDLE_ACTION,
-        FD_OTHER_BASE
 };
 
 Manager *manager_new(void);
@@ -153,10 +140,6 @@ int manager_add_inhibitor(Manager *m, const char* id, Inhibitor **_inhibitor);
 #ifdef Use_udev
 int manager_process_seat_device(Manager *m, struct udev_device *d);
 int manager_process_button_device(Manager *m, struct udev_device *d);
-
-int manager_dispatch_seat_udev(Manager *m);
-int manager_dispatch_vcsa_udev(Manager *m);
-int manager_dispatch_button_udev(Manager *m);
 #endif
 int manager_dispatch_console(Manager *m);
 int manager_dispatch_idle_action(Manager *m);

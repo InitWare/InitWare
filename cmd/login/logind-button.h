@@ -34,6 +34,7 @@ struct Button {
         char *name;
         char *seat;
         int fd;
+        ev_io watch;
 
         bool lid_close_queued;
 };

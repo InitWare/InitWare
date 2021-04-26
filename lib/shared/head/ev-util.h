@@ -27,6 +27,11 @@ have been included with this software
                 (&watch)->fd = -1; \
         } while (0);
 
+#define ev_io_stop_close_zero(evloop, watch) \
+                ev_io_stop(evloop, watch);           \
+                safe_close((watch)->fd);               \
+                ev_io_zero(*(watch));
+
 /* Clear a timer watch. */
 #define ev_timer_zero(watch) zero(watch)
 

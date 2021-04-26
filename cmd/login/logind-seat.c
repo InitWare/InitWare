@@ -319,9 +319,9 @@ int seat_read_active_vt(Seat *s) {
         if (!seat_has_vts(s))
                 return 0;
 
-        lseek(s->manager->console_active_fd, SEEK_SET, 0);
+        lseek(s->manager->console_active_watch.fd, SEEK_SET, 0);
 
-        k = read(s->manager->console_active_fd, t, sizeof(t)-1);
+        k = read(s->manager->console_active_watch.fd, t, sizeof(t) - 1);
         if (k <= 0) {
                 log_error("Failed to read current console: %s", k < 0 ? strerror(-errno) : "EOF");
                 return k < 0 ? -errno : -EIO;
@@ -453,7 +453,7 @@ void seat_complete_switch(Seat *s) {
 bool seat_has_vts(Seat *s) {
         assert(s);
 
-        return seat_is_seat0(s) && s->manager->console_active_fd >= 0;
+        return seat_is_seat0(s) && s->manager->console_active_watch.fd >= 0;
 }
 
 bool seat_is_seat0(Seat *s) {

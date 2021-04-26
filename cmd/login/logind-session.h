@@ -95,10 +95,10 @@ struct Session {
         pid_t leader;
         uint32_t audit_id;
 
-        int fifo_fd;
+        ev_io fifo_watch;
         char *fifo_path;
 
-        int timer_fd;
+        ev_timer release_timer;
 
         bool idle_hint;
         dual_timestamp idle_hint_timestamp;

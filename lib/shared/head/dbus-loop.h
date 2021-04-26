@@ -23,5 +23,7 @@
 
 #include <dbus/dbus.h>
 
-int bus_loop_open(DBusConnection *c);
+#include "ev-util.h"
+
+int bus_loop_open(struct ev_loop *loop, DBusConnection *c);
 int bus_loop_dispatch(int fd);

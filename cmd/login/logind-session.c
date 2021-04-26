@@ -22,9 +22,7 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/epoll.h>
 #include <fcntl.h>
-#include <sys/timerfd.h>
 
 #include <systemd/sd-id128.h>
 #include <systemd/sd-messages.h>
@@ -88,8 +86,8 @@ Session* session_new(Manager *m, const char *id) {
         }
 
         s->manager = m;
-        s->fifo_fd = -1;
-        s->timer_fd = -1;
+        ev_io_zero(s->fifo_watch);
+        ev_timer_zero(s->release_timer);
 
         return s;
 }
@@ -684,14 +682,11 @@ static int session_unlink_x11_socket(Session *s) {
 static void session_close_timer_fd(Session *s) {
         assert(s);
 
-        if (s->timer_fd < 0)
+        if (!ev_is_active(&s->release_timer))
                 return;
 
-        hashmap_remove(s->manager->timer_fds, INT_TO_PTR(s->timer_fd + 1));
-        epoll_ctl(s->manager->epoll_fd, EPOLL_CTL_DEL, s->timer_fd, NULL);
-
-        close_nointr(s->timer_fd);
-        s->timer_fd = -1;
+        ev_timer_stop(s->manager->evloop, &s->release_timer);
+        ev_timer_zero(s->release_timer);
 }
 
 int session_stop(Session *s) {
@@ -768,54 +763,31 @@ int session_finalize(Session *s) {
         return r;
 }
 
+static void session_release_timer_cb(struct ev_loop * evloop, ev_timer * watch, int revents)
+{
+        Session *s = watch->data;
+        assert(s);
+        session_stop(s);
+}
+
 void session_release(Session *s) {
         int r;
-
-        struct itimerspec its = { .it_value.tv_sec = RELEASE_SEC };
-        struct epoll_event ev = {};
 
         assert(s);
 
         if (!s->started || s->stopping)
                 return;
 
-        if (s->timer_fd >= 0)
+        if (ev_is_active(&s->release_timer))
                 return;
 
-        s->timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK|TFD_CLOEXEC);
-        if (s->timer_fd < 0) {
-                log_error("Failed to create session release timer fd");
-                goto out;
-        }
-
-        r = hashmap_put(s->manager->timer_fds, INT_TO_PTR(s->timer_fd + 1), s);
-        if (r < 0) {
-                log_error("Failed to store session release timer fd");
-                goto out;
-        }
-
-        ev.events = EPOLLONESHOT;
-        ev.data.u32 = FD_OTHER_BASE + s->timer_fd;
-
-        r = epoll_ctl(s->manager->epoll_fd, EPOLL_CTL_ADD, s->timer_fd, &ev);
-        if (r < 0) {
-                log_error("Failed to add session release timer fd to epoll instance");
-                goto out;
-        }
-
-        r = timerfd_settime(s->timer_fd, TFD_TIMER_ABSTIME, &its, NULL);
-        if (r < 0) {
-                log_error("Failed to arm timer : %m");
-                goto out;
-        }
+        ev_timer_init(&s->release_timer, session_release_timer_cb, RELEASE_SEC, 0.);
+        s->release_timer.data = s;
+        r = ev_timer_start(s->manager->evloop, &s->release_timer);
+        if (r < 0)
+                return (void)log_error("Failed to arm session release timer: %s", strerror(-r));
 
         return;
-
-out:
-        if (s->timer_fd >= 0) {
-                close_nointr(s->timer_fd);
-                s->timer_fd = -1;
-        }
 }
 
 bool session_is_active(Session *s) {
@@ -948,6 +920,16 @@ void session_set_idle_hint(Session *s, bool b) {
                              "IdleSinceHintMonotonic\0");
 }
 
+static void fifo_cb(struct ev_loop * loop, ev_io * watch, int revents)
+{
+        Session * s = watch->data;
+
+        assert(s);
+
+        session_remove_fifo(s);
+        session_stop(s);
+}
+
 int session_create_fifo(Session *s) {
         int r;
 
@@ -967,21 +949,17 @@ int session_create_fifo(Session *s) {
         }
 
         /* Open reading side */
-        if (s->fifo_fd < 0) {
-                struct epoll_event ev = {};
+        if (s->fifo_watch.fd < 0) {
+                int fd;
 
-                s->fifo_fd = open(s->fifo_path, O_RDONLY|O_CLOEXEC|O_NDELAY);
-                if (s->fifo_fd < 0)
+                fd = open(s->fifo_path, O_RDONLY|O_CLOEXEC|O_NDELAY);
+                if (fd < 0)
                         return -errno;
 
-                r = hashmap_put(s->manager->session_fds, INT_TO_PTR(s->fifo_fd + 1), s);
-                if (r < 0)
-                        return r;
+                ev_io_init(&s->fifo_watch, fifo_cb, fd, EV_READ);
+                s->fifo_watch.data = s;
 
-                ev.events = 0;
-                ev.data.u32 = FD_OTHER_BASE + s->fifo_fd;
-
-                if (epoll_ctl(s->manager->epoll_fd, EPOLL_CTL_ADD, s->fifo_fd, &ev) < 0)
+                if (ev_io_start(s->manager->evloop, &s->fifo_watch))
                         return -errno;
         }
 
@@ -996,10 +974,8 @@ int session_create_fifo(Session *s) {
 void session_remove_fifo(Session *s) {
         assert(s);
 
-        if (s->fifo_fd >= 0) {
-                assert_se(hashmap_remove(s->manager->session_fds, INT_TO_PTR(s->fifo_fd + 1)) == s);
-                assert_se(epoll_ctl(s->manager->epoll_fd, EPOLL_CTL_DEL, s->fifo_fd, NULL) == 0);
-                s->fifo_fd = safe_close(s->fifo_fd);
+        if (s->fifo_watch.fd >= 0) {
+                ev_io_stop_close_zero(s->manager->evloop, &s->fifo_watch);
 
                 session_save(s);
                 user_save(s->user);
@@ -1021,8 +997,8 @@ int session_check_gc(Session *s, bool drop_not_started) {
         if (!s->user)
                 return 0;
 
-        if (s->fifo_fd >= 0) {
-                if (pipe_eof(s->fifo_fd) <= 0)
+        if (s->fifo_watch.fd >= 0) {
+                if (pipe_eof(s->fifo_watch.fd) <= 0)
                         return 1;
         }
 
@@ -1048,7 +1024,7 @@ void session_add_to_gc_queue(Session *s) {
 SessionState session_get_state(Session *s) {
         assert(s);
 
-        if (s->stopping || s->timer_fd >= 0)
+        if (s->stopping || ev_is_active(&s->release_timer))
                 return SESSION_CLOSING;
 
         if (s->closing)
