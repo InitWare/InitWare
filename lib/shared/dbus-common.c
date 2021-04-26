@@ -19,15 +19,14 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <assert.h>
 #include <sys/socket.h>
+#include <assert.h>
+#include <dbus/dbus.h>
 #include <errno.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <dbus/dbus.h>
 #include <string.h>
-#include <sys/epoll.h>
+#include <unistd.h>
 
 #include "log.h"
 #include "dbus-common.h"
@@ -852,41 +851,6 @@ oom:
                 dbus_message_unref(m);
 
         return NULL;
-}
-
-uint32_t bus_flags_to_events(DBusWatch *bus_watch) {
-        unsigned flags;
-        uint32_t events = 0;
-
-        assert(bus_watch);
-
-        /* no watch flags for disabled watches */
-        if (!dbus_watch_get_enabled(bus_watch))
-                return 0;
-
-        flags = dbus_watch_get_flags(bus_watch);
-
-        if (flags & DBUS_WATCH_READABLE)
-                events |= EPOLLIN;
-        if (flags & DBUS_WATCH_WRITABLE)
-                events |= EPOLLOUT;
-
-        return events | EPOLLHUP | EPOLLERR;
-}
-
-unsigned bus_events_to_flags(uint32_t events) {
-        unsigned flags = 0;
-
-        if (events & EPOLLIN)
-                flags |= DBUS_WATCH_READABLE;
-        if (events & EPOLLOUT)
-                flags |= DBUS_WATCH_WRITABLE;
-        if (events & EPOLLHUP)
-                flags |= DBUS_WATCH_HANGUP;
-        if (events & EPOLLERR)
-                flags |= DBUS_WATCH_ERROR;
-
-        return flags;
 }
 
 int bus_parse_strv(DBusMessage *m, char ***_l) {

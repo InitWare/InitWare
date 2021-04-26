@@ -20,11 +20,11 @@ have been included with this software
  */
 
 #ifndef DBUS_LOOP_LIBEV_H
-#        define DBUS_LOOP_LIBEV_H_
+#define DBUS_LOOP_LIBEV_H_
 
-#        include <dbus/dbus.h>
+#include <dbus/dbus.h>
 
-#        include "ev-util.h"
+#include "ev-util.h"
 
 dbus_bool_t bus_add_watch(DBusWatch *watch, void *data);
 void bus_remove_watch(DBusWatch *watch, void *data);

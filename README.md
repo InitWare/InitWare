@@ -79,8 +79,6 @@ platform support.
 
 - D-Bus 1.4+
 - On all BSD platforms:
-    - *[libepoll-shim](https://github.com/jiixyj/epoll-shim)* v0.0.20210310+
-      (provided as `libepoll-shim` in Ports)
     - *[libinotify-kqueue](https://github.com/libinotify-kqueue/libinotify-kqueue)*
       v0.0.20180201+ (provided as `libinotify` in Ports, pkgsrc, and OpenPorts)
 

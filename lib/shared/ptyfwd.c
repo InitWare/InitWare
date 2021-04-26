@@ -19,8 +19,6 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/epoll.h>
-#include <sys/signalfd.h>
 #include <sys/ioctl.h>
 #include <limits.h>
 #include <termios.h>
@@ -29,6 +27,7 @@
 #include "ptyfwd.h"
 
 int process_pty(int master, sigset_t *mask, pid_t kill_pid, int signo) {
+#if 0 // FIXME: de-epollify
         char in_buffer[LINE_MAX], out_buffer[LINE_MAX];
         size_t in_buffer_full = 0, out_buffer_full = 0;
         struct epoll_event stdin_ev, stdout_ev, master_ev, signal_ev;
@@ -249,4 +248,5 @@ int process_pty(int master, sigset_t *mask, pid_t kill_pid, int signo) {
                         }
                 }
         }
+#endif
 }

@@ -18,18 +18,17 @@
   You should have received a copy of the GNU Lesser General Public License
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
-#include <stdbool.h>
-#include <termios.h>
-#include <unistd.h>
-#include <sys/poll.h>
 #include <sys/inotify.h>
+#include <sys/poll.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/socket.h>
-#include <string.h>
-#include <sys/un.h>
+#include <stdbool.h>
 #include <stddef.h>
-#include <sys/signalfd.h>
+#include <string.h>
+#include <termios.h>
+#include <unistd.h>
 
 #include "util.h"
 #include "mkdir.h"
@@ -354,11 +353,13 @@ int ask_password_agent(
 
         fd = -1;
 
+#if 0 // FIXME: de-epollify
         if ((signal_fd = signalfd(-1, &mask, SFD_NONBLOCK|SFD_CLOEXEC)) < 0) {
                 log_error("signalfd(): %m");
                 r = -errno;
                 goto finish;
         }
+#endif
 
         if ((socket_fd = create_socket(&socket_name)) < 0) {
                 r = socket_fd;
