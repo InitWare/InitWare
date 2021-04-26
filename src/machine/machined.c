@@ -28,12 +28,12 @@
 
 #include <systemd/sd-daemon.h>
 
-#include "machined.h"
-#include "dbus-common.h"
-#include "dbus-loop.h"
-#include "strv.h"
 #include "conf-parser.h"
+#include "dbus-common.h"
+#include "dbus-loop-libev.h"
+#include "machined.h"
 #include "mkdir.h"
+#include "strv.h"
 
 Manager *manager_new(void) {
         Manager *m;

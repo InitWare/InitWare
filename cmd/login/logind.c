@@ -28,7 +28,7 @@
 
 #include "conf-parser.h"
 #include "dbus-common.h"
-#include "dbus-loop.h"
+#include "dbus-loop-libev.h"
 #include "ev-util.h"
 #include "logind.h"
 #include "mkdir.h"

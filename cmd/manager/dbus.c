@@ -1,5 +1,20 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
+/*******************************************************************
 
+        LICENCE NOTICE
+
+These coded instructions, statements, and computer programs are part
+of the  InitWare Suite of Middleware,  and  they are protected under
+copyright law. They may not be distributed,  copied,  or used except
+under the provisions of  the  terms  of  the  Library General Public
+Licence version 2.1 or later, in the file "LICENSE.md", which should
+have been included with this software
+
+        Copyright Notice
+
+    (c) 2021 David Mackay
+        All rights reserved.
+
+*********************************************************************/
 /***
   This file is part of systemd.
 
@@ -25,27 +40,28 @@
 
 #include "ev.h"
 
+#include "bus-errors.h"
+#include "dbus-automount.h"
+#include "dbus-common.h"
+#include "dbus-device.h"
+#include "dbus-job.h"
+#include "dbus-loop-libev.h"
+#include "dbus-manager.h"
+#include "dbus-mount.h"
+#include "dbus-path.h"
+#include "dbus-service.h"
+#include "dbus-snapshot.h"
+#include "dbus-socket.h"
+#include "dbus-swap.h"
+#include "dbus-target.h"
+#include "dbus-timer.h"
+#include "dbus-unit.h"
 #include "dbus.h"
 #include "log.h"
-#include "strv.h"
-#include "mkdir.h"
 #include "missing.h"
-#include "dbus-unit.h"
-#include "dbus-job.h"
-#include "dbus-manager.h"
-#include "dbus-service.h"
-#include "dbus-socket.h"
-#include "dbus-target.h"
-#include "dbus-device.h"
-#include "dbus-mount.h"
-#include "dbus-automount.h"
-#include "dbus-snapshot.h"
-#include "dbus-swap.h"
-#include "dbus-timer.h"
-#include "dbus-path.h"
-#include "bus-errors.h"
+#include "mkdir.h"
 #include "special.h"
-#include "dbus-common.h"
+#include "strv.h"
 
 #define CONNECTIONS_MAX 512
 
@@ -98,151 +114,6 @@ static void bus_dispatch_status(DBusConnection *bus, DBusDispatchStatus status, 
         else
                 set_move_one(m->bus_connections_for_dispatch, m->bus_connections, bus);
 }
-
-#pragma region Events
-
-static void bus_io_cb(struct ev_loop *evloop, ev_io *ev, int revents)
-{
-        DBusWatchFlags flags = 0;
-        DBusWatch *watch = (DBusWatch *) ev->data;
-
-        if (revents & EV_READ)
-                flags |= DBUS_WATCH_READABLE;
-        if (revents & EV_WRITE)
-                flags |= DBUS_WATCH_WRITABLE;
-
-        if (!dbus_watch_get_enabled(watch))
-                return;
-        dbus_watch_handle(watch, flags);
-}
-
-static dbus_bool_t bus_add_watch(DBusWatch *watch, void *data)
-{
-        Manager *m = data;
-        ev_io *ev;
-        unsigned watchflags;
-        int events = 0;
-
-        assert(watch);
-        assert(m);
-
-        if (!(ev = new0(ev_io, 1)))
-                return FALSE;
-
-        watchflags = dbus_watch_get_flags(watch);
-        if (watchflags & DBUS_WATCH_READABLE)
-                events |= EV_READ;
-        if (watchflags & DBUS_WATCH_WRITABLE)
-                events |= EV_WRITE;
-
-        ev_io_init(ev, bus_io_cb, dbus_watch_get_unix_fd(watch), events);
-        ev->data = watch;
-
-        if (dbus_watch_get_enabled(watch))
-                ev_io_start(m->evloop, ev);
-
-        dbus_watch_set_data(watch, ev, NULL);
-
-        return TRUE;
-}
-
-static void bus_remove_watch(DBusWatch *watch, void *data)
-{
-        Manager *m = data;
-        ev_io *ev;
-
-        ev = dbus_watch_get_data(watch);
-        assert(ev);
-        assert(m);
-
-        ev_io_stop(m->evloop, ev);
-        free(ev);
-
-        /* safe_close(w->fd); */
-}
-
-static void bus_toggle_watch(DBusWatch *watch, void *data)
-{
-        Manager *m = data;
-        ev_io *ev;
-
-        ev = dbus_watch_get_data(watch);
-        assert(ev);
-        assert(m);
-
-        if (dbus_watch_get_enabled(watch))
-                ev_io_start(m->evloop, ev);
-        else
-                ev_io_stop(m->evloop, ev);
-}
-
-static void bus_timer_cb(struct ev_loop *evloop, ev_timer *timer, int revents)
-{
-        DBusTimeout *timeout = timer->data;
-
-        if (!(dbus_timeout_get_enabled(timeout)))
-                return;
-
-        dbus_timeout_handle(timeout);
-}
-
-static dbus_bool_t bus_add_timeout(DBusTimeout *timeout, void *data)
-{
-        Manager *m = data;
-        ev_timer *timer;
-        double interval;
-
-        assert(timer);
-        assert(m);
-
-        if (!(timer = new0(ev_timer, 1)))
-                return FALSE;
-
-        interval = dbus_timeout_get_interval(timeout) / 1000.0;
-
-        ev_timer_init(timer, bus_timer_cb, interval, interval);
-        timer->data = timeout;
-
-        if (dbus_timeout_get_enabled(timeout))
-                ev_timer_start(m->evloop, timer);
-
-        dbus_timeout_set_data(timeout, timer, NULL);
-
-        return TRUE;
-}
-
-static void bus_remove_timeout(DBusTimeout *timeout, void *data)
-{
-        Manager *m = data;
-        ev_timer *timer;
-
-        timer = dbus_timeout_get_data(timeout);
-        assert(timer);
-        assert(m);
-
-        ev_timer_stop(m->evloop, timer);
-        free(timer);
-}
-
-static void bus_toggle_timeout(DBusTimeout *timeout, void *data)
-{
-        Manager *m = data;
-        ev_timer *timer;
-
-        timer = dbus_timeout_get_data(timeout);
-        assert(timer);
-        assert(m);
-
-        ev_timer_stop(m->evloop, timer);
-
-        if (dbus_timeout_get_enabled(timeout)) {
-                double interval = dbus_timeout_get_interval(timeout) / 1000.0;
-                ev_timer_set(timer, interval, interval);
-                ev_timer_start(m->evloop, timer);
-        }
-}
-
-#pragma endregion
 
 static DBusHandlerResult api_bus_message_filter(DBusConnection *connection, DBusMessage *message, void *data) {
         Manager *m = data;
@@ -668,8 +539,7 @@ static int bus_setup_loop(Manager *m, DBusConnection *bus) {
 
         dbus_connection_set_exit_on_disconnect(bus, FALSE);
 
-        if (!dbus_connection_set_watch_functions(bus, bus_add_watch, bus_remove_watch, bus_toggle_watch, m, NULL) ||
-            !dbus_connection_set_timeout_functions(bus, bus_add_timeout, bus_remove_timeout, bus_toggle_timeout, m, NULL))
+        if (bus_loop_open(m->evloop, bus) < 0)
                 return log_oom();
 
         if (set_put(m->bus_connections_for_dispatch, bus) < 0)
@@ -1055,9 +925,11 @@ static int bus_init_private(Manager *m) {
                 goto fail;
         }
 
-        if (!dbus_server_set_auth_mechanisms(m->private_bus, (const char**) external_only) ||
-            !dbus_server_set_watch_functions(m->private_bus, bus_add_watch, bus_remove_watch, bus_toggle_watch, m, NULL) ||
-            !dbus_server_set_timeout_functions(m->private_bus, bus_add_timeout, bus_remove_timeout, bus_toggle_timeout, m, NULL)) {
+        if (!dbus_server_set_auth_mechanisms(m->private_bus, (const char **) external_only) ||
+            !dbus_server_set_watch_functions(
+                    m->private_bus, bus_add_watch, bus_remove_watch, bus_toggle_watch, m->evloop, NULL) ||
+            !dbus_server_set_timeout_functions(
+                    m->private_bus, bus_add_timeout, bus_remove_timeout, bus_toggle_timeout, m->evloop, NULL)) {
                 r = log_oom();
                 goto fail;
         }

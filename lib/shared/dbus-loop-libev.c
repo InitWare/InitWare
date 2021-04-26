@@ -12,16 +12,13 @@ have been included with this software
     (c) 2021 David Mackay
         All rights reserved.
 *********************************************************************/
-/**
- * D-Bus integration for libev.
- */
 
 #include <assert.h>
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
 
-#include "dbus-loop.h"
+#include "dbus-loop-libev.h"
 #include "ev-util.h"
 #include "util.h"
 
@@ -40,7 +37,7 @@ static void bus_io_cb(struct ev_loop *evloop, ev_io *ev, int revents)
         dbus_watch_handle(watch, flags);
 }
 
-static dbus_bool_t bus_add_watch(DBusWatch *watch, void *data)
+dbus_bool_t bus_add_watch(DBusWatch *watch, void *data)
 {
         struct ev_loop *evloop = data;
         ev_io *ev;
@@ -70,7 +67,7 @@ static dbus_bool_t bus_add_watch(DBusWatch *watch, void *data)
         return TRUE;
 }
 
-static void bus_remove_watch(DBusWatch *watch, void *data)
+void bus_remove_watch(DBusWatch *watch, void *data)
 {
         struct ev_loop *evloop = data;
         ev_io *ev;
@@ -85,7 +82,7 @@ static void bus_remove_watch(DBusWatch *watch, void *data)
         /* safe_close(w->fd); */
 }
 
-static void bus_toggle_watch(DBusWatch *watch, void *data)
+void bus_toggle_watch(DBusWatch *watch, void *data)
 {
         struct ev_loop *evloop = data;
         ev_io *ev;
@@ -110,7 +107,7 @@ static void bus_timer_cb(struct ev_loop *evloop, ev_timer *timer, int revents)
         dbus_timeout_handle(timeout);
 }
 
-static dbus_bool_t bus_add_timeout(DBusTimeout *timeout, void *data)
+dbus_bool_t bus_add_timeout(DBusTimeout *timeout, void *data)
 {
         struct ev_loop *evloop = data;
         ev_timer *timer;
@@ -134,7 +131,7 @@ static dbus_bool_t bus_add_timeout(DBusTimeout *timeout, void *data)
         return TRUE;
 }
 
-static void bus_remove_timeout(DBusTimeout *timeout, void *data)
+void bus_remove_timeout(DBusTimeout *timeout, void *data)
 {
         struct ev_loop *evloop = data;
         ev_timer *timer;
@@ -147,7 +144,7 @@ static void bus_remove_timeout(DBusTimeout *timeout, void *data)
         free(timer);
 }
 
-static void bus_toggle_timeout(DBusTimeout *timeout, void *data)
+void bus_toggle_timeout(DBusTimeout *timeout, void *data)
 {
         struct ev_loop *evloop = data;
         ev_timer *timer;
@@ -172,7 +169,7 @@ int bus_loop_open(struct ev_loop *evloop, DBusConnection *c)
                     c, bus_add_watch, bus_remove_watch, bus_toggle_watch, evloop, NULL) ||
             !dbus_connection_set_timeout_functions(
                     c, bus_add_timeout, bus_remove_timeout, bus_toggle_timeout, evloop, NULL))
-                return log_oom();
+                return -ENOMEM;
 
         return 0;
 }
