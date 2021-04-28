@@ -432,6 +432,14 @@ struct UnitVTable {
         /* Called whenever CLOCK_REALTIME made a jump */
         void (*time_change)(Unit *u);
 
+        /**
+         * Checks whether a unit has a timeout, and if so, sets \p timeout to
+         * the absolute timeout time of the unit.
+         * @returns 0 if the unit has no timeout.
+         * @returns 1 if the unit has a timeout.
+         */
+        int (*get_timeout)(Unit *u, usec_t *timeout);
+
         /* This is called for each unit type and should be used to
          * enumerate existing devices and load them. However,
          * everything that is loaded here should still stay in

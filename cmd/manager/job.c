@@ -883,11 +883,14 @@ void job_timer_cb(struct ev_loop *evloop, ev_timer *watch, int revents)
 
 int job_start_timer(Job *j)
 {
-
-        if (j->unit->job_timeout <= 0 || ev_is_active(&j->timer_watch))
+        if (ev_is_active(&j->timer_watch))
                 return 0;
 
         j->begin_usec = now(CLOCK_MONOTONIC);
+
+        if (j->unit->job_timeout <= 0)
+                return 0;
+
         ev_timer_init(&j->timer_watch, job_timer_cb, j->unit->job_timeout / USEC_PER_SEC, 0.);
         j->timer_watch.data = j;
         ev_timer_start(j->manager->evloop, &j->timer_watch);
@@ -1043,7 +1046,7 @@ int job_coldplug(Job *j) {
         if (j->state == JOB_WAITING)
                 job_add_to_run_queue(j);
 
-        if (j->begin_usec <= 0)
+        if (j->begin_usec == 0 | j->unit->job_timeout == 0)
                 return 0;
 
         if (ev_is_active(&j->timer_watch))
@@ -1089,6 +1092,34 @@ void job_shutdown_magic(Job *j) {
                 return;
 
         asynchronous_sync();
+}
+
+int job_get_timeout(Job *j, usec_t *timeout)
+{
+        Unit *u = j->unit;
+        usec_t x = -1, y = -1;
+        int r;
+
+        assert(u);
+
+        if (ev_is_active(&j->timer_watch)) {
+                *timeout = (ev_timer_remaining(j->manager->evloop, &j->timer_watch) +
+                            ev_now(j->manager->evloop)) * USEC_PER_SEC;
+                r = 1;
+        }
+
+        if (UNIT_VTABLE(u)->get_timeout) {
+                r = UNIT_VTABLE(u)->get_timeout(u, &y);
+                if (r < 0)
+                        return r;
+        }
+
+        if (x == -1 && y == -1)
+                return 0;
+
+        *timeout = MIN(x, y);
+
+        return 1;
 }
 
 static const char* const job_state_table[_JOB_STATE_MAX] = {

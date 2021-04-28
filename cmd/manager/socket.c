@@ -2515,6 +2515,20 @@ static int socket_kill(Unit *u, KillWho who, int signo, DBusError *error) {
         return unit_kill_common(u, who, signo, -1, SOCKET(u)->control_pid, error);
 }
 
+static int socket_get_timeout(Unit *u, usec_t *timeout)
+{
+        Socket *s = SOCKET(u);
+        int r;
+
+        if (!ev_is_active(&s->timer_watch))
+                return 0;
+
+        *timeout = (ev_now(u->manager->evloop) + ev_timer_remaining(u->manager->evloop, &s->timer_watch)) *
+                USEC_PER_SEC;
+
+        return 1;
+}
+
 static const char* const socket_state_table[_SOCKET_STATE_MAX] = {
         [SOCKET_DEAD] = "dead",
         [SOCKET_START_PRE] = "start-pre",
@@ -2581,6 +2595,8 @@ const UnitVTable socket_vtable = {
 
         .start = socket_start,
         .stop = socket_stop,
+
+        .get_timeout = socket_get_timeout,
 
         .serialize = socket_serialize,
         .deserialize_item = socket_deserialize_item,

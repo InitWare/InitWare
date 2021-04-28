@@ -3582,6 +3582,20 @@ static void service_notify_message(Unit *u, pid_t pid, char **tags) {
         unit_add_to_dbus_queue(u);
 }
 
+static int service_get_timeout(Unit *u, usec_t *timeout)
+{
+        Service *s = SERVICE(s);
+        int r;
+
+        if (!ev_is_active(&s->timer_watch))
+                return 0;
+
+        *timeout = (ev_now(u->manager->evloop) + ev_timer_remaining(u->manager->evloop, &s->timer_watch)) *
+                USEC_PER_SEC;
+
+        return 1;
+}
+
 #ifdef HAVE_SYSV_COMPAT
 
 static int service_enumerate(Manager *m) {

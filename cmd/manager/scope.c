@@ -349,6 +349,21 @@ static int scope_kill(Unit *u, KillWho who, int signo, DBusError *error) {
         return unit_kill_common(u, who, signo, -1, -1, error);
 }
 
+static int scope_get_timeout(Unit *u, usec_t *timeout)
+{
+        Scope *s = SCOPE(u);
+        int r;
+
+        if (!ev_is_active(&s->timer_watch))
+                return 0;
+
+
+        *timeout = (ev_now(u->manager->evloop) + ev_timer_remaining(u->manager->evloop, &s->timer_watch)) *
+                USEC_PER_SEC;
+
+        return 1;
+}
+
 static int scope_serialize(Unit *u, FILE *f, FDSet *fds) {
         Scope *s = SCOPE(u);
 
@@ -549,6 +564,8 @@ const UnitVTable scope_vtable = {
         .stop = scope_stop,
 
         .kill = scope_kill,
+
+        .get_timeout = scope_get_timeout,
 
         .serialize = scope_serialize,
         .deserialize_item = scope_deserialize_item,

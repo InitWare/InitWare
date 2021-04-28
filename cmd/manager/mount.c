@@ -1635,6 +1635,19 @@ static void mount_io_cb()
         mount_fd_event(m, ev->events);
 }
 
+static int mount_get_timeout(Unit *u, usec_t *timeout)
+{
+        Mount *m = MOUNT(u);
+        int r;
+
+        if (!ev_is_active(&m->timer_watch))
+                return 0;
+
+        *timeout = (ev_now(u->manager) + ev_timer_remaining(u->manager, &m->timer_watch)) * USEC_PER_SEC;
+
+        return 1;
+}
+
 static int mount_enumerate(Manager *m) {
         int r;
         assert(m);
@@ -1848,6 +1861,8 @@ const UnitVTable mount_vtable = {
         .bus_invalidating_properties =  bus_mount_invalidating_properties,
         .bus_set_property = bus_mount_set_property,
         .bus_commit_properties = bus_mount_commit_properties,
+
+        .get_timeout = mount_get_timeout,
 
         .enumerate = mount_enumerate,
         .shutdown = mount_shutdown,

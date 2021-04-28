@@ -13,7 +13,6 @@ have been included with this software
         All rights reserved.
 *********************************************************************/
 
-
 #include "ptgroup.h"
 #include "cjson-util.h"
 #include "special.h"

@@ -19,7 +19,7 @@ have been included with this software
  * D-Bus integration for libev.
  */
 
-#ifndef DBUS_LOOP_LIBEV_H
+#ifndef DBUS_LOOP_LIBEV_H_
 #define DBUS_LOOP_LIBEV_H_
 
 #include <dbus/dbus.h>

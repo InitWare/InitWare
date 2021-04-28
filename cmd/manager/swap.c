@@ -1275,6 +1275,20 @@ static int swap_kill(Unit *u, KillWho who, int signo, DBusError *error) {
         return unit_kill_common(u, who, signo, -1, SWAP(u)->control_pid, error);
 }
 
+static int swap_get_timeout(Unit *u, usec_t *timeout)
+{
+        Swap *s = SWAP(u);
+        int r;
+
+        if (!ev_is_active(&s->timer_watch))
+                return 0;
+
+        *timeout = (ev_now(u->manager) + ev_timer_remaining(u->manager->evloop, &s->timer_watch)) *
+                USEC_PER_SEC;
+
+        return 1;
+}
+
 static const char* const swap_state_table[_SWAP_STATE_MAX] = {
         [SWAP_DEAD] = "dead",
         [SWAP_ACTIVATING] = "activating",
