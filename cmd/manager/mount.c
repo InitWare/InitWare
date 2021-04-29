@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -22,9 +20,9 @@
 #include <errno.h>
 #include <stdio.h>
 #include <mntent.h>
-#include <sys/epoll.h>
 #include <signal.h>
 
+#include "ev-util.h"
 #include "manager.h"
 #include "unit.h"
 #include "mount.h"
@@ -1630,9 +1628,9 @@ static void mount_shutdown(Manager *m) {
         }
 }
 
-static void mount_io_cb()
+static void mount_io_cb(struct ev_loop * evloop, ev_io * watch, int revents)
 {
-        mount_fd_event(m, ev->events);
+        mount_fd_event(watch->data, revents);
 }
 
 static int mount_get_timeout(Unit *u, usec_t *timeout)
@@ -1643,7 +1641,8 @@ static int mount_get_timeout(Unit *u, usec_t *timeout)
         if (!ev_is_active(&m->timer_watch))
                 return 0;
 
-        *timeout = (ev_now(u->manager) + ev_timer_remaining(u->manager, &m->timer_watch)) * USEC_PER_SEC;
+        *timeout = ev_tstamp_to_usec(
+                ev_now(u->manager->evloop) + ev_timer_remaining(u->manager->evloop, &m->timer_watch));
 
         return 1;
 }
@@ -1653,19 +1652,14 @@ static int mount_enumerate(Manager *m) {
         assert(m);
 
         if (!m->proc_self_mountinfo) {
-                struct epoll_event ev = {
-                        .events = EPOLLPRI,
-                        .data.ptr = &m->mount_watch,
-                };
 
                 m->proc_self_mountinfo = fopen("/proc/self/mountinfo", "re");
                 if (!m->proc_self_mountinfo)
                         return -errno;
 
-                m->mount_watch.type = WATCH_MOUNT;
-                m->mount_watch.fd = fileno(m->proc_self_mountinfo);
+                ev_io_init(&m->mount_watch, mount_io_cb, fileno(m->proc_self_mountinfo), EV_READ);
 
-                if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->mount_watch.fd, &ev) < 0)
+                if (ev_io_start(m->evloop, &m->mount_watch) < 0)
                         return -errno;
         }
 
@@ -1685,7 +1679,6 @@ void mount_fd_event(Manager *m, int events) {
         int r;
 
         assert(m);
-        assert(events & EPOLLPRI);
 
         /* The manager calls this for every fd event happening on the
          * /proc/self/mountinfo file, which informs us about mounting

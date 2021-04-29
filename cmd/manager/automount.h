@@ -50,7 +50,7 @@ struct Automount {
 
         int pipe_fd;
         mode_t directory_mode;
-        Watch pipe_watch;
+        ev_io pipe_watch;
         dev_t dev_id;
 
         Set *tokens;

@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -28,6 +26,7 @@
 #include <limits.h>
 #include <unistd.h>
 
+#include "ev-util.h"
 #include "unit.h"
 #include "automount.h"
 #include "mount.h"
@@ -57,8 +56,8 @@ static void automount_init(Unit *u) {
         assert(u);
         assert(u->load_state == UNIT_STUB);
 
-        a->pipe_watch.fd = a->pipe_fd = -1;
-        a->pipe_watch.type = WATCH_INVALID;
+        ev_io_zero(a->pipe_watch);
+        a->pipe_fd = -1;
 
         a->directory_mode = 0755;
 

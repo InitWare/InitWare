@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -28,6 +26,7 @@
 #include <sys/swap.h>
 #include <libudev.h>
 
+#include "ev-util.h"
 #include "unit.h"
 #include "swap.h"
 #include "load-fragment.h"
@@ -96,7 +95,7 @@ static void swap_init(Unit *u) {
 
         s->parameters_proc_swaps.priority = s->parameters_fragment.priority = -1;
 
-        s->timer_watch.type = WATCH_INVALID;
+        ev_timer_zero(s->timer_watch);
 
         s->control_command_id = _SWAP_EXEC_COMMAND_INVALID;
 
@@ -1066,21 +1065,19 @@ static int swap_load_proc_swaps(Manager *m, bool set_flags) {
         return r;
 }
 
-static int open_proc_swaps(Manager *m) {
-        if (!m->proc_swaps) {
-                struct epoll_event ev = {
-                        .events = EPOLLPRI,
-                        .data.ptr = &m->swap_watch,
-                };
+static void swap_io_cb(struct ev_loop *evloop, ev_io *watch, int revents)
+{}
 
+static int open_proc_swaps(Manager *m)
+{
+        if (!m->proc_swaps) {
                 m->proc_swaps = fopen("/proc/swaps", "re");
                 if (!m->proc_swaps)
                         return -errno;
 
-                m->swap_watch.type = WATCH_SWAP;
-                m->swap_watch.fd = fileno(m->proc_swaps);
+                ev_io_init(&m->swap_watch, swap_io_cb, fileno(m->proc_swaps), EV_READ);
 
-                if (epoll_ctl(m->epoll_fd, EPOLL_CTL_ADD, m->swap_watch.fd, &ev) < 0)
+                if (ev_io_start(m->evloop, &m->swap_watch) < 0)
                         return -errno;
         }
 
@@ -1283,8 +1280,8 @@ static int swap_get_timeout(Unit *u, usec_t *timeout)
         if (!ev_is_active(&s->timer_watch))
                 return 0;
 
-        *timeout = (ev_now(u->manager) + ev_timer_remaining(u->manager->evloop, &s->timer_watch)) *
-                USEC_PER_SEC;
+        *timeout = ev_tstamp_to_usec(
+                ev_now(u->manager->evloop) + ev_timer_remaining(u->manager->evloop, &s->timer_watch));
 
         return 1;
 }
