@@ -1,7 +1,20 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
+/*******************************************************************
 
-#pragma once
+        LICENCE NOTICE
 
+These coded instructions, statements, and computer programs are part
+of the  InitWare Suite of Middleware,  and  they are protected under
+copyright law. They may not be distributed,  copied,  or used except
+under the provisions of  the  terms  of  the  Library General Public
+Licence version 2.1 or later, in the file "LICENSE.md", which should
+have been included with this software
+
+        Copyright Notice
+
+    (c) 2021 David Mackay
+        All rights reserved.
+
+*********************************************************************/
 /***
   This file is part of systemd.
 
@@ -21,8 +34,13 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#ifndef TIME_UTIL_H
+#define TIME_UTIL_H
+
 #include <stdio.h>
 #include <inttypes.h>
+
+#include "ev.h"
 
 typedef uint64_t usec_t;
 typedef uint64_t nsec_t;
@@ -64,6 +82,16 @@ dual_timestamp* dual_timestamp_get(dual_timestamp *ts);
 dual_timestamp* dual_timestamp_from_realtime(dual_timestamp *ts, usec_t u);
 dual_timestamp* dual_timestamp_from_monotonic(dual_timestamp *ts, usec_t u);
 
+static inline usec_t ev_tstamp_to_usec(ev_tstamp tstamp)
+{
+        return tstamp * (double) USEC_PER_SEC;
+}
+
+static inline ev_tstamp usec_to_ev_tstamp(usec_t usecs)
+{
+        return (ev_tstamp) usecs / (ev_tstamp) USEC_PER_SEC;
+}
+
 static inline bool dual_timestamp_is_set(dual_timestamp *ts) {
         return ((ts->realtime > 0 && ts->realtime != (usec_t) -1) ||
                 (ts->monotonic > 0 && ts->monotonic != (usec_t) -1));
@@ -87,3 +115,5 @@ int parse_timestamp(const char *t, usec_t *usec);
 
 int parse_sec(const char *t, usec_t *usec);
 int parse_nsec(const char *t, nsec_t *nsec);
+
+#endif

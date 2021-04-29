@@ -28,4 +28,3 @@ BusName=org.freedesktop.login1
 # Increase the default a bit in order to allow many simultaneous
 # logins since we keep one fd open per session.
 LimitNOFILE=16384
-StandardOutput=tty

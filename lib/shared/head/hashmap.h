@@ -124,8 +124,10 @@ char **hashmap_get_strv(Hashmap *h);
 #define HASHMAP_FOREACH(e, h, i) \
         for ((i) = ITERATOR_FIRST, (e) = hashmap_iterate((h), &(i), NULL); (e); (e) = hashmap_iterate((h), &(i), NULL))
 
-#define HASHMAP_FOREACH_KEY(e, k, h, i) \
-        for ((i) = ITERATOR_FIRST, (e) = hashmap_iterate((h), &(i), (const void**) &(k)); (e); (e) = hashmap_iterate((h), &(i), (const void**) &(k)))
+#define HASHMAP_FOREACH_KEY(element, key, hashmap, iterator) \
+        for ((iterator) = ITERATOR_FIRST, (element) = hashmap_iterate((hashmap), &(iterator), (const void**) &(key)); \
+                (element); \
+                (element) = hashmap_iterate((hashmap), &(iterator), (const void**) &(key)))
 
 #define HASHMAP_FOREACH_BACKWARDS(e, h, i) \
         for ((i) = ITERATOR_LAST, (e) = hashmap_iterate_backwards((h), &(i), NULL); (e); (e) = hashmap_iterate_backwards((h), &(i), NULL))

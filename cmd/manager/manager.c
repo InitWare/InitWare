@@ -297,7 +297,8 @@ static void manager_print_jobs_in_progress(Manager *m) {
                 if (asprintf(&job_of_n, "(%u of %u) ", counter, m->n_running_jobs) < 0)
                         job_of_n = NULL;
 
-        format_timespan(time, sizeof(time), now(CLOCK_MONOTONIC) - j->begin_usec, 1*USEC_PER_SEC);
+        format_timespan(time, sizeof(time),
+                ev_tstamp_to_usec(ev_now(m->evloop)) - j->begin_usec, 1*USEC_PER_SEC);
         if (job_get_timeout(j, &x) > 0)
                 format_timespan(limit, sizeof(limit), x - j->begin_usec, 1*USEC_PER_SEC);
 

@@ -886,7 +886,7 @@ int job_start_timer(Job *j)
         if (ev_is_active(&j->timer_watch))
                 return 0;
 
-        j->begin_usec = now(CLOCK_MONOTONIC);
+        j->begin_usec = ev_tstamp_to_usec(ev_now(j->manager->evloop));
 
         if (j->unit->job_timeout <= 0)
                 return 0;
@@ -948,7 +948,7 @@ int job_serialize(Job *j, FILE *f, FDSet *fds) {
         fprintf(f, "job-forgot-bus-clients=%s\n",
                 yes_no(j->forgot_bus_clients || j->bus_client_list));
         if (j->begin_usec > 0)
-                fprintf(f, "job-begin=%llu", (unsigned long long) j->begin_usec);
+                fprintf(f, "job-begin=%llu\n", (unsigned long long) j->begin_usec);
 
         /* End marker */
         fputc('\n', f);

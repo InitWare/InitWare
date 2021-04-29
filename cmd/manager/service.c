@@ -3584,7 +3584,7 @@ static void service_notify_message(Unit *u, pid_t pid, char **tags) {
 
 static int service_get_timeout(Unit *u, usec_t *timeout)
 {
-        Service *s = SERVICE(s);
+        Service *s = SERVICE(u);
         int r;
 
         if (!ev_is_active(&s->timer_watch))
