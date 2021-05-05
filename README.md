@@ -68,7 +68,7 @@ The following platforms are supported:
 - FreeBSD (13.0+) as user manager.
 - GNU/Linux (3.6+) as system, user, and login manage, but note below that
   this is not currently set up to build.
-- 
+
 *n.b.* GNU/Linux support is complete but the new CMake build system for
 InitWare hasn't been adapted for Linux yet. This will be completed in the
 near future.
