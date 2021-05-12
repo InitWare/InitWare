@@ -53,8 +53,8 @@ InitWare differs from systemd in three principal manners:
 3. InitWare is of significantly smaller scope, concerning itself only with
    system, service, session, and login management.
 
-The [Roadmap](wiki/Roadmap) details some plans for the future development of
-the InitWare Suite.
+The [Roadmap](https://github.com/InitWare/InitWare/wiki/Roadmap) details some plans
+for the future development of the InitWare Suite.
 
 
 Platform Support
@@ -66,8 +66,12 @@ The following platforms are supported:
   are all supported.
 - DragonFly BSD (5.8+) as user manager.
 - FreeBSD (13.0+) as user manager.
-- GNU/Linux (3.6+) as system or user manager. n.b. GNU/Linux support is complete
-  but not yet set up to build; this will be corrected later.
+- GNU/Linux (3.6+) as system, user, and login manage, but note below that
+  this is not currently set up to build.
+
+*n.b.* GNU/Linux support is complete but the new CMake build system for
+InitWare hasn't been adapted for Linux yet. This will be completed in the
+near future.
 
 We hope to support (recent versions of) OpenBSD, and possibly also Illumos, in
 the near future. Please see the [Support Matrix] for further information on
