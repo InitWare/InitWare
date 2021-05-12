@@ -171,3 +171,4 @@ config.log
 config.status
 configure
 stamp-*
+compile_commands.json

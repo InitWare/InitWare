@@ -29,8 +29,6 @@ have been included with this software
 #include "log.h"
 #include "rpc.h"
 
-#define log_debug log_error
-
 typedef struct Request Request;
 typedef struct Response Response;
 typedef struct Invocation Invocation;

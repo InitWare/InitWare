@@ -271,11 +271,11 @@ static void session_device_stop(SessionDevice *sd) {
         sd->active = false;
 }
 
+#ifdef Use_udev
 static DeviceType detect_device_type(struct udev_device *dev) {
         const char *sysname, *subsystem;
         DeviceType type;
 
-#ifdef Use_udev
         sysname = udev_device_get_sysname(dev);
         subsystem = udev_device_get_subsystem(dev);
         type = DEVICE_TYPE_UNKNOWN;
@@ -287,13 +287,10 @@ static DeviceType detect_device_type(struct udev_device *dev) {
                 if (startswith(sysname, "event"))
                         type = DEVICE_TYPE_EVDEV;
         }
-#else
-        unimplemented();
-        type = DEVICE_TYPE_UNKNOWN;
-#endif
 
         return type;
 }
+#endif
 
 static int session_device_verify(SessionDevice *sd) {
 #ifdef Use_udev

@@ -33,6 +33,7 @@
 #cmakedefine Have_mntent_h
 #cmakedefine Have_mqueue_h
 #cmakedefine Have_printf_h
+#cmakedefine Have_xlocale_h
 
 /*
  * functions

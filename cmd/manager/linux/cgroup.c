@@ -26,6 +26,10 @@
 #include "cgroup-util.h"
 #include "linux/cgroup.h"
 
+#ifdef Have_sys_sysmacros_h
+#        include <sys/sysmacros.h>
+#endif
+
 void cgroup_context_init(CGroupContext *c) {
         assert(c);
 

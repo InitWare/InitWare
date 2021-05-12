@@ -652,7 +652,8 @@ int cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred) {
 }
 
 int socket_getpeercred(int fd, struct socket_ucred *xucred) {
-#ifdef SO_PEERCRED && defined(Sys_Plat_OpenBSD)
+#if defined(SO_PEERCRED) && defined(Sys_Plat_OpenBSD)
+#error Port me
 #elif defined(SO_PEERCRED) && defined(Sys_Plat_Linux)
         int len;
 

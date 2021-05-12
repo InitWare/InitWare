@@ -1554,7 +1554,8 @@ int main(int argc, char *argv[]) {
         if (arg_timer_slack_nsec != (nsec_t) -1)
                 if (prctl(PR_SET_TIMERSLACK, arg_timer_slack_nsec) < 0)
                         log_error("Failed to adjust timer slack: %m");
-
+#endif
+#ifdef Use_Libcap
         if (arg_capability_bounding_set_drop) {
                 r = capability_bounding_set_drop_usermode(arg_capability_bounding_set_drop);
                 if (r < 0) {

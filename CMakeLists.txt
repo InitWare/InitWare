@@ -136,6 +136,7 @@ check_include_file(malloc.h Have_malloc_h)
 check_include_file(mntent.h Have_mntent_h)
 check_include_file(mqueue.h Have_mqueue_h)
 check_include_file(printf.h Have_printf_h)
+check_include_file(xlocale.h Have_xlocale_h)
 
 check_library_exists(pam pam_start "" Have_PAM)
 check_library_exists(devattr udev_new "" Have_udev_as_devattr)

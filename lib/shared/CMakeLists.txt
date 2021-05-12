@@ -14,7 +14,8 @@ if(Use_CGroups)
 endif()
 
 if(Sys_Plat_Linux)
-    list(APPEND shared_src linprocfs/fdset.c linprocfs/proc-util.c)
+    list(APPEND shared_src linprocfs/fdset.c linprocfs/proc-util.c cgroup-show.c
+        cgroup-util.c hwclock.c selinux-util.c watchdog.c utmp-wtmp.c)
 elseif(Sys_Plat_BSD)
     list(APPEND shared_src kvm/fdset.c kvm/proc-util.c ptgroup-show.c)
     list(APPEND KVM_Libs kvm)
@@ -26,14 +27,14 @@ if(Sys_Plat_FreeBSD)
     list(APPEND KVM_Libs util)
 endif()
 
-set(shared_src_linux cgroup-show.c cgroup-util.c hwclock.c selinux-util.c
-    watchdog.c utmp-wtmp.c)
-set(shared_src_Use_Libcap capability.c)
+if(Use_Libcap)
+    list(APPEND shared_src capability.c)
+endif()
 
 add_library(initware-shared ${shared_src})
 target_include_directories(initware-shared PUBLIC head)
 target_link_libraries(initware-shared internal compat initware-cjson initware-ev
-    PkgConfig::DBus ${KVM_Libs})
+    PkgConfig::DBus ${KVM_Libs} ${Cap_Libs})
 
 # ------------------------------------------------------------------------------
 add_library(initware-dbus dbus-common.c polkit.c dbus-loop-libev.c)

@@ -86,6 +86,9 @@
 #ifdef Have_sys_vfs_h
 #include <sys/vfs.h>
 #endif
+#ifdef Have_xlocale_h
+#include <xlocale.h>
+#endif
 
 #ifdef Sys_Plat_Linux
 #include <linux/kd.h>

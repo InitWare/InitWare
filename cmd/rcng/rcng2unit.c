@@ -167,12 +167,10 @@ static int mksymlink(const char *src, const char *slink) {
         mkdir_parents_label(slink, 0755);
 
         r = symlink(src, slink);
-        if (r < 0) {
-                if (errno == EEXIST)
-                        r = 0;
-                else
-                        return -errno;
-        }
+        if (r < 0 && errno == EEXIST)
+                return 0;
+        else
+                return -errno;
 }
 
 static int emit_units(const char *out_dir, RcNgService *svc, bool wanted_by_default) {

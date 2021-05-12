@@ -15,6 +15,7 @@
 #include "pager.h"
 #include "path-lookup.h"
 #include "path-util.h"
+#include "ptgroup-show.h"
 #include "set.h"
 #include "socket-util.h"
 #include "spawn-ask-password-agent.h"

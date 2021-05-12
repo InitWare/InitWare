@@ -77,6 +77,8 @@ union dirent_storage {
 #define ANSI_HIGHLIGHT_OFF "\x1B[0m"
 #define ANSI_ERASE_TO_END_OF_LINE "\x1B[K"
 
+int exit_with_parent();
+
 size_t page_size(void);
 #define PAGE_ALIGN(l) ALIGN_TO((l), page_size())
 
