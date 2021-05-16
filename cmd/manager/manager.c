@@ -563,7 +563,7 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
                                 log_error(
                                         "Failed to create user's runtime state directory %s: %s",
                                         m->runtime_state_dir,
-                                        strerror(r));
+                                        strerror(-r));
                                 goto fail;
                         }
 

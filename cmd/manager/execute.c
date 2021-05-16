@@ -958,7 +958,7 @@ static void rename_process_from_path(const char *path) {
         rename_process(process_name);
 }
 
-#ifdef Sys_Plat_Linux
+#ifdef Use_Seccomp
 static int apply_seccomp(uint32_t *syscall_filter) {
         static const struct sock_filter header[] = {
                 VALIDATE_ARCHITECTURE,
@@ -1497,6 +1497,7 @@ int exec_spawn(ExecCommand *command,
                                         goto fail_child;
                                 }
 
+#ifdef Use_Seccomp
                         if (context->syscall_filter) {
                                 err = apply_seccomp(context->syscall_filter);
                                 if (err < 0) {
@@ -1504,6 +1505,7 @@ int exec_spawn(ExecCommand *command,
                                         goto fail_child;
                                 }
                         }
+#endif
 #endif
                 }
 

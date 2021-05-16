@@ -971,6 +971,7 @@ int config_parse_bounding_set(const char *unit,
 
 #endif
 
+#ifdef Use_Seccomp
 static void syscall_set(uint32_t *p, int nr) {
         nr = SYSCALL_TO_INDEX(nr);
         p[nr >> 4] |= 1 << (nr & 31);
@@ -1060,6 +1061,8 @@ int config_parse_syscall_filter(const char *unit,
 
         return 0;
 }
+#endif
+
 #endif
 
 int config_parse_limit(const char *unit,
@@ -2672,9 +2675,11 @@ void unit_dump_config_items(FILE *f) {
                 { config_parse_exec_cpu_sched_policy, "CPUSCHEDPOLICY" },
                 { config_parse_exec_cpu_sched_prio,   "CPUSCHEDPRIO" },
                 { config_parse_exec_cpu_affinity,     "CPUAFFINITY" },
+#ifdef Use_Libcap
                 { config_parse_exec_capabilities,     "CAPABILITIES" },
                 { config_parse_exec_secure_bits,      "SECUREBITS" },
                 { config_parse_bounding_set,          "BOUNDINGSET" },
+#endif
 #endif
                 { config_parse_mode,                  "MODE" },
                 { config_parse_unit_env_file,         "FILE" },
@@ -2724,7 +2729,9 @@ void unit_dump_config_items(FILE *f) {
                 { config_parse_memory_limit,          "LIMIT" },
                 { config_parse_device_allow,          "DEVICE" },
                 { config_parse_device_policy,         "POLICY" },
+#ifdef Use_Seccomp
                 { config_parse_syscall_filter,        "SYSCALL" },
+#endif
                 { config_parse_blockio_bandwidth,     "BANDWIDTH" },
                 { config_parse_blockio_weight,        "WEIGHT" },
                 { config_parse_blockio_device_weight, "DEVICEWEIGHT" },

@@ -144,11 +144,13 @@ check_library_exists(rt mq_open "" Have_mq_open_in_rt)
 check_function_exists(mq_open Have_mq_open)
 check_symbol_exists(environ "unistd.h" Have_environ)
 check_symbol_exists(get_current_dir_name "unistd.h" Have_get_current_dir_name)
+check_symbol_exists(gettid "unistd.h" Have_gettid)
 check_function_exists(mempcpy Have_mempcpy)
 check_symbol_exists(posix_fallocate "fcntl.h" Have_posix_fallocate)
 check_symbol_exists(program_invocation_short_name "errno.h" Have_program_invocation_short_name)
 check_function_exists(secure_getenv Have_secure_getenv)
 check_function_exists(__secure_getenv Have___secure_getenv)
+check_symbol_exists(strtonum "stdlib.h" Have_strtonum)
 
 check_type_size_in(__compar_fn_t "stdlib.h" Have___compar_fn_t)
 check_type_size_in("struct cmsgcred" "sys/socket.h" Have_struct_cmsgcred)
@@ -167,9 +169,8 @@ endif()
 # options configurable by the user
 #-------------------------------------------------------------------------------
 
-
 # Use flags: these enable or disable features
-option(Use_SystemdDBus "Systemd-compatible D-Bus interface" OFF)
+option(Use_SystemdDBus "Systemd-compatible D-Bus interface" ON)
 option(Use_SystemdCompat
   "Systemd-compatible paths and behaviour (Linux-only)"
   OFF)

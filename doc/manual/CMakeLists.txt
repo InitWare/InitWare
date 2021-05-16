@@ -21,7 +21,7 @@ foreach(MAN_IN ${MDOCS})
 
     add_custom_command (
         OUTPUT ${HTML_OUT}
-        COMMAND mandoc -T html -O toc,style=style.css,man=%N.%S.html
+        COMMAND mandoc -T html -O style=style.css,man=%N.%S.html
           ${MAN_IN} > ${HTML_OUT}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDS ${MAN_IN}
@@ -38,7 +38,7 @@ set(INDEX_HTML "${CMAKE_CURRENT_BINARY_DIR}/index.html")
 
 add_custom_command (
     OUTPUT  ${INDEX_HTML}
-    COMMAND mandoc -T html -O toc,style=style.css,man=%N.%S.html
+    COMMAND mandoc -T html -O style=style.css,man=%N.%S.html
       ${INDEX_SRC} > ${INDEX_HTML}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDS ${INDEX_SRC}

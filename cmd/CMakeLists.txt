@@ -8,6 +8,7 @@ add_executable(docbook2mdoc EXCLUDE_FROM_ALL ${DB2MDSRC}/docbook2mdoc.c
     ${DB2MDSRC}/macro.c ${DB2MDSRC}/main.c ${DB2MDSRC}/node.c
     ${DB2MDSRC}/parse.c ${DB2MDSRC}/reorg.c ${DB2MDSRC}/tree.c
     ${DB2MDSRC}/xmalloc.c)
+target_link_libraries(docbook2mdoc compat)
 
 add_executable(iwanalyse analyse.c)
 target_link_libraries(iwanalyse initware-shared initware-daemon
