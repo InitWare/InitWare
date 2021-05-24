@@ -169,6 +169,8 @@ static int mksymlink(const char *src, const char *slink) {
         r = symlink(src, slink);
         if (r < 0 && errno == EEXIST)
                 return 0;
+        else if (r == 0)
+                return 0;
         else
                 return -errno;
 }
@@ -255,7 +257,7 @@ static int emit_units(const char *out_dir, RcNgService *svc, bool wanted_by_defa
 
                 r = mksymlink(out_name, slink);
                 if (r < 0) {
-                        log_error("Failed to make default.target wants-link\n");
+                        log_error("Failed to make default.target wants-link: %s\n", strerror(errno));
                         r = -errno;
                         goto finish;
                 }
@@ -271,7 +273,7 @@ static int emit_units(const char *out_dir, RcNgService *svc, bool wanted_by_defa
 
                 r = mksymlink(out_name, slink);
                 if (r < 0) {
-                        log_error("Failed to make default.target after-link\n");
+                        log_error("Failed to make default.target after-link: %s\n", strerror(errno));
                         r = -errno;
                         goto finish;
                 }

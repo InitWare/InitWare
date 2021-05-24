@@ -25,9 +25,8 @@ have been included with this software
 #endif
 
 #ifdef Sys_Plat_NetBSD
-
-
-struct kinfo_file *get_files(int *cnt) {
+struct kinfo_file *get_files(int *cnt)
+{
         size_t offset;
         size_t len;
         int mib[6];
@@ -63,7 +62,8 @@ struct kinfo_file *get_files(int *cnt) {
 #endif
 
 
-int fdset_new_fill(FDSet **_s) {
+int fdset_new_fill(FDSet **_s)
+{
         int r = 0;
         FDSet *s;
         struct kinfo_file *files = NULL;
@@ -77,7 +77,7 @@ int fdset_new_fill(FDSet **_s) {
                 goto finish;
         }
 
-/* avoid opening KVM on FreeBSD, otherwise it open()'s /dev/null twice */
+        /* avoid opening KVM on FreeBSD, otherwise it open()'s /dev/null twice */
 #ifndef Sys_Plat_FreeBSD
         if (!open_kvm())
                 return -errno;
@@ -105,14 +105,13 @@ int fdset_new_fill(FDSet **_s) {
                         goto finish;
         }
 
-
         r = 0;
         *_s = s;
         s = NULL;
 
 finish:
-        /* real KVM manages its own memory */
 #if defined(Sys_Plat_FreeBSD) || defined(Sys_Plat_NetBSD)
+        /* real KVM manages its own memory */
         free(files);
 #endif
 

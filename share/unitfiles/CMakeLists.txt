@@ -16,6 +16,7 @@ foreach(unit_in
   systemd-hibernate.service.in
   systemd-hostnamed.service.in
   systemd-hybrid-sleep.service.in
+  systemd-initctl.service.in
   systemd-logind.service.in
   systemd-nspawn@.service.in
   systemd-poweroff.service.in
@@ -62,10 +63,6 @@ set(system_unitfiles basic.target bluetooth.target cryptsetup-pre.target
     ${CMAKE_CURRENT_BINARY_DIR}/systemd-hybrid-sleep.service
     ${CMAKE_CURRENT_BINARY_DIR}/systemd-initctl.service
     systemd-initctl.socket
-    ${CMAKE_CURRENT_BINARY_DIR}/systemd-journal-flush.service
-    ${CMAKE_CURRENT_BINARY_DIR}/systemd-journal-gatewayd.service
-    ${CMAKE_CURRENT_BINARY_DIR}/systemd-journald.service
-    ${CMAKE_CURRENT_BINARY_DIR}/systemd-journald.socket
     ${CMAKE_CURRENT_BINARY_DIR}/systemd-logind.service
     ${CMAKE_CURRENT_BINARY_DIR}/systemd-nspawn@.service
     ${CMAKE_CURRENT_BINARY_DIR}/systemd-poweroff.service
@@ -86,8 +83,7 @@ set(system_unitfiles basic.target bluetooth.target cryptsetup-pre.target
     umount.target
     user.slice
     ${CMAKE_CURRENT_BINARY_DIR}/user@.service
-    x-.slice
-    )
+    x-.slice)
 
 install(FILES ${user_unitfiles} DESTINATION ${RelDir_UserUnitfiles})
 install(FILES ${system_unitfiles} DESTINATION ${RelDir_SystemUnitfiles})
