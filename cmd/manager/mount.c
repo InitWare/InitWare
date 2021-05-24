@@ -1658,6 +1658,7 @@ static int mount_enumerate(Manager *m) {
                         return -errno;
 
                 ev_io_init(&m->mount_watch, mount_io_cb, fileno(m->proc_self_mountinfo), EV_READ);
+                m->mount_watch.data = m;
 
                 if (ev_io_start(m->evloop, &m->mount_watch) < 0)
                         return -errno;

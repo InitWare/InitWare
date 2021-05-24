@@ -127,7 +127,7 @@ Further reading
   A brief overview of the layout of the repository.
 - [General Style Guide](doc/Style.md): Standards of style by which code and
   documentation alike are written in InitWare.
-- [C Style Guide](doc/Style.md): The standards of style by which code in C-like
+- [C Style Guide](doc/CStyle.md): The standards of style by which code in C-like
   languages is written in InitWare.
 - [Roadmap](https://github.com/InitWare/InitWare/wiki/Roadmap):
   Future plans for InitWare.

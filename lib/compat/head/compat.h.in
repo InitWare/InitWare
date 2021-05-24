@@ -41,12 +41,14 @@
 #cmakedefine Have_environ
 #cmakedefine Have_waitid
 #cmakedefine Have_get_current_dir_name
+#cmakedefine Have_gettid
 #cmakedefine Have_mempcpy
 #cmakedefine Have_parse_printf_format
 #cmakedefine Have_posix_fallocate
 #cmakedefine Have_program_invocation_short_name
 #cmakedefine Have___secure_getenv
 #cmakedefine Have_secure_getenv
+#cmakedefine Have_strtonum
 
 /*
  * types
@@ -160,6 +162,12 @@ void *mempcpy(void *dest, const void *src, size_t n);
 
 #ifndef Have_get_current_dir_name
 #        define get_current_dir_name() getcwd(NULL, 0)
+#endif
+
+#ifndef Have_strtonum
+long long
+strtonum(const char *numstr, long long minval, long long maxval,
+    const char **errstrp);
 #endif
 
 #ifndef EBADR

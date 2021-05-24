@@ -235,10 +235,12 @@ static int bus_execute_append_syscall_filter(DBusMessageIter *i, const char *pro
         if (!dbus_message_iter_open_container(i, DBUS_TYPE_ARRAY, "u", &sub))
                 return -ENOMEM;
 
+#ifdef Use_Seccomp
         if (c->syscall_filter)
                 b = dbus_message_iter_append_fixed_array(
                         &sub, DBUS_TYPE_UINT32, &c->syscall_filter, (syscall_max() + 31) >> 4);
         else
+#endif
                 b = dbus_message_iter_append_fixed_array(&sub, DBUS_TYPE_UINT32, &c->syscall_filter, 0);
 
         if (!b)

@@ -662,8 +662,10 @@ static int parse_config_file(void) {
                 { "Manager", "CPUAffinity",           config_parse_cpu_affinity2, 0, NULL                    },
                 { "Manager", "RuntimeWatchdogSec",    config_parse_sec,          0, &arg_runtime_watchdog    },
                 { "Manager", "ShutdownWatchdogSec",   config_parse_sec,          0, &arg_shutdown_watchdog   },
-                { "Manager", "CapabilityBoundingSet", config_parse_bounding_set, 0, &arg_capability_bounding_set_drop },
                 { "Manager", "TimerSlackNSec",        config_parse_nsec,         0, &arg_timer_slack_nsec    },
+#endif
+#ifdef Use_Libcap
+                { "Manager", "CapabilityBoundingSet", config_parse_bounding_set, 0, &arg_capability_bounding_set_drop },
 #endif
                 { "Manager", "DefaultEnvironment",    config_parse_environ,      0, &arg_default_environment },
                 { "Manager", "DefaultLimitCPU",       config_parse_limit,        0, &arg_default_rlimit[RLIMIT_CPU]},

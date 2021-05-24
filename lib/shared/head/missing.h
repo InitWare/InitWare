@@ -229,7 +229,7 @@ struct btrfs_ioctl_fs_info_args {
 #define MS_PRIVATE  (1 << 18)
 #endif
 
-#if !HAVE_DECL_GETTID
+#ifndef Have_gettid
 static inline pid_t gettid(void) {
         return (pid_t) syscall(SYS_gettid);
 }

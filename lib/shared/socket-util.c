@@ -655,10 +655,10 @@ int socket_getpeercred(int fd, struct socket_ucred *xucred) {
 #if defined(SO_PEERCRED) && defined(Sys_Plat_OpenBSD)
 #error Port me
 #elif defined(SO_PEERCRED) && defined(Sys_Plat_Linux)
-        int len;
+        socklen_t len;
 
         len = sizeof *xucred;
-        if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, xucred, &len) == -1)
+        if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, xucred, &len) == -1)
                 return -errno;
 
         return 0;
