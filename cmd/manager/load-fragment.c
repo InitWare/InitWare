@@ -2388,8 +2388,9 @@ static int open_follow(char **filename, FILE **_f, Set *names, char **_final) {
                 if (fd >= 0)
                         break;
 
-                if (errno != ELOOP)
-                        return -errno;
+		/* On FreeBSD, EMLINK is returned if it's a symlink. */
+		if (errno != ELOOP && errno != EMLINK)
+			return -errno;
 
                 /* Hmm, so this is a symlink. Let's read the name, and follow it manually */
                 r = readlink_and_make_absolute(*filename, &target);
