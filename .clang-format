@@ -144,5 +144,6 @@ PenaltyReturnTypeOnItsOwnLine: 100
 SpaceAfterCStyleCast: true
 #SpaceBeforeParens: ControlStatementsExceptForEachMacros
 SpacesInAngles:  true
+UseTab:		Always
 TabWidth:        8
 UseCRLF:         false
