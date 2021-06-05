@@ -19,22 +19,11 @@
 # InitWare generator for conversion of RC-NG scripts to InitWare unitfiles.
 #
 
+late_divider=/etc/rc.d/FILESYSTEMS
+
 export HOME=/
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin
 umask 022
-
-. /etc/rc.subr
-. /etc/rc.conf
-_rc_conf_loaded=true
-
-# rc.subr redefines echo and printf.  Undo that here.
-unset echo ; unalias echo
-unset printf ; unalias printf
-
-if ! checkyesno rc_configured; then
-	echo "/etc/rc.conf is not configured.  Multiuser boot aborted."
-	exit 1
-fi
 
 autoboot=yes
 rc_fast=yes	# run_rc_command(): do fast booting
@@ -54,7 +43,7 @@ RC_PID=$$
 # For testing, allow RC_FILES_OVERRIDE from the environment to
 # override this.
 #
-scripts=$(for rcd in ${rc_directories:-/etc/rc.d}; do
+scripts=$(for rcd in ${rc_directories:-/etc/rc.d /usr/local/etc/rc.d}; do
 	test -d ${rcd} && echo ${rcd}/*;
 done)
 files=$(rcorder -s nostart ${rc_rcorder_flags} ${scripts})
@@ -63,9 +52,9 @@ if [ -n "${RC_FILES_OVERRIDE}" ]; then
 	files="${RC_FILES_OVERRIDE}"
 fi
 
-for _rc_elem in $files; do
-	if [ -z $_past_mountcritlocal ] ; then
-		[ $_rc_elem = /etc/rc.d/mountcritlocal ] &&  _past_mountcritlocal=1
+for _rc_elem in $files ; do
+	if [ -z $_past_divider ] ; then
+		[ $_rc_elem = $late_divider ] &&  _past_divider=1
 		basename=$(basename $_rc_elem)
 		# fake up a unitfile for the early services which we don't want
 		# the manager to interfere with, so as to satisfy dependencies.
@@ -80,7 +69,7 @@ ExecStart=/usr/bin/true
 EOF
 	else
 		default=no
-		$_rc_elem enabled && default=yes
+		$_rc_elem enabled > /dev/null 2>&1 && default=yes
 		/usr/local/libexec/InitWare/rcng2unit $_rc_elem $3 $default
 	fi
 done

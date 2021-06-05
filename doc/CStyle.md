@@ -2,14 +2,14 @@
 
 InitWare code is subject to a style guide. This document describes the style
 expected of code written in C-like languages.
-All code in new files or files in which the new style already predominantes 
-should conform;
-in the case of modifications to files which retain the older style from the
-systemd project, the systemd style guide ought to be followed instead.
+All code in new files, or files in which the new style already predominates,
+should conform.
 
 ## Basics
 
-- Indentation is by 8 characters.
+- Indentation is strictly by proper tabs. This is a matter of accessibility; see
+	[Alexandra Sandberg](https://alexandersandberg.com/tabs-for-accessibility/)'s
+	post on the topic.
 - Structures are named in MixedCase, while variables and functions get
   snake_case.
 - Function call argument lists shall *not* be divided from the function
@@ -20,6 +20,8 @@ systemd project, the systemd style guide ought to be followed instead.
   and not
 
       foo ();
+
+  while the ex
 
 ## Curly Brackets
 

@@ -235,17 +235,17 @@ static int emit_units(const char *out_dir, RcNgService *svc, bool wanted_by_defa
                 fputs("\n", out_f);
         }
 
-        fprintf(out_f,
-                "[Service]\n"
-                "Type=oneshot\n"
-                "RemainAfterExit=yes\n"
-                "ExecStart=/bin/sh " BinPath_Runrcng
-                " %s faststart\n"
-                "ExecStop=/bin/sh " BinPath_Runrcng " %s stop\n",
-                svc->src_path,
-                svc->src_path);
+	fprintf(out_f,
+		"[Service]\n"
+		"StandardOutput=tty\n"
+		"Type=oneshot\n"
+		"RemainAfterExit=yes\n"
+		"ExecStart=/bin/sh %s faststart\n"
+		"ExecStop=/bin/sh %s stop\n",
+		svc->src_path,
+		svc->src_path);
 
-        fputc('\n', out_f);
+	fputc('\n', out_f);
 
         if (wanted_by_default) {
                 slink = strjoin(out_dir, "/default.target.wants/", svc->name, ".service", NULL);

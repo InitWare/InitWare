@@ -175,6 +175,9 @@ option(Use_SystemdCompat
   "Systemd-compatible paths and behaviour (Linux-only)"
   OFF)
 
+option(HAVE_SPLIT_USR
+  "Don't have a jumbled-together /usr and /"
+  ON)
 option(Use_CGroups
   "Use GNU/Linux Control Groups for advanced process tracking"
   ${Default_Use_CGroups})
@@ -336,6 +339,7 @@ endfunction(FShow)
 message("Feature settings (Use flags):")
 FShow("Systemd-compatible D-Bus interface" Use_SystemdDBus)
 FShow("Systemd-compatible paths & behaviour" Use_SystemdCompat)
+FShow("Non-combined /usr and /" HAVE_SPLIT_USR)
 
 message("  Advanced process tracking:")
 FShow("    -> GNU/Linux Control Groups (CGroups)" Use_CGroups)

@@ -3,38 +3,19 @@
 # $NetBSD: rc,v 1.173 2017/03/20 16:02:48 christos Exp $
 #
 
+late_divider=/etc/rc.d/FILESYSTEMS
+
 echo "/etc/rc:"
 
 export HOME=/
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin
 umask 022
 
-. /etc/rc.subr
-. /etc/rc.conf
-_rc_conf_loaded=true
-
-# rc.subr redefines echo and printf.  Undo that here.
-unset echo ; unalias echo
-unset printf ; unalias printf
-
-if ! checkyesno rc_configured; then
-	echo "/etc/rc.conf is not configured.  Multiuser boot aborted."
-	exit 1
-fi
-
-if [ "$1" = autoboot ]; then
-	autoboot=yes
-	rc_fast=yes	# run_rc_command(): do fast booting
-fi
-
 #
 # Completely ignore INT and QUIT at the outer level.  The rc_real_work()
 # function should do something different.
 #
 trap '' INT QUIT
-
-
-RC_PID=$$
 
 #
 # Get a list of all rc.d scripts, and use rcorder to choose
@@ -58,21 +39,11 @@ echo "Running early startup scripts"
 # Run the scripts in order.
 #
 for _rc_elem in $files; do
-	$_rc_elem enabled
-	_rc_elem_enabled=$?
-	[ $_rc_elem = /etc/rc.d/mountcritlocal ] && break
-	 $_rc_elem start
+	[ $_rc_elem = $late_divider ] && break
+	echo "$_rc_elem"
+	$_rc_elem faststart
 done
 
 printf "Starting InitWare manager"
-mkdir -m 0755 /var/run/InitWare
-rm -f /var/run/bootdone
-mkfifo -m 0700 /var/run/bootdone
-
 export LD_LIBRARY_PATH=/usr/local/lib:/usr/pkg/lib
-
-exec /usr/local/libexec/InitWare/iw.manager --system  &
-
-echo "Waiting for boot to finish..."
-/usr/local/libexec/InitWare/wait4pipe /var/run/bootdone
-echo "Boot done, exiting /etc/rc"
+exec /usr/local/libexec/InitWare/iw.manager --system  

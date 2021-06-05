@@ -309,6 +309,9 @@ int seat_active_vt_changed(Seat *s, int vtnr) {
         return r;
 }
 
+/**
+ * Read the active virtual terminal number and store it for the given seat.
+ */
 int seat_read_active_vt(Seat *s) {
         char t[64];
         ssize_t k;

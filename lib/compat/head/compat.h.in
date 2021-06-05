@@ -68,6 +68,7 @@
 /*
  * feature Use-flags
  */
+#cmakedefine HAVE_SPLIT_USR
 #cmakedefine Use_CGroups
 #cmakedefine Use_KQProc
 #cmakedefine Use_Libcap
