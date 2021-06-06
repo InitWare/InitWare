@@ -157,9 +157,8 @@ static int show_ptgroup_one(
 int show_ptgroup(cJSON *ptgroup, const char *prefix, unsigned n_columns, bool kernel_threads, OutputFlags flags) {
         _cleanup_free_ char *fn = NULL, *p1 = NULL, *p2 = NULL;
         char *gn = NULL;
-        bool shown_pids = false;
-        int r;
-        cJSON *oGroup;
+	bool shown_pids = false;
+	cJSON *oGroup;
         cJSON *last = NULL;
 
         assert(ptgroup);
@@ -202,10 +201,7 @@ int show_ptgroup(cJSON *ptgroup, const char *prefix, unsigned n_columns, bool ke
                 last = oGroup;
         }
 
-        if (r < 0)
-                return r;
-
-        if (!shown_pids)
+	if (!shown_pids)
                 show_ptgroup_one(ptgroup, prefix, n_columns, !!last, kernel_threads, flags);
 
         if (last) {
