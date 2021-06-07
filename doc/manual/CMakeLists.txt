@@ -44,5 +44,5 @@ add_custom_command (
     DEPENDS ${INDEX_SRC}
     COMMENT "Generating HTML manual page index.html")
 
-add_custom_target (manpages ALL DEPENDS ${MANPAGES_OUT})
+add_custom_target (manpages ALL DEPENDS ${MDOCS})
 add_custom_target (manpages_html DEPENDS ${MANPAGES_HTML} ${INDEX_HTML})
