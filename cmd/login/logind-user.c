@@ -304,15 +304,15 @@ static int user_mkdir_runtime_path(User *u) {
 
         assert(u);
 
-        r = mkdir_safe_label("/run/user", 0755, 0, 0);
-        if (r < 0 && r != -EEXIST) {
-                log_error("Failed to create /run/user: %s", strerror(-r));
-                return r;
+	r = mkdir_safe_label(AbsDir_User_RunStateBase, 0755, 0, 0);
+	if (r < 0 && r != -EEXIST) {
+		log_error("Failed to create " AbsDir_User_RunStateBase ": %s", strerror(-r));
+		return r;
         }
 
         if (!u->runtime_path) {
-                if (asprintf(&p, "/run/user/%lu", (unsigned long) u->uid) < 0)
-                        return log_oom();
+		if (asprintf(&p, AbsDir_User_RunStateBase "/%lu", (unsigned long) u->uid) < 0)
+			return log_oom();
         } else
                 p = u->runtime_path;
 

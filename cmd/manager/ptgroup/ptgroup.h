@@ -10,7 +10,7 @@ Licence version 2.1 or later, in the file "LICENSE.md", which should
 have been included with this software
 
     (c) 2021 David Mackay
-        All rights reserved.
+	All rights reserved.
 *********************************************************************/
 /**
  * These are Process Tracking Groups, or PTGroups - groups of processes and/or
@@ -52,33 +52,33 @@ typedef struct PTManager PTManager;
 typedef struct cJSON cJSON;
 
 struct PTGroup {
-        /* associated manager */
-        Manager * manager;
+	/* associated manager */
+	Manager *manager;
 
-        /* unique identifier */
-        unsigned int id;
+	/* unique identifier */
+	unsigned int id;
 
-        /* name of this group */
-        char *name;
+	/* name of this group */
+	char *name;
 
-        /* full name of this group */
-        char *full_name;
+	/* full name of this group */
+	char *full_name;
 
-        /*
-         * The parent group, or NULL if this is the root group. (If it is the
-         * root group, then this is actually a PTManager object.)
-         */
-        PTGroup *parent;
+	/*
+	 * The parent group, or NULL if this is the root group. (If it is the
+	 * root group, then this is actually a PTManager object.)
+	 */
+	PTGroup *parent;
 
-        /* list of all groups belonging directly to this group */
-        Set *groups;
+	/* list of all groups belonging directly to this group */
+	Set *groups;
 
-        /* set of all PIDs belonging directly to this group */
-        Set *processes;
+	/* set of all PIDs belonging directly to this group */
+	Set *processes;
 };
 
 struct PTManager {
-        PTGroup group;
+	PTGroup group;
 };
 
 /**
@@ -120,6 +120,29 @@ bool ptg_is_empty(PTGroup *grp);
 
 /** Is this group empty of processes directly or indirectly belonging to it? */
 bool ptg_is_empty_recursive(PTGroup *grp);
+
+/**
+ * Kill all members of a PTGroup.
+ *
+ * @param grp Which PTGroup to kill the members of.
+ * @param sig Which signal to send.
+ * @param sigcont Whether to send SIGCONT to each PID after it's been sent \p sig.
+ * @param ignore_self Whether to avoid sending the signal to this process (i.e. the manager itself)
+ * @param ignore_set A set to which this routine will add each PID to this after
+ *	that PID has been sent the signal, so as not to re-signal an already
+ *	signaled PID. Optional. If passed with PIDs already in it, these will be
+ *	excluded from being killed.
+ */
+int cg_kill(const char *unused, const PTGroup *grp, int sig, bool sigcont, bool ignore_self,
+	Set *ignore_set);
+
+/**
+ * As cg_kill, but then also carries out the same for each subgroup.
+ *
+ * @param rem Whether to delete this PTGroup after killing its members.
+ */
+int cg_kill_recursive(const char *unused, const PTGroup *grp, int sig, bool sigcont, bool ignore_self,
+	bool rem, Set *ignore_set);
 
 /**
  * Migrate the processes of this group to another group.

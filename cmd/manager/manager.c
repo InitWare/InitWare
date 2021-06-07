@@ -59,9 +59,9 @@ have been included with this software
 #include "audit-fd.h"
 #include "boot-timestamps.h"
 #include "bus-errors.h"
-#include "cgroup-util.h"
 #include "dbus-job.h"
 #include "dbus-unit.h"
+#include "def.h"
 #include "env-util.h"
 #include "ev-util.h"
 #include "exit-status.h"
@@ -84,13 +84,19 @@ have been included with this software
 #include "virt.h"
 #include "watchdog.h"
 
+#if defined(Use_CGroups)
+#include "cgroup-util.h"
+#elif defined(Use_PTGroups)
+#include "ptgroup/ptgroup.h"
+#endif
+
 #ifdef Use_KQProc
-#        include "ptgroup/kqproc.h"
-#        include <sys/event.h>
+#include <sys/event.h>
+#include "ptgroup/kqproc.h"
 #endif
 
 #ifdef Sys_Plat_Linux
-#        include <linux/kd.h>
+#include <linux/kd.h>
 #endif
 
 #ifdef Sys_Plat_NetBSD /* FIXME cleanup */
@@ -603,12 +609,12 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
         if (!(m->watch_pids2 = hashmap_new(trivial_hash_func, trivial_compare_func)))
                 goto fail;
 
-        m->cgroup_unit = hashmap_new(string_hash_func, string_compare_func);
+#if defined(Use_CGroups)
+	m->cgroup_unit = hashmap_new(string_hash_func, string_compare_func);
         if (!m->cgroup_unit)
                 goto fail;
-
-#ifdef Use_PTGroups
-        m->ptgroup_unit = hashmap_new(trivial_hash_func, trivial_compare_func);
+#elif defined(Use_PTGroups)
+	m->ptgroup_unit = hashmap_new(trivial_hash_func, trivial_compare_func);
         if (!m->ptgroup_unit)
                 goto fail;
 #endif
@@ -843,9 +849,10 @@ void manager_free(Manager *m)
         lookup_paths_free(&m->lookup_paths);
         strv_free(m->environment);
 
-        hashmap_free(m->cgroup_unit);
-#ifdef Use_PTGroups
-        hashmap_free(m->ptgroup_unit);
+#if defined(Use_CGroups)
+	hashmap_free(m->cgroup_unit);
+#elif defined(Use_PTGroups)
+	hashmap_free(m->ptgroup_unit);
 #endif
 
         set_free_free(m->unit_path_cache);
@@ -1789,8 +1796,8 @@ int manager_loop(Manager *m) {
                 if (manager_dispatch_cleanup_queue(m) > 0)
                         continue;
 
-#ifdef Sys_Plat_Linux
-                if (manager_dispatch_cgroup_queue(m) > 0)
+#ifdef Use_CGroups
+		if (manager_dispatch_cgroup_queue(m) > 0)
                         continue;
 #endif
 

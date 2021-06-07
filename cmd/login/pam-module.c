@@ -52,8 +52,9 @@
 #        include <security/pam_misc.h>
 #        include <security/pam_modutil.h>
 #else
-#        define pam_syslog(handle, level, ...) printf(__VA_ARGS__)
-#        define pam_misc_setenv pam_setenv
+//#        define pam_syslog(handle, level, ...) printf(__VA_ARGS__)
+#	define pam_syslog(...)
+#	define pam_misc_setenv pam_setenv
 #endif
 
 #ifdef Use_Cap
@@ -192,8 +193,8 @@ _public_ PAM_EXTERN int pam_sm_open_session(
                 int argc, const char **argv) {
 
         struct passwd *pw;
-        bool debug = false;
-        const char *username, *id, *object_path, *runtime_path, *service = NULL, *tty = NULL, *display = NULL, *remote_user = NULL, *remote_host = NULL, *seat = NULL, *type = NULL, *class = NULL, *class_pam = NULL, *cvtnr = NULL;
+	bool debug = false;
+	const char *username, *id, *object_path, *runtime_path, *service = NULL, *tty = NULL, *display = NULL, *remote_user = NULL, *remote_host = NULL, *seat = NULL, *type = NULL, *class = NULL, *class_pam = NULL, *cvtnr = NULL;
         DBusError error;
         uint32_t uid, pid;
         DBusMessageIter iter;

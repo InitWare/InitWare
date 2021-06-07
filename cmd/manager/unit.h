@@ -57,6 +57,9 @@ typedef struct UnitStatusMessageFormats UnitStatusMessageFormats;
 
 #ifdef Use_CGroups
 #include "linux/cgroup.h"
+#	define UNIT_CGROUP_MEMBER cgroup_path
+#elif defined(Use_KQProc)
+#	define UNIT_CGROUP_MEMBER ptgroup
 #endif
 
 enum UnitActiveState {
@@ -188,11 +191,12 @@ struct Unit {
         dual_timestamp active_exit_timestamp;
         dual_timestamp inactive_enter_timestamp;
 
-        /* Counterparts in the cgroup filesystem */
+#if defined(Use_CGroups)
+	/* Counterparts in the cgroup filesystem */
         char *cgroup_path;
         CGroupControllerMask cgroup_mask;
-#ifdef Use_PTGroups
-        PTGroup *ptgroup;
+#elif defined(Use_PTGroups)
+	PTGroup *ptgroup;
 #endif
 
         UnitRef slice;
@@ -280,7 +284,8 @@ struct Unit {
 
         bool in_audit:1;
 
-        bool cgroup_realized:1;
+	/* Are the unit's CGroups/PTGroup in existence? */
+	bool cgroup_realized:1;
 };
 
 struct UnitStatusMessageFormats {

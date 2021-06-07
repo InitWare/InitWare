@@ -46,7 +46,12 @@
 #include "virt.h"
 #include "watchdog.h"
 #include "killall.h"
+
+#if defined(Use_CGroups)
 #include "cgroup-util.h"
+#elif defined(Use_PTGroups)
+#include "ptgroup/ptgroup.h"
+#endif
 
 #define FINALIZE_ATTEMPTS 50
 

@@ -23,7 +23,6 @@
 
 #include "bus-errors.h"
 #include "cJSON.h"
-#include "cgroup-util.h"
 #include "dbus-common.h"
 #include "dbus-unit.h"
 #include "dbus.h"
@@ -32,6 +31,12 @@
 #include "path-util.h"
 #include "selinux-access.h"
 #include "strv.h"
+
+#if defined(Use_CGroups)
+#include "cgroup-util.h"
+#elif defined(Use_PTGroups)
+#include "ptgroup/ptgroup.h"
+#endif
 
 const char bus_unit_interface[] _introspect_("Unit") = BUS_UNIT_INTERFACE;
 

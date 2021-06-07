@@ -25,20 +25,21 @@
 # https://clang.llvm.org/docs/ClangFormatStyleOptions.html
 ---
 AccessModifierOffset: -4
-AlignAfterOpenBracket: AlwaysBreak
+AlignAfterOpenBracket: DontAlign
 AlignEscapedNewlines: Left
 AlignOperands:   false
+AllowAllArgumentsOnNextLine:	false
 AllowShortEnumsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: None
 AlwaysBreakBeforeMultilineStrings: true
 AlwaysBreakTemplateDeclarations: Yes
-BinPackArguments: false
-BinPackParameters: false
+BinPackArguments: true
+BinPackParameters: true
 BraceWrapping:
   SplitEmptyFunction: false
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
-BreakBeforeBraces: Mozilla
+BreakBeforeBraces: Linux
 BreakInheritanceList: BeforeComma
 BreakBeforeTernaryOperators: false
 BreakStringLiterals: false
@@ -130,17 +131,18 @@ IncludeCategories:
    Priority: 1
    SortPriority: 1
 SortIncludes: true
-IndentPPDirectives: AfterHash
+IndentPPDirectives: None
 IndentWidth:     8
 IndentWrappedFunctionNames: true
 MaxEmptyLinesToKeep: 2
 PenaltyBreakAssignment: 65
-PenaltyBreakBeforeFirstCallParameter: 16
+# don't do it
+PenaltyBreakBeforeFirstCallParameter: 2000
 PenaltyBreakComment: 320
 PenaltyBreakFirstLessLess: 50
 PenaltyBreakString: 0
 PenaltyExcessCharacter: 10
-PenaltyReturnTypeOnItsOwnLine: 100
+PenaltyReturnTypeOnItsOwnLine: 16
 SpaceAfterCStyleCast: true
 #SpaceBeforeParens: ControlStatementsExceptForEachMacros
 SpacesInAngles:  true

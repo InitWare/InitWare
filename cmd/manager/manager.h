@@ -41,7 +41,6 @@ have been included with this software
 
 #include "ev.h"
 
-#include "cgroup-util.h"
 #include "fdset.h"
 #include "ptgroup/ptgroup.h"
 
@@ -196,10 +195,12 @@ struct Manager {
         /* Data specific to the Automount subsystem */
         int dev_autofs_fd;
 
+#ifdef Use_CGroups
         /* Data specific to the cgroup subsystem */
         Hashmap *cgroup_unit;
         CGroupControllerMask cgroup_supported;
         char *cgroup_root;
+#endif
 
         int gc_marker;
         unsigned n_in_gc_queue;

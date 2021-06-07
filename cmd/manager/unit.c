@@ -39,12 +39,13 @@ have been included with this software
 #include <string.h>
 #include <unistd.h>
 
+#include "kill.h"
 #include "systemd/sd-id128.h"
 #include "systemd/sd-messages.h"
 
 #include "bus-errors.h"
-#include "cgroup-util.h"
 #include "dbus-unit.h"
+#include "def.h"
 #include "ev-util.h"
 #include "fileio-label.h"
 #include "label.h"
@@ -60,6 +61,12 @@ have been included with this software
 #include "strv.h"
 #include "unit-name.h"
 #include "unit.h"
+
+#if defined(Use_CGroups)
+#include "cgroup-util.h"
+#elif defined (Use_PTGroups)
+#include "ptgroup/ptgroup.h"
+#endif
 
 const UnitVTable * const unit_vtable[_UNIT_TYPE_MAX] = {
         [UNIT_SERVICE] = &service_vtable,
@@ -473,6 +480,7 @@ void unit_free(Unit *u) {
                 u->manager->n_in_gc_queue--;
         }
 
+#if defined(Use_CGroups)
         if (u->in_cgroup_queue)
                 IWLIST_REMOVE(Unit, cgroup_queue, u->manager->cgroup_queue, u);
 
@@ -480,8 +488,7 @@ void unit_free(Unit *u) {
                 hashmap_remove(u->manager->cgroup_unit, u->cgroup_path);
                 free(u->cgroup_path);
         }
-
-#ifdef Use_PTGroups
+#elif defined(Use_PTGroups)
         /* we don't want to eliminate the PTGroup data we need for reloading */
         if (!u->manager->n_reloading) {
                 if (u->ptgroup) {
@@ -771,9 +778,12 @@ void unit_dump(Unit *u, FILE *f, const char *prefix) {
                 "%s\tNeed Daemon Reload: %s\n"
                 "%s\tTransient: %s\n"
                 "%s\tSlice: %s\n"
+#ifdef Use_CGroups
                 "%s\tCGroup: %s\n"
                 "%s\tCGroup realized: %s\n"
-                "%s\tCGroup mask: 0x%x\n",
+                "%s\tCGroup mask: 0x%x\n"
+#endif
+		,
                 prefix, u->id,
                 prefix, unit_description(u),
                 prefix, strna(u->instance),
@@ -786,10 +796,13 @@ void unit_dump(Unit *u, FILE *f, const char *prefix) {
                 prefix, yes_no(unit_check_gc(u)),
                 prefix, yes_no(unit_need_daemon_reload(u)),
                 prefix, yes_no(u->transient),
-                prefix, strna(unit_slice_name(u)),
-                prefix, strna(u->cgroup_path),
+                prefix, strna(unit_slice_name(u))
+#ifdef Use_CGroups
+                , prefix, strna(u->cgroup_path),
                 prefix, yes_no(u->cgroup_realized),
-                prefix, u->cgroup_mask);
+                prefix, u->cgroup_mask
+#endif
+		);
 
         SET_FOREACH(t, u->names, i)
                 fprintf(f, "%s\tName: %s\n", prefix, t);
@@ -2427,8 +2440,14 @@ int unit_serialize(Unit *u, FILE *f, FDSet *fds, bool serialize_jobs) {
 
         unit_serialize_item(u, f, "transient", yes_no(u->transient));
 
+#ifdef Use_CGroups
         if (u->cgroup_path)
                 unit_serialize_item(u, f, "cgroup", u->cgroup_path);
+#endif
+	/*
+	 * PTGroups are all serialised, and re-attached to their unit on
+	 * deserialisation.
+	 */
 
         if (serialize_jobs) {
                 if (u->job) {
@@ -2579,7 +2598,9 @@ int unit_deserialize(Unit *u, FILE *f, FDSet *fds) {
                                 u->transient = b;
 
                         continue;
-                } else if (streq(l, "cgroup")) {
+		}
+#ifdef Use_CGroups
+                else if (streq(l, "cgroup")) {
                         char *s;
 
                         s = strdup(v);
@@ -2591,7 +2612,8 @@ int unit_deserialize(Unit *u, FILE *f, FDSet *fds) {
 
                         assert(hashmap_put(u->manager->cgroup_unit, s, u) == 1);
                         continue;
-                }
+		}
+#endif
 
                 if (unit_can_serialize(u)) {
                         r = UNIT_VTABLE(u)->deserialize_item(u, l, v, fds);
@@ -2796,6 +2818,9 @@ int unit_kill(Unit *u, KillWho w, int signo, DBusError *error) {
         return UNIT_VTABLE(u)->kill(u, w, signo, error);
 }
 
+/**
+ * Generate a Set containing \p main_pid and \p control_pid.
+ */
 static Set *unit_pid_set(pid_t main_pid, pid_t control_pid) {
         Set *pid_set;
         int r;
@@ -2860,8 +2885,8 @@ int unit_kill_common(
                         if (kill(main_pid, signo) < 0)
                                 r = -errno;
 
-        if (who == KILL_ALL && u->cgroup_path) {
-#ifdef Use_CGroups
+#ifdef UNIT_CGROUP_MEMBER
+        if (who == KILL_ALL && u->UNIT_CGROUP_MEMBER) {
                 _cleanup_set_free_ Set *pid_set = NULL;
                 int q;
 
@@ -2870,15 +2895,17 @@ int unit_kill_common(
                 if (!pid_set)
                         return -ENOMEM;
 
-                q = cg_kill_recursive(SYSTEMD_CGROUP_CONTROLLER, u->cgroup_path, signo, false, true, false, pid_set);
+                q = cg_kill_recursive(SYSTEMD_CGROUP_CONTROLLER, u->UNIT_CGROUP_MEMBER, signo, false, true, false, pid_set);
                 if (q < 0 && q != -EAGAIN && q != -ESRCH && q != -ENOENT)
                         r = q;
-#else
-                unimplemented_msg("kill by cgroup");
-#endif
-        }
 
-        return r;
+        }
+#else
+	if (who == KILL_ALL)
+		unimplemented_msg("kill by cgroup");
+#endif
+
+	return r;
 }
 
 int unit_following_set(Unit *u, Set **s) {
@@ -3252,37 +3279,41 @@ int unit_kill_context(
                 }
         }
 
-        if (c->kill_mode == KILL_CONTROL_GROUP && u->cgroup_path) {
-#ifdef Use_CGroups
-                _cleanup_set_free_ Set *pid_set = NULL;
+#ifdef UNIT_CGROUP_MEMBER
+	if (c->kill_mode == KILL_CONTROL_GROUP && u->UNIT_CGROUP_MEMBER) {
+		_cleanup_set_free_ Set *pid_set = NULL;
 
-                /* Exclude the main/control pids from being killed via the cgroup */
-                pid_set = unit_pid_set(main_pid, control_pid);
-                if (!pid_set)
-                        return -ENOMEM;
+		/* Exclude the main/control pids from being killed via the cgroup */
+		pid_set = unit_pid_set(main_pid, control_pid);
+		if (!pid_set)
+			return -ENOMEM;
 
-                r = cg_kill_recursive(SYSTEMD_CGROUP_CONTROLLER, u->cgroup_path, sig, true, true, false, pid_set);
-                if (r < 0) {
-                        if (r != -EAGAIN && r != -ESRCH && r != -ENOENT)
-                                log_warning_unit(u->id, "Failed to kill control group: %s", strerror(-r));
-                } else if (r > 0) {
-                        wait_for_exit = true;
-                        if (c->send_sighup) {
-                                set_free(pid_set);
+		r = cg_kill_recursive(SYSTEMD_CGROUP_CONTROLLER,
+			u->UNIT_CGROUP_MEMBER, sig, true, true, false, pid_set);
+		if (r < 0) {
+			if (r != -EAGAIN && r != -ESRCH && r != -ENOENT)
+				log_warning_unit(u->id, "Failed to kill control group: %s", strerror(-r));
+		} else if (r > 0) {
+			wait_for_exit = true;
+			if (c->send_sighup) {
+				set_free(pid_set);
 
-                                pid_set = unit_pid_set(main_pid, control_pid);
-                                if (!pid_set)
-                                        return -ENOMEM;
+				pid_set = unit_pid_set(main_pid, control_pid);
+				if (!pid_set)
+					return -ENOMEM;
 
-                                cg_kill_recursive(SYSTEMD_CGROUP_CONTROLLER, u->cgroup_path, SIGHUP, true, true, false, pid_set);
-                        }
-                }
+				cg_kill_recursive(SYSTEMD_CGROUP_CONTROLLER,
+					u->UNIT_CGROUP_MEMBER, SIGHUP, true,
+					true, false, pid_set);
+			}
+		}
+	}
 #else
-                unimplemented_msg("kill cg recursively");
+	if (c->kill_mode == KILL_CONTROL_GROUP)
+		log_unimpl("Kill control group\n");
 #endif
-        }
 
-        return wait_for_exit;
+	return wait_for_exit;
 }
 
 int unit_require_mounts_for(Unit *u, const char *path) {
