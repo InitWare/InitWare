@@ -362,7 +362,16 @@ struct UnitVTable {
         int (*stop)(Unit *u);
         int (*reload)(Unit *u);
 
-        int (*kill)(Unit *u, KillWho w, int signo, DBusError *error);
+	/**
+	 * Kill the processes of the unit with \p signo.
+	 *
+	 * If \p KillWho is \c KILL_ALL, then the entire group (if a CGroup or
+	 * PTGroup backing is built in) will be killed.
+	 *
+	 * This method does not imply any particular state change - the unit's
+	 * state will change according to the usual rules for processes exiting.
+	 */
+	int (*kill)(Unit *u, KillWho w, int signo, DBusError *error);
 
         bool (*can_reload)(Unit *u);
 

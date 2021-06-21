@@ -2849,6 +2849,11 @@ fail:
         return NULL;
 }
 
+/**
+ * Kills processes of a unit by user request. This does not make any changes to
+ * unit state directly; it just sends the signals, so e.g. a Restart=always
+ * service will be restarted automatically.
+ */
 int unit_kill_common(
                 Unit *u,
                 KillWho who,
@@ -3226,6 +3231,9 @@ int unit_make_transient(Unit *u) {
         return write_string_file_atomic_label(u->fragment_path, "# Transient stub");
 }
 
+/**
+ * Kill the unit's processes as part of a unit state transition.
+ */
 int unit_kill_context(
                 Unit *u,
                 KillContext *c,

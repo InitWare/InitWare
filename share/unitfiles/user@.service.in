@@ -21,5 +21,6 @@ ExecStart=-@AbsDir_PkgLibExec@/iw.manager --user
 # http://thread.gmane.org/gmane.comp.sysutils.systemd.devel/16363
 ExecStop=/bin/kill -TERM ${MAINPID}
 KillSignal=SIGCONT
+# FIXME: what about when /run isn't a symlink to /var/run???
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%I/dbus/user_bus_socket
 Slice=user-%i.slice

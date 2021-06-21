@@ -463,6 +463,13 @@ bool ptg_is_empty_recursive(PTGroup *grp)
 	return true;
 }
 
+/**
+ * Recursively kill processes of a PTGroup.
+ *
+ * @returns 1 if some processes were killed.
+ * @returns 0 if there are no processes left to kill
+ * @returns -errno if there was an error.
+ */
 int cg_kill(const char *unused, const PTGroup *grp, int sig, bool sigcont, bool ignore_self, Set *s)
 {
 	_cleanup_set_free_ Set *allocated_set = NULL;
