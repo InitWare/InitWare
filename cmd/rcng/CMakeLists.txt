@@ -2,10 +2,10 @@ add_executable(wait4pipe wait4pipe.c)
 target_link_libraries(wait4pipe compat)
 
 add_executable(rcng2unit rcng2unit.c)
-target_link_libraries(rcng2unit initware-shared)
+target_link_libraries(rcng2unit iw-shared)
 
 add_executable(ttys-generator ttys-generator.c)
-target_link_libraries(ttys-generator initware-shared)
+target_link_libraries(ttys-generator iw-shared)
 
 install(TARGETS wait4pipe rcng2unit DESTINATION ${RelDir_PkgLibExec})
 install(TARGETS ttys-generator DESTINATION ${systemgeneratordir})

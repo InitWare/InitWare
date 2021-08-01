@@ -4,10 +4,10 @@ foreach(DOCBOOK_IN ${DOCBOOKS})
     get_filename_component(MAN_BASE ${DOCBOOK_IN} NAME_WLE)
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${MAN_BASE}
-        COMMAND $<TARGET_FILE:docbook2mdoc> ${DOCBOOK_IN}
+        COMMAND $<TARGET_FILE:iw-docbook2mdoc> ${DOCBOOK_IN}
           > ${CMAKE_CURRENT_BINARY_DIR}/${MAN_BASE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        DEPENDS ${DOCBOOK_IN} $<TARGET_FILE:docbook2mdoc>
+        DEPENDS ${DOCBOOK_IN} $<TARGET_FILE:iw-docbook2mdoc>
         COMMENT "Generating MDoc manual page ${MAN_BASE}")
   
     list(APPEND MDOCS ${CMAKE_CURRENT_BINARY_DIR}/${MAN_BASE})

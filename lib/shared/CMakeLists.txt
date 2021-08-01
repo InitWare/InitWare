@@ -31,20 +31,20 @@ if(Use_Libcap)
     list(APPEND shared_src capability.c)
 endif()
 
-add_library(initware-shared ${shared_src})
-target_include_directories(initware-shared PUBLIC head)
-target_link_libraries(initware-shared internal compat iw-cjson iw-ev
+add_library(iw-shared ${shared_src})
+target_include_directories(iw-shared PUBLIC head)
+target_link_libraries(iw-shared internal compat iw-cjson iw-ev
     PkgConfig::DBus ${KVM_Libs} ${Cap_Libs})
 
 # ------------------------------------------------------------------------------
-add_library(initware-dbus dbus-common.c polkit.c dbus-loop-libev.c)
-target_include_directories(initware-dbus PUBLIC head)
-target_link_libraries(initware-dbus internal compat iw-ev PkgConfig::DBus)
+add_library(iw-dbus dbus-common.c polkit.c dbus-loop-libev.c)
+target_include_directories(iw-dbus PUBLIC head)
+target_link_libraries(iw-dbus internal compat iw-ev PkgConfig::DBus)
 
 # ------------------------------------------------------------------------------
-add_library(initware-units install.c install-printf.c path-lookup.c specifier.c)
-target_include_directories(initware-units PUBLIC head)
-target_link_libraries(initware-units internal compat iw-ev PkgConfig::DBus)
+add_library(iw-units install.c install-printf.c path-lookup.c specifier.c)
+target_include_directories(iw-units PUBLIC head)
+target_link_libraries(iw-units internal compat iw-ev PkgConfig::DBus)
 
 # ------------------------------------------------------------------------------
 set(label_src socket-label.c mkdir-label.c ask-password-api.c
@@ -52,7 +52,7 @@ set(label_src socket-label.c mkdir-label.c ask-password-api.c
 
 set(label_src_linux selinux-util.c)
 
-add_library(initware-label ${label_src})
-target_include_directories(initware-label PUBLIC head)
-target_link_libraries(initware-label internal compat iw-ev PkgConfig::DBus)
+add_library(iw-label ${label_src})
+target_include_directories(iw-label PUBLIC head)
+target_link_libraries(iw-label internal compat iw-ev PkgConfig::DBus)
 #link also with selinux

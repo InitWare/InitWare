@@ -4,15 +4,15 @@ add_subdirectory(rcng)
 add_subdirectory(login)
 
 add_executable(iwanalyse analyse.c)
-target_link_libraries(iwanalyse initware-shared initware-daemon
-    initware-dbus initware-units initware-id128 PkgConfig::DBus)
+target_link_libraries(iwanalyse iw-shared iw-daemon
+    iw-dbus iw-units iw-id128 PkgConfig::DBus)
 
 add_executable(iwrun run.c)
-target_link_libraries(iwrun initware-shared initware-daemon
-    initware-dbus initware-units initware-id128 PkgConfig::DBus)
+target_link_libraries(iwrun iw-shared iw-daemon
+    iw-dbus iw-units iw-id128 PkgConfig::DBus)
 
 add_executable(iwnotify notify.c)
-target_link_libraries(iwnotify initware-shared initware-daemon)
+target_link_libraries(iwnotify iw-shared iw-daemon)
 
 add_executable(init init.c)
 

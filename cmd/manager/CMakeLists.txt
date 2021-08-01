@@ -54,8 +54,8 @@ endif()
 
 add_library(manager-core ${manager_core_src})
 target_include_directories(manager-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(manager-core initware-shared initware-units initware-label
-    initware-dbus initware-id128 initware-daemon iw-cjson iw-ev
+target_link_libraries(manager-core iw-shared iw-units iw-label
+    iw-dbus iw-id128 iw-daemon iw-cjson iw-ev
     ${UDev_Libs} PkgConfig::DBus Threads::Threads)
 if(Use_PAM)
   target_link_libraries(manager-core pam)

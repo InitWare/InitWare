@@ -1,5 +1,4 @@
 add_subdirectory(compat)
 add_subdirectory(shared)
-add_subdirectory(initware-rpc)
-add_subdirectory(libinitware-daemon)
-add_subdirectory(libinitware-id128)
+add_subdirectory(rpc)
+add_subdirectory(initware)
