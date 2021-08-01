@@ -326,7 +326,7 @@ add_subdirectory(lib)
 add_subdirectory(cmd)
 add_subdirectory(share)
 
-configure_file(lib/compat/head/compat.h.in lib/compat/head/compat.h)
+configure_file(lib/compat/head/config.h.in lib/compat/head/config.h)
 
 #-------------------------------------------------------------------------------
 # display enabled options

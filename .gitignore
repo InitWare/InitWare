@@ -163,12 +163,5 @@ __pycache__/
 .deps/
 .dirstamp
 .libs/
-Makefile.in
-aclocal.m4
-config.h
-config.h.in
-config.log
-config.status
-configure
 stamp-*
 compile_commands.json

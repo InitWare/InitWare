@@ -118,7 +118,7 @@ but some files are under other terms. See [doc/Licences.md](doc/Licences.md)
 for details. In particular, where a file does not implement any algorithm or
 technology eligible for copyright (e.g. where the functionality is basic and
 obviously implementable only in one way), these are released explicitly into
-the public domain, as copyright would be anyway uneforceable.
+the public domain.
 
 Further reading
 ---------------
