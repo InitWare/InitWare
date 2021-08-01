@@ -7,7 +7,11 @@
 
 #include "config.h"
 
-#define POLKIT_AGENT_BINARY_PATH "@POLKIT_AGENT_BINARY_PATH@"
+#if defined(Have_stdlib_strtod_l) | defined(Have_xlocale_strtod_l)
+#define Have_strtod_l
+#else
+#define strtod_l(nptr, endptr, locale) strtod(nptr, endptr)
+#endif
 
 #ifdef Use_KQProc
 #define Use_PTGroups true

@@ -45,6 +45,8 @@
 #cmakedefine Have_program_invocation_short_name
 #cmakedefine Have___secure_getenv
 #cmakedefine Have_secure_getenv
+#cmakedefine Have_stdlib_strtod_l
+#cmakedefine Have_xlocale_strtod_l
 #cmakedefine Have_strtonum
 
 /*
@@ -117,5 +119,6 @@
  * Binary paths
  */
 #cmakedefine BinPath_Runrcng "@BinPath_Runrcng@"
+#define POLKIT_AGENT_BINARY_PATH "@POLKIT_AGENT_BINARY_PATH@"
 
 #endif /* IW_CONFIG_H_ */
