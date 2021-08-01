@@ -466,7 +466,10 @@ static int manager_setup_signals(Manager *m) {
         for (int i = 0; i < ELEMENTSOF(signals); i++) {
                 ev_signal_init(
                         &ev_signals[i],
-                        signals[i] >= SIGRTMIN ? manager_sigrt_signal_cb : manager_signal_cb,
+#ifdef SIGRTMIN
+                        signals[i] >= SIGRTMIN ? manager_sigrt_signal_cb :
+#endif
+                        manager_signal_cb,
                         signals[i]);
                 ev_signals[i].data = m;
                 assert_se(sigaddset(&mask, signals[i]) == 0);
@@ -1565,6 +1568,7 @@ static void manager_sigrt_signal_cb(struct ev_loop *evloop, ev_signal *watch, in
 
         Manager *m = watch->data;
 
+#ifdef SIGRTMIN
         if ((int) watch->signum >= SIGRTMIN + 0 &&
             (int) watch->signum < SIGRTMIN + (int) ELEMENTSOF(target_table)) {
                 int idx = (int) watch->signum - SIGRTMIN;
@@ -1638,6 +1642,7 @@ static void manager_sigrt_signal_cb(struct ev_loop *evloop, ev_signal *watch, in
         default:
                 log_warning("Unhandled signal %s", signal_to_string(watch->signum));
         }
+#endif /* SIGRTMIN */
 }
 
 static void manager_signal_cb(struct ev_loop *evloop, ev_signal *watch, int revents)
