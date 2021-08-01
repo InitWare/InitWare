@@ -42,7 +42,10 @@ if(Use_KQProc)
 endif()
 
 if(Sys_Plat_Linux)
-    list(APPEND manager_core_src dbus-cgroup.c linux/cgroup.c swap.c dbus-swap.c mount.c
+    if(Use_Libudev OR Use_Libdevattr)
+        list(APPEND manager_core_src swap.c dbus-swap.c)
+    endif()
+    list(APPEND manager_core_src dbus-cgroup.c linux/cgroup.c mount.c
     dbus-mount.c automount.c dbus-automount.c
     selinux-access.c selinux-setup.c namespace.c mount-setup.c
     loopback-setup.c switch-root.c)
@@ -52,7 +55,7 @@ endif()
 add_library(manager-core ${manager_core_src})
 target_include_directories(manager-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(manager-core initware-shared initware-units initware-label
-    initware-dbus initware-id128 initware-daemon initware-cjson initware-ev
+    initware-dbus initware-id128 initware-daemon iw-cjson iw-ev
     ${UDev_Libs} PkgConfig::DBus Threads::Threads)
 if(Use_PAM)
   target_link_libraries(manager-core pam)

@@ -42,7 +42,11 @@ have been included with this software
 #include "ev.h"
 
 #include "fdset.h"
+#if defined(Use_CGroups)
+#include "cgroup-util.h"
+#elif defined(Use_PTGroups)
 #include "ptgroup/ptgroup.h"
+#endif
 
 /* Enforce upper limit how many names we allow */
 #define MANAGER_MAX_NAMES 131072 /* 128K */
@@ -354,4 +358,4 @@ void manager_status_printf(Manager *m, bool ephemeral, const char *status, const
 
 Set *manager_get_units_requiring_mounts_for(Manager *m, const char *path);
 
-#endif
+#endif /* MANAGER_H_ */

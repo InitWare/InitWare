@@ -314,10 +314,14 @@ set(BinPath_Runrcng ${AbsDir_PkgLibExec}/runrcng.sh)
 add_library(internal INTERFACE)
 target_include_directories(internal INTERFACE common head head/systemd)
 
-add_library(initware-cjson vendor/cJSON/cJSON.c)
-target_include_directories(initware-cjson PUBLIC vendor/cJSON)
+add_subdirectory(vendor/iw-cjson)
+add_subdirectory(vendor/iw-libev)
 
+# if (build_doc) or something like that
+add_subdirectory(vendor/iw-docbook2mdoc)
 add_subdirectory(doc/manual)
+# endif
+
 add_subdirectory(lib)
 add_subdirectory(cmd)
 add_subdirectory(share)

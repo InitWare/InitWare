@@ -1,9 +1,9 @@
-[submodule "vendor/cJSON"]
-	path = vendor/cJSON
-	url = ../cJSON
-[submodule "vendor/docbook2mdoc"]
-	path = vendor/docbook2mdoc
-	url = ../docbook2mdoc.git
-[submodule "vendor/libev"]
-	path = vendor/libev
-	url = ../libev.git
+[submodule "vendor/iw-cjson"]
+	path = vendor/iw-cjson
+	url = ../iw-cjson
+[submodule "vendor/iw-docbook2mdoc"]
+	path = vendor/iw-docbook2mdoc
+	url = ../iw-docbook2mdoc
+[submodule "vendor/iw-libev"]
+	path = vendor/iw-libev
+	url = ../iw-libev
