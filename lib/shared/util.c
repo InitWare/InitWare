@@ -4531,7 +4531,9 @@ static const char* const rlimit_table[] = {
         [RLIMIT_CORE] = "LimitCORE",
         [RLIMIT_RSS] = "LimitRSS",
         [RLIMIT_NOFILE] = "LimitNOFILE",
+#ifdef RLIMIT_AS
         [RLIMIT_AS] = "LimitAS",
+#endif
         [RLIMIT_NPROC] = "LimitNPROC",
         [RLIMIT_MEMLOCK] = "LimitMEMLOCK",
 #ifdef Sys_Plat_Linux
