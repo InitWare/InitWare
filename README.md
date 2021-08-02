@@ -36,7 +36,7 @@ for details on these.
 InitWare aims for a high level of compatibility with the core interfaces of
 systemd. Unit-files, the `systemctl` and `loginctl` commands (provided as `iwctl`
 and `iwloginctl`), the systemd1 and Login1 D-Bus APIs, the sd_notify API, and
-several other interfaces are all subject to this aim.
+several other interfaces are all subject to this aim. Currently 
 
 Comprehensive compatibility with every interface is impractical on some platforms;
 some unit options are entirely GNU/Linux-specific and while most have alternatives
@@ -66,6 +66,7 @@ The following platforms are supported:
   are all supported.
 - FreeBSD (13.0+) as system, user, and login manager.
 - DragonFly BSD (5.8+) as user manager.
+- OpenBSD (6.9+) as user manager.
 - GNU/Linux (3.6+) as system, user, and login manager, but note below that
   this is not currently set up to build.
 
@@ -73,9 +74,9 @@ The following platforms are supported:
 InitWare hasn't been adapted for Linux yet. This will be completed in the
 near future.
 
-We hope to support (recent versions of) OpenBSD, and possibly also Illumos, in
-the near future. Please see the [Support Matrix] for further information on
-platform support.
+We are considering trying to support Illumos (as user manager) in the near
+future. Please see the [Support Matrix] for further information on platform
+support.
 
 [Support Matrix]: https://github.com/InitWare/InitWare/wiki/Support-Matrix
 
