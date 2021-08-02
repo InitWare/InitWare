@@ -675,7 +675,7 @@ static int instance_from_socket(int fd, unsigned nr, char **instance) {
         }
 
         case AF_UNIX: {
-#ifdef SO_PEERCRED
+#ifdef Sys_Plat_Linux
                 struct ucred ucred;
 
                 l = sizeof(ucred);
