@@ -22,6 +22,8 @@ have been included with this software
 #if defined(Sys_Plat_FreeBSD)
 #        include <libutil.h>
 #        define ki_fd kf_fd
+#elif defined(Sys_Plat_OpenBSD)
+#define ki_fd fd_fd
 #endif
 
 #ifdef Sys_Plat_NetBSD
@@ -88,7 +90,7 @@ int fdset_new_fill(FDSet **_s)
 #elif defined(Sys_Plat_NetBSD)
         files = get_files(&cnt);
 #elif defined(Sys_Plat_OpenBSD)
-        files = kvm_getfiles(g_kd, KERN_FILE_BYPID, getpid(), sizeof(struct kinfo_file), &cnt)
+        files = kvm_getfiles(g_kd, KERN_FILE_BYPID, getpid(), sizeof(struct kinfo_file), &cnt);
 #endif
 
         if (!files)

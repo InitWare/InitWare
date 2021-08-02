@@ -131,7 +131,12 @@ static void wait_for_children(Set *pids, sigset_t *mask) {
                         return;
 
                 timespec_store(&ts, until - n);
+#ifndef Sys_Plat_OpenBSD // FIXME:
                 k = sigtimedwait(mask, NULL, &ts);
+#else
+		k = -1;
+		errno = ENOSYS;
+#endif
                 if (k != SIGCHLD) {
 
                         if (k < 0 && errno != EAGAIN) {

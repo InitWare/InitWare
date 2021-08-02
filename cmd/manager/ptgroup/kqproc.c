@@ -13,6 +13,7 @@ have been included with this software
         All rights reserved.
 *********************************************************************/
 
+#include <sys/types.h>
 #include <sys/event.h>
 
 #include "kqproc.h"

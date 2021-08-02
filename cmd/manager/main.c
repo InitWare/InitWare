@@ -675,7 +675,9 @@ static int parse_config_file(void) {
                 { "Manager", "DefaultLimitCORE",      config_parse_limit,        0, &arg_default_rlimit[RLIMIT_CORE]},
                 { "Manager", "DefaultLimitRSS",       config_parse_limit,        0, &arg_default_rlimit[RLIMIT_RSS]},
                 { "Manager", "DefaultLimitNOFILE",    config_parse_limit,        0, &arg_default_rlimit[RLIMIT_NOFILE]},
+#ifdef RLIMIT_AS
                 { "Manager", "DefaultLimitAS",        config_parse_limit,        0, &arg_default_rlimit[RLIMIT_AS]},
+#endif
                 { "Manager", "DefaultLimitNPROC",     config_parse_limit,        0, &arg_default_rlimit[RLIMIT_NPROC]},
                 { "Manager", "DefaultLimitMEMLOCK",   config_parse_limit,        0, &arg_default_rlimit[RLIMIT_MEMLOCK]},
 #ifdef Sys_Plat_Linux

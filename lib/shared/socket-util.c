@@ -653,7 +653,18 @@ int cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred) {
 
 int socket_getpeercred(int fd, struct socket_ucred *xucred) {
 #if defined(SO_PEERCRED) && defined(Sys_Plat_OpenBSD)
-#error Port me
+        socklen_t len;
+        struct sockpeercred cred;
+
+        len = sizeof *xucred;
+        if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &len) == -1)
+                return -errno;
+
+        xucred->gid = cred.gid;
+        xucred->uid = cred.uid;
+        xucred->pid = cred.pid;
+
+        return 0;
 #elif defined(SO_PEERCRED) && defined(Sys_Plat_Linux)
         socklen_t len;
 

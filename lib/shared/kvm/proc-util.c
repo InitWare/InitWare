@@ -13,6 +13,10 @@ have been included with this software
         All rights reserved.
 *********************************************************************/
 
+#include <sys/types.h>
+#include <sys/signal.h>
+#include <sys/proc.h>
+
 #include <assert.h>
 
 #include "kvm.h"
@@ -35,6 +39,8 @@ have been included with this software
 #        define p_comm ki_comm
 #        define p_ruid ki_ruid
 #        define p_rgid ki_rgid
+#elif defined(Sys_Plat_OpenBSD)
+
 #else
 #        error "Unsupported platform- please port"
 #endif
@@ -60,7 +66,11 @@ static struct kinfo_proc *get_pid_info(pid_t pid) {
                 int cnt;
                 struct kinfo_proc *info;
 
+#ifdef Sys_Plat_OpenBSD
+		info = kvm_getprocs(g_kd, KERN_PROC_PID, pid, sizeof *info, &cnt);
+#else
                 info = kvm_getprocs(g_kd, KERN_PROC_PID, pid, &cnt);
+#endif
                 if (!cnt) /* maybe already wait()'d on */
                         return NULL;
 

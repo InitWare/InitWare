@@ -466,7 +466,10 @@ static int manager_setup_signals(Manager *m) {
         for (int i = 0; i < ELEMENTSOF(signals); i++) {
                 ev_signal_init(
                         &ev_signals[i],
-                        signals[i] >= SIGRTMIN ? manager_sigrt_signal_cb : manager_signal_cb,
+#ifdef SIGRTMIN
+                        signals[i] >= SIGRTMIN ? manager_sigrt_signal_cb :
+#endif
+                        manager_signal_cb,
                         signals[i]);
                 ev_signals[i].data = m;
                 assert_se(sigaddset(&mask, signals[i]) == 0);
@@ -1464,10 +1467,14 @@ static int manager_dispatch_sigchld(Manager *m) {
     for (;;) {
             siginfo_t si = {};
 
+#ifndef Have_waitid
+            if (waitid(P_ALL, 0, &si, WEXITED|WNOHANG) < 0) {
+#else
             /* First we call waitd() for a PID and do not reap the
              * zombie. That way we can still access /proc/$PID for
              * it while it is a zombie. */
             if (waitid(P_ALL, 0, &si, WEXITED|WNOHANG|WNOWAIT) < 0) {
+#endif
 
                     if (errno == ECHILD)
                             break;
@@ -1485,6 +1492,7 @@ static int manager_dispatch_sigchld(Manager *m) {
                     _cleanup_free_ char *name = NULL;
                     Unit *u;
 
+#ifdef Have_waitid
                     get_process_comm(si.si_pid, &name);
 
                     log_debug("Child %lu (%s) died (code=%s, status=%i/%s)",
@@ -1494,6 +1502,7 @@ static int manager_dispatch_sigchld(Manager *m) {
                               strna(si.si_code == CLD_EXITED
                                     ? exit_status_to_string(si.si_status, EXIT_STATUS_FULL)
                                     : signal_to_string(si.si_status)));
+#endif
 
 #if defined(Use_CGroups) || defined(Use_KQProc)
                     /* And now figure out the unit this belongs
@@ -1510,6 +1519,7 @@ static int manager_dispatch_sigchld(Manager *m) {
                             invoke_sigchld_event(m, u, &si);
             }
 
+#ifdef Have_waitid
             /* And now, we actually reap the zombie. */
             if (waitid(P_PID, si.si_pid, &si, WEXITED) < 0) {
                     if (errno == EINTR)
@@ -1517,6 +1527,7 @@ static int manager_dispatch_sigchld(Manager *m) {
 
                     return -errno;
             }
+#endif
     }
 
     return 0;
@@ -1557,6 +1568,7 @@ static void manager_sigrt_signal_cb(struct ev_loop *evloop, ev_signal *watch, in
 
         Manager *m = watch->data;
 
+#ifdef SIGRTMIN
         if ((int) watch->signum >= SIGRTMIN + 0 &&
             (int) watch->signum < SIGRTMIN + (int) ELEMENTSOF(target_table)) {
                 int idx = (int) watch->signum - SIGRTMIN;
@@ -1630,6 +1642,7 @@ static void manager_sigrt_signal_cb(struct ev_loop *evloop, ev_signal *watch, in
         default:
                 log_warning("Unhandled signal %s", signal_to_string(watch->signum));
         }
+#endif /* SIGRTMIN */
 }
 
 static void manager_signal_cb(struct ev_loop *evloop, ev_signal *watch, int revents)
