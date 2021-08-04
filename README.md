@@ -66,6 +66,7 @@ The following platforms are supported:
   are all supported.
 - FreeBSD (13.0+) as system, user, and login manager.
 - DragonFly BSD (5.8+) as user manager.
+- OpenBSD (6.9+) as user manager.
 - GNU/Linux (3.6+) as system, user, and login manager, but note below that
   this is not currently set up to build.
 
@@ -73,9 +74,9 @@ The following platforms are supported:
 InitWare hasn't been adapted for Linux yet. This will be completed in the
 near future.
 
-We hope to support (recent versions of) OpenBSD, and possibly also Illumos, in
-the near future. Please see the [Support Matrix] for further information on
-platform support.
+We are considering trying to support Illumos (as user manager) in the near
+future. Please see the [Support Matrix] for further information on platform
+support.
 
 [Support Matrix]: https://github.com/InitWare/InitWare/wiki/Support-Matrix
 
