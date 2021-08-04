@@ -295,15 +295,15 @@ set(USER_GENERATOR_PATH ${usergeneratordir})
 set(AbsPath_CatalogDatabase ${AbsDir_InitWareStateDir}/catalog/database)
 
 # binary paths
-set(SYSTEMCTL_BINARY_PATH ${CMAKE_INSTALL_FULL_BINDIR}/iwctl)
-set(SYSTEMD_BINARY_PATH ${AbsDir_PkgLibExec}/iw.manager)
-set(SYSTEMD_CGROUP_AGENT_AGENT ${AbsDir_PkgLibExec}/iw.cgroups-agent)
-set(SYSTEMD_SHUTDOWN_BINARY_PATH ${AbsDir_PkgLibExec}/iw.shutdown)
-set(SYSTEMD_SLEEP_BINARY_PATH ${AbsDir_PkgLibExec}/iw.sleep)
+set(SYSTEMCTL_BINARY_PATH ${CMAKE_INSTALL_FULL_BINDIR}/svcctl)
+set(SYSTEMD_BINARY_PATH ${AbsDir_PkgLibExec}/svc.managerd)
+set(SYSTEMD_CGROUP_AGENT_AGENT ${AbsDir_PkgLibExec}/svc.cgroups-agent)
+set(SYSTEMD_SHUTDOWN_BINARY_PATH ${AbsDir_PkgLibExec}/svc.shutdown)
+set(SYSTEMD_SLEEP_BINARY_PATH ${AbsDir_PkgLibExec}/svc.sleep)
 set(SYSTEMD_TTY_ASK_PASSWORD_AGENT_BINARY_PATH
-  ${AbsDir_PkgLibExec}/iw.tty-ask-password-agent)
+  ${AbsDir_PkgLibExec}/svc.tty-ask-password-agent)
 set(SYSTEMD_STDIO_BRIDGE_BINARY_PATH
-  ${AbsDir_PkgLibExec}/iw.stdio-bridge)
+  ${AbsDir_PkgLibExec}/svc.stdio-bridge)
 #todo: find
 set(POLKIT_AGENT_BINARY_PATH ${CMAKE_INSTALL_FULL_BINDIR}/pkttyagent)
 
@@ -326,7 +326,6 @@ add_subdirectory(doc/manual)
 
 add_subdirectory(lib)
 add_subdirectory(cmd)
-add_subdirectory(share)
 
 configure_file(lib/compat/head/config.h.in lib/compat/head/config.h)
 

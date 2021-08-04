@@ -61,7 +61,7 @@ if(Use_PAM)
   target_link_libraries(manager-core pam)
 endif()
 
-add_executable(iw.manager main.c)
-target_link_libraries(iw.manager manager-core)
+add_executable(svc.managerd main.c)
+target_link_libraries(svc.managerd manager-core)
 
-install(TARGETS iw.manager RUNTIME DESTINATION ${RelDir_PkgLibExec})
+install(TARGETS svc.managerd RUNTIME DESTINATION ${RelDir_PkgLibExec})

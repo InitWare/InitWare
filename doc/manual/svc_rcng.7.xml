@@ -13,7 +13,7 @@
   </info>
 
   <refmeta>
-    <refentrytitle>iw_rcng</refentrytitle>
+    <refentrytitle>svc_rcng</refentrytitle>
 
     <manvolnum>7</manvolnum>
 
@@ -24,7 +24,7 @@
   </refmeta>
 
   <refnamediv>
-    <refname>iw_rcng</refname>
+    <refname>svc_rcng</refname>
 
     <refpurpose>Mewburn RC compatibility for InitWare</refpurpose>
   </refnamediv>
@@ -155,7 +155,7 @@
 
         <listitem>
           <para>The InitWare manager <citerefentry>
-              <refentrytitle>iw.manager</refentrytitle>
+              <refentrytitle>svc.managerd</refentrytitle>
 
               <manvolnum>8</manvolnum>
             </citerefentry> is launched as a background process. At this

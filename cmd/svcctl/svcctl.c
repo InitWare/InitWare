@@ -30,7 +30,7 @@
 #include <systemd/sd-daemon.h>
 #include <systemd/sd-shutdown.h>
 
-#include "iwctl.h"
+#include "svcctl.h"
 #include "log.h"
 #include "build.h"
 #include "dbus-common.h"
