@@ -1,4 +1,4 @@
-![InitWare](http://brand.initware.com/assets/page-logo.png)
+![InitWare](http://brand.initware.com/assets/page-logo-bg.png)
 
 ***InitWare isn't ready to use yet!!***
 Unless you are doing so for fun, to experiment, or to contribute, you most
