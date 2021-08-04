@@ -13,7 +13,7 @@ After=systemd-user-sessions.service
 User=%I
 PAMName=systemd-user
 Type=notify
-ExecStart=-@AbsDir_PkgLibExec@/iw.manager --user
+ExecStart=-@AbsDir_PkgLibExec@/svc.managerd --user
 # Apply same work around as apache's httpd until issues with user session
 # killing is fixed (currently problem is that the kill issued by systemd --user
 # is itself killed by systemd (PID1) before it can work which can lead to slow

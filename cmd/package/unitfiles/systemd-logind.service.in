@@ -20,7 +20,7 @@ After=dbus.socket
 After=dbus.service
 
 [Service]
-ExecStart=@AbsDir_PkgLibExec@/iw.logind
+ExecStart=@AbsDir_PkgLibExec@/svc.logind
 Restart=always
 RestartSec=1
 BusName=org.freedesktop.login1

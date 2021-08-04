@@ -8,7 +8,7 @@
 #include "exit-status.h"
 #include "fileio.h"
 #include "initreq.h"
-#include "iwctl.h"
+#include "svcctl.h"
 #include "list.h"
 #include "log.h"
 #include "macro.h"

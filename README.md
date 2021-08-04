@@ -34,9 +34,9 @@ for details on these.
 #### Compatibility with systemd
 
 InitWare aims for a high level of compatibility with the core interfaces of
-systemd. Unit-files, the `systemctl` and `loginctl` commands (provided as `iwctl`
-and `iwloginctl`), the systemd1 and Login1 D-Bus APIs, the sd_notify API, and
-several other interfaces are all subject to this aim. Currently 
+systemd. Unit-files, the `systemctl` and `loginctl` commands (provided as `svcctl`
+and `svcloginctl`), the systemd1 and Login1 D-Bus APIs, the sd_notify API, and
+several other interfaces are all subject to this aim.
 
 Comprehensive compatibility with every interface is impractical on some platforms;
 some unit options are entirely GNU/Linux-specific and while most have alternatives

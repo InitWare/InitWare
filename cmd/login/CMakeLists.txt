@@ -21,21 +21,21 @@ target_link_libraries(login-core iw-shared iw-dbus iw-daemon
   iw-label ${UDev_Libs})
 target_include_directories(login-core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_executable(iw.logind logind.c)
-target_link_libraries(iw.logind login-core)
+add_executable(svc.logind logind.c)
+target_link_libraries(svc.logind login-core)
 
 add_executable(user-sessions user-sessions.c)
 target_link_libraries(user-sessions iw-shared)
-install(TARGETS iw.logind user-sessions RUNTIME DESTINATION ${RelDir_PkgLibExec})
+install(TARGETS svc.logind user-sessions RUNTIME DESTINATION ${RelDir_PkgLibExec})
 
 set(loginctl_srcs loginctl.c)
 if(Use_Libudev)
     list(APPEND loginctl_srcs sysfs-show.c)
 endif()
 
-add_executable(iwloginctl ${loginctl_srcs})
-target_link_libraries(iwloginctl iw-shared iw-dbus ${UDev_Libs})
-install(TARGETS iwloginctl RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+add_executable(svcloginctl ${loginctl_srcs})
+target_link_libraries(svcloginctl iw-shared iw-dbus ${UDev_Libs})
+install(TARGETS svcloginctl RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 if(Use_PAM)
     add_library(initware_pam SHARED pam-module.c)

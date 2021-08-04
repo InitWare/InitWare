@@ -1,4 +1,4 @@
-set (DOCBOOKS iw_rcng.7.xml)
+set (DOCBOOKS svc_rcng.7.xml)
 
 foreach(DOCBOOK_IN ${DOCBOOKS})
     get_filename_component(MAN_BASE ${DOCBOOK_IN} NAME_WLE)
