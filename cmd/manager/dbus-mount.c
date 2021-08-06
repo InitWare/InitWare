@@ -30,7 +30,7 @@
 #include "dbus-mount.h"
 
 #define BUS_MOUNT_INTERFACE                                             \
-        " <interface name=\"org.freedesktop.systemd1.Mount\">\n"        \
+        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Mount\">\n"        \
         "  <property name=\"Where\" type=\"s\" access=\"read\"/>\n"     \
         "  <property name=\"What\" type=\"s\" access=\"read\"/>\n"      \
         "  <property name=\"Options\" type=\"s\" access=\"read\"/>\n"   \
@@ -60,7 +60,7 @@
 
 #define INTERFACES_LIST                              \
         BUS_UNIT_INTERFACES_LIST                     \
-        "org.freedesktop.systemd1.Mount\0"
+        SCHEDULER_DBUS_INTERFACE ".Mount\0"
 
 const char bus_mount_interface[] _introspect_("Mount") = BUS_MOUNT_INTERFACE;
 
@@ -158,12 +158,12 @@ DBusHandlerResult bus_mount_message_handler(Unit *u, DBusConnection *c, DBusMess
         Mount *m = MOUNT(u);
 
         const BusBoundProperties bps[] = {
-                { "org.freedesktop.systemd1.Unit",  bus_unit_properties,           u },
-                { "org.freedesktop.systemd1.Mount", bus_unit_cgroup_properties,    u },
-                { "org.freedesktop.systemd1.Mount", bus_mount_properties,          m },
-                { "org.freedesktop.systemd1.Mount", bus_exec_context_properties,   &m->exec_context },
-                { "org.freedesktop.systemd1.Mount", bus_kill_context_properties,   &m->kill_context },
-                { "org.freedesktop.systemd1.Mount", bus_cgroup_context_properties, &m->cgroup_context },
+                { SCHEDULER_DBUS_INTERFACE ".Unit",  bus_unit_properties,           u },
+                { SCHEDULER_DBUS_INTERFACE ".Mount", bus_unit_cgroup_properties,    u },
+                { SCHEDULER_DBUS_INTERFACE ".Mount", bus_mount_properties,          m },
+                { SCHEDULER_DBUS_INTERFACE ".Mount", bus_exec_context_properties,   &m->exec_context },
+                { SCHEDULER_DBUS_INTERFACE ".Mount", bus_kill_context_properties,   &m->kill_context },
+                { SCHEDULER_DBUS_INTERFACE ".Mount", bus_cgroup_context_properties, &m->cgroup_context },
                 { NULL, }
         };
 

@@ -4022,7 +4022,7 @@ const UnitVTable service_vtable = {
         .bus_name_owner_change = service_bus_name_owner_change,
         .bus_query_pid_done = service_bus_query_pid_done,
 
-        .bus_interface = "org.freedesktop.systemd1.Service",
+        .bus_interface = SCHEDULER_DBUS_INTERFACE ".Service",
         .bus_message_handler = bus_service_message_handler,
         .bus_invalidating_properties =  bus_service_invalidating_properties,
         .bus_set_property = bus_service_set_property,

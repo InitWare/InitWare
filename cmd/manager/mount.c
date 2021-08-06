@@ -1850,7 +1850,7 @@ const UnitVTable mount_vtable = {
 
         .reset_failed = mount_reset_failed,
 
-        .bus_interface = "org.freedesktop.systemd1.Mount",
+        .bus_interface = SCHEDULER_DBUS_INTERFACE ".Mount",
         .bus_message_handler = bus_mount_message_handler,
         .bus_invalidating_properties =  bus_mount_invalidating_properties,
         .bus_set_property = bus_mount_set_property,

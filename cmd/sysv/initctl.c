@@ -126,7 +126,7 @@ static void change_runlevel(Server *s, int runlevel) {
 
         log_debug("Running request %s/start/%s", target, mode);
 
-        if (!(m = dbus_message_new_method_call("org.freedesktop.systemd1", "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager", "StartUnit"))) {
+        if (!(m = dbus_message_new_method_call(SCHEDULER_DBUS_BUSNAME, "/org/freedesktop/systemd1", SCHEDULER_DBUS_INTERFACE ".Manager", "StartUnit"))) {
                 log_error("Could not allocate message.");
                 goto finish;
         }

@@ -29,7 +29,7 @@
 #include "dbus-scope.h"
 
 #define BUS_SCOPE_INTERFACE                                             \
-        " <interface name=\"org.freedesktop.systemd1.Scope\">\n"        \
+        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Scope\">\n"        \
         "  <method name=\"Abandon\"/>\n"                                \
         BUS_UNIT_CGROUP_INTERFACE                                       \
         "  <property name=\"Controller\" type=\"s\" access=\"read\"/>\n"\
@@ -52,7 +52,7 @@
 
 #define INTERFACES_LIST                              \
         BUS_UNIT_INTERFACES_LIST                     \
-        "org.freedesktop.systemd1.Scope\0"
+        SCHEDULER_DBUS_INTERFACE ".Scope\0"
 
 const char bus_scope_interface[] _introspect_("Scope") = BUS_SCOPE_INTERFACE;
 
@@ -71,7 +71,7 @@ DBusHandlerResult bus_scope_message_handler(Unit *u, DBusConnection *c, DBusMess
 
         SELINUX_UNIT_ACCESS_CHECK(u, c, message, "status");
 
-        if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Scope", "Abandon")) {
+        if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Scope", "Abandon")) {
                 int r;
 
                 r = scope_abandon(s);
@@ -83,13 +83,13 @@ DBusHandlerResult bus_scope_message_handler(Unit *u, DBusConnection *c, DBusMess
                         goto oom;
         } else {
                 const BusBoundProperties bps[] = {
-                { "org.freedesktop.systemd1.Unit",  bus_unit_properties,           u },
-                { "org.freedesktop.systemd1.Scope", bus_unit_cgroup_properties,    u },
-                { "org.freedesktop.systemd1.Scope", bus_scope_properties,          s },
+                { SCHEDULER_DBUS_INTERFACE ".Unit",  bus_unit_properties,           u },
+                { SCHEDULER_DBUS_INTERFACE ".Scope", bus_unit_cgroup_properties,    u },
+                { SCHEDULER_DBUS_INTERFACE ".Scope", bus_scope_properties,          s },
 #ifdef Use_CGroups
-                { "org.freedesktop.systemd1.Scope", bus_cgroup_context_properties, &s->cgroup_context },
+                { SCHEDULER_DBUS_INTERFACE ".Scope", bus_cgroup_context_properties, &s->cgroup_context },
 #endif
-                { "org.freedesktop.systemd1.Scope", bus_kill_context_properties,   &s->kill_context   },
+                { SCHEDULER_DBUS_INTERFACE ".Scope", bus_kill_context_properties,   &s->kill_context   },
                 {}
                 };
 
@@ -258,7 +258,7 @@ int bus_scope_send_request_stop(Scope *s) {
                 return -ENOMEM;
 
         m = dbus_message_new_signal(p,
-                                    "org.freedesktop.systemd1.Scope",
+                                    SCHEDULER_DBUS_INTERFACE ".Scope",
                                     "RequestStop");
         if (!m)
                 return 0;

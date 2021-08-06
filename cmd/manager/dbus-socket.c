@@ -31,7 +31,7 @@
 
 
 #define BUS_SOCKET_INTERFACE                                            \
-        " <interface name=\"org.freedesktop.systemd1.Socket\">\n"       \
+        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Socket\">\n"       \
         "  <property name=\"BindIPv6Only\" type=\"b\" access=\"read\"/>\n" \
         "  <property name=\"Backlog\" type=\"u\" access=\"read\"/>\n"   \
         "  <property name=\"TimeoutUSec\" type=\"t\" access=\"read\"/>\n" \
@@ -86,7 +86,7 @@
 
 #define INTERFACES_LIST                              \
         BUS_UNIT_INTERFACES_LIST                     \
-        "org.freedesktop.systemd1.Socket\0"
+        SCHEDULER_DBUS_INTERFACE ".Socket\0"
 
 const char bus_socket_interface[] _introspect_("Socket") = BUS_SOCKET_INTERFACE;
 
@@ -208,13 +208,13 @@ static const BusProperty bus_socket_properties[] = {
 DBusHandlerResult bus_socket_message_handler(Unit *u, DBusConnection *c, DBusMessage *message) {
         Socket *s = SOCKET(u);
         const BusBoundProperties bps[] = {
-                { "org.freedesktop.systemd1.Unit",   bus_unit_properties,           u },
-                { "org.freedesktop.systemd1.Socket", bus_unit_cgroup_properties,    u },
-                { "org.freedesktop.systemd1.Socket", bus_socket_properties,         s },
-                { "org.freedesktop.systemd1.Socket", bus_exec_context_properties,   &s->exec_context },
-                { "org.freedesktop.systemd1.Socket", bus_kill_context_properties,   &s->kill_context },
+                { SCHEDULER_DBUS_INTERFACE ".Unit",   bus_unit_properties,           u },
+                { SCHEDULER_DBUS_INTERFACE ".Socket", bus_unit_cgroup_properties,    u },
+                { SCHEDULER_DBUS_INTERFACE ".Socket", bus_socket_properties,         s },
+                { SCHEDULER_DBUS_INTERFACE ".Socket", bus_exec_context_properties,   &s->exec_context },
+                { SCHEDULER_DBUS_INTERFACE ".Socket", bus_kill_context_properties,   &s->kill_context },
 #ifdef Use_CGroups
-                { "org.freedesktop.systemd1.Socket", bus_cgroup_context_properties, &s->cgroup_context },
+                { SCHEDULER_DBUS_INTERFACE ".Socket", bus_cgroup_context_properties, &s->cgroup_context },
 #endif
                 {}
         };

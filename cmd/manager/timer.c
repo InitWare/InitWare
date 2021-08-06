@@ -632,7 +632,7 @@ const UnitVTable timer_vtable = {
         .reset_failed = timer_reset_failed,
         .time_change = timer_time_change,
 
-        .bus_interface = "org.freedesktop.systemd1.Timer",
+        .bus_interface = SCHEDULER_DBUS_INTERFACE ".Timer",
         .bus_message_handler = bus_timer_message_handler,
         .bus_invalidating_properties =  bus_timer_invalidating_properties
 };

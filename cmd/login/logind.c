@@ -711,9 +711,9 @@ static int manager_connect_bus(Manager *m) {
 
         r = bus_method_call_with_reply(
                         m->bus,
-                        "org.freedesktop.systemd1",
+                        SCHEDULER_DBUS_INTERFACE,
                         "/org/freedesktop/systemd1",
-                        "org.freedesktop.systemd1.Manager",
+                        SCHEDULER_DBUS_INTERFACE ".Manager",
                         "Subscribe",
                         NULL,
                         &error,

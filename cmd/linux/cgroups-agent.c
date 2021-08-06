@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
                 goto finish;
         }
 
-        m = dbus_message_new_signal("/org/freedesktop/systemd1/agent", "org.freedesktop.systemd1.Agent", "Released");
+        m = dbus_message_new_signal("/org/freedesktop/systemd1/agent", SCHEDULER_DBUS_INTERFACE ".Agent", "Released");
         if (!m) {
                 log_error("Could not allocate signal message.");
                 goto finish;

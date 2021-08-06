@@ -25,7 +25,7 @@
 #include "selinux-access.h"
 
 #define BUS_DEVICE_INTERFACE                                            \
-        " <interface name=\"org.freedesktop.systemd1.Device\">\n"       \
+        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Device\">\n"       \
         "  <property name=\"SysFSPath\" type=\"s\" access=\"read\"/>\n" \
         " </interface>\n"
 
@@ -41,7 +41,7 @@
 
 #define INTERFACES_LIST                              \
         BUS_UNIT_INTERFACES_LIST                     \
-        "org.freedesktop.systemd1.Device\0"
+        SCHEDULER_DBUS_INTERFACE ".Device\0"
 
 const char bus_device_interface[] _introspect_("Device") = BUS_DEVICE_INTERFACE;
 
@@ -57,8 +57,8 @@ static const BusProperty bus_device_properties[] = {
 DBusHandlerResult bus_device_message_handler(Unit *u, DBusConnection *c, DBusMessage *message) {
         Device *d = DEVICE(u);
         const BusBoundProperties bps[] = {
-                { "org.freedesktop.systemd1.Unit",   bus_unit_properties,   u },
-                { "org.freedesktop.systemd1.Device", bus_device_properties, d },
+                { SCHEDULER_DBUS_INTERFACE ".Unit",   bus_unit_properties,   u },
+                { SCHEDULER_DBUS_INTERFACE ".Device", bus_device_properties, d },
                 { NULL, }
         };
 

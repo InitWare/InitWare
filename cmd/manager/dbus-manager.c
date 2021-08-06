@@ -42,7 +42,7 @@
 #endif
 
 #define BUS_MANAGER_INTERFACE_BEGIN                                     \
-        " <interface name=\"org.freedesktop.systemd1.Manager\">\n"
+        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Manager\">\n"
 
 #define BUS_MANAGER_INTERFACE_METHODS                                   \
         "  <method name=\"GetUnit\">\n"                                 \
@@ -322,7 +322,7 @@
 
 #define INTERFACES_LIST                              \
         BUS_GENERIC_INTERFACES_LIST                  \
-        "org.freedesktop.systemd1.Manager\0"
+        SCHEDULER_DBUS_INTERFACE ".Manager\0"
 
 const char bus_manager_interface[] _introspect_("Manager") = BUS_MANAGER_INTERFACE;
 
@@ -543,7 +543,7 @@ static int bus_manager_send_unit_files_changed(Manager *m) {
         DBusMessage *s;
         int r;
 
-        s = dbus_message_new_signal("/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager", "UnitFilesChanged");
+        s = dbus_message_new_signal("/org/freedesktop/systemd1", SCHEDULER_DBUS_INTERFACE ".Manager", "UnitFilesChanged");
         if (!s)
                 return -ENOMEM;
 
@@ -637,7 +637,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
 
         member = dbus_message_get_member(message);
 
-        if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "GetUnit")) {
+        if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "GetUnit")) {
                 const char *name;
                 Unit *u;
 
@@ -669,7 +669,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                                     DBUS_TYPE_OBJECT_PATH, &path,
                                     DBUS_TYPE_INVALID))
                         goto oom;
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "GetUnitByPID")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "GetUnitByPID")) {
                 Unit *u;
                 uint32_t pid;
 
@@ -703,7 +703,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                                     DBUS_TYPE_OBJECT_PATH, &path,
                                     DBUS_TYPE_INVALID))
                         goto oom;
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "LoadUnit")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "LoadUnit")) {
                 const char *name;
                 Unit *u;
 
@@ -734,25 +734,25 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                                     DBUS_TYPE_INVALID))
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "StartUnit"))
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "StartUnit"))
                 job_type = JOB_START;
-        else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "StartUnitReplace"))
+        else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "StartUnitReplace"))
                 job_type = JOB_START;
-        else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "StopUnit"))
+        else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "StopUnit"))
                 job_type = JOB_STOP;
-        else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "ReloadUnit"))
+        else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "ReloadUnit"))
                 job_type = JOB_RELOAD;
-        else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "RestartUnit"))
+        else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "RestartUnit"))
                 job_type = JOB_RESTART;
-        else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "TryRestartUnit"))
+        else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "TryRestartUnit"))
                 job_type = JOB_TRY_RESTART;
-        else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "ReloadOrRestartUnit")) {
+        else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "ReloadOrRestartUnit")) {
                 reload_if_possible = true;
                 job_type = JOB_RESTART;
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "ReloadOrTryRestartUnit")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "ReloadOrTryRestartUnit")) {
                 reload_if_possible = true;
                 job_type = JOB_TRY_RESTART;
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "KillUnit")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "KillUnit")) {
                 const char *name, *swho;
                 int32_t signo;
                 Unit *u;
@@ -794,7 +794,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 if (!reply)
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "GetJob")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "GetJob")) {
                 uint32_t id;
                 Job *j;
 
@@ -827,7 +827,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                                     DBUS_TYPE_INVALID))
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "CancelJob")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "CancelJob")) {
                 uint32_t id;
                 Job *j;
 
@@ -851,7 +851,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 if (!reply)
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "ClearJobs")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "ClearJobs")) {
 
                 SELINUX_ACCESS_CHECK(connection, message, "reboot");
                 manager_clear_jobs(m);
@@ -860,7 +860,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 if (!reply)
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "ResetFailed")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "ResetFailed")) {
 
                 SELINUX_ACCESS_CHECK(connection, message, "reload");
 
@@ -870,7 +870,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 if (!reply)
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "ResetFailedUnit")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "ResetFailedUnit")) {
                 const char *name;
                 Unit *u;
 
@@ -895,7 +895,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 if (!reply)
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "ListUnits")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "ListUnits")) {
                 DBusMessageIter iter, sub;
                 Iterator i;
                 Unit *u;
@@ -979,7 +979,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 if (!dbus_message_iter_close_container(&iter, &sub))
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "ListJobs")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "ListJobs")) {
                 DBusMessageIter iter, sub;
                 Iterator i;
                 Job *j;
@@ -1039,7 +1039,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 if (!dbus_message_iter_close_container(&iter, &sub))
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "Subscribe")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "Subscribe")) {
                 char *client;
                 Set *s;
 
@@ -1061,7 +1061,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 if (!reply)
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "Unsubscribe")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "Unsubscribe")) {
                 char *client;
 
                 SELINUX_ACCESS_CHECK(connection, message, "status");
@@ -1078,7 +1078,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 if (!reply)
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "Dump")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "Dump")) {
                 FILE *f;
                 char *dump = NULL;
                 size_t size;
@@ -1110,7 +1110,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 }
 
                 free(dump);
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "CreateSnapshot")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "CreateSnapshot")) {
                 const char *name;
                 dbus_bool_t cleanup;
                 Snapshot *s;
@@ -1146,7 +1146,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                                     DBUS_TYPE_INVALID))
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "RemoveSnapshot")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "RemoveSnapshot")) {
                 const char *name;
                 Unit *u;
 
@@ -1234,7 +1234,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 if (!dbus_message_append_args(reply, DBUS_TYPE_STRING, &introspection, DBUS_TYPE_INVALID)) {
                         goto oom;
                 }
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "Reload")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "Reload")) {
 
                 SELINUX_ACCESS_CHECK(connection, message, "reload");
 
@@ -1252,7 +1252,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 m->queued_message_connection = connection;
                 m->exit_code = MANAGER_RELOAD;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "Reexecute")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "Reexecute")) {
 
                 SELINUX_ACCESS_CHECK(connection, message, "reload");
 
@@ -1261,7 +1261,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
 
                 m->exit_code = MANAGER_REEXECUTE;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "Exit")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "Exit")) {
 
                 SELINUX_ACCESS_CHECK(connection, message, "halt");
 
@@ -1276,7 +1276,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
 
                 m->exit_code = MANAGER_EXIT;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "Reboot")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "Reboot")) {
 
                 SELINUX_ACCESS_CHECK(connection, message, "reboot");
 
@@ -1291,7 +1291,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
 
                 m->exit_code = MANAGER_REBOOT;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "PowerOff")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "PowerOff")) {
 
                 SELINUX_ACCESS_CHECK(connection, message, "halt");
 
@@ -1306,7 +1306,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
 
                 m->exit_code = MANAGER_POWEROFF;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "Halt")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "Halt")) {
 
                 SELINUX_ACCESS_CHECK(connection, message, "halt");
 
@@ -1321,7 +1321,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
 
                 m->exit_code = MANAGER_HALT;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "KExec")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "KExec")) {
 
                 SELINUX_ACCESS_CHECK(connection, message, "reboot");
 
@@ -1336,7 +1336,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
 
                 m->exit_code = MANAGER_KEXEC;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "SwitchRoot")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "SwitchRoot")) {
                 const char *switch_root, *switch_root_init;
                 char *u, *v;
                 bool good;
@@ -1406,7 +1406,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
 
                 m->exit_code = MANAGER_SWITCH_ROOT;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "SetEnvironment")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "SetEnvironment")) {
                 _cleanup_strv_free_ char **l = NULL;
                 char **e = NULL;
 
@@ -1433,7 +1433,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 strv_free(m->environment);
                 m->environment = e;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "UnsetEnvironment")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "UnsetEnvironment")) {
                 _cleanup_strv_free_ char **l = NULL;
                 char **e = NULL;
 
@@ -1460,7 +1460,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 strv_free(m->environment);
                 m->environment = e;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "UnsetAndSetEnvironment")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "UnsetAndSetEnvironment")) {
                 _cleanup_strv_free_ char **l_set = NULL, **l_unset = NULL, **e = NULL;
                 char **f = NULL;
                 DBusMessageIter iter;
@@ -1505,7 +1505,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
 
                 strv_free(m->environment);
                 m->environment = f;
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "ListUnitFiles")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "ListUnitFiles")) {
                 DBusMessageIter iter, sub, sub2;
                 Hashmap *h;
                 Iterator i;
@@ -1554,7 +1554,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 if (!dbus_message_iter_close_container(&iter, &sub))
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "GetUnitFileState")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "GetUnitFileState")) {
                 const char *name;
                 UnitFileState state;
                 const char *s;
@@ -1584,12 +1584,12 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                                     DBUS_TYPE_STRING, &s,
                                     DBUS_TYPE_INVALID))
                         goto oom;
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "EnableUnitFiles") ||
-                   dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "ReenableUnitFiles") ||
-                   dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "LinkUnitFiles") ||
-                   dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "PresetUnitFiles") ||
-                   dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "MaskUnitFiles") ||
-                   dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "SetDefaultTarget")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "EnableUnitFiles") ||
+                   dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "ReenableUnitFiles") ||
+                   dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "LinkUnitFiles") ||
+                   dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "PresetUnitFiles") ||
+                   dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "MaskUnitFiles") ||
+                   dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "SetDefaultTarget")) {
 
                 char **l = NULL;
                 DBusMessageIter iter;
@@ -1651,8 +1651,8 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 if (!reply)
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "DisableUnitFiles") ||
-                   dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "UnmaskUnitFiles")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "DisableUnitFiles") ||
+                   dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "UnmaskUnitFiles")) {
 
                 char **l = NULL;
                 DBusMessageIter iter;
@@ -1701,7 +1701,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 if (!reply)
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "GetDefaultTarget")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "GetDefaultTarget")) {
                 UnitFileScope scope = m->running_as == SYSTEMD_SYSTEM ? UNIT_FILE_SYSTEM : UNIT_FILE_USER;
                 _cleanup_free_ char *default_target = NULL;
 
@@ -1717,7 +1717,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                         goto oom;
                 }
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "SetUnitProperties")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "SetUnitProperties")) {
                 DBusMessageIter iter;
                 dbus_bool_t runtime;
                 const char *name;
@@ -1746,7 +1746,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 if (!reply)
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "StartTransientUnit")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "StartTransientUnit")) {
                 const char *name, *smode;
                 DBusMessageIter iter;
                 JobMode mode;
@@ -1808,8 +1808,8 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
 
         } else {
                 const BusBoundProperties bps[] = {
-                        { "org.freedesktop.systemd1.Manager", bus_systemd_properties, systemd_property_string },
-                        { "org.freedesktop.systemd1.Manager", bus_manager_properties, m },
+                        { SCHEDULER_DBUS_INTERFACE ".Manager", bus_systemd_properties, systemd_property_string },
+                        { SCHEDULER_DBUS_INTERFACE ".Manager", bus_manager_properties, m },
                         { NULL, }
                 };
 
@@ -1824,7 +1824,7 @@ static DBusHandlerResult bus_manager_message_handler(DBusConnection *connection,
                 Unit *u;
                 dbus_bool_t b;
 
-                if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Manager", "StartUnitReplace"))
+                if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Manager", "StartUnitReplace"))
                         b = dbus_message_get_args(
                                         message,
                                         &error,

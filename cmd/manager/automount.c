@@ -860,7 +860,7 @@ const UnitVTable automount_vtable = {
 
         .reset_failed = automount_reset_failed,
 
-        .bus_interface = "org.freedesktop.systemd1.Automount",
+        .bus_interface = SCHEDULER_DBUS_INTERFACE ".Automount",
         .bus_message_handler = bus_automount_message_handler,
         .bus_invalidating_properties = bus_automount_invalidating_properties,
 

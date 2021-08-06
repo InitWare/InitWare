@@ -27,7 +27,7 @@
 #include "dbus-common.h"
 
 #define BUS_UNIT_INTERFACE \
-        " <interface name=\"org.freedesktop.systemd1.Unit\">\n"         \
+        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Unit\">\n"         \
         "  <method name=\"Start\">\n"                                   \
         "   <arg name=\"mode\" type=\"s\" direction=\"in\"/>\n"         \
         "   <arg name=\"job\" type=\"o\" direction=\"out\"/>\n"         \
@@ -141,7 +141,7 @@
 
 #define BUS_UNIT_INTERFACES_LIST                \
         BUS_GENERIC_INTERFACES_LIST             \
-        "org.freedesktop.systemd1.Unit\0"
+        SCHEDULER_DBUS_INTERFACE ".Unit\0"
 
 extern const BusProperty bus_unit_properties[];
 extern const BusProperty bus_unit_cgroup_properties[];

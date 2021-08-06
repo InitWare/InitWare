@@ -1027,9 +1027,9 @@ static int execute_shutdown_or_sleep(
 
         r = bus_method_call_with_reply(
                         m->bus,
-                        "org.freedesktop.systemd1",
+                        SCHEDULER_DBUS_INTERFACE,
                         "/org/freedesktop/systemd1",
-                        "org.freedesktop.systemd1.Manager",
+                        SCHEDULER_DBUS_INTERFACE ".Manager",
                         "StartUnit",
                         &reply,
                         error,
@@ -2344,7 +2344,7 @@ DBusHandlerResult bus_message_filter(
 
         log_debug("Got message: %s %s %s", strna(dbus_message_get_sender(message)), strna(dbus_message_get_interface(message)), strna(dbus_message_get_member(message)));
 
-        if (dbus_message_is_signal(message, "org.freedesktop.systemd1.Manager", "JobRemoved")) {
+        if (dbus_message_is_signal(message, SCHEDULER_DBUS_INTERFACE ".Manager", "JobRemoved")) {
                 const char *path, *result, *unit;
                 uint32_t id;
 
@@ -2433,7 +2433,7 @@ DBusHandlerResult bus_message_filter(
                                 user_add_to_gc_queue(u);
                 }
 
-        } else if (dbus_message_is_signal(message, "org.freedesktop.systemd1.Manager", "UnitRemoved")) {
+        } else if (dbus_message_is_signal(message, SCHEDULER_DBUS_INTERFACE ".Manager", "UnitRemoved")) {
 
                 const char *path, *unit;
                 Session *session;
@@ -2455,7 +2455,7 @@ DBusHandlerResult bus_message_filter(
                 if (user)
                         user_add_to_gc_queue(user);
 
-        } else if (dbus_message_is_signal(message, "org.freedesktop.systemd1.Manager", "Reloading")) {
+        } else if (dbus_message_is_signal(message, SCHEDULER_DBUS_INTERFACE ".Manager", "Reloading")) {
                 dbus_bool_t b;
 
                 if (!dbus_message_get_args(message, &error,
@@ -2584,9 +2584,9 @@ int manager_start_scope(
                 slice = "";
 
         m = dbus_message_new_method_call(
-                        "org.freedesktop.systemd1",
+                        SCHEDULER_DBUS_BUSNAME,
                         "/org/freedesktop/systemd1",
-                        "org.freedesktop.systemd1.Manager",
+                        SCHEDULER_DBUS_INTERFACE ".Manager",
                         "StartTransientUnit");
         if (!m)
                 return log_oom();
@@ -2706,9 +2706,9 @@ int manager_start_unit(Manager *manager, const char *unit, DBusError *error, cha
 
         r = bus_method_call_with_reply(
                         manager->bus,
-                        "org.freedesktop.systemd1",
+                        SCHEDULER_DBUS_INTERFACE,
                         "/org/freedesktop/systemd1",
-                        "org.freedesktop.systemd1.Manager",
+                        SCHEDULER_DBUS_INTERFACE ".Manager",
                         "StartUnit",
                         &reply,
                         error,
@@ -2751,9 +2751,9 @@ int manager_stop_unit(Manager *manager, const char *unit, DBusError *error, char
 
         r = bus_method_call_with_reply(
                         manager->bus,
-                        "org.freedesktop.systemd1",
+                        SCHEDULER_DBUS_INTERFACE,
                         "/org/freedesktop/systemd1",
-                        "org.freedesktop.systemd1.Manager",
+                        SCHEDULER_DBUS_INTERFACE ".Manager",
                         "StopUnit",
                         &reply,
                         error,
@@ -2810,9 +2810,9 @@ int manager_abandon_scope(Manager *manager, const char *scope, DBusError *error)
 
         r = bus_method_call_with_reply(
                 manager->bus,
-                "org.freedesktop.systemd1",
+                SCHEDULER_DBUS_INTERFACE,
                 path,
-                "org.freedesktop.systemd1.Scope",
+                SCHEDULER_DBUS_INTERFACE ".Scope",
                 "Abandon",
                 &reply,
                 error,
@@ -2839,9 +2839,9 @@ int manager_kill_unit(Manager *manager, const char *unit, KillWho who, int signo
 
         r = bus_method_call_with_reply(
                         manager->bus,
-                        "org.freedesktop.systemd1",
+                        SCHEDULER_DBUS_INTERFACE,
                         "/org/freedesktop/systemd1",
-                        "org.freedesktop.systemd1.Manager",
+                        SCHEDULER_DBUS_INTERFACE ".Manager",
                         "KillUnit",
                         &reply,
                         error,
@@ -2859,7 +2859,7 @@ int manager_kill_unit(Manager *manager, const char *unit, KillWho who, int signo
 
 int manager_unit_is_active(Manager *manager, const char *unit) {
 
-        const char *interface = "org.freedesktop.systemd1.Unit";
+        const char *interface = SCHEDULER_DBUS_INTERFACE ".Unit";
         const char *property = "ActiveState";
         _cleanup_dbus_message_unref_ DBusMessage *reply = NULL;
         _cleanup_free_ char *path = NULL;
@@ -2879,7 +2879,7 @@ int manager_unit_is_active(Manager *manager, const char *unit) {
 
         r = bus_method_call_with_reply(
                         manager->bus,
-                        "org.freedesktop.systemd1",
+                        SCHEDULER_DBUS_INTERFACE,
                         path,
                         "org.freedesktop.DBus.Properties",
                         "Get",

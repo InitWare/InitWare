@@ -438,23 +438,23 @@ static DBusHandlerResult bus_unit_message_dispatch(Unit *u, DBusConnection *conn
 
         dbus_error_init(&error);
 
-        if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Unit", "Start"))
+        if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Unit", "Start"))
                 job_type = JOB_START;
-        else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Unit", "Stop"))
+        else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Unit", "Stop"))
                 job_type = JOB_STOP;
-        else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Unit", "Reload"))
+        else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Unit", "Reload"))
                 job_type = JOB_RELOAD;
-        else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Unit", "Restart"))
+        else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Unit", "Restart"))
                 job_type = JOB_RESTART;
-        else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Unit", "TryRestart"))
+        else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Unit", "TryRestart"))
                 job_type = JOB_TRY_RESTART;
-        else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Unit", "ReloadOrRestart")) {
+        else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Unit", "ReloadOrRestart")) {
                 reload_if_possible = true;
                 job_type = JOB_RESTART;
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Unit", "ReloadOrTryRestart")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Unit", "ReloadOrTryRestart")) {
                 reload_if_possible = true;
                 job_type = JOB_TRY_RESTART;
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Unit", "Kill")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Unit", "Kill")) {
                 const char *swho;
                 int32_t signo;
                 KillWho who;
@@ -488,7 +488,7 @@ static DBusHandlerResult bus_unit_message_dispatch(Unit *u, DBusConnection *conn
                 if (!reply)
                         goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Unit", "ResetFailed")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Unit", "ResetFailed")) {
 
                 SELINUX_UNIT_ACCESS_CHECK(u, connection, message, "reload");
 
@@ -497,7 +497,7 @@ static DBusHandlerResult bus_unit_message_dispatch(Unit *u, DBusConnection *conn
                 reply = dbus_message_new_method_return(message);
                 if (!reply)
                         goto oom;
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Unit", "SetProperties")) {
+        } else if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Unit", "SetProperties")) {
                 DBusMessageIter iter;
                 dbus_bool_t runtime;
 
@@ -567,7 +567,7 @@ static DBusHandlerResult bus_unit_message_handler(DBusConnection *connection, DB
 
         dbus_error_init(&error);
 
-        if (streq(dbus_message_get_path(message), "/org/freedesktop/systemd1/unit")) {
+        if (streq(dbus_message_get_path(message), "/org/freedesktop/systemd1" "/unit")) {
                 /* Be nice to gdbus and return introspection data for our mid-level paths */
 
                 SELINUX_ACCESS_CHECK(connection, message, "status");
@@ -713,7 +713,7 @@ void bus_unit_send_change_signal(Unit *u) {
                         dbus_message_unref(m);
                 }
 
-                m = bus_properties_changed_new(p, "org.freedesktop.systemd1.Unit",
+                m = bus_properties_changed_new(p, SCHEDULER_DBUS_INTERFACE ".Unit",
                                                INVALIDATING_PROPERTIES);
                 if (!m) {
                         log_oom();
@@ -724,7 +724,7 @@ void bus_unit_send_change_signal(Unit *u) {
                 /* Send a new signal */
 
                 m = dbus_message_new_signal("/org/freedesktop/systemd1",
-                                            "org.freedesktop.systemd1.Manager",
+                                            SCHEDULER_DBUS_INTERFACE ".Manager",
                                             "UnitNew");
                 if (!m) {
                         log_oom();
@@ -769,7 +769,7 @@ void bus_unit_send_removed_signal(Unit *u) {
                 goto oom;
 
         m = dbus_message_new_signal("/org/freedesktop/systemd1",
-                                    "org.freedesktop.systemd1.Manager",
+                                    SCHEDULER_DBUS_INTERFACE ".Manager",
                                     "UnitRemoved");
         if (!m)
                 goto oom;

@@ -28,7 +28,7 @@
 
 
 #define BUS_TARGET_INTERFACE                                            \
-        " <interface name=\"org.freedesktop.systemd1.Target\">\n"       \
+        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Target\">\n"       \
         " </interface>\n"
 
 #define INTROSPECTION                                                   \
@@ -43,13 +43,13 @@
 
 #define INTERFACES_LIST                              \
         BUS_UNIT_INTERFACES_LIST                     \
-        "org.freedesktop.systemd1.Target\0"
+        SCHEDULER_DBUS_INTERFACE ".Target\0"
 
 const char bus_target_interface[] _introspect_("Target") = BUS_TARGET_INTERFACE;
 
 DBusHandlerResult bus_target_message_handler(Unit *u, DBusConnection *c, DBusMessage *message) {
         const BusBoundProperties bps[] = {
-                { "org.freedesktop.systemd1.Unit", bus_unit_properties, u },
+                { SCHEDULER_DBUS_INTERFACE ".Unit", bus_unit_properties, u },
                 { NULL, }
         };
 

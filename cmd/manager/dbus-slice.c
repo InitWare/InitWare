@@ -28,7 +28,7 @@
 
 
 #define BUS_SLICE_INTERFACE                                             \
-        " <interface name=\"org.freedesktop.systemd1.Slice\">\n"        \
+        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Slice\">\n"        \
         BUS_UNIT_CGROUP_INTERFACE                                       \
         BUS_CGROUP_CONTEXT_INTERFACE                                    \
         " </interface>\n"
@@ -45,7 +45,7 @@
 
 #define INTERFACES_LIST                              \
         BUS_UNIT_INTERFACES_LIST                     \
-        "org.freedesktop.systemd1.Slice\0"
+        SCHEDULER_DBUS_INTERFACE ".Slice\0"
 
 const char bus_slice_interface[] _introspect_("Slice") = BUS_SLICE_INTERFACE;
 
@@ -53,10 +53,10 @@ DBusHandlerResult bus_slice_message_handler(Unit *u, DBusConnection *c, DBusMess
         Slice *s = SLICE(u);
 
         const BusBoundProperties bps[] = {
-                { "org.freedesktop.systemd1.Unit",  bus_unit_properties,           u },
-                { "org.freedesktop.systemd1.Slice", bus_unit_cgroup_properties,    u },
+                { SCHEDULER_DBUS_INTERFACE ".Unit",  bus_unit_properties,           u },
+                { SCHEDULER_DBUS_INTERFACE ".Slice", bus_unit_cgroup_properties,    u },
 #ifdef Use_CGroups
-                { "org.freedesktop.systemd1.Slice", bus_cgroup_context_properties, &s->cgroup_context },
+                { SCHEDULER_DBUS_INTERFACE ".Slice", bus_cgroup_context_properties, &s->cgroup_context },
 #endif
                 {}
         };

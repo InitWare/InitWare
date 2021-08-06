@@ -25,7 +25,7 @@
 #include "selinux-access.h"
 
 #define BUS_SNAPSHOT_INTERFACE                                          \
-        " <interface name=\"org.freedesktop.systemd1.Snapshot\">\n"     \
+        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Snapshot\">\n"     \
         "  <method name=\"Remove\"/>\n"                                 \
         "  <property name=\"Cleanup\" type=\"b\" access=\"read\"/>\n"   \
         " </interface>\n"
@@ -42,7 +42,7 @@
 
 #define INTERFACES_LIST                              \
         BUS_UNIT_INTERFACES_LIST                     \
-        "org.freedesktop.systemd1.Snapshot\0"
+        SCHEDULER_DBUS_INTERFACE ".Snapshot\0"
 
 const char bus_snapshot_interface[] _introspect_("Snapshot") = BUS_SNAPSHOT_INTERFACE;
 
@@ -55,7 +55,7 @@ DBusHandlerResult bus_snapshot_message_handler(Unit *u, DBusConnection *c, DBusM
         Snapshot *s = SNAPSHOT(u);
         _cleanup_dbus_message_unref_ DBusMessage *reply = NULL;
 
-        if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Snapshot", "Remove")) {
+        if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Snapshot", "Remove")) {
 
                 SELINUX_UNIT_ACCESS_CHECK(u, c, message, "stop");
 
@@ -67,8 +67,8 @@ DBusHandlerResult bus_snapshot_message_handler(Unit *u, DBusConnection *c, DBusM
 
         } else {
                 const BusBoundProperties bps[] = {
-                        { "org.freedesktop.systemd1.Unit",     bus_unit_properties,     u },
-                        { "org.freedesktop.systemd1.Snapshot", bus_snapshot_properties, s },
+                        { SCHEDULER_DBUS_INTERFACE ".Unit",     bus_unit_properties,     u },
+                        { SCHEDULER_DBUS_INTERFACE ".Snapshot", bus_snapshot_properties, s },
                         { NULL, }
                 };
 

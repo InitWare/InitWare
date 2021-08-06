@@ -2618,7 +2618,7 @@ const UnitVTable socket_vtable = {
 
         .reset_failed = socket_reset_failed,
 
-        .bus_interface = "org.freedesktop.systemd1.Socket",
+        .bus_interface = SCHEDULER_DBUS_INTERFACE ".Socket",
         .bus_message_handler = bus_socket_message_handler,
         .bus_invalidating_properties =  bus_socket_invalidating_properties,
         .bus_set_property = bus_socket_set_property,

@@ -799,7 +799,7 @@ const UnitVTable path_vtable = {
 
         .reset_failed = path_reset_failed,
 
-        .bus_interface = "org.freedesktop.systemd1.Path",
+        .bus_interface = SCHEDULER_DBUS_INTERFACE ".Path",
         .bus_message_handler = bus_path_message_handler,
         .bus_invalidating_properties = bus_path_invalidating_properties
 };

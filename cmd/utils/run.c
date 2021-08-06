@@ -23,6 +23,7 @@
 #include <dbus/dbus.h>
 
 #include "build.h"
+#include "def.h"
 #include "dbus-common.h"
 #include "path-util.h"
 #include "strv.h"
@@ -170,9 +171,9 @@ static int message_start_transient_unit_new(
         log_info("Running as unit %s.", name);
 
         m = dbus_message_new_method_call(
-                "org.freedesktop.systemd1",
+                SCHEDULER_DBUS_BUSNAME,
                 "/org/freedesktop/systemd1",
-                "org.freedesktop.systemd1.Manager",
+                SCHEDULER_DBUS_INTERFACE ".Manager",
                 "StartTransientUnit");
         if (!m)
                 return log_oom();

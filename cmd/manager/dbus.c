@@ -76,20 +76,20 @@ static const char bus_introspectable_interface[] = BUS_INTROSPECTABLE_INTERFACE;
 const char *const bus_interface_table[] = {
         "org.freedesktop.DBus.Properties",     bus_properties_interface,
         "org.freedesktop.DBus.Introspectable", bus_introspectable_interface,
-        "org.freedesktop.systemd1.Manager",    bus_manager_interface,
-        "org.freedesktop.systemd1.Job",        bus_job_interface,
-        "org.freedesktop.systemd1.Unit",       bus_unit_interface,
-        "org.freedesktop.systemd1.Service",    bus_service_interface,
-        "org.freedesktop.systemd1.Socket",     bus_socket_interface,
-        "org.freedesktop.systemd1.Target",     bus_target_interface,
-        "org.freedesktop.systemd1.Snapshot",   bus_snapshot_interface,
-        "org.freedesktop.systemd1.Timer",      bus_timer_interface,
-        "org.freedesktop.systemd1.Path",       bus_path_interface,
+        SCHEDULER_DBUS_INTERFACE ".Manager",    bus_manager_interface,
+        SCHEDULER_DBUS_INTERFACE ".Job",        bus_job_interface,
+        SCHEDULER_DBUS_INTERFACE ".Unit",       bus_unit_interface,
+        SCHEDULER_DBUS_INTERFACE ".Service",    bus_service_interface,
+        SCHEDULER_DBUS_INTERFACE ".Socket",     bus_socket_interface,
+        SCHEDULER_DBUS_INTERFACE ".Target",     bus_target_interface,
+        SCHEDULER_DBUS_INTERFACE ".Snapshot",   bus_snapshot_interface,
+        SCHEDULER_DBUS_INTERFACE ".Timer",      bus_timer_interface,
+        SCHEDULER_DBUS_INTERFACE ".Path",       bus_path_interface,
 #ifdef Sys_Plat_Linux
-        "org.freedesktop.systemd1.Device",     bus_device_interface,
-        "org.freedesktop.systemd1.Mount",      bus_mount_interface,
-        "org.freedesktop.systemd1.Automount",  bus_automount_interface,
-        "org.freedesktop.systemd1.Swap",       bus_swap_interface,
+        SCHEDULER_DBUS_INTERFACE ".Device",     bus_device_interface,
+        SCHEDULER_DBUS_INTERFACE ".Mount",      bus_mount_interface,
+        SCHEDULER_DBUS_INTERFACE ".Automount",  bus_automount_interface,
+        SCHEDULER_DBUS_INTERFACE ".Swap",       bus_swap_interface,
 #endif
         NULL
 };
@@ -159,7 +159,7 @@ static DBusHandlerResult api_bus_message_filter(DBusConnection *connection, DBus
 
                         manager_dispatch_bus_name_owner_changed(m, name, old_owner, new_owner);
                 }
-        } else if (dbus_message_is_signal(message, "org.freedesktop.systemd1.Activator", "ActivationRequest")) {
+        } else if (dbus_message_is_signal(message, SCHEDULER_DBUS_INTERFACE ".Activator", "ActivationRequest")) {
                 const char *name;
 
                 if (!dbus_message_get_args(message, &error,
@@ -191,7 +191,7 @@ static DBusHandlerResult api_bus_message_filter(DBusConnection *connection, DBus
 
                                 log_debug("D-Bus activation failed for %s: %s", name, strerror(-r));
 
-                                if (!(reply = dbus_message_new_signal("/org/freedesktop/systemd1", "org.freedesktop.systemd1.Activator", "ActivationFailure")))
+                                if (!(reply = dbus_message_new_signal("/org/freedesktop/systemd1", SCHEDULER_DBUS_INTERFACE ".Activator", "ActivationFailure")))
                                         goto oom;
 
                                 id = error.name ? error.name : bus_errno_to_dbus(r);
@@ -253,7 +253,7 @@ static DBusHandlerResult system_bus_message_filter(DBusConnection *connection, D
                 bus_done_system(m);
 
         } else if (m->running_as != SYSTEMD_SYSTEM &&
-                   dbus_message_is_signal(message, "org.freedesktop.systemd1.Agent", "Released")) {
+                   dbus_message_is_signal(message, SCHEDULER_DBUS_INTERFACE ".Agent", "Released")) {
 
                 const char *cgroup;
 
@@ -294,7 +294,7 @@ static DBusHandlerResult private_bus_message_filter(DBusConnection *connection, 
         if (dbus_message_is_signal(message, DBUS_INTERFACE_LOCAL, "Disconnected"))
                 shutdown_connection(m, connection);
         else if (m->running_as == SYSTEMD_SYSTEM &&
-                 dbus_message_is_signal(message, "org.freedesktop.systemd1.Agent", "Released")) {
+                 dbus_message_is_signal(message, SCHEDULER_DBUS_INTERFACE ".Agent", "Released")) {
 
                 const char *cgroup;
 
@@ -394,7 +394,7 @@ static void request_name_pending_cb(DBusPendingCall *pending, void *userdata) {
 }
 
 static int request_name(Manager *m) {
-        const char *name = "org.freedesktop.systemd1";
+        const char *name = SCHEDULER_DBUS_INTERFACE;
         /* Allow replacing of our name, to ease implementation of
          * reexecution, where we keep the old connection open until
          * after the new connection is set up and the name installed
@@ -1272,7 +1272,7 @@ void bus_broadcast_finished(
 
         assert(m);
 
-        message = dbus_message_new_signal("/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager", "StartupFinished");
+        message = dbus_message_new_signal("/org/freedesktop/systemd1", SCHEDULER_DBUS_INTERFACE ".Manager", "StartupFinished");
         if (!message) {
                 log_oom();
                 return;
@@ -1305,7 +1305,7 @@ void bus_broadcast_reloading(Manager *m, bool active) {
 
         assert(m);
 
-        message = dbus_message_new_signal("/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager", "Reloading");
+        message = dbus_message_new_signal("/org/freedesktop/systemd1", SCHEDULER_DBUS_INTERFACE ".Manager", "Reloading");
         if (!message) {
                 log_oom();
                 return;

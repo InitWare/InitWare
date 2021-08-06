@@ -25,6 +25,7 @@
 #include <sys/utsname.h>
 #include <fnmatch.h>
 
+#include "def.h"
 #include "install.h"
 #include "log.h"
 #include "dbus-common.h"
@@ -107,7 +108,7 @@ static int bus_get_uint64_property(DBusConnection *bus, const char *path, const 
 
         r = bus_method_call_with_reply(
                         bus,
-                        "org.freedesktop.systemd1",
+                        SCHEDULER_DBUS_INTERFACE,
                         path,
                         "org.freedesktop.DBus.Properties",
                         "Get",
@@ -179,9 +180,9 @@ static int acquire_time_data(DBusConnection *bus, struct unit_times **out) {
 
         r = bus_method_call_with_reply(
                         bus,
-                        "org.freedesktop.systemd1",
+                        SCHEDULER_DBUS_INTERFACE,
                         "/org/freedesktop/systemd1",
-                        "org.freedesktop.systemd1.Manager",
+                        SCHEDULER_DBUS_INTERFACE ".Manager",
                         "ListUnits",
                         &reply,
                         NULL,
@@ -232,19 +233,19 @@ static int acquire_time_data(DBusConnection *bus, struct unit_times **out) {
                 assert_cc(sizeof(usec_t) == sizeof(uint64_t));
 
                 if (bus_get_uint64_property(bus, u.unit_path,
-                                            "org.freedesktop.systemd1.Unit",
+                                            SCHEDULER_DBUS_INTERFACE ".Unit",
                                             "InactiveExitTimestampMonotonic",
                                             &t->ixt) < 0 ||
                     bus_get_uint64_property(bus, u.unit_path,
-                                            "org.freedesktop.systemd1.Unit",
+                                            SCHEDULER_DBUS_INTERFACE ".Unit",
                                             "ActiveEnterTimestampMonotonic",
                                             &t->aet) < 0 ||
                     bus_get_uint64_property(bus, u.unit_path,
-                                            "org.freedesktop.systemd1.Unit",
+                                            SCHEDULER_DBUS_INTERFACE ".Unit",
                                             "ActiveExitTimestampMonotonic",
                                             &t->axt) < 0 ||
                     bus_get_uint64_property(bus, u.unit_path,
-                                            "org.freedesktop.systemd1.Unit",
+                                            SCHEDULER_DBUS_INTERFACE ".Unit",
                                             "InactiveEnterTimestampMonotonic",
                                             &t->iet) < 0) {
                         r = -EIO;
@@ -289,52 +290,52 @@ static int acquire_boot_times(DBusConnection *bus, struct boot_times **bt) {
 
         if (bus_get_uint64_property(bus,
                                     "/org/freedesktop/systemd1",
-                                    "org.freedesktop.systemd1.Manager",
+                                    SCHEDULER_DBUS_INTERFACE ".Manager",
                                     "FirmwareTimestampMonotonic",
                                     &times.firmware_time) < 0 ||
             bus_get_uint64_property(bus,
                                     "/org/freedesktop/systemd1",
-                                    "org.freedesktop.systemd1.Manager",
+                                    SCHEDULER_DBUS_INTERFACE ".Manager",
                                     "LoaderTimestampMonotonic",
                                     &times.loader_time) < 0 ||
             bus_get_uint64_property(bus,
                                     "/org/freedesktop/systemd1",
-                                    "org.freedesktop.systemd1.Manager",
+                                    SCHEDULER_DBUS_INTERFACE ".Manager",
                                     "KernelTimestamp",
                                     &times.kernel_time) < 0 ||
             bus_get_uint64_property(bus,
                                     "/org/freedesktop/systemd1",
-                                    "org.freedesktop.systemd1.Manager",
+                                    SCHEDULER_DBUS_INTERFACE ".Manager",
                                     "InitRDTimestampMonotonic",
                                     &times.initrd_time) < 0 ||
             bus_get_uint64_property(bus,
                                     "/org/freedesktop/systemd1",
-                                    "org.freedesktop.systemd1.Manager",
+                                    SCHEDULER_DBUS_INTERFACE ".Manager",
                                     "UserspaceTimestampMonotonic",
                                     &times.userspace_time) < 0 ||
             bus_get_uint64_property(bus,
                                     "/org/freedesktop/systemd1",
-                                    "org.freedesktop.systemd1.Manager",
+                                    SCHEDULER_DBUS_INTERFACE ".Manager",
                                     "FinishTimestampMonotonic",
                                     &times.finish_time) < 0 ||
             bus_get_uint64_property(bus,
                                     "/org/freedesktop/systemd1",
-                                    "org.freedesktop.systemd1.Manager",
+                                    SCHEDULER_DBUS_INTERFACE ".Manager",
                                     "GeneratorsStartTimestampMonotonic",
                                     &times.generators_start_time) < 0 ||
             bus_get_uint64_property(bus,
                                     "/org/freedesktop/systemd1",
-                                    "org.freedesktop.systemd1.Manager",
+                                    SCHEDULER_DBUS_INTERFACE ".Manager",
                                     "GeneratorsFinishTimestampMonotonic",
                                     &times.generators_finish_time) < 0 ||
             bus_get_uint64_property(bus,
                                     "/org/freedesktop/systemd1",
-                                    "org.freedesktop.systemd1.Manager",
+                                    SCHEDULER_DBUS_INTERFACE ".Manager",
                                     "UnitsLoadStartTimestampMonotonic",
                                     &times.unitsload_start_time) < 0 ||
             bus_get_uint64_property(bus,
                                     "/org/freedesktop/systemd1",
-                                    "org.freedesktop.systemd1.Manager",
+                                    SCHEDULER_DBUS_INTERFACE ".Manager",
                                     "UnitsLoadFinishTimestampMonotonic",
                                     &times.unitsload_finish_time) < 0)
                 return -EIO;
@@ -648,7 +649,7 @@ static int list_dependencies_get_dependencies(DBusConnection *bus, const char *n
                 "After\0";
 
         _cleanup_free_ char *path;
-        const char *interface = "org.freedesktop.systemd1.Unit";
+        const char *interface = SCHEDULER_DBUS_INTERFACE ".Unit";
 
         _cleanup_dbus_message_unref_  DBusMessage *reply = NULL;
         DBusMessageIter iter, sub, sub2, sub3;
@@ -668,7 +669,7 @@ static int list_dependencies_get_dependencies(DBusConnection *bus, const char *n
 
         r = bus_method_call_with_reply(
                 bus,
-                "org.freedesktop.systemd1",
+                SCHEDULER_DBUS_INTERFACE,
                 path,
                 "org.freedesktop.DBus.Properties",
                 "GetAll",
@@ -850,7 +851,7 @@ static int list_dependencies(DBusConnection *bus, const char *name) {
         int r;
         const char
                 *path, *id,
-                *interface = "org.freedesktop.systemd1.Unit",
+                *interface = SCHEDULER_DBUS_INTERFACE ".Unit",
                 *property = "Id";
         DBusMessageIter iter, sub;
         _cleanup_dbus_message_unref_ DBusMessage *reply = NULL;
@@ -864,7 +865,7 @@ static int list_dependencies(DBusConnection *bus, const char *name) {
 
         r = bus_method_call_with_reply (
                         bus,
-                        "org.freedesktop.systemd1",
+                        SCHEDULER_DBUS_INTERFACE,
                         path,
                         "org.freedesktop.DBus.Properties",
                         "Get",
@@ -1080,7 +1081,7 @@ static int graph_one_property(const char *name, const char *prop, DBusMessageIte
 
 static int graph_one(DBusConnection *bus, const struct unit_info *u, char *patterns[]) {
         _cleanup_dbus_message_unref_ DBusMessage *reply = NULL;
-        const char *interface = "org.freedesktop.systemd1.Unit";
+        const char *interface = SCHEDULER_DBUS_INTERFACE ".Unit";
         int r;
         DBusMessageIter iter, sub, sub2, sub3;
 
@@ -1089,7 +1090,7 @@ static int graph_one(DBusConnection *bus, const struct unit_info *u, char *patte
 
         r = bus_method_call_with_reply(
                         bus,
-                        "org.freedesktop.systemd1",
+                        SCHEDULER_DBUS_INTERFACE,
                         u->unit_path,
                         "org.freedesktop.DBus.Properties",
                         "GetAll",
@@ -1137,9 +1138,9 @@ static int dot(DBusConnection *bus, char* patterns[]) {
 
         r = bus_method_call_with_reply(
                         bus,
-                        "org.freedesktop.systemd1",
+                        SCHEDULER_DBUS_INTERFACE,
                         "/org/freedesktop/systemd1",
-                        "org.freedesktop.systemd1.Manager",
+                        SCHEDULER_DBUS_INTERFACE ".Manager",
                         "ListUnits",
                         &reply,
                         NULL,
@@ -1202,9 +1203,9 @@ static int dump(DBusConnection *bus, char **args) {
 
         r = bus_method_call_with_reply(
                         bus,
-                        "org.freedesktop.systemd1",
+                        SCHEDULER_DBUS_INTERFACE,
                         "/org/freedesktop/systemd1",
-                        "org.freedesktop.systemd1.Manager",
+                        SCHEDULER_DBUS_INTERFACE ".Manager",
                         "Dump",
                         &reply,
                         NULL,
@@ -1229,7 +1230,7 @@ static int set_log_level(DBusConnection *bus, char **args) {
         _cleanup_dbus_message_unref_ DBusMessage *m = NULL, *reply = NULL;
         DBusMessageIter iter, sub;
         const char* property = "LogLevel";
-        const char* interface = "org.freedesktop.systemd1.Manager";
+        const char* interface = SCHEDULER_DBUS_INTERFACE ".Manager";
         const char* value;
 
         assert(bus);
@@ -1244,7 +1245,7 @@ static int set_log_level(DBusConnection *bus, char **args) {
 
         value = args[0];
 
-        m = dbus_message_new_method_call("org.freedesktop.systemd1",
+        m = dbus_message_new_method_call(SCHEDULER_DBUS_BUSNAME,
                                          "/org/freedesktop/systemd1",
                                          "org.freedesktop.DBus.Properties",
                                          "Set");

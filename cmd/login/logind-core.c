@@ -523,9 +523,9 @@ int manager_spawn_autovt(Manager *m, int vtnr) {
 
         r = bus_method_call_with_reply (
                         m->bus,
-                        "org.freedesktop.systemd1",
+                        SCHEDULER_DBUS_INTERFACE,
                         "/org/freedesktop/systemd1",
-                        "org.freedesktop.systemd1.Manager",
+                        SCHEDULER_DBUS_INTERFACE ".Manager",
                         "StartUnit",
                         NULL,
                         NULL,

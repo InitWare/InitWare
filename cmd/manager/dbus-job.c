@@ -28,7 +28,7 @@
 #include "selinux-access.h"
 
 #define BUS_JOB_INTERFACE                                             \
-        " <interface name=\"org.freedesktop.systemd1.Job\">\n"        \
+        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Job\">\n"        \
         "  <method name=\"Cancel\"/>\n"                               \
         "  <property name=\"Id\" type=\"u\" access=\"read\"/>\n"      \
         "  <property name=\"Unit\" type=\"(so)\" access=\"read\"/>\n" \
@@ -49,7 +49,7 @@ const char bus_job_interface[] _introspect_("Job") = BUS_JOB_INTERFACE;
 
 #define INTERFACES_LIST                              \
         BUS_GENERIC_INTERFACES_LIST                  \
-        "org.freedesktop.systemd1.Job\0"
+        SCHEDULER_DBUS_INTERFACE ".Job\0"
 
 #define INVALIDATING_PROPERTIES                 \
         "State\0"
@@ -95,7 +95,7 @@ static const BusProperty bus_job_properties[] = {
 static DBusHandlerResult bus_job_message_dispatch(Job *j, DBusConnection *connection, DBusMessage *message) {
         _cleanup_dbus_message_unref_ DBusMessage *reply = NULL;
 
-        if (dbus_message_is_method_call(message, "org.freedesktop.systemd1.Job", "Cancel")) {
+        if (dbus_message_is_method_call(message, SCHEDULER_DBUS_INTERFACE ".Job", "Cancel")) {
 
                 SELINUX_UNIT_ACCESS_CHECK(j->unit, connection, message, "stop");
                 job_finish_and_invalidate(j, JOB_CANCELED, true);
@@ -105,7 +105,7 @@ static DBusHandlerResult bus_job_message_dispatch(Job *j, DBusConnection *connec
                         return DBUS_HANDLER_RESULT_NEED_MEMORY;
         } else {
                 const BusBoundProperties bps[] = {
-                        { "org.freedesktop.systemd1.Job", bus_job_properties, j },
+                        { SCHEDULER_DBUS_INTERFACE ".Job", bus_job_properties, j },
                         { NULL, }
                 };
 
@@ -129,7 +129,7 @@ static DBusHandlerResult bus_job_message_handler(DBusConnection *connection, DBu
         assert(message);
         assert(m);
 
-        if (streq(dbus_message_get_path(message), "/org/freedesktop/systemd1/job")) {
+        if (streq(dbus_message_get_path(message), "/org/freedesktop/systemd1" "/job")) {
                 /* Be nice to gdbus and return introspection data for our mid-level paths */
 
                 if (dbus_message_is_method_call(message, "org.freedesktop.DBus.Introspectable", "Introspect")) {
@@ -263,14 +263,14 @@ static DBusMessage* new_change_signal_message(Job *j) {
 
         if (j->sent_dbus_new_signal) {
                 /* Send a properties changed signal */
-                m = bus_properties_changed_new(p, "org.freedesktop.systemd1.Job", INVALIDATING_PROPERTIES);
+                m = bus_properties_changed_new(p, SCHEDULER_DBUS_INTERFACE ".Job", INVALIDATING_PROPERTIES);
                 if (!m)
                         return NULL;
 
         } else {
                 /* Send a new signal */
 
-                m = dbus_message_new_signal("/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager", "JobNew");
+                m = dbus_message_new_signal("/org/freedesktop/systemd1", SCHEDULER_DBUS_INTERFACE ".Manager", "JobNew");
                 if (!m)
                         return NULL;
 
@@ -296,7 +296,7 @@ static DBusMessage* new_removed_signal_message(Job *j) {
         if (!p)
                 return NULL;
 
-        m = dbus_message_new_signal("/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager", "JobRemoved");
+        m = dbus_message_new_signal("/org/freedesktop/systemd1", SCHEDULER_DBUS_INTERFACE ".Manager", "JobRemoved");
         if (!m)
                 return NULL;
 

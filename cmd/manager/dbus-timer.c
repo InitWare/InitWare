@@ -29,7 +29,7 @@
 
 
 #define BUS_TIMER_INTERFACE                                             \
-        " <interface name=\"org.freedesktop.systemd1.Timer\">\n"        \
+        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Timer\">\n"        \
         "  <property name=\"Unit\" type=\"s\" access=\"read\"/>\n"      \
         "  <property name=\"TimersMonotonic\" type=\"a(stt)\" access=\"read\"/>\n" \
         "  <property name=\"TimersCalendar\" type=\"a(sst)\" access=\"read\"/>\n" \
@@ -50,7 +50,7 @@
 
 #define INTERFACES_LIST                              \
         BUS_UNIT_INTERFACES_LIST                     \
-        "org.freedesktop.systemd1.Timer\0"
+        SCHEDULER_DBUS_INTERFACE ".Timer\0"
 
 const char bus_timer_interface[] _introspect_("Timer") = BUS_TIMER_INTERFACE;
 
@@ -181,8 +181,8 @@ static const BusProperty bus_timer_properties[] = {
 DBusHandlerResult bus_timer_message_handler(Unit *u, DBusConnection *c, DBusMessage *message) {
         Timer *t = TIMER(u);
         const BusBoundProperties bps[] = {
-                { "org.freedesktop.systemd1.Unit",  bus_unit_properties,  u },
-                { "org.freedesktop.systemd1.Timer", bus_timer_properties, t },
+                { SCHEDULER_DBUS_INTERFACE ".Unit",  bus_unit_properties,  u },
+                { SCHEDULER_DBUS_INTERFACE ".Timer", bus_timer_properties, t },
                 { NULL, }
         };
 

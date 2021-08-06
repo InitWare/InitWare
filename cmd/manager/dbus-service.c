@@ -32,7 +32,7 @@
 #include "dbus-cgroup.h"
 
 #define BUS_SERVICE_INTERFACE                                           \
-        " <interface name=\"org.freedesktop.systemd1.Service\">\n"      \
+        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Service\">\n"      \
         "  <property name=\"Type\" type=\"s\" access=\"read\"/>\n"      \
         "  <property name=\"Restart\" type=\"s\" access=\"read\"/>\n"   \
         "  <property name=\"PIDFile\" type=\"s\" access=\"read\"/>\n"   \
@@ -79,7 +79,7 @@
 
 #define INTERFACES_LIST                              \
         BUS_UNIT_INTERFACES_LIST                     \
-        "org.freedesktop.systemd1.Service\0"
+        SCHEDULER_DBUS_INTERFACE ".Service\0"
 
 const char bus_service_interface[] _introspect_("Service") = BUS_SERVICE_INTERFACE;
 
@@ -152,15 +152,15 @@ DBusHandlerResult bus_service_message_handler(Unit *u, DBusConnection *connectio
         Service *s = SERVICE(u);
 
         const BusBoundProperties bps[] = {
-                { "org.freedesktop.systemd1.Unit",    bus_unit_properties,             u },
-                { "org.freedesktop.systemd1.Service", bus_unit_cgroup_properties,      u },
-                { "org.freedesktop.systemd1.Service", bus_service_properties,          s },
-                { "org.freedesktop.systemd1.Service", bus_exec_context_properties,     &s->exec_context },
-                { "org.freedesktop.systemd1.Service", bus_kill_context_properties,     &s->kill_context },
+                { SCHEDULER_DBUS_INTERFACE ".Unit",    bus_unit_properties,             u },
+                { SCHEDULER_DBUS_INTERFACE ".Service", bus_unit_cgroup_properties,      u },
+                { SCHEDULER_DBUS_INTERFACE ".Service", bus_service_properties,          s },
+                { SCHEDULER_DBUS_INTERFACE ".Service", bus_exec_context_properties,     &s->exec_context },
+                { SCHEDULER_DBUS_INTERFACE ".Service", bus_kill_context_properties,     &s->kill_context },
 #ifdef Use_CGroups
-                { "org.freedesktop.systemd1.Service", bus_cgroup_context_properties,   &s->cgroup_context },
+                { SCHEDULER_DBUS_INTERFACE ".Service", bus_cgroup_context_properties,   &s->cgroup_context },
 #endif
-                { "org.freedesktop.systemd1.Service", bus_exec_main_status_properties, &s->main_exec_status },
+                { SCHEDULER_DBUS_INTERFACE ".Service", bus_exec_main_status_properties, &s->main_exec_status },
                 {}
         };
 

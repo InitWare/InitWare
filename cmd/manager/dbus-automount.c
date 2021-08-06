@@ -27,7 +27,7 @@
 #include "selinux-access.h"
 
 #define BUS_AUTOMOUNT_INTERFACE                                      \
-        " <interface name=\"org.freedesktop.systemd1.Automount\">\n" \
+        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Automount\">\n" \
         "  <property name=\"Where\" type=\"s\" access=\"read\"/>\n"  \
         "  <property name=\"DirectoryMode\" type=\"u\" access=\"read\"/>\n" \
         "  <property name=\"Result\" type=\"s\" access=\"read\"/>\n"    \
@@ -45,7 +45,7 @@
 
 #define INTERFACES_LIST                              \
         BUS_UNIT_INTERFACES_LIST                     \
-        "org.freedesktop.systemd1.Automount\0"
+        SCHEDULER_DBUS_INTERFACE ".Automount\0"
 
 const char bus_automount_interface[] _introspect_("Automount") = BUS_AUTOMOUNT_INTERFACE;
 
@@ -64,8 +64,8 @@ static const BusProperty bus_automount_properties[] = {
 DBusHandlerResult bus_automount_message_handler(Unit *u, DBusConnection *c, DBusMessage *message) {
         Automount *am = AUTOMOUNT(u);
         const BusBoundProperties bps[] = {
-                { "org.freedesktop.systemd1.Unit",      bus_unit_properties,      u  },
-                { "org.freedesktop.systemd1.Automount", bus_automount_properties, am },
+                { SCHEDULER_DBUS_INTERFACE ".Unit",      bus_unit_properties,      u  },
+                { SCHEDULER_DBUS_INTERFACE ".Automount", bus_automount_properties, am },
                 { NULL, }
         };
 

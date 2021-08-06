@@ -31,7 +31,7 @@
 #include "dbus-swap.h"
 
 #define BUS_SWAP_INTERFACE                                              \
-        " <interface name=\"org.freedesktop.systemd1.Swap\">\n"         \
+        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Swap\">\n"         \
         "  <property name=\"What\" type=\"s\" access=\"read\"/>\n"      \
         "  <property name=\"Priority\" type=\"i\" access=\"read\"/>\n"  \
         "  <property name=\"TimeoutUSec\" type=\"t\" access=\"read\"/>\n" \
@@ -57,7 +57,7 @@
 
 #define INTERFACES_LIST                              \
         BUS_UNIT_INTERFACES_LIST                     \
-        "org.freedesktop.systemd1.Swap\0"
+        SCHEDULER_DBUS_INTERFACE ".Swap\0"
 
 const char bus_swap_interface[] _introspect_("Swap") = BUS_SWAP_INTERFACE;
 
@@ -106,12 +106,12 @@ static const BusProperty bus_swap_properties[] = {
 DBusHandlerResult bus_swap_message_handler(Unit *u, DBusConnection *c, DBusMessage *message) {
         Swap *s = SWAP(u);
         const BusBoundProperties bps[] = {
-                { "org.freedesktop.systemd1.Unit", bus_unit_properties,           u },
-                { "org.freedesktop.systemd1.Swap", bus_unit_cgroup_properties,    u },
-                { "org.freedesktop.systemd1.Swap", bus_swap_properties,           s },
-                { "org.freedesktop.systemd1.Swap", bus_exec_context_properties,   &s->exec_context },
-                { "org.freedesktop.systemd1.Swap", bus_kill_context_properties,   &s->kill_context },
-                { "org.freedesktop.systemd1.Swap", bus_cgroup_context_properties, &s->cgroup_context },
+                { SCHEDULER_DBUS_INTERFACE ".Unit", bus_unit_properties,           u },
+                { SCHEDULER_DBUS_INTERFACE ".Swap", bus_unit_cgroup_properties,    u },
+                { SCHEDULER_DBUS_INTERFACE ".Swap", bus_swap_properties,           s },
+                { SCHEDULER_DBUS_INTERFACE ".Swap", bus_exec_context_properties,   &s->exec_context },
+                { SCHEDULER_DBUS_INTERFACE ".Swap", bus_kill_context_properties,   &s->kill_context },
+                { SCHEDULER_DBUS_INTERFACE ".Swap", bus_cgroup_context_properties, &s->cgroup_context },
                 { NULL, }
         };
 

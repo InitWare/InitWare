@@ -285,7 +285,7 @@ static int show_unit_cgroup(DBusConnection *bus, const char *interface, const ch
 
         r = bus_method_call_with_reply(
                         bus,
-                        "org.freedesktop.systemd1",
+                        SCHEDULER_DBUS_INTERFACE,
                         path,
                         "org.freedesktop.DBus.Properties",
                         "Get",
@@ -450,7 +450,7 @@ static void print_session_status_info(DBusConnection *bus, SessionStatusInfo *i)
 
         if (i->scope) {
                 printf("\t    Unit: %s\n", i->scope);
-                show_unit_cgroup(bus, "org.freedesktop.systemd1.Scope", i->scope, i->leader);
+                show_unit_cgroup(bus, SCHEDULER_DBUS_INTERFACE ".Scope", i->scope, i->leader);
         }
 }
 
@@ -492,7 +492,7 @@ static void print_user_status_info(DBusConnection *bus, UserStatusInfo *i) {
 
         if (i->slice) {
                 printf("\t    Unit: %s\n", i->slice);
-                show_unit_cgroup(bus, "org.freedesktop.systemd1.Slice", i->slice, 0);
+                show_unit_cgroup(bus, SCHEDULER_DBUS_INTERFACE ".Slice", i->slice, 0);
         }
 }
 

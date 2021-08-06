@@ -28,7 +28,7 @@
 #include "selinux-access.h"
 
 #define BUS_PATH_INTERFACE                                              \
-        " <interface name=\"org.freedesktop.systemd1.Path\">\n"         \
+        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Path\">\n"         \
         "  <property name=\"Unit\" type=\"s\" access=\"read\"/>\n"      \
         "  <property name=\"Paths\" type=\"a(ss)\" access=\"read\"/>\n" \
         "  <property name=\"MakeDirectory\" type=\"b\" access=\"read\"/>\n" \
@@ -48,7 +48,7 @@
 
 #define INTERFACES_LIST                              \
         BUS_UNIT_INTERFACES_LIST                     \
-        "org.freedesktop.systemd1.Path\0"
+        SCHEDULER_DBUS_INTERFACE ".Path\0"
 
 const char bus_path_interface[] _introspect_("Path") = BUS_PATH_INTERFACE;
 
@@ -111,8 +111,8 @@ static const BusProperty bus_path_properties[] = {
 DBusHandlerResult bus_path_message_handler(Unit *u, DBusConnection *c, DBusMessage *message) {
         Path *p = PATH(u);
         const BusBoundProperties bps[] = {
-                { "org.freedesktop.systemd1.Unit", bus_unit_properties, u },
-                { "org.freedesktop.systemd1.Path", bus_path_properties, p },
+                { SCHEDULER_DBUS_INTERFACE ".Unit", bus_unit_properties, u },
+                { SCHEDULER_DBUS_INTERFACE ".Path", bus_path_properties, p },
                 { NULL, }
         };
 
