@@ -609,24 +609,34 @@ int log_dump_internal(
         return log_dispatch(level, file, line, func, NULL, NULL, buffer);
 }
 
-int log_metav(
-        int level,
-        const char*file,
-        int line,
-        const char *func,
-        const char *format,
-        va_list ap) {
+/* Expand %m. fmtout must be a char [LINE_MAX]. */
+static int expand_percentm(int errno_num, const char *fmtin, char *fmtout)
+{
+	char *fmtout_end = &fmtout[LINE_MAX];
 
-        PROTECT_ERRNO;
-        char buffer[LINE_MAX];
+	while (*fmtin != '\0' && fmtout < fmtout_end)
+		if (*fmtin == '%' && fmtin[1] == 'm') {
+			fmtin += 2;
+			fmtout += snprintf(fmtout, fmtout_end - fmtout, "%s", strerror(errno_num));
+		} else
+			*fmtout++ = *fmtin++;
+	*fmtout = '\0';
+}
 
-        if (_likely_(LOG_PRI(level) > log_max_level))
-                return 0;
+int log_metav(int level, const char *file, int line, const char *func, const char *format, va_list ap)
+{
+	PROTECT_ERRNO;
+	char fmtcpy[LINE_MAX];
+	char buffer[LINE_MAX];
 
-        vsnprintf(buffer, sizeof(buffer), format, ap);
-        char_array_0(buffer);
+	if (_likely_(LOG_PRI(level) > log_max_level))
+		return 0;
 
-        return log_dispatch(level, file, line, func, NULL, NULL, buffer);
+	expand_percentm(_saved_errno_, format, fmtcpy);
+	vsnprintf(buffer, sizeof(buffer), fmtcpy, ap);
+	char_array_0(buffer);
+
+	return log_dispatch(level, file, line, func, NULL, NULL, buffer);
 }
 
 int log_meta(

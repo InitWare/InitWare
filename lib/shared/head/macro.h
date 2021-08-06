@@ -197,6 +197,7 @@ static inline size_t ALIGN_TO(size_t l, size_t ali) {
 
 #define CHAR_TO_STR(x) ((char[2]) { x, 0 })
 
+/* Zero the last element of a character array. */
 #define char_array_0(x) x[sizeof(x)-1] = 0;
 
 #define IOVEC_SET_STRING(i, s)                  \

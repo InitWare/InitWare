@@ -214,6 +214,17 @@ static int open_null_as(int flags, int nfd) {
         return r;
 }
 
+/**
+ * @brief Conect to and setup a journald private stream socket.
+ *
+ * The first message sent tells the journal the syslog identifier, unit name,
+ * syslog priority level, whether to interpret log-level prefixes, and whether
+ * to forward to syslog, kmsg, and console.
+ *
+ * @param nfd denotes which FD number to connect the journal on.
+ *
+ * @returns the FD to which the journal was connected, or -errno on error.
+ */
 static int connect_logger_as(const ExecContext *context, ExecOutput output, const char *ident, const char *unit_id, int nfd) {
         int fd, r;
         union sockaddr_union sa = {
