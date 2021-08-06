@@ -7,3 +7,6 @@
 [submodule "vendor/iw-libev"]
 	path = vendor/iw-libev
 	url = ../iw-libev
+[submodule "vendor/iw-sqlite"]
+	path = vendor/iw-sqlite
+	url = ../iw-sqlite
