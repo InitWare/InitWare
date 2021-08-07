@@ -16,16 +16,26 @@
 #include <unistd.h>
 
 #include "evlogd.h"
+#include "jd_stream.h"
 #include "log.h"
 
 Evlogd m;
 
 static int startup()
 {
-	m.evloop = ev_default_loop(0);
+	int r;
 
+	m.evloop = ev_default_loop(0);
 	if (!m.evloop)
 		return log_error_errno(ENOMEM, "Failed to create event loop: %m.\n");
+
+	r = jdstream_init(&m, &m.jdstream, -1);
+	if (r < 0)
+		return r;
+
+	r = backend_init(&m, &m.bend);
+	if (r < 0)
+		return r;
 
 	return 0;
 }

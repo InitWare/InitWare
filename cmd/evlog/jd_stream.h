@@ -12,3 +12,26 @@
 /**
  * JournalD stream protocol (/run/systemd/journal/stdout) reader.
  */
+
+#ifndef JD_STREAM_H_
+#define JD_STREAM_H_
+
+#include "ev.h"
+
+struct Evlogd;
+
+struct JDStream {
+	struct Evlogd *manager;
+	ev_io watch;
+};
+
+typedef struct JDStream JDStream;
+
+/**
+ * Initialise JournalD stream protocol support.
+ *
+ * @param fd An existing FD to use, or -1. If -1, then a new socket is bound.
+ */
+int jdstream_init(struct Evlogd *manager, JDStream *jds, int fd);
+
+#endif /* JD_STREAM_H_ */

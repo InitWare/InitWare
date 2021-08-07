@@ -16,11 +16,21 @@
 #ifndef EVLOGD_H_
 #define EVLOGD_H_
 
+#include "backend.h"
 #include "ev.h"
+#include "jd_stream.h"
+
+#define DATABASE AbsDir_PkgRunState "/evlog.db"
+
+#define JD_STREAM_SOCKET AbsDir_PkgRunState "/evlog/stdout"
 
 struct Evlogd {
 	/* The event loop; we just make this ev_default_loop. */
 	struct ev_loop *evloop;
+
+	Backend bend;
+	/* Journald stream interface. */
+	JDStream jdstream;
 };
 
 typedef struct Evlogd Evlogd;
