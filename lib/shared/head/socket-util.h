@@ -34,42 +34,66 @@
 #include "util.h"
 
 #ifdef Have_asm_types_h
-#        include <asm/types.h>
+#include <asm/types.h>
 #endif
 #ifdef Have_linux_netlink_h
-#        include <linux/netlink.h>
+#include <linux/netlink.h>
 #endif
 
-#ifdef SCM_CREDENTIALS
-#        define CMSG_TYPE_CREDS SCM_CREDENTIALS
-#elif defined(SCM_CREDS)
-#        define CMSG_TYPE_CREDS SCM_CREDS
-#endif
+#if defined(Sys_Plat_Linux)
+#define CREDPASS_IMPLICIT 1
+#define CREDPASS_PERSISTS 1
 
-#ifdef Have_socket_struct_ucred
-#        define SO_CREDOPT_LEVEL SOL_SOCKET
-#        define SO_CREDOPT SO_PASSCRED
-#        define socket_ucred ucred
-#        define dgram_creds struct ucred
-#        define sizeof_dgram_creds sizeof(dgram_creds)
-#        define dgram_creds_pid pid
-#        define dgram_creds_uid uid
-#        define dgram_creds_gid uid
-#elif defined(Have_struct_cmsgcred)
-#        define Cmsgcred
-#        define dgram_creds struct cmsgcred
-#        define sizeof_dgram_creds sizeof(dgram_creds)
-#        define dgram_creds_pid cmcred_pid
-#        define dgram_creds_uid cmcred_uid
-#        define dgram_creds_gid cmcred_gid
-#elif defined(LOCAL_CREDS) /* available on FreeBSD too, but no PID info - prefer this only on NetBSD */
-#        define SO_CREDOPT_LEVEL 0
-#        define SO_CREDOPT LOCAL_CREDS
-#        define dgram_creds struct sockcred
-#        define sizeof_dgram_creds SOCKCREDSIZE(1)
-#        define dgram_creds_pid sc_pid
-#        define dgram_creds_uid sc_uid
-#        define dgram_creds_gid sc_gid
+#define CMSG_TYPE_CREDS SCM_CREDENTIALS
+#define SOCKOPT_CREDPASS_LEVEL SOL_SOCKET
+#define SOCKOPT_CREDPASS_OPT SO_PASSCRED
+
+#define CMSG_CREDS_STRUCT struct ucred
+#define CMSG_CREDS_STRUCT_SIZE sizeof(struct ucred)
+#define CMSG_CREDS_STRUCT_pid pid
+#define CMSG_CREDS_STRUCT_uid uid
+#define CMSG_CREDS_STRUCT_gid uid
+
+#define socket_ucred ucred
+
+#elif defined(Sys_Plat_FreeBSD)
+#define CREDPASS_IMPLICIT 1
+#define CREDPASS_PERSISTS 1
+
+#define CMSG_TYPE_CREDS SCM_CREDS2
+#define SOCKOPT_CREDPASS_LEVEL 0
+#define SOCKOPT_CREDPASS_OPT LOCAL_CREDS_PERSISTENT
+
+#define CMSG_CREDS_STRUCT struct sockcred2
+#define CMSG_CREDS_STRUCT_SIZE SOCKCRED2SIZE(NGROUPS)
+#define CMSG_CREDS_STRUCT_pid sc_pid
+#define CMSG_CREDS_STRUCT_uid sc_uid
+#define CMSG_CREDS_STRUCT_gid sc_gid
+
+#elif defined(Sys_Plat_NetBSD)
+#define CREDPASS_IMPLICIT 1
+
+#define CMSG_TYPE_CREDS SCM_CREDS
+#define SOCKOPT_CREDPASS_LEVEL 0
+#define SOCKOPT_CREDPASS_OPT LOCAL_CREDS
+
+#define CMSG_CREDS_STRUCT struct sockcred
+#define CMSG_CREDS_STRUCT_SIZE SOCKCREDSIZE(NGROUPS)
+#define CMSG_CREDS_STRUCT_pid sc_pid
+#define CMSG_CREDS_STRUCT_uid sc_uid
+#define CMSG_CREDS_STRUCT_gid sc_gid
+
+#elif defined(Sys_Plat_DragonFlyBSD)
+#undef CREDPASS_IMPLICIT
+
+#define CMSG_TYPE_CREDS SCM_CREDS
+
+#define CMSG_CREDS_STRUCT struct cmsgcred
+#define CMSG_CREDS_STRUCT_SIZE sizeof(struct cmsgcred)
+#define CMSG_CREDS_STRUCT_pid cmcred_pid
+#define CMSG_CREDS_STRUCT_uid cmcred_uid
+#define CMSG_CREDS_STRUCT_gid cmcred_gid
+
 #endif
 
 #ifndef Have_socket_struct_ucred
@@ -79,43 +103,43 @@
  * expect all supported platforms to offer us.
  */
 struct socket_ucred {
-        pid_t pid;
-        uid_t uid;
-        gid_t gid;
+	pid_t pid;
+	uid_t uid;
+	gid_t gid;
 };
 #endif
 
 union sockaddr_union {
-        struct sockaddr sa;
-        struct sockaddr_in in4;
-        struct sockaddr_in6 in6;
-        struct sockaddr_un un;
+	struct sockaddr sa;
+	struct sockaddr_in in4;
+	struct sockaddr_in6 in6;
+	struct sockaddr_un un;
 #ifdef Have_linux_netlink_h
-        struct sockaddr_nl nl;
+	struct sockaddr_nl nl;
 #endif
-        struct sockaddr_storage storage;
+	struct sockaddr_storage storage;
 };
 
 typedef struct SocketAddress {
-        union sockaddr_union sockaddr;
+	union sockaddr_union sockaddr;
 
-        /* We store the size here explicitly due to the weird
-         * sockaddr_un semantics for abstract sockets */
-        socklen_t size;
+	/* We store the size here explicitly due to the weird
+	 * sockaddr_un semantics for abstract sockets */
+	socklen_t size;
 
-        /* Socket type, i.e. SOCK_STREAM, SOCK_DGRAM, ... */
-        int type;
+	/* Socket type, i.e. SOCK_STREAM, SOCK_DGRAM, ... */
+	int type;
 
-        /* Socket protocol, IPPROTO_xxx, usually 0, except for netlink */
-        int protocol;
+	/* Socket protocol, IPPROTO_xxx, usually 0, except for netlink */
+	int protocol;
 } SocketAddress;
 
 typedef enum SocketAddressBindIPv6Only {
-        SOCKET_ADDRESS_DEFAULT,
-        SOCKET_ADDRESS_BOTH,
-        SOCKET_ADDRESS_IPV6_ONLY,
-        _SOCKET_ADDRESS_BIND_IPV6_ONLY_MAX,
-        _SOCKET_ADDRESS_BIND_IPV6_ONLY_INVALID = -1
+	SOCKET_ADDRESS_DEFAULT,
+	SOCKET_ADDRESS_BOTH,
+	SOCKET_ADDRESS_IPV6_ONLY,
+	_SOCKET_ADDRESS_BIND_IPV6_ONLY_MAX,
+	_SOCKET_ADDRESS_BIND_IPV6_ONLY_INVALID = -1
 } SocketAddressBindIPv6Only;
 
 #define socket_address_family(a) ((a)->sockaddr.sa.sa_family)
@@ -127,17 +151,9 @@ int socket_address_verify(const SocketAddress *a) _pure_;
 
 bool socket_address_can_accept(const SocketAddress *a) _pure_;
 
-int socket_address_listen(
-        const SocketAddress *a,
-        int backlog,
-        SocketAddressBindIPv6Only only,
-        const char *bind_to_device,
-        bool free_bind,
-        bool transparent,
-        mode_t directory_mode,
-        mode_t socket_mode,
-        const char *label,
-        int *ret);
+int socket_address_listen(const SocketAddress *a, int backlog, SocketAddressBindIPv6Only only,
+    const char *bind_to_device, bool free_bind, bool transparent, mode_t directory_mode,
+    mode_t socket_mode, const char *label, int *ret);
 
 bool socket_address_is(const SocketAddress *a, const char *s, int type);
 bool socket_address_is_netlink(const SocketAddress *a, const char *s);
@@ -167,4 +183,4 @@ int socket_getpeercred(int fd, struct socket_ucred *xucred);
 /** Try to read credentials from a control message. */
 int cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred);
 
-#endif
+#endif /* SOCKET_UTIL_H_ */
