@@ -16,8 +16,9 @@
 #include "bsdqueue.h"
 #include "compat.h"
 #include "evlogd.h"
-#include "jd_stream.h"
 #include "socket-util.h"
+#include "src_cred.h"
+#include "src_jdstream.h"
 
 /** What kind of line is being awaited. */
 enum JDStreamClientAwaitState {
@@ -37,14 +38,13 @@ struct JDStreamClient {
 	JDStream *jdstream;
 
 	ev_io watch;
-	struct socket_ucred cred;
 	JDStreamClientAwaitState awaiting;
 	char buf[LINE_MAX];
 	size_t bufread; /* how much text is in the buffer already */
 
-	char *systemd_unit_id;
-	char *syslog_identifier;
+	SourceMetadata metadata;
 	int priority;
+	char *syslog_identifier;
 
 	TAILQ_ENTRY(JDStreamClient) entries;
 };
@@ -57,8 +57,14 @@ void jdstreamclient_free(JDStreamClient *self)
 	ev_io_stop(self->jdstream->manager->evloop, &self->watch);
 	safe_close(self->watch.fd);
 
-	free(self->systemd_unit_id);
-	free(self->syslog_identifier);
+	free(self->metadata.cmdline);
+	free(self->metadata.command);
+	free(self->metadata.exe);
+	free(self->metadata.systemd_session);
+	free(self->metadata.systemd_slice);
+	free(self->metadata.systemd_unit);
+	free(self->metadata.systemd_user_slice);
+	free(self->metadata.systemd_user_unit);
 	free(self);
 }
 
@@ -67,9 +73,26 @@ static void jdstreamclient_read_line(JDStreamClient *self, const char *line)
 	int r;
 
 	switch (self->awaiting) {
-	case kLogLine:
-		log_info("[%s] %s\n", self->syslog_identifier, line);
+	case kLogLine: {
+		struct LogLine ll;
+		ll.extra_fields_json = NULL;
+		ll.boot_id = self->jdstream->manager->bootid;
+		ll.hostname = self->jdstream->manager->hostname;
+		ll.machine_id = self->jdstream->manager->machid;
+		ll.message = line;
+		ll.message_id = SD_ID128_NULL;
+		ll.metadata = self->metadata;
+		ll.priority = self->priority;
+		ll.source_realtime_timestamp = -1;
+		ll.syslog_identifier = self->syslog_identifier;
+		ll.syslog_facility = -1;
+		dual_timestamp_get(&ll.timestamp);
+		ll.transport = kStdout;
+
+		backend_insert(&self->jdstream->manager->backend, &ll);
+
 		break;
+	}
 
 	case kIdentifier:
 		if (!isempty(line)) {
@@ -81,9 +104,9 @@ static void jdstreamclient_read_line(JDStreamClient *self, const char *line)
 
 		break;
 	case kUnitId:
-		if (!isempty(line) && self->cred.uid == 0) {
-			self->systemd_unit_id = strdup(line);
-			if (!self->systemd_unit_id)
+		if (!isempty(line) && self->metadata.cred.uid == 0) {
+			self->metadata.systemd_unit = strdup(line);
+			if (!self->metadata.systemd_unit)
 				return (void) log_oom();
 		}
 		self->awaiting = kPriority;
@@ -110,6 +133,10 @@ static void jdstreamclient_read_line(JDStreamClient *self, const char *line)
 
 	case kForwardCons:
 		self->awaiting = kLogLine;
+#ifndef CREDPASS_PERSISTS
+		/* try to induce the passing of credentials again to mitigate #26 */
+		socket_passcred(self->watch.fd);
+#endif
 		break;
 	}
 }
@@ -119,7 +146,6 @@ static void jdstreamclient_recv_cb(struct ev_loop *evloop, ev_io *watch, int rev
 	int r;
 	JDStreamClient *self = watch->data;
 	struct iovec iov = { self->buf + self->bufread, sizeof(self->buf) - self->bufread };
-	struct socket_ucred cred;
 	union {
 		struct cmsghdr cmsghdr;
 #ifdef CMSG_CREDS_STRUCT
@@ -144,9 +170,11 @@ static void jdstreamclient_recv_cb(struct ev_loop *evloop, ev_io *watch, int rev
 
 		self->bufread += r;
 
-		r = cmsg_readucred(&control.cmsghdr, &cred);
+		r = cmsg_readucred(&control.cmsghdr, &self->metadata.cred);
 		if (r) {
+			log_info("Updating creds for PID %d.\n", self->metadata.cred.pid);
 			/* creds updated; handle appropriately */
+			sourcemetadata_update_from_pid(&self->metadata);
 		}
 
 		/* process line-by-line */
@@ -191,11 +219,13 @@ static void jdstream_connect_cb(struct ev_loop *evloop, ev_io *watch, int revent
 	client->watch.data = client;
 	client->awaiting = kIdentifier;
 
-	r = socket_getpeercred(fd, &client->cred);
+	r = socket_getpeercred(fd, &client->metadata.cred);
 	if (r < 0) {
 		log_error("getpeercred() failed: %m");
 		goto fail;
 	}
+
+	r = sourcemetadata_update_from_pid(&client->metadata);
 
 	r = socket_passcred(fd);
 	if (r < 0) {

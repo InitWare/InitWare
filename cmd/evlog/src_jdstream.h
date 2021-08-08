@@ -13,8 +13,8 @@
  * JournalD stream protocol (/run/systemd/journal/stdout) reader.
  */
 
-#ifndef JD_STREAM_H_
-#define JD_STREAM_H_
+#ifndef INP_JDSTREAM_H_
+#define INP_JDSTREAM_H_
 
 #include "bsdqueue.h"
 #include "ev.h"

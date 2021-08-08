@@ -16,8 +16,8 @@
 #include <unistd.h>
 
 #include "evlogd.h"
-#include "jd_stream.h"
 #include "log.h"
+#include "src_jdstream.h"
 
 Evlogd m;
 
@@ -34,6 +34,10 @@ static int startup()
 	m.evloop = ev_default_loop(0);
 	if (!m.evloop)
 		return log_error_errno(ENOMEM, "Failed to create event loop: %m.\n");
+
+	gethostname(m.hostname, 255);
+	sd_id128_get_boot(&m.bootid);
+	sd_id128_get_machine(&m.machid);
 
 	ev_signal_init(&m.sigint, manager_signal_cb, SIGINT);
 	ev_signal_init(&m.sigterm, manager_signal_cb, SIGTERM);

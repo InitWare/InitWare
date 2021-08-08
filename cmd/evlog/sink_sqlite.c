@@ -12,9 +12,9 @@
 
 #include "sqlite3.h"
 
-#include "backend.h"
 #include "evlogd.h"
 #include "schema.h"
+#include "sink_sqlite.h"
 #include "util.h"
 
 #pragma region SQLite extras
@@ -218,14 +218,14 @@ int backend_insert(Backend *bend, LogLine *line)
 {
 	int r;
 	bool has_message_id = false;
-	char boot_id[32], machine_id[32], message_id[32];
+	char boot_id[33], machine_id[33], message_id[33];
 
 	sd_id128_to_string(line->boot_id, boot_id);
 	sd_id128_to_string(line->machine_id, machine_id);
+	printf("Machid: %s. Bootid: %s.\n", machine_id, boot_id);
 	if (line->message_id.qwords[0] != 0 && line->message_id.qwords[1] != 0) {
 		/* if message_id is 0, we don't include it */
 		has_message_id = true;
-		printf("Has message id!!\n");
 		sd_id128_to_string(line->message_id, message_id);
 	}
 
@@ -252,23 +252,23 @@ int backend_insert(Backend *bend, LogLine *line)
 	BIND_I64(1, line->timestamp.realtime);
 	BIND_I64(2, line->timestamp.monotonic);
 
-	BIND_STR(3, line->systemd_slice);
-	BIND_STR(4, line->systemd_unit);
-	BIND_STR(5, line->systemd_user_unit);
-	BIND_STR(6, line->systemd_user_slice);
-	BIND_STR(7, line->systemd_session);
-	BIND_I64_NEG1_NULL(8, line->systemd_user_uid);
+	BIND_STR(3, line->metadata.systemd_slice);
+	BIND_STR(4, line->metadata.systemd_unit);
+	BIND_STR(5, line->metadata.systemd_user_unit);
+	BIND_STR(6, line->metadata.systemd_user_slice);
+	BIND_STR(7, line->metadata.systemd_session);
+	BIND_I64_NEG1_NULL(8, line->metadata.systemd_user_uid);
 
-	BIND_I64_NEG1_NULL(9, line->pid);
-	BIND_I64_NEG1_NULL(10, line->uid);
-	BIND_I64_NEG1_NULL(11, line->gid);
-	BIND_STR(12, line->command);
-	BIND_STR(13, line->exe);
-	BIND_STR(14, line->cmdline);
+	BIND_I64_NEG1_NULL(9, line->metadata.cred.pid);
+	BIND_I64_NEG1_NULL(10, line->metadata.cred.uid);
+	BIND_I64_NEG1_NULL(11, line->metadata.cred.gid);
+	BIND_STR(12, line->metadata.command);
+	BIND_STR(13, line->metadata.exe);
+	BIND_STR(14, line->metadata.cmdline);
 
 	BIND_I64_NEG1_NULL(15, line->source_realtime_timestamp);
-	BIND_STR(16, "bootid");
-	BIND_STR(17, "machid");
+	BIND_STR(16, boot_id);
+	BIND_STR(17, machine_id);
 	BIND_STR(18, line->hostname);
 	BIND_I64(19, line->transport);
 

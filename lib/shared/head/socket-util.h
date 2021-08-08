@@ -42,6 +42,7 @@
 
 #if defined(Sys_Plat_Linux)
 #define CREDPASS_IMPLICIT 1
+#define CREDPASS_PERSISTS 1
 
 #define CMSG_TYPE_CREDS SCM_CREDENTIALS
 #define SOCKOPT_CREDPASS_LEVEL SOL_SOCKET
@@ -57,6 +58,7 @@
 
 #elif defined(Sys_Plat_FreeBSD)
 #define CREDPASS_IMPLICIT 1
+#define CREDPASS_PERSISTS 1
 
 #define CMSG_TYPE_CREDS SCM_CREDS2
 #define SOCKOPT_CREDPASS_LEVEL 0

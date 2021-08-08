@@ -16,9 +16,11 @@
 #ifndef EVLOGD_H_
 #define EVLOGD_H_
 
-#include "backend.h"
+#include "systemd/sd-id128.h"
+
 #include "ev.h"
-#include "jd_stream.h"
+#include "sink_sqlite.h"
+#include "src_jdstream.h"
 
 #define DATABASE AbsDir_PkgRunState "/evlog/evlog.db"
 
@@ -27,8 +29,11 @@
 struct Evlogd {
 	/* The event loop; we just make this ev_default_loop. */
 	struct ev_loop *evloop;
-
 	ev_signal sigint, sigterm;
+
+	sd_id128_t bootid;
+	sd_id128_t machid;
+	char hostname[255];
 
 	Backend backend;
 	/* Journald stream interface. */

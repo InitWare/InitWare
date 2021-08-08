@@ -20,6 +20,7 @@
 
 #include "systemd/sd-id128.h"
 
+#include "src_cred.h"
 #include "time-util.h"
 
 struct sqlite3;
@@ -38,19 +39,7 @@ enum Transport {
 struct LogLine {
 	dual_timestamp timestamp;
 
-	char *systemd_slice;
-	char *systemd_unit;
-	char *systemd_user_unit;
-	char *systemd_user_slice;
-	char *systemd_session;
-	uid_t systemd_user_uid;
-
-	pid_t pid;
-	uid_t uid;
-	gid_t gid;
-	char *command;
-	char *exe;
-	char *cmdline;
+	SourceMetadata metadata;
 
 	usec_t source_realtime_timestamp;
 	sd_id128_t boot_id;
