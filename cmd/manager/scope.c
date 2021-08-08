@@ -36,6 +36,7 @@ have been included with this software
 #include <unistd.h>
 
 #include "dbus-scope.h"
+#include "def.h"
 #include "ev-util.h"
 #include "load-dropin.h"
 #include "load-fragment.h"

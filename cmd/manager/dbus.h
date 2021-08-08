@@ -1,7 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
-#pragma once
-
 /***
   This file is part of systemd.
 
@@ -21,8 +17,12 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#ifndef DBUS_H_
+#define DBUS_H_
+
 #include <dbus/dbus.h>
 
+#include "def.h"
 #include "manager.h"
 
 int bus_init(Manager *m, bool try_bus_connect);
@@ -39,7 +39,8 @@ bool bus_connection_has_subscriber(Manager *m, DBusConnection *c);
 
 int bus_fdset_add_all(Manager *m, FDSet *fds);
 
-void bus_broadcast_finished(Manager *m, usec_t firmware_usec, usec_t loader_usec, usec_t kernel_usec, usec_t initrd_usec, usec_t userspace_usec, usec_t total_usec);
+void bus_broadcast_finished(Manager *m, usec_t firmware_usec, usec_t loader_usec,
+    usec_t kernel_usec, usec_t initrd_usec, usec_t userspace_usec, usec_t total_usec);
 void bus_broadcast_reloading(Manager *m, bool active);
 
 Set *bus_acquire_subscribed(Manager *m, DBusConnection *c);
@@ -50,4 +51,7 @@ int bus_deserialize_item(Manager *m, const char *line);
 #define BUS_CONNECTION_SUBSCRIBED(m, c) dbus_connection_get_data((c), (m)->subscribed_data_slot)
 #define BUS_PENDING_CALL_NAME(m, p) dbus_pending_call_get_data((p), (m)->name_data_slot)
 
-extern const char * const bus_interface_table[];
+extern const char *const bus_interface_table[];
+
+
+#endif /* DBUS_H_ */

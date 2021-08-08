@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -24,15 +22,16 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "unit.h"
-#include "unit-name.h"
-#include "path.h"
-#include "mkdir.h"
-#include "dbus-path.h"
-#include "special.h"
 #include "dbus-common.h"
-#include "path-util.h"
+#include "dbus-path.h"
+#include "def.h"
 #include "macro.h"
+#include "mkdir.h"
+#include "path-util.h"
+#include "path.h"
+#include "special.h"
+#include "unit-name.h"
+#include "unit.h"
 
 static const UnitActiveState state_translation_table[_PATH_STATE_MAX] = {
         [PATH_DEAD] = UNIT_INACTIVE,

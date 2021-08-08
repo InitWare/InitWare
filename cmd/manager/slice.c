@@ -23,13 +23,14 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "unit.h"
-#include "slice.h"
+#include "dbus-slice.h"
+#include "def.h"
 #include "load-fragment.h"
 #include "log.h"
-#include "dbus-slice.h"
+#include "slice.h"
 #include "special.h"
 #include "unit-name.h"
+#include "unit.h"
 
 static const UnitActiveState state_translation_table[_SLICE_STATE_MAX] = {
         [SLICE_DEAD] = UNIT_INACTIVE,

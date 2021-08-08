@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -21,11 +19,12 @@
 
 #include <errno.h>
 
-#include "unit.h"
+#include "bus-errors.h"
+#include "dbus-snapshot.h"
+#include "def.h"
 #include "snapshot.h"
 #include "unit-name.h"
-#include "dbus-snapshot.h"
-#include "bus-errors.h"
+#include "unit.h"
 
 static const UnitActiveState state_translation_table[_SNAPSHOT_STATE_MAX] = {
         [SNAPSHOT_DEAD] = UNIT_INACTIVE,

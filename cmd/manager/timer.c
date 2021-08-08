@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -21,13 +19,14 @@
 
 #include <errno.h>
 
-#include "ev-util.h"
-#include "unit.h"
-#include "unit-name.h"
-#include "timer.h"
-#include "dbus-timer.h"
-#include "special.h"
 #include "dbus-common.h"
+#include "dbus-timer.h"
+#include "def.h"
+#include "ev-util.h"
+#include "special.h"
+#include "timer.h"
+#include "unit-name.h"
+#include "unit.h"
 
 static const UnitActiveState state_translation_table[_TIMER_STATE_MAX] = {
         [TIMER_DEAD] = UNIT_INACTIVE,

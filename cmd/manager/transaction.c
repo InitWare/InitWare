@@ -22,9 +22,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "transaction.h"
 #include "bus-errors.h"
 #include "dbus-common.h"
+#include "def.h"
+#include "transaction.h"
 
 static void transaction_unlink_job(Transaction *tr, Job *j, bool delete_dependencies);
 
