@@ -1388,8 +1388,8 @@ static int manager_process_notify_fd(Manager *m) {
 
                 union {
                         struct cmsghdr cmsghdr;
-#ifdef dgram_creds
-                        uint8_t buf[CMSG_SPACE(sizeof_dgram_creds)];
+#ifdef CMSG_CREDS_STRUCT
+			uint8_t buf[CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE)];
 #endif
                 } control = {};
 
@@ -1414,14 +1414,14 @@ static int manager_process_notify_fd(Manager *m) {
                 }
 
 
-#ifdef dgram_creds
-                n = cmsg_readucred(&control.cmsghdr, &ucred);
-                if (!n) {
-                        log_warning("Received notify message without credentials - refusing.\n");
+#ifdef CMSG_CREDS_STRUCT
+		n = cmsg_readucred(&control.cmsghdr, &ucred);
+		if (!n) {
+			log_warning("Received notify message without credentials - refusing.\n");
                         return 0;
-                }
+		}
 
-                u = manager_get_unit_by_pid(m, ucred.pid);
+		u = manager_get_unit_by_pid(m, ucred.pid);
                 if (u) {
                         manager_invoke_notify_message(m, u, ucred.pid, buf, n);
                         found = true;

@@ -29,6 +29,7 @@
 #define SD_JOURNAL_SUPPRESS_LOCATION
 
 #include "socket-util.h"
+#include "sparse-endian.h"
 #include "systemd/sd-journal.h"
 #include "util.h"
 

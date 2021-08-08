@@ -621,6 +621,8 @@ static int expand_percentm(int errno_num, const char *fmtin, char *fmtout)
 		} else
 			*fmtout++ = *fmtin++;
 	*fmtout = '\0';
+
+	return 0;
 }
 
 int log_metav(int level, const char *file, int line, const char *func, const char *format, va_list ap)

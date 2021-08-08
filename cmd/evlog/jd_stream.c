@@ -68,7 +68,7 @@ static void jdstreamclient_read_line(JDStreamClient *self, const char *line)
 
 	switch (self->awaiting) {
 	case kLogLine:
-		log_info("[%s] %s\n", self->syslog_identifier, self->cred.pid, line);
+		log_info("[%s] %s\n", self->syslog_identifier, line);
 		break;
 
 	case kIdentifier:
@@ -118,8 +118,20 @@ static void jdstreamclient_recv_cb(struct ev_loop *evloop, ev_io *watch, int rev
 {
 	int r;
 	JDStreamClient *self = watch->data;
+	struct iovec iov = { self->buf + self->bufread, sizeof(self->buf) - self->bufread };
+	struct socket_ucred cred;
+	union {
+		struct cmsghdr cmsghdr;
+#ifdef CMSG_CREDS_STRUCT
+		uint8_t buf[CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE)];
+#endif
+	} control = {};
+	struct msghdr msghdr = { .msg_iov = &iov,
+		.msg_iovlen = 1,
+		.msg_control = &control,
+		.msg_controllen = sizeof(control) };
 
-	r = recv(watch->fd, self->buf + self->bufread, sizeof(self->buf) - self->bufread, 0);
+	r = recvmsg(watch->fd, &msghdr, MSG_DONTWAIT);
 
 	if (r == -1) {
 		return (void) log_error("Failed to read from JournalD stream socket: %m\n");
@@ -131,6 +143,11 @@ static void jdstreamclient_recv_cb(struct ev_loop *evloop, ev_io *watch, int rev
 		char *line = self->buf, *line_end;
 
 		self->bufread += r;
+
+		r = cmsg_readucred(&control.cmsghdr, &cred);
+		if (r) {
+			/* creds updated; handle appropriately */
+		}
 
 		/* process line-by-line */
 		while ((line_end = memchr(line, '\n', self->bufread - (line - self->buf)))) {
@@ -177,6 +194,12 @@ static void jdstream_connect_cb(struct ev_loop *evloop, ev_io *watch, int revent
 	r = socket_getpeercred(fd, &client->cred);
 	if (r < 0) {
 		log_error("getpeercred() failed: %m");
+		goto fail;
+	}
+
+	r = socket_passcred(fd);
+	if (r < 0) {
+		log_error("socket_passcred() failed: %m\n");
 		goto fail;
 	}
 
