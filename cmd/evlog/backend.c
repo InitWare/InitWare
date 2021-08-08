@@ -205,10 +205,13 @@ int backend_init(struct Evlogd *manager, Backend *bend)
 		return log_error_errno(EIO, "Failed to set up prepared statements: %s\n",
 		    sqlite3_errmsg(bend->db_conn));
 
+	return 0;
+}
+
+void backend_shutdown(Backend *bend)
+{
 	sqlite3_finalize(bend->insert_stmt);
 	sqlite3_close(bend->db_conn);
-
-	return 0;
 }
 
 int backend_insert(Backend *bend, LogLine *line)
@@ -222,6 +225,7 @@ int backend_insert(Backend *bend, LogLine *line)
 	if (line->message_id.qwords[0] != 0 && line->message_id.qwords[1] != 0) {
 		/* if message_id is 0, we don't include it */
 		has_message_id = true;
+		printf("Has message id!!\n");
 		sd_id128_to_string(line->message_id, message_id);
 	}
 
@@ -232,6 +236,12 @@ int backend_insert(Backend *bend, LogLine *line)
 		r = -EIO;                                            \
 		goto finish;                                         \
 	}
+#define BIND_I64_NEG1_NULL(index, val)                                 \
+	if (val == -1)                                                 \
+		r = sqlite3_bind_null(bend->insert_stmt, index);       \
+	else                                                           \
+		r = sqlite3_bind_int64(bend->insert_stmt, index, val); \
+	CHECK_FAIL
 #define BIND_I64(index, val)                                   \
 	r = sqlite3_bind_int64(bend->insert_stmt, index, val); \
 	CHECK_FAIL
@@ -247,18 +257,18 @@ int backend_insert(Backend *bend, LogLine *line)
 	BIND_STR(5, line->systemd_user_unit);
 	BIND_STR(6, line->systemd_user_slice);
 	BIND_STR(7, line->systemd_session);
-	BIND_I64(8, line->systemd_user_uid);
+	BIND_I64_NEG1_NULL(8, line->systemd_user_uid);
 
-	BIND_I64(9, line->pid);
-	BIND_I64(10, line->uid);
-	BIND_I64(11, line->gid);
+	BIND_I64_NEG1_NULL(9, line->pid);
+	BIND_I64_NEG1_NULL(10, line->uid);
+	BIND_I64_NEG1_NULL(11, line->gid);
 	BIND_STR(12, line->command);
 	BIND_STR(13, line->exe);
 	BIND_STR(14, line->cmdline);
 
-	BIND_I64(15, line->source_realtime_timestamp);
-	BIND_STR(16, boot_id);
-	BIND_STR(17, machine_id);
+	BIND_I64_NEG1_NULL(15, line->source_realtime_timestamp);
+	BIND_STR(16, "bootid");
+	BIND_STR(17, "machid");
 	BIND_STR(18, line->hostname);
 	BIND_I64(19, line->transport);
 
@@ -268,11 +278,11 @@ int backend_insert(Backend *bend, LogLine *line)
 	} else
 		sqlite3_bind_null(bend->insert_stmt, 21);
 	BIND_I64(22, line->priority);
-	BIND_I64(23, line->syslog_facility);
+	BIND_I64_NEG1_NULL(23, line->syslog_facility);
 	BIND_STR(24, line->syslog_identifier);
 	BIND_STR(25, line->extra_fields_json);
 
-	r = sqlite3_step(bend->db_conn);
+	r = sqlite3_step(bend->insert_stmt);
 	if (r != SQLITE_DONE) {
 		log_error("Failed to execute prepared statement: %s\n",
 		    sqlite3_errmsg(bend->db_conn));
@@ -280,6 +290,6 @@ int backend_insert(Backend *bend, LogLine *line)
 	}
 
 finish:
-	sqlite3_reset(bend->db_conn);
+	sqlite3_reset(bend->insert_stmt);
 	return r;
 }

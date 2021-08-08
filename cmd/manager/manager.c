@@ -476,9 +476,9 @@ static int manager_setup_signals(Manager *m) {
                 ev_signal_start(m->evloop, &ev_signals[i]);
         }
 
-        // assert_se(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
+	// assert_se(sigprocmask(SIG_SETMASK, &mask, NULL) == 0); // FIXME: ??
 
-        if (m->running_as == SYSTEMD_SYSTEM)
+	if (m->running_as == SYSTEMD_SYSTEM)
                 return enable_special_signals(m);
 
         return 0;

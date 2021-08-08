@@ -20,7 +20,7 @@
 #include "ev.h"
 #include "jd_stream.h"
 
-#define DATABASE AbsDir_PkgRunState "/evlog.db"
+#define DATABASE AbsDir_PkgRunState "/evlog/evlog.db"
 
 #define JD_STREAM_SOCKET AbsDir_PkgRunState "/evlog/stdout"
 
@@ -28,7 +28,9 @@ struct Evlogd {
 	/* The event loop; we just make this ev_default_loop. */
 	struct ev_loop *evloop;
 
-	Backend bend;
+	ev_signal sigint, sigterm;
+
+	Backend backend;
 	/* Journald stream interface. */
 	JDStream jdstream;
 };

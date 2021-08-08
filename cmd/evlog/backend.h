@@ -78,6 +78,7 @@ typedef struct LogLine LogLine;
 typedef struct Backend Backend;
 
 int backend_init(struct Evlogd *manager, Backend *bend);
+void backend_shutdown(Backend *bend);
 int backend_insert(Backend *bend, LogLine *line);
 
 #endif /* BACKEND_H_ */

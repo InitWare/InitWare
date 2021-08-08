@@ -21,6 +21,12 @@
 
 Evlogd m;
 
+static void manager_signal_cb(struct ev_loop *evloop, ev_signal *watch, int revents)
+{
+	log_info("Signalled, stopping.\n");
+	ev_break(m.evloop, EVBREAK_ALL);
+}
+
 static int startup()
 {
 	int r;
@@ -29,15 +35,25 @@ static int startup()
 	if (!m.evloop)
 		return log_error_errno(ENOMEM, "Failed to create event loop: %m.\n");
 
+	ev_signal_init(&m.sigint, manager_signal_cb, SIGINT);
+	ev_signal_init(&m.sigterm, manager_signal_cb, SIGTERM);
+	assert_se(ev_signal_start(m.evloop, &m.sigint) == 0);
+	assert_se(ev_signal_start(m.evloop, &m.sigterm) == 0);
+
 	r = jdstream_init(&m, &m.jdstream, -1);
 	if (r < 0)
 		return r;
 
-	r = backend_init(&m, &m.bend);
+	r = backend_init(&m, &m.backend);
 	if (r < 0)
 		return r;
 
 	return 0;
+}
+
+static int manager_shutdown()
+{
+	backend_shutdown(&m.backend);
 }
 
 int main(int argc, char *argv[])
@@ -60,6 +76,15 @@ int main(int argc, char *argv[])
 		goto finish;
 	}
 
+	LogLine test;
+	zero(test);
+	test.message = "Hello World\n";
+	test.hostname = "Localhost";
+	backend_insert(&m.backend, &test);
+
+	ev_run(m.evloop, 0);
+
 finish:
+	manager_shutdown();
 	return r;
 }

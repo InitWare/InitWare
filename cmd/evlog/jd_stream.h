@@ -16,6 +16,7 @@
 #ifndef JD_STREAM_H_
 #define JD_STREAM_H_
 
+#include "bsdqueue.h"
 #include "ev.h"
 
 struct Evlogd;
@@ -23,6 +24,8 @@ struct Evlogd;
 struct JDStream {
 	struct Evlogd *manager;
 	ev_io watch;
+
+	TAILQ_HEAD(clients, JDStreamClient) clients;
 };
 
 typedef struct JDStream JDStream;
