@@ -1,14 +1,17 @@
 add_custom_command(
-    OUTPUT schema_sqlite.h
-    COMMAND ${CMAKE_COMMAND}
-    ARGS -P ${PROJECT_SOURCE_DIR}/tools/MakeHeader.cmake ${CMAKE_CURRENT_SOURCE_DIR}/schema_sqlite.sql
-        schema_sqlite.h
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/schema_sqlite.sql
-    )
-add_executable(evlogd evlogd.c sink_sqlite.c src_cred.c src_jdstream.c
-    ${CMAKE_CURRENT_BINARY_DIR}/schema_sqlite.h)
-target_link_libraries(evlogd iw-shared iw-ev iw-sqlite iw-id128)
-target_include_directories(evlogd PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+  OUTPUT journald-gperf.c
+  COMMAND gperf < ${CMAKE_CURRENT_SOURCE_DIR}/journald-gperf.gperf
+    > journald-gperf.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/journald-gperf.gperf)
 
-add_executable(evlog-cat cat.c)
-target_link_libraries(evlog-cat iw-journal)
+add_executable(evlogd journald.c journald-console.c journald-kmsg.c
+    journald-native.c journald-rate-limit.c journald-server.c journald-stream.c
+    journald-syslog.c ${CMAKE_CURRENT_BINARY_DIR}/journald-gperf.c)
+target_link_libraries(evlogd iw-evlog iw-daemon iw-id128)
+target_include_directories(evlogd PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+add_executable(evlogctl journalctl.c)
+target_link_libraries(evlogctl iw-shared iw-evlog iw-id128)
+
+add_executable(evlogcat cat.c)
+target_link_libraries(evlogcat iw-shared iw-evlog)

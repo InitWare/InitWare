@@ -25,10 +25,10 @@
 #include <unistd.h>
 #include <sys/types.h>
 
+#include "systemd/sd-journal.h"
+
 #include "util.h"
 #include "output-mode.h"
-
-typedef struct sd_journal *sd_journal;
 
 int output_journal(
                 FILE *f,

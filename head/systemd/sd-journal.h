@@ -1,7 +1,7 @@
 /*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
 
-#ifndef foojournalhfoo
-#define foojournalhfoo
+#ifndef SD_JOURNAL_H_
+#define SD_JOURNAL_H_
 
 /***
   This file is part of systemd.
@@ -170,4 +170,4 @@ int sd_journal_get_catalog_for_message_id(sd_id128_t id, char **ret);
 }
 #endif
 
-#endif
+#endif /* SD_JOURNAL_H_ */
