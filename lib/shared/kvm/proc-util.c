@@ -139,6 +139,32 @@ int get_process_cmdline(pid_t pid, size_t max_length, bool comm_fallback, char *
         return 0;
 }
 
+int get_process_exe(pid_t pid, char **line)
+{
+	struct kinfo_proc *info;
+	char **argv;
+
+	info = get_pid_info(pid);
+
+	if (!info) {
+		*line = strdup("[invalid-pid]");
+		if (!*line)
+			return -ENOMEM;
+		else
+			return -errno;
+	}
+
+	argv = kvm_getargv(g_kd, info, 0);
+	if (!argv)
+		return -ENOMEM;
+
+	*line = strdup(argv[0]);
+	if (!*line)
+		return -ENOMEM;
+
+	return 0;
+}
+
 int get_process_uid(pid_t pid, uid_t *uid) {
         struct kinfo_proc *info = get_pid_info(pid);
         return info->p_ruid;

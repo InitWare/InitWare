@@ -109,8 +109,9 @@ else()
 endif()
 
 if(NOT Sys_Plat_Linux)
+pkg_check_modules(EPoll REQUIRED IMPORTED_TARGET epoll-shim)
 pkg_check_modules(INotify REQUIRED IMPORTED_TARGET libinotify)
-set(EPoll_Compat_Libs PkgConfig::INotify)
+set(EPoll_Compat_Libs PkgConfig::EPoll PkgConfig::INotify)
 endif()
 pkg_check_modules(UDev IMPORTED_TARGET libudev)
 pkg_check_modules(Cap IMPORTED_TARGET libcap)
@@ -318,6 +319,7 @@ target_include_directories(internal INTERFACE common head head/systemd)
 
 add_subdirectory(vendor/iw-cjson)
 add_subdirectory(vendor/iw-libev)
+add_subdirectory(vendor/iw-sqlite)
 
 # if (build_doc) or something like that
 add_subdirectory(vendor/iw-docbook2mdoc)
