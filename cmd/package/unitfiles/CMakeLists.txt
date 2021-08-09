@@ -17,6 +17,8 @@ foreach(unit_in
   systemd-hostnamed.service.in
   systemd-hybrid-sleep.service.in
   systemd-initctl.service.in
+  systemd-journald.service.in
+  systemd-journald.socket.in
   systemd-logind.service.in
   systemd-nspawn@.service.in
   systemd-poweroff.service.in
@@ -63,6 +65,8 @@ set(system_unitfiles basic.target bluetooth.target cryptsetup-pre.target
     ${CMAKE_CURRENT_BINARY_DIR}/systemd-hybrid-sleep.service
     ${CMAKE_CURRENT_BINARY_DIR}/systemd-initctl.service
     systemd-initctl.socket
+    ${CMAKE_CURRENT_BINARY_DIR}/systemd-journald.service
+    ${CMAKE_CURRENT_BINARY_DIR}/systemd-journald.socket
     ${CMAKE_CURRENT_BINARY_DIR}/systemd-logind.service
     ${CMAKE_CURRENT_BINARY_DIR}/systemd-nspawn@.service
     ${CMAKE_CURRENT_BINARY_DIR}/systemd-poweroff.service

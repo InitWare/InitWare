@@ -1787,7 +1787,7 @@ int unit_file_query_preset(UnitFileScope scope, const char *name) {
         if (scope == UNIT_FILE_SYSTEM)
                 r = conf_files_list(&files, ".preset", NULL,
                                     AbsDir_PkgSysConf "/system-preset",
-                                    //AbsDir_PkgLib "/system-preset",
+                                    AbsDir_PkgLib "/system-preset",
 #ifdef Use_SystemdCompat
                                     "/etc/systemd/system-preset",
                                     "/usr/local/lib/systemd/system-preset",
@@ -1800,7 +1800,7 @@ int unit_file_query_preset(UnitFileScope scope, const char *name) {
         else if (scope == UNIT_FILE_GLOBAL)
                 r = conf_files_list(&files, ".preset", NULL,
                                     AbsDir_PkgSysConf "/user-preset",
-                                    //AbsDir_PkgLib "/user-preset",
+                                    AbsDir_PkgLib "/user-preset",
 #ifdef Use_SystemdCompat
                                     "/etc/systemd/user-preset",
                                     "/usr/local/lib/systemd/user-preset",

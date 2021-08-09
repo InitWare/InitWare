@@ -190,7 +190,7 @@ static int log_open_journal(void) {
                 goto fail;
         }
 
-        if (connect(journal_fd, &sa.sa, offsetof(struct sockaddr_un, sun_path) + strlen(sa.un.sun_path)) < 0) {
+	if (connect(journal_fd, &sa.sa, offsetof(struct sockaddr_un, sun_path) + strlen(sa.un.sun_path)) < 0) {
                 r = -errno;
                 goto fail;
         }
