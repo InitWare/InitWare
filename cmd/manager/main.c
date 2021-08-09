@@ -82,6 +82,8 @@
 #include "loopback-setup.h"
 #endif
 
+const char pidfile_path[] = AbsDir_PkgRunState "/initware.pid";
+
 static enum {
         ACTION_RUN,
         ACTION_HELP,
@@ -765,6 +767,7 @@ static int parse_argv(int argc, char *argv[]) {
                 ARG_CONFIRM_SPAWN,
                 ARG_SHOW_STATUS,
                 ARG_DESERIALIZE,
+                ARG_DAEMONISE,
                 ARG_SWITCHED_ROOT,
                 ARG_INTROSPECT,
                 ARG_DEFAULT_STD_OUTPUT,
@@ -788,6 +791,7 @@ static int parse_argv(int argc, char *argv[]) {
                 { "confirm-spawn",            optional_argument, NULL, ARG_CONFIRM_SPAWN            },
                 { "show-status",              optional_argument, NULL, ARG_SHOW_STATUS              },
                 { "deserialize",              required_argument, NULL, ARG_DESERIALIZE              },
+                { "daemonise",                no_argument, NULL, ARG_DAEMONISE                      },
                 { "switched-root",            no_argument,       NULL, ARG_SWITCHED_ROOT            },
                 { "introspect",               optional_argument, NULL, ARG_INTROSPECT               },
                 { "default-standard-output",  required_argument, NULL, ARG_DEFAULT_STD_OUTPUT,      },
@@ -956,6 +960,9 @@ static int parse_argv(int argc, char *argv[]) {
 
                         break;
                 }
+
+                case ARG_DAEMONISE:
+                        break;
 
                 case ARG_SWITCHED_ROOT:
                         arg_switched_root = true;
@@ -1238,6 +1245,29 @@ static int initialize_join_controllers(void) {
         return 0;
 }
 
+static int make_pidfile()
+{
+	int save_errno;
+	pid_t pid;
+	FILE *f;
+	f = fopen(pidfile_path, "w");
+	if (f == NULL)
+		return -1;
+
+	pid = getpid();
+	if (fprintf(f, "%ld\n", (long) pid) <= 0 || fflush(f) != 0) {
+		save_errno = errno;
+		fclose(f);
+		unlink(pidfile_path);
+		errno = save_errno;
+		return -1;
+	}
+	fclose(f);
+
+	return (0);
+}
+
+
 int main(int argc, char *argv[]) {
         Manager *m = NULL;
         int r, retval = EXIT_FAILURE;
@@ -1257,42 +1287,70 @@ int main(int argc, char *argv[]) {
         bool queue_default_job = false;
         char *switch_root_dir = NULL, *switch_root_init = NULL;
         static struct rlimit saved_rlimit_nofile = { 0, 0 };
+#ifdef Sys_Plat_BSD
+	struct pidfh *pfh = NULL;
+	pid_t oldpid;
+#endif
 
 #ifdef HAVE_SYSV_COMPAT
-        if (getpid() != 1 && strstr(program_invocation_short_name, "init")) {
-                /* This is compatibility support for SysV, where
+	if (getpid() != 1 && strstr(program_invocation_short_name, "init")) {
+		/* This is compatibility support for SysV, where
                  * calling init as a user is identical to telinit. */
 
-                errno = -ENOENT;
-                execv(SYSTEMCTL_BINARY_PATH, argv);
-                log_error("Failed to exec " SYSTEMCTL_BINARY_PATH ": %m");
-                return 1;
-        }
+		errno = -ENOENT;
+		execv(SYSTEMCTL_BINARY_PATH, argv);
+		log_error("Failed to exec " SYSTEMCTL_BINARY_PATH ": %m");
+		return 1;
+	}
 #endif
 
         dual_timestamp_from_monotonic(&kernel_timestamp, 0);
         dual_timestamp_get(&userspace_timestamp);
 
-        /* Determine if this is a reexecution or normal bootup. We do
+#ifdef Sys_Plat_BSD
+	if (strv_find(argv + 1, "--daemonise")) {
+		r = daemon(1, 1);
+		if (r < 0) {
+			log_error("Failed to daemonise: %m");
+			retval = EXIT_FAILURE;
+			goto finish;
+		}
+
+		r = make_pidfile();
+		if (r < 0) {
+			if (errno == EEXIST) {
+				log_error(
+				    "InitWare system instance already running (see /var/run/initware.pid)");
+				retval = EXIT_FAILURE;
+				goto finish;
+			}
+
+			log_warning("Failed to open or create pidfile: %m");
+		}
+	}
+#endif
+
+	/* Determine if this is a reexecution or normal bootup. We do
          * the full command line parsing much later, so let's just
          * have a quick peek here. */
-        if (strv_find(argv+1, "--deserialize"))
-                skip_setup = true;
+	if (strv_find(argv + 1, "--deserialize"))
+		skip_setup = true;
 
-        /* If we have switched root, do all the special setup
+	/* If we have switched root, do all the special setup
          * things */
-        if (strv_find(argv+1, "--switched-root"))
-                skip_setup = false;
+	if (strv_find(argv + 1, "--switched-root"))
+		skip_setup = false;
 
-        /* If we get started via the /sbin/init symlink then we are
+		/* If we get started via the /sbin/init symlink then we are
            called 'init'. After a subsequent reexecution we are then
            called 'systemd'. That is confusing, hence let's call us
            systemd right-away. */
 #ifdef Have_program_invocation_short_name
         program_invocation_short_name = systemd;
 #endif
-#ifdef Have_sys_prctl_h
-        prctl(PR_SET_NAME, systemd);
+#if defined(Have_sys_prctl_h)
+	prctl(PR_SET_NAME, systemd);
+#elif defined(HAVE_setproctitle)
 #endif
 
         saved_argv = argv;
@@ -1930,49 +1988,53 @@ finish:
                 return 0;
 #endif
 
-        if (shutdown_verb) {
-                const char * command_line[] = {
-                        SYSTEMD_SHUTDOWN_BINARY_PATH,
-                        shutdown_verb,
-                        NULL
-                };
-                char **env_block;
+#ifdef Sys_Plat_Linux // FIXME: #15
+	if (shutdown_verb) {
+		const char *command_line[] = { SYSTEMD_SHUTDOWN_BINARY_PATH, shutdown_verb, NULL };
+		char **env_block;
 
-#ifdef Sys_Plat_Linux
-                if (arm_reboot_watchdog && arg_shutdown_watchdog > 0) {
-                        char e[32];
+		if (arm_reboot_watchdog && arg_shutdown_watchdog > 0) {
+			char e[32];
 
-                        /* If we reboot let's set the shutdown
+			/* If we reboot let's set the shutdown
                          * watchdog and tell the shutdown binary to
                          * repeatedly ping it */
-                        watchdog_set_timeout(&arg_shutdown_watchdog);
-                        watchdog_close(false);
+			watchdog_set_timeout(&arg_shutdown_watchdog);
+			watchdog_close(false);
 
-                        /* Tell the binary how often to ping */
-                        snprintf(e, sizeof(e), "WATCHDOG_USEC=%llu", (unsigned long long) arg_shutdown_watchdog);
-                        char_array_0(e);
+			/* Tell the binary how often to ping */
+			snprintf(e, sizeof(e), "WATCHDOG_USEC=%llu",
+			    (unsigned long long) arg_shutdown_watchdog);
+			char_array_0(e);
 
-                        env_block = strv_append(environ, e);
-                } else {
-                        env_block = strv_copy(environ);
-                        watchdog_close(true);
-                }
+			env_block = strv_append(environ, e);
+		} else {
+			env_block = strv_copy(environ);
+			watchdog_close(true);
+		}
 
-                /* Avoid the creation of new processes forked by the
+		/* Avoid the creation of new processes forked by the
                  * kernel; at this point, we will not listen to the
                  * signals anyway */
-                if (detect_container(NULL) <= 0)
-                        cg_uninstall_release_agent(SYSTEMD_CGROUP_CONTROLLER);
+		if (detect_container(NULL) <= 0)
+			cg_uninstall_release_agent(SYSTEMD_CGROUP_CONTROLLER);
+
+
+		execve(SYSTEMD_SHUTDOWN_BINARY_PATH, (char **) command_line, env_block);
+		free(env_block);
+		log_error("Failed to execute shutdown binary, freezing: %m");
+	}
 #endif
 
+#ifdef Sys_Plat_BSD
+        if (arg_running_as == SYSTEMD_SYSTEM)
+                unlink(pidfile_path);
+#endif
 
-                execve(SYSTEMD_SHUTDOWN_BINARY_PATH, (char **) command_line, env_block);
-                free(env_block);
-                log_error("Failed to execute shutdown binary, freezing: %m");
-        }
+	if (getpid() == 1)
+		freeze();
 
-        if (getpid() == 1)
-                freeze();
+	log_info("Exiting.\n");
 
-        return retval;
+	return retval;
 }
