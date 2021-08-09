@@ -10,40 +10,50 @@ It is a complex and involved process requiring an understanding of the
 intricacies of how the platform boots, and it is quite easy to render the
 system unbootable.
 
-The **InitWare Suite of Middleware** allows you to manage services
-and system resources as logical entities called units.
+The **InitWare Suite of Middleware** allows you to manage services and system
+resources as logical entities called units.
 
 Units are manageable by a uniform interface, may specify dependencies and other
 relationships to other units, and are automatically scheduled by the InitWare
-Manager, a service management (or "init") system.
+Manager, a service management (or "init") system, which may run as either the
+system service manager or as an auxiliary service manager under another init
+system.
 
-Added to this is a login and user session manager which facilitates the
-tracking and management of users and their sessions, integrating with the
-system service manager to assist in tracking. A dedicated user service
-manager is provided each user so that they may manage services of their own.
+Added to this is a user session manager which facilitates the tracking and
+management of users' login sessions, integrating with the InitWare manager to
+assist in tracking. A dedicated user service manager is provided each user so
+that they may manage services of their own.
+
+The suite is completed by the optional Event Log system, which aggregates events
+from many sources into a system-wide (and optionally per-user) Event Log, with
+extensive metadata to facilitate querying.
 
 #### Origin
 
-InitWare is a fork of [systemd](http://www.freedesktop.org/wiki/Software/systemd).
+InitWare is a fork of [systemd].
 
 The systemd project is comprised by many programs and utilities. InitWare
-excludes from its scope a number of these. See
-[Dropped components](https://github.com/InitWare/InitWare/wiki/Dropped-components)
-for details on these.
+excludes from its scope a number of these. See [Dropped components] for details
+on these.
+
+[systemd]: http://www.freedesktop.org/wiki/Software/systemd
+[Dropped components]: https://github.com/InitWare/InitWare/wiki/Dropped-components
 
 #### Compatibility with systemd
 
 InitWare aims for a high level of compatibility with the core interfaces of
-systemd. Unit-files, the `systemctl` and `loginctl` commands (provided as `svcctl`
-and `svcloginctl`), the systemd1 and Login1 D-Bus APIs, the sd_notify API, and
-several other interfaces are all subject to this aim.
+systemd. Unit-files, the `systemctl`, `loginctl`, and `journalctl` commands
+(provided as `svcctl`, `sessionctl`, and `evlogctl` respectively), the systemd1
+and Login1 D-Bus APIs, the sd_notify API, the journald stream and datagram
+socket protocols, and several other interfaces are all subject to this aim.
 
-Comprehensive compatibility with every interface is impractical on some platforms;
-some unit options are entirely GNU/Linux-specific and while most have alternatives
-in spirit on other platforms (e.g. Linux namespaces and FreeBSD jails), a perfect
-mapping of semantics between these is not practical. Nonetheless, it is important
-to us that InitWare should be able to run with little or no modification the vast
-majority of systemd unit-files, and that they should behave reasonably.
+Comprehensive compatibility with every interface is impractical on some
+platforms; some unit options are entirely GNU/Linux-specific and while most have
+alternatives in spirit on other platforms (e.g. Linux namespaces and FreeBSD
+jails), a perfect mapping of semantics between these is not practical.
+Nonetheless, it is important to us that InitWare should be able to run with
+little or no modification the vast majority of systemd unit-files, and that they
+should behave reasonably.
 
 #### Differences from systemd
 
@@ -51,10 +61,11 @@ InitWare differs from systemd in three principal manners:
 1. InitWare is highly portable.
 2. InitWare aims to be significantly more modular.
 3. InitWare is of significantly smaller scope, concerning itself only with
-   system, service, session, and login management.
+   system, service, and session management, and matters ancillary to these, such
+   as event log management.
 
-The [Roadmap](https://github.com/InitWare/InitWare/wiki/Roadmap) details some plans
-for the future development of the InitWare Suite.
+The [Roadmap](https://github.com/InitWare/InitWare/wiki/Roadmap) details some
+plans for the future development of the InitWare Suite.
 
 
 Platform Support
@@ -62,21 +73,20 @@ Platform Support
 
 The following platforms are supported:
 
-- NetBSD (9.0+): InitWare's native platform. System, user, and login management
-  are all supported.
-- FreeBSD (13.0+) as system, user, and login manager.
-- DragonFly BSD (5.8+) as user manager.
-- OpenBSD (6.9+) as user manager.
-- GNU/Linux (3.6+) as system, user, and login manager, but note below that
-  this is not currently set up to build.
+- NetBSD (9.0+): InitWare's native platform. All functions supported.
+- FreeBSD (13.0+): All functions.
+- DragonFly BSD (5.8+): No system management.
+- OpenBSD (6.9+): No system and session management.
+- GNU/Linux (3.6+): All functions (but note below that the build system is not
+  yet properly set up.)
 
 *n.b.* GNU/Linux support is complete but the new CMake build system for
 InitWare hasn't been adapted for Linux yet. This will be completed in the
-near future.
+near future. In the meantime, the builds are likely to be broken.
 
-We are considering trying to support Illumos (as user manager) in the near
-future. Please see the [Support Matrix] for further information on platform
-support.
+Support for running as an auxiliary service manager on macOS is underway, and we
+hope to support Illumos in the near future. Please see the [Support Matrix] for
+further information on platform support.
 
 [Support Matrix]: https://github.com/InitWare/InitWare/wiki/Support-Matrix
 
@@ -109,7 +119,8 @@ following:
 For building HTML documentation, OpenBSD's [ManDoc](https://mandoc.bsd.lv) is
 required.
 
-Building is done in the typical CMake way, i.e. `cmake && make && make install`.
+Building is done in the typical CMake way, i.e.
+`git submodule update --init --recursive && cmake && make && make install`.
 
 Licencing
 ---------
