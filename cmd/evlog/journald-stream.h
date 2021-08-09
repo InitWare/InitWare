@@ -24,9 +24,8 @@
 
 int server_open_stdout_socket(Server *s);
 
-int stdout_stream_new(Server *s);
+void stdout_stream_new(struct ev_loop *evloop, ev_io *watch, int revents);
 void stdout_stream_free(StdoutStream *s);
-int stdout_stream_process(StdoutStream *s);
-
+void stdout_stream_process(struct ev_loop *evloop, ev_io *watch, int revents);
 
 #endif /* JOURNALD_STREAM_H_ */

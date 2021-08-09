@@ -31,12 +31,8 @@
 #endif
 #include <stdint.h>
 
-#ifdef __CHECKER__
-#define __bitwise __attribute__((bitwise))
-#define __force __attribute__((force))
-#else
+#ifndef __bitwise
 #define __bitwise
-#define __force
 #endif
 
 typedef uint16_t __bitwise le16_t;

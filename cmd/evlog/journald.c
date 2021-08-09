@@ -17,7 +17,6 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/epoll.h>
 #include <sys/socket.h>
 #include <errno.h>
 #include <unistd.h>
@@ -70,7 +69,6 @@ int main(int argc, char *argv[])
 	    "STATUS=Processing requests...");
 
 	for (;;) {
-		struct epoll_event event;
 		int t = -1;
 		usec_t n;
 
@@ -106,27 +104,22 @@ int main(int argc, char *argv[])
 		}
 #endif
 
-		r = epoll_wait(server.epoll_fd, &event, 1, t);
+		r = ev_run(server.evloop, EVRUN_ONCE);
 		if (r < 0) {
 
 			if (errno == EINTR)
 				continue;
 
-			log_error("epoll_wait() failed: %m");
+			log_error("ev_run() failed: %m");
 			r = -errno;
 			goto finish;
 		}
 
-		if (r > 0) {
-			r = process_event(&server, &event);
-			if (r < 0)
-				goto finish;
-			else if (r == 0)
-				break;
-		}
-
 		server_maybe_append_tags(&server);
 		server_maybe_warn_forward_syslog_missed(&server);
+
+		if (server.to_quit)
+			break;
 	}
 
 	log_debug("systemd-journald stopped as pid %lu", (unsigned long) getpid());

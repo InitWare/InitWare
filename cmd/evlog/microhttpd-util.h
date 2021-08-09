@@ -20,12 +20,10 @@
 #ifndef MICROHTTPD_UTIL_H_
 #define MICROHTTPD_UTIL_H_
 
-
 #include <stdarg.h>
 
 #include "macro.h"
 
 void microhttpd_logger(void *arg, const char *fmt, va_list ap) _printf_attr_(2, 0);
-
 
 #endif /* MICROHTTPD_UTIL_H_ */

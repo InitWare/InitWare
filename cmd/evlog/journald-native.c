@@ -19,7 +19,6 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/epoll.h>
 #include <stddef.h>
 #include <unistd.h>
 
@@ -360,14 +359,14 @@ int server_open_native_socket(Server *s)
 {
 	union sockaddr_union sa;
 	int one, r;
-	struct epoll_event ev;
+	int fd;
 
 	assert(s);
 
-	if (s->native_fd < 0) {
+	if (s->native_watch.fd < 0) {
 
-		s->native_fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
-		if (s->native_fd < 0) {
+		fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
+		if (fd < 0) {
 			log_error("socket() failed: %m");
 			return -errno;
 		}
@@ -379,7 +378,7 @@ int server_open_native_socket(Server *s)
 
 		unlink(sa.un.sun_path);
 
-		r = bind(s->native_fd, &sa.sa,
+		r = bind(fd, &sa.sa,
 		    offsetof(union sockaddr_union, un.sun_path) + strlen(sa.un.sun_path));
 		if (r < 0) {
 			log_error("bind() native failed: %m");
@@ -387,32 +386,34 @@ int server_open_native_socket(Server *s)
 		}
 
 		chmod(sa.un.sun_path, 0666);
-	} else
-		fd_nonblock(s->native_fd, 1);
+	} else {
+		fd = s->native_watch.fd;
+		fd_nonblock(fd, 1);
+	}
 
-	r = socket_passcred(s->syslog_fd);
+	r = socket_passcred(fd);
 	if (r < 0)
 		return log_error_errno(-r, "Enabling socket credential-passing failed: %m");
 
 #ifdef HAVE_SELINUX
 	one = 1;
-	r = setsockopt(s->native_fd, SOL_SOCKET, SO_PASSSEC, &one, sizeof(one));
+	r = setsockopt(fd, SOL_SOCKET, SO_PASSSEC, &one, sizeof(one));
 	if (r < 0)
 		log_warning("SO_PASSSEC failed: %m");
 #endif
 
 	one = 1;
-	r = setsockopt(s->native_fd, SOL_SOCKET, SO_TIMESTAMP, &one, sizeof(one));
+	r = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMP, &one, sizeof(one));
 	if (r < 0) {
 		log_error("SO_TIMESTAMP failed: %m");
 		return -errno;
 	}
 
-	zero(ev);
-	ev.events = EPOLLIN;
-	ev.data.fd = s->native_fd;
-	if (epoll_ctl(s->epoll_fd, EPOLL_CTL_ADD, s->native_fd, &ev) < 0) {
-		log_error("Failed to add native server fd to epoll object: %m");
+	ev_io_init(&s->native_watch, process_datagram_io, fd, EV_READ);
+	s->native_watch.data = s;
+
+	if (ev_io_start(s->evloop, &s->native_watch) < 0) {
+		log_error("Failed to add native server fd to event loop: %m");
 		return -errno;
 	}
 

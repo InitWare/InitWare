@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -19,7 +17,6 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/epoll.h>
 #include <fcntl.h>
 #include <stddef.h>
 #include <unistd.h>
@@ -52,7 +49,7 @@ struct StdoutStream {
 	Server *server;
 	StdoutStreamState state;
 
-	int fd;
+	ev_io watch;
 
 	struct socket_ucred ucred;
 #ifdef HAVE_SELINUX
@@ -287,37 +284,43 @@ static int stdout_stream_scan(StdoutStream *s, bool force_flush)
 	return 0;
 }
 
-int stdout_stream_process(StdoutStream *s)
+void stdout_stream_process(struct ev_loop *evloop, ev_io *watch, int revents)
 {
+	StdoutStream *s = watch->data;
 	ssize_t l;
 	int r;
 
 	assert(s);
 
-	l = read(s->fd, s->buffer + s->length, sizeof(s->buffer) - 1 - s->length);
+	if (revents != EV_READ) {
+		log_error("Bad event for stdout stream: %d\n", revents);
+		return;
+	}
+
+	l = read(s->watch.fd, s->buffer + s->length, sizeof(s->buffer) - 1 - s->length);
 	if (l < 0) {
 
 		if (errno == EAGAIN)
-			return 0;
+			return;
 
 		log_warning("Failed to read from stream: %m");
-		return -errno;
+		return;
 	}
 
 	if (l == 0) {
 		r = stdout_stream_scan(s, true);
 		if (r < 0)
-			return r;
+			return;
 
-		return 0;
+		return;
 	}
 
 	s->length += l;
 	r = stdout_stream_scan(s, false);
 	if (r < 0)
-		return r;
+		return;
 
-	return 1;
+	return;
 }
 
 void stdout_stream_free(StdoutStream *s)
@@ -330,11 +333,11 @@ void stdout_stream_free(StdoutStream *s)
 		IWLIST_REMOVE(StdoutStream, stdout_stream, s->server->stdout_streams, s);
 	}
 
-	if (s->fd >= 0) {
+	if (s->watch.fd >= 0) {
 		if (s->server)
-			epoll_ctl(s->server->epoll_fd, EPOLL_CTL_DEL, s->fd, NULL);
+			ev_io_stop(s->server->evloop, &s->watch);
 
-		safe_close(s->fd);
+		safe_close(s->watch.fd);
 	}
 
 #ifdef HAVE_SELINUX
@@ -347,37 +350,38 @@ void stdout_stream_free(StdoutStream *s)
 	free(s);
 }
 
-int stdout_stream_new(Server *s)
+void stdout_stream_new(struct ev_loop *evloop, ev_io *watch, int revents)
 {
+	Server *s = watch->data;
 	StdoutStream *stream;
 	int fd, r;
 	socklen_t len;
-	struct epoll_event ev;
 
 	assert(s);
 
-	fd = accept4(s->stdout_fd, NULL, NULL, SOCK_NONBLOCK | SOCK_CLOEXEC);
+	fd = accept4(s->stdout_watch.fd, NULL, NULL, SOCK_NONBLOCK | SOCK_CLOEXEC);
 	if (fd < 0) {
 		if (errno == EAGAIN)
-			return 0;
+			return;
 
 		log_error("Failed to accept stdout connection: %m");
-		return -errno;
+		return;
 	}
 
 	if (s->n_stdout_streams >= STDOUT_STREAMS_MAX) {
 		log_warning("Too many stdout streams, refusing connection.");
 		safe_close(fd);
-		return 0;
+		return;
 	}
 
 	stream = new0(StdoutStream, 1);
 	if (!stream) {
 		safe_close(fd);
-		return log_oom();
+		return (void) log_oom();
 	}
 
-	stream->fd = fd;
+	ev_io_init(&stream->watch, stdout_stream_process, fd, EV_READ);
+	stream->watch.data = stream;
 
 	len = sizeof(stream->ucred);
 	r = socket_getpeercred(fd, &stream->ucred);
@@ -397,10 +401,7 @@ int stdout_stream_new(Server *s)
 		goto fail;
 	}
 
-	zero(ev);
-	ev.data.ptr = stream;
-	ev.events = EPOLLIN;
-	if (epoll_ctl(s->epoll_fd, EPOLL_CTL_ADD, fd, &ev) < 0) {
+	if (ev_io_start(s->evloop, &stream->watch) < 0) {
 		log_error("Failed to add stream to event loop: %m");
 		r = -errno;
 		goto fail;
@@ -410,35 +411,35 @@ int stdout_stream_new(Server *s)
 	IWLIST_PREPEND(StdoutStream, stdout_stream, s->stdout_streams, stream);
 	s->n_stdout_streams++;
 
-	return 0;
+	return;
 
 fail:
 	stdout_stream_free(stream);
-	return r;
+	return;
 }
 
 int server_open_stdout_socket(Server *s)
 {
 	int r;
-	struct epoll_event ev = { .events = EPOLLIN };
+	int fd;
 
 	assert(s);
 
-	if (s->stdout_fd < 0) {
+	if (s->stdout_watch.fd < 0) {
 		union sockaddr_union sa = {
 			.un.sun_family = AF_UNIX,
 			.un.sun_path = AbsDir_PkgRunState "/journal/stdout",
 		};
 
-		s->stdout_fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
-		if (s->stdout_fd < 0) {
+		fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
+		if (fd < 0) {
 			log_error("socket() failed: %m");
 			return -errno;
 		}
 
 		unlink(sa.un.sun_path);
 
-		r = bind(s->stdout_fd, &sa.sa,
+		r = bind(fd, &sa.sa,
 		    offsetof(union sockaddr_union, un.sun_path) + strlen(sa.un.sun_path));
 		if (r < 0) {
 			log_error("bind() stream failed: %m");
@@ -447,16 +448,19 @@ int server_open_stdout_socket(Server *s)
 
 		chmod(sa.un.sun_path, 0666);
 
-		if (listen(s->stdout_fd, SOMAXCONN) < 0) {
+		if (listen(fd, SOMAXCONN) < 0) {
 			log_error("listen() failed: %m");
 			return -errno;
 		}
-	} else
-		fd_nonblock(s->stdout_fd, 1);
+	} else {
+		fd = s->stdout_watch.fd;
+		fd_nonblock(fd, 1);
+	}
 
-	ev.data.fd = s->stdout_fd;
-	if (epoll_ctl(s->epoll_fd, EPOLL_CTL_ADD, s->stdout_fd, &ev) < 0) {
-		log_error("Failed to add stdout server fd to epoll object: %m");
+	ev_io_init(&s->stdout_watch, stdout_stream_new, fd, EV_READ);
+	s->stdout_watch.data = s;
+	if (ev_io_start(s->evloop, &s->stdout_watch) < 0) {
+		log_error("Failed to add stdout server fd to event loop: %m");
 		return -errno;
 	}
 

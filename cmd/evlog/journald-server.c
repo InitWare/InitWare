@@ -21,8 +21,7 @@
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <sys/signalfd.h>
-#include <sys/timerfd.h>
+#include <sys/signal.h>
 
 //#include <libudev.h>
 #include <systemd/sd-daemon.h>
@@ -32,6 +31,8 @@
 #include "cgroup-util.h"
 #include "conf-parser.h"
 #include "fileio.h"
+
+#include "ev-util.h"
 #include "hashmap.h"
 #include "journal-authenticate.h"
 #include "journal-file.h"
@@ -349,7 +350,6 @@ void server_rotate(Server *s)
 
 void server_sync(Server *s)
 {
-	static const struct itimerspec sync_timer_disable = {};
 	JournalFile *f;
 	void *k;
 	Iterator i;
@@ -367,9 +367,7 @@ void server_sync(Server *s)
 			log_error("Failed to sync user journal: %s", strerror(-r));
 	}
 
-	r = timerfd_settime(s->sync_timer_fd, 0, &sync_timer_disable, NULL);
-	if (r < 0)
-		log_error("Failed to disable max timer: %m");
+	ev_timer_stop(s->evloop, &s->sync_timer_watch);
 
 	s->sync_scheduled = false;
 }
@@ -565,7 +563,6 @@ static void dispatch_message_real(Server *s, struct iovec *iovec, unsigned n, un
 			IOVEC_SET_STRING(iovec[n++], x);
 		}
 
-#ifdef Sys_Plat_Linux
 		r = get_process_exe(ucred->pid, &t);
 		if (r >= 0) {
 			x = strappenda("_EXE=", t);
@@ -581,6 +578,7 @@ static void dispatch_message_real(Server *s, struct iovec *iovec, unsigned n, un
 			IOVEC_SET_STRING(iovec[n++], x);
 		}
 
+#ifdef Sys_Plat_Linux
 		r = get_process_capeff(ucred->pid, &t);
 		if (r >= 0) {
 			x = strappenda("_CAP_EFFECTIVE=", t);
@@ -603,7 +601,8 @@ static void dispatch_message_real(Server *s, struct iovec *iovec, unsigned n, un
 		}
 #endif
 
-		/*r = cg_pid_get_path_shifted(ucred->pid, NULL, &c);
+#ifdef Use_CGroups
+		r = cg_pid_get_path_shifted(ucred->pid, NULL, &c);
 		if (r >= 0) {
 			char *session = NULL;
 
@@ -649,8 +648,9 @@ static void dispatch_message_real(Server *s, struct iovec *iovec, unsigned n, un
 			}
 
 			free(c);
-		} else */
-		if (unit_id) {
+		} else
+#endif
+		    if (unit_id) {
 			x = strappenda("_SYSTEMD_UNIT=", unit_id);
 			IOVEC_SET_STRING(iovec[n++], x);
 		}
@@ -1102,105 +1102,60 @@ finish:
 	return r;
 }
 
-int process_event(Server *s, struct epoll_event *ev)
+static void sync_timer(struct ev_loop *loop, ev_timer *watch, int revents)
 {
+	log_debug("Got sync request from epoll.");
+	server_sync(watch->data);
+}
+
+static void sigusr1_signal(struct ev_loop *loop, ev_signal *watch, int revents)
+{
+	Server *s = watch->data;
+	log_info("Received request to flush runtime journal");
+	touch(AbsDir_PkgRunState "/journal/flushed");
+	server_flush_to_var(s);
+	server_sync(s);
+}
+
+static void sigusr2_signal(struct ev_loop *loop, ev_signal *watch, int revents)
+{
+	Server *s = watch->data;
+	log_info("Received request to rotate journal\n");
+	server_rotate(s);
+	server_vacuum(s);
+}
+
+static void sigterm_signal(struct ev_loop *loop, ev_signal *watch, int revents)
+{
+	Server *s = watch->data;
+	log_info("Signal received, shutting down.\n");
+	s->to_quit = true;
+}
+
+void process_datagram_io(struct ev_loop *evloop, ev_io *watch, int revents)
+{
+	Server *s = watch->data;
+
 	assert(s);
-	assert(ev);
 
-	if (ev->data.fd == s->signal_fd) {
-		struct signalfd_siginfo sfsi;
-		ssize_t n;
+	if (revents != EV_READ) {
+		log_error("Got invalid event from epoll for %s: %" PRIx32,
+		    watch == &s->native_watch ? "native fd" : "syslog fd", revents);
+		return;
+	}
 
-		if (ev->events != EPOLLIN) {
-			log_error("Got invalid event from epoll for %s: %" PRIx32, "signal fd",
-			    ev->events);
-			return -EIO;
-		}
+	for (;;) {
+		struct msghdr msghdr;
+		struct iovec iovec;
+		struct socket_ucred ucred;
+		struct timeval *tv = NULL;
+		struct cmsghdr *cmsg;
+		char *label = NULL;
+		size_t label_len = 0;
+		union {
+			struct cmsghdr cmsghdr;
 
-		n = read(s->signal_fd, &sfsi, sizeof(sfsi));
-		if (n != sizeof(sfsi)) {
-
-			if (n >= 0)
-				return -EIO;
-
-			if (errno == EINTR || errno == EAGAIN)
-				return 1;
-
-			return -errno;
-		}
-
-		if (sfsi.ssi_signo == SIGUSR1) {
-			log_info("Received request to flush runtime journal from PID %" PRIu32,
-			    sfsi.ssi_pid);
-			touch(AbsDir_PkgRunState "/journal/flushed");
-			server_flush_to_var(s);
-			server_sync(s);
-			return 1;
-		}
-
-		if (sfsi.ssi_signo == SIGUSR2) {
-			log_info("Received request to rotate journal from PID %" PRIu32,
-			    sfsi.ssi_pid);
-			server_rotate(s);
-			server_vacuum(s);
-			return 1;
-		}
-
-		log_info("Received SIG%s", signal_to_string(sfsi.ssi_signo));
-
-		return 0;
-
-	} else if (ev->data.fd == s->sync_timer_fd) {
-		int r;
-		uint64_t t;
-
-		log_debug("Got sync request from epoll.");
-
-		r = read(ev->data.fd, (void *) &t, sizeof(t));
-		if (r < 0)
-			return 0;
-
-		server_sync(s);
-		return 1;
-
-	} else if (ev->data.fd == s->dev_kmsg_fd) {
-		int r;
-
-		if (ev->events & EPOLLERR)
-			log_warning("/dev/kmsg buffer overrun, some messages lost.");
-
-		if (!(ev->events & EPOLLIN)) {
-			log_error("Got invalid event from epoll for %s: %" PRIx32, "/dev/kmsg",
-			    ev->events);
-			return -EIO;
-		}
-
-		r = server_read_dev_kmsg(s);
-		if (r < 0)
-			return r;
-
-		return 1;
-
-	} else if (ev->data.fd == s->native_fd || ev->data.fd == s->syslog_fd) {
-
-		if (ev->events != EPOLLIN) {
-			log_error("Got invalid event from epoll for %s: %" PRIx32,
-			    ev->data.fd == s->native_fd ? "native fd" : "syslog fd", ev->events);
-			return -EIO;
-		}
-
-		for (;;) {
-			struct msghdr msghdr;
-			struct iovec iovec;
-			struct socket_ucred *ucred = NULL;
-			struct timeval *tv = NULL;
-			struct cmsghdr *cmsg;
-			char *label = NULL;
-			size_t label_len = 0;
-			union {
-				struct cmsghdr cmsghdr;
-
-				/* We use NAME_MAX space for the
+			/* We use NAME_MAX space for the
 				 * SELinux label here. The kernel
 				 * currently enforces no limit, but
 				 * according to suggestions from the
@@ -1209,174 +1164,140 @@ int process_event(Server *s, struct epoll_event *ev)
 				 * NAME_MAX. For now we use that, but
 				 * this should be updated one day when
 				 * the final limit is known.*/
-				uint8_t buf[CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE) +
-				    CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(int)) /* fds */
+			uint8_t buf[CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE) +
+			    CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(int)) /* fds */
 #ifdef SCM_SECURITY
-				    + CMSG_SPACE(NAME_MAX) /* selinux label */
+			    + CMSG_SPACE(NAME_MAX) /* selinux label */
 #endif
-				];
-			} control;
-			ssize_t n;
-			int v;
-			int *fds = NULL;
-			unsigned n_fds = 0;
+			];
+		} control;
+		ssize_t n;
+		int v;
+		int *fds = NULL;
+		unsigned n_fds = 0;
 
-			if (socket_fionread(ev->data.fd, &v) < 0) {
-				log_error("socket_fionread failed: %m");
-				return -errno;
+		if (socket_fionread(watch->fd, &v) < 0) {
+			log_error("socket_fionread failed: %m");
+			return;
+		}
+
+		if (s->buffer_size < (size_t) v) {
+			void *b;
+			size_t l;
+
+			l = MAX(LINE_MAX + (size_t) v, s->buffer_size * 2);
+			b = realloc(s->buffer, l + 1);
+
+			if (!b) {
+				log_error("Couldn't increase buffer.");
+				return;
 			}
 
-			if (s->buffer_size < (size_t) v) {
-				void *b;
-				size_t l;
+			s->buffer_size = l;
+			s->buffer = b;
+		}
 
-				l = MAX(LINE_MAX + (size_t) v, s->buffer_size * 2);
-				b = realloc(s->buffer, l + 1);
+		zero(iovec);
+		iovec.iov_base = s->buffer;
+		iovec.iov_len = s->buffer_size;
 
-				if (!b) {
-					log_error("Couldn't increase buffer.");
-					return -ENOMEM;
-				}
+		zero(control);
+		zero(msghdr);
+		msghdr.msg_iov = &iovec;
+		msghdr.msg_iovlen = 1;
+		msghdr.msg_control = &control;
+		msghdr.msg_controllen = sizeof(control);
 
-				s->buffer_size = l;
-				s->buffer = b;
-			}
+		n = recvmsg(watch->fd, &msghdr, MSG_DONTWAIT | MSG_CMSG_CLOEXEC);
+		if (n < 0) {
 
-			zero(iovec);
-			iovec.iov_base = s->buffer;
-			iovec.iov_len = s->buffer_size;
+			if (errno == EINTR || errno == EAGAIN)
+				return;
 
-			zero(control);
-			zero(msghdr);
-			msghdr.msg_iov = &iovec;
-			msghdr.msg_iovlen = 1;
-			msghdr.msg_control = &control;
-			msghdr.msg_controllen = sizeof(control);
+			log_error("recvmsg() failed: %m");
+			return;
+		}
 
-			n = recvmsg(ev->data.fd, &msghdr, MSG_DONTWAIT | MSG_CMSG_CLOEXEC);
-			if (n < 0) {
+		for (cmsg = CMSG_FIRSTHDR(&msghdr); cmsg; cmsg = CMSG_NXTHDR(&msghdr, cmsg)) {
 
-				if (errno == EINTR || errno == EAGAIN)
-					return 1;
-
-				log_error("recvmsg() failed: %m");
-				return -errno;
-			}
-
-			for (cmsg = CMSG_FIRSTHDR(&msghdr); cmsg; cmsg = CMSG_NXTHDR(&msghdr, cmsg)) {
-
-				if (cmsg_readucred(cmsg, &ucred))
-					;
+			if (cmsg_readucred(cmsg, &ucred))
+				;
 #ifdef SCM_SECURITY
-				else if (cmsg->cmsg_level == SOL_SOCKET &&
-				    cmsg->cmsg_type == SCM_SECURITY) {
-					label = (char *) CMSG_DATA(cmsg);
-					label_len = cmsg->cmsg_len - CMSG_LEN(0);
-				}
+			else if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_SECURITY) {
+				label = (char *) CMSG_DATA(cmsg);
+				label_len = cmsg->cmsg_len - CMSG_LEN(0);
+			}
 #endif
-				else if (cmsg->cmsg_level == SOL_SOCKET &&
-				    cmsg->cmsg_type == SO_TIMESTAMP &&
-				    cmsg->cmsg_len == CMSG_LEN(sizeof(struct timeval)))
-					tv = (struct timeval *) CMSG_DATA(cmsg);
-				else if (cmsg->cmsg_level == SOL_SOCKET &&
-				    cmsg->cmsg_type == SCM_RIGHTS) {
-					fds = (int *) CMSG_DATA(cmsg);
-					n_fds = (cmsg->cmsg_len - CMSG_LEN(0)) / sizeof(int);
-				}
+			else if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SO_TIMESTAMP &&
+			    cmsg->cmsg_len == CMSG_LEN(sizeof(struct timeval)))
+				tv = (struct timeval *) CMSG_DATA(cmsg);
+			else if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS) {
+				fds = (int *) CMSG_DATA(cmsg);
+				n_fds = (cmsg->cmsg_len - CMSG_LEN(0)) / sizeof(int);
 			}
-
-			if (ev->data.fd == s->syslog_fd) {
-				if (n > 0 && n_fds == 0) {
-					s->buffer[n] = 0;
-					server_process_syslog_message(s, strstrip(s->buffer),
-					    ucred, tv, label, label_len);
-				} else if (n_fds > 0)
-					log_warning(
-					    "Got file descriptors via syslog socket. Ignoring.");
-
-			} else {
-				if (n > 0 && n_fds == 0)
-					server_process_native_message(s, s->buffer, n, ucred, tv,
-					    label, label_len);
-				else if (n == 0 && n_fds == 1)
-					server_process_native_file(s, fds[0], ucred, tv, label,
-					    label_len);
-				else if (n_fds > 0)
-					log_warning(
-					    "Got too many file descriptors via native socket. Ignoring.");
-			}
-
-			close_many(fds, n_fds);
 		}
 
-		return 1;
+		if (watch == &s->syslog_watch) {
+			if (n > 0 && n_fds == 0) {
+				s->buffer[n] = 0;
+				server_process_syslog_message(s, strstrip(s->buffer), &ucred, tv,
+				    label, label_len);
+			} else if (n_fds > 0)
+				log_warning("Got file descriptors via syslog socket. Ignoring.");
 
-	} else if (ev->data.fd == s->stdout_fd) {
-
-		if (ev->events != EPOLLIN) {
-			log_error("Got invalid event from epoll for %s: %" PRIx32, "stdout fd",
-			    ev->events);
-			return -EIO;
+		} else {
+			if (n > 0 && n_fds == 0)
+				server_process_native_message(s, s->buffer, n, &ucred, tv, label,
+				    label_len);
+			else if (n == 0 && n_fds == 1)
+				server_process_native_file(s, fds[0], &ucred, tv, label, label_len);
+			else if (n_fds > 0)
+				log_warning(
+				    "Got too many file descriptors via native socket. Ignoring.");
 		}
 
-		stdout_stream_new(s);
-		return 1;
-
-	} else {
-		StdoutStream *stream;
-
-		if ((ev->events | EPOLLIN | EPOLLHUP) != (EPOLLIN | EPOLLHUP)) {
-			log_error("Got invalid event from epoll for %s: %" PRIx32, "stdout stream",
-			    ev->events);
-			return -EIO;
-		}
-
-		/* If it is none of the well-known fds, it must be an
-		 * stdout stream fd. Note that this is a bit ugly here
-		 * (since we rely that none of the well-known fds
-		 * could be interpreted as pointer), but nonetheless
-		 * safe, since the well-known fds would never get an
-		 * fd > 4096, i.e. beyond the first memory page */
-
-		stream = ev->data.ptr;
-
-		if (stdout_stream_process(stream) <= 0)
-			stdout_stream_free(stream);
-
-		return 1;
+		close_many(fds, n_fds);
 	}
-
-	log_error("Unknown event.");
-	return 0;
 }
 
 static int open_signalfd(Server *s)
 {
 	sigset_t mask;
-	struct epoll_event ev;
+	int r;
 
 	assert(s);
 
-	assert_se(sigemptyset(&mask) == 0);
+	/*assert_se(sigemptyset(&mask) == 0);
 	sigset_add_many(&mask, SIGINT, SIGTERM, SIGUSR1, SIGUSR2, -1);
-	assert_se(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
+	assert_se(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);*/
 
-	s->signal_fd = signalfd(-1, &mask, SFD_NONBLOCK | SFD_CLOEXEC);
-	if (s->signal_fd < 0) {
-		log_error("signalfd(): %m");
-		return -errno;
-	}
+	ev_signal_init(&s->sigusr1_watch, sigusr1_signal, SIGUSR1);
+	ev_signal_init(&s->sigusr2_watch, sigusr2_signal, SIGUSR2);
+	ev_signal_init(&s->sigint_watch, sigterm_signal, SIGINT);
+	ev_signal_init(&s->sigterm_watch, sigterm_signal, SIGTERM);
+	s->sigusr1_watch.data = s;
+	s->sigusr2_watch.data =s;
+	s->sigint_watch.data =s;
+	s->sigterm_watch.data =s;
 
-	zero(ev);
-	ev.events = EPOLLIN;
-	ev.data.fd = s->signal_fd;
-
-	if (epoll_ctl(s->epoll_fd, EPOLL_CTL_ADD, s->signal_fd, &ev) < 0) {
-		log_error("epoll_ctl(): %m");
-		return -errno;
-	}
+	r = ev_signal_start(s->evloop, &s->sigusr1_watch);
+	if (r < 0)
+		goto fail;
+	r = ev_signal_start(s->evloop, &s->sigusr2_watch);
+	if (r < 0)
+		goto fail;
+	r = ev_signal_start(s->evloop, &s->sigint_watch);
+	if (r < 0)
+		goto fail;
+	r = ev_signal_start(s->evloop, &s->sigterm_watch);
+	if (r < 0)
+		goto fail;
 
 	return 0;
+
+fail:
+	log_error("Failed to add signal to event loop: %m\n");
+	return -errno;
 }
 
 static int server_parse_proc_cmdline(Server *s)
@@ -1456,30 +1377,6 @@ static int server_parse_config_file(Server *s)
 	return r;
 }
 
-static int server_open_sync_timer(Server *s)
-{
-	int r;
-	struct epoll_event ev;
-
-	assert(s);
-
-	s->sync_timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
-	if (s->sync_timer_fd < 0)
-		return -errno;
-
-	zero(ev);
-	ev.events = EPOLLIN;
-	ev.data.fd = s->sync_timer_fd;
-
-	r = epoll_ctl(s->epoll_fd, EPOLL_CTL_ADD, s->sync_timer_fd, &ev);
-	if (r < 0) {
-		log_error("Failed to add idle timer fd to epoll object: %m");
-		return -errno;
-	}
-
-	return 0;
-}
-
 int server_schedule_sync(Server *s, int priority)
 {
 	int r;
@@ -1496,11 +1393,10 @@ int server_schedule_sync(Server *s, int priority)
 		return 0;
 
 	if (s->sync_interval_usec) {
-		struct itimerspec sync_timer_enable = {};
-
-		timespec_store(&sync_timer_enable.it_value, s->sync_interval_usec);
-
-		r = timerfd_settime(s->sync_timer_fd, 0, &sync_timer_enable, NULL);
+		ev_timer_init(&s->sync_timer_watch, sync_timer,
+		    s->sync_interval_usec / USEC_PER_SEC, 0.);
+		s->sync_timer_watch.data = s;
+		r = ev_timer_start(s->evloop, &s->sync_timer_watch);
 		if (r < 0)
 			return -errno;
 	}
@@ -1517,8 +1413,11 @@ int server_init(Server *s)
 	assert(s);
 
 	zero(*s);
-	s->sync_timer_fd = s->syslog_fd = s->native_fd = s->stdout_fd = s->signal_fd =
-	    s->epoll_fd = s->dev_kmsg_fd = -1;
+	ev_timer_zero(s->sync_timer_watch);
+	ev_io_zero(s->syslog_watch);
+	ev_io_zero(s->native_watch);
+	ev_io_zero(s->stdout_watch);
+	ev_io_zero(s->dev_kmsg_watch);
 	s->compress = true;
 	s->seal = true;
 
@@ -1558,9 +1457,9 @@ int server_init(Server *s)
 	if (!s->mmap)
 		return log_oom();
 
-	s->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
-	if (s->epoll_fd < 0) {
-		log_error("Failed to create epoll object: %m");
+	s->evloop = ev_default_loop(0);
+	if (s->evloop == NULL) {
+		log_error("Failed to create event loop object: %m");
 		return -errno;
 	}
 
@@ -1576,31 +1475,31 @@ int server_init(Server *s)
 		if (sd_is_socket_unix(fd, SOCK_DGRAM, -1, AbsDir_PkgRunState "/journal/socket", 0) >
 		    0) {
 
-			if (s->native_fd >= 0) {
+			if (s->native_watch.fd >= 0) {
 				log_error("Too many native sockets passed.");
 				return -EINVAL;
 			}
 
-			s->native_fd = fd;
+			s->native_watch.fd = fd;
 
 		} else if (sd_is_socket_unix(fd, SOCK_STREAM, 1,
 			       AbsDir_PkgRunState "/journal/stdout", 0) > 0) {
 
-			if (s->stdout_fd >= 0) {
+			if (s->stdout_watch.fd >= 0) {
 				log_error("Too many stdout sockets passed.");
 				return -EINVAL;
 			}
 
-			s->stdout_fd = fd;
+			s->stdout_watch.fd = fd;
 
 		} else if (sd_is_socket_unix(fd, SOCK_DGRAM, -1, "/dev/log", 0) > 0) {
 
-			if (s->syslog_fd >= 0) {
+			if (s->syslog_watch.fd >= 0) {
 				log_error("Too many /dev/log sockets passed.");
 				return -EINVAL;
 			}
 
-			s->syslog_fd = fd;
+			s->syslog_watch.fd = fd;
 
 		} else {
 			log_error("Unknown socket passed.");
@@ -1625,10 +1524,6 @@ int server_init(Server *s)
 		return r;
 
 	r = server_open_kernel_seqnum(s);
-	if (r < 0)
-		return r;
-
-	r = server_open_sync_timer(s);
 	if (r < 0)
 		return r;
 
@@ -1689,13 +1584,12 @@ void server_done(Server *s)
 
 	hashmap_free(s->user_journals);
 
-	safe_close(s->epoll_fd);
-	safe_close(s->signal_fd);
-	safe_close(s->syslog_fd);
-	safe_close(s->native_fd);
-	safe_close(s->stdout_fd);
-	safe_close(s->dev_kmsg_fd);
-	safe_close(s->sync_timer_fd);
+	ev_signal_stop(s->evloop, &s->sigusr1_watch);
+	ev_io_stop(s->evloop, &s->syslog_watch);
+	ev_io_stop(s->evloop, &s->native_watch);
+	ev_io_stop(s->evloop, &s->stdout_watch);
+	ev_io_stop(s->evloop, &s->dev_kmsg_watch);
+	ev_timer_stop(s->evloop, &s->sync_timer_watch);
 
 	if (s->rate_limit)
 		journal_rate_limit_free(s->rate_limit);

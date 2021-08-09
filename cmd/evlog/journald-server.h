@@ -21,12 +21,12 @@
 #define JOURNALD_SERVER_H_
 
 #include <sys/types.h>
-#include <sys/epoll.h>
 #include <sys/socket.h>
 #include <inttypes.h>
 #include <stdbool.h>
 
 #include "audit.h"
+#include "ev.h"
 #include "hashmap.h"
 #include "journal-file.h"
 #include "journald-rate-limit.h"
@@ -54,12 +54,15 @@ typedef enum SplitMode {
 typedef struct StdoutStream StdoutStream;
 
 typedef struct Server {
-	int epoll_fd;
-	int signal_fd;
-	int syslog_fd;
-	int native_fd;
-	int stdout_fd;
-	int dev_kmsg_fd;
+	struct ev_loop *evloop;
+	ev_signal sigusr1_watch;
+	ev_signal sigusr2_watch;
+	ev_signal sigint_watch;
+	ev_signal sigterm_watch;
+	ev_io syslog_watch;
+	ev_io native_watch;
+	ev_io stdout_watch;
+	ev_io dev_kmsg_watch;
 
 	JournalFile *runtime_journal;
 	JournalFile *system_journal;
@@ -118,8 +121,9 @@ typedef struct Server {
 
 	struct udev *udev;
 
-	int sync_timer_fd;
+	ev_timer sync_timer_watch;
 	bool sync_scheduled;
+	bool to_quit;
 } Server;
 
 #define N_IOVEC_META_FIELDS 20
@@ -158,7 +162,7 @@ void server_vacuum(Server *s);
 void server_rotate(Server *s);
 int server_schedule_sync(Server *s, int priority);
 int server_flush_to_var(Server *s);
-int process_event(Server *s, struct epoll_event *ev);
+void process_datagram_io(struct ev_loop *evloop, ev_io *watch, int revents);
 void server_maybe_append_tags(Server *s);
 
 

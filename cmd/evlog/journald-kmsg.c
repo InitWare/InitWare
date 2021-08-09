@@ -19,7 +19,6 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/epoll.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <fcntl.h>
@@ -28,6 +27,7 @@
 #include <systemd/sd-messages.h>
 //#include <libudev.h>
 
+#include "ev.h"
 #include "journald-kmsg.h"
 #include "journald-server.h"
 #include "journald-syslog.h"
@@ -49,7 +49,7 @@ void server_forward_kmsg(Server *s, int priority, const char *identifier, const 
 	if (_unlikely_(LOG_PRI(priority) > s->max_level_kmsg))
 		return;
 
-	if (_unlikely_(s->dev_kmsg_fd < 0))
+	if (_unlikely_(s->dev_kmsg_watch.fd < 0))
 		return;
 
 	/* Never allow messages with kernel facility to be written to
@@ -84,7 +84,7 @@ void server_forward_kmsg(Server *s, int priority, const char *identifier, const 
 	IOVEC_SET_STRING(iovec[n++], message);
 	IOVEC_SET_STRING(iovec[n++], "\n");
 
-	if (writev(s->dev_kmsg_fd, iovec, n) < 0)
+	if (writev(s->dev_kmsg_watch.fd, iovec, n) < 0)
 		log_debug("Failed to write to /dev/kmsg for logging: %s", strerror(errno));
 
 	free(ident_buf);
@@ -330,9 +330,9 @@ int server_read_dev_kmsg(Server *s)
 	ssize_t l;
 
 	assert(s);
-	assert(s->dev_kmsg_fd >= 0);
+	assert(s->dev_kmsg_watch.fd >= 0);
 
-	l = read(s->dev_kmsg_fd, buffer, sizeof(buffer) - 1);
+	l = read(s->dev_kmsg_watch.fd, buffer, sizeof(buffer) - 1);
 	if (l == 0)
 		return 0;
 	if (l < 0) {
@@ -340,7 +340,7 @@ int server_read_dev_kmsg(Server *s)
 		 * return EINVAL when we try. So handle this cleanly,
 		 * but don' try to ever read from it again. */
 		if (errno == EINVAL) {
-			epoll_ctl(s->epoll_fd, EPOLL_CTL_DEL, s->dev_kmsg_fd, NULL);
+			ev_io_stop(s->evloop, &s->dev_kmsg_watch);
 			return 0;
 		}
 
@@ -361,7 +361,7 @@ int server_flush_dev_kmsg(Server *s)
 
 	assert(s);
 
-	if (s->dev_kmsg_fd < 0)
+	if (s->dev_kmsg_watch.fd < 0)
 		return 0;
 
 	if (!s->dev_kmsg_readable)
@@ -381,30 +381,38 @@ int server_flush_dev_kmsg(Server *s)
 	return 0;
 }
 
-int server_open_dev_kmsg(Server *s)
+static void dev_kmsg_io(struct ev_loop *evloop, ev_io *watch, int revents)
 {
-	struct epoll_event ev;
+	Server *s = watch->data;
 
 	assert(s);
 
-	s->dev_kmsg_fd = open("/dev/kmsg", O_RDWR | O_CLOEXEC | O_NONBLOCK | O_NOCTTY);
-	if (s->dev_kmsg_fd < 0) {
+	server_read_dev_kmsg(s);
+}
+
+int server_open_dev_kmsg(Server *s)
+{
+	int fd;
+
+	assert(s);
+
+	fd = open("/dev/kmsg", O_RDWR | O_CLOEXEC | O_NONBLOCK | O_NOCTTY);
+	if (fd < 0) {
 		log_full(errno == ENOENT ? LOG_DEBUG : LOG_WARNING,
 		    "Failed to open /dev/kmsg, ignoring: %m");
 		return 0;
 	}
 
-	zero(ev);
-	ev.events = EPOLLIN;
-	ev.data.fd = s->dev_kmsg_fd;
-	if (epoll_ctl(s->epoll_fd, EPOLL_CTL_ADD, s->dev_kmsg_fd, &ev) < 0) {
+	ev_io_init(&s->dev_kmsg_watch, dev_kmsg_io, fd, EV_READ);
+	s->dev_kmsg_watch.data = s;
+	if (ev_io_start(s->evloop, &s->dev_kmsg_watch) < 0) {
 
 		/* This will fail with EPERM on older kernels where
 		 * /dev/kmsg is not readable. */
 		if (errno == EPERM)
 			return 0;
 
-		log_error("Failed to add /dev/kmsg fd to epoll object: %m");
+		log_error("Failed to add /dev/kmsg fd to event loop: %m");
 		return -errno;
 	}
 

@@ -19,7 +19,6 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/epoll.h>
 #include <stddef.h>
 #include <unistd.h>
 
@@ -79,7 +78,7 @@ static void forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned 
 	 * @AbsDir_PkgRunState@/syslog. Unfortunately we currently can't set
 	 * the SO_TIMESTAMP auxiliary data, and hence we don't. */
 
-	if (sendmsg(s->syslog_fd, &msghdr, MSG_NOSIGNAL) >= 0)
+	if (sendmsg(s->syslog_watch.fd, &msghdr, MSG_NOSIGNAL) >= 0)
 		return;
 
 	/* The socket is full? I guess the syslog implementation is
@@ -101,7 +100,7 @@ static void forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned 
 		u.pid = getpid();
 		memcpy(CMSG_DATA(cmsg), &u, CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE));
 
-		if (sendmsg(s->syslog_fd, &msghdr, MSG_NOSIGNAL) >= 0)
+		if (sendmsg(s->syslog_watch.fd, &msghdr, MSG_NOSIGNAL) >= 0)
 			return;
 
 		if (errno == EAGAIN) {
@@ -419,25 +418,25 @@ void server_process_syslog_message(Server *s, const char *buf, struct socket_ucr
 int server_open_syslog_socket(Server *s)
 {
 	int one, r;
-	struct epoll_event ev;
+	int fd;
 
 	assert(s);
 
-	if (s->syslog_fd < 0) {
+	if (s->syslog_watch.fd < 0) {
 		union sockaddr_union sa = {
 			.un.sun_family = AF_UNIX,
 			.un.sun_path = "/tmp/syslog",
 		};
 
-		s->syslog_fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
-		if (s->syslog_fd < 0) {
+		fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
+		if (fd < 0) {
 			log_error("socket() failed: %m");
 			return -errno;
 		}
 
 		unlink(sa.un.sun_path);
 
-		r = bind(s->syslog_fd, &sa.sa,
+		r = bind(fd, &sa.sa,
 		    offsetof(union sockaddr_union, un.sun_path) + strlen(sa.un.sun_path));
 		if (r < 0) {
 			log_error("bind() %s failed: %m", sa.un.sun_path);
@@ -445,32 +444,33 @@ int server_open_syslog_socket(Server *s)
 		}
 
 		chmod(sa.un.sun_path, 0666);
-	} else
-		fd_nonblock(s->syslog_fd, 1);
+	} else {
+		fd = s->syslog_watch.fd;
+		fd_nonblock(fd, 1);
+	}
 
-	r = socket_passcred(s->syslog_fd);
+	r = socket_passcred(fd);
 	if (r < 0)
 		return log_error_errno(-r, "Enabling socket credential-passing failed: %m");
 
 #ifdef HAVE_SELINUX
 	one = 1;
-	r = setsockopt(s->syslog_fd, SOL_SOCKET, SO_PASSSEC, &one, sizeof(one));
+	r = setsockopt(fd, SOL_SOCKET, SO_PASSSEC, &one, sizeof(one));
 	if (r < 0)
 		log_warning("SO_PASSSEC failed: %m");
 #endif
 
 	one = 1;
-	r = setsockopt(s->syslog_fd, SOL_SOCKET, SO_TIMESTAMP, &one, sizeof(one));
+	r = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMP, &one, sizeof(one));
 	if (r < 0) {
 		log_error("SO_TIMESTAMP failed: %m");
 		return -errno;
 	}
 
-	zero(ev);
-	ev.events = EPOLLIN;
-	ev.data.fd = s->syslog_fd;
-	if (epoll_ctl(s->epoll_fd, EPOLL_CTL_ADD, s->syslog_fd, &ev) < 0) {
-		log_error("Failed to add syslog server fd to epoll object: %m");
+	ev_io_init(&s->syslog_watch, process_datagram_io, fd, EV_READ);
+	s->syslog_watch.data = s;
+	if (ev_io_start(s->evloop, &s->syslog_watch) < 0) {
+		log_error("Failed to add syslog server fd to event loop: %m");
 		return -errno;
 	}
 
