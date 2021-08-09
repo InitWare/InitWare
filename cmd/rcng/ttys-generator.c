@@ -101,7 +101,8 @@ static int generate_unit(struct ttyent *typ, const char *out_dir)
 
 	fprintf(out_file, contents, typ->ty_name, typ->ty_getty, typ->ty_name, typ->ty_name, typ->ty_name);
 
-	slink = strjoin(out_dir, "/default.target.wants/console-login-", typ->ty_name, ".service", NULL);
+	slink = strjoin(out_dir, "/rcng-scripts.target.wants/console-login-", typ->ty_name,
+	    ".service", NULL);
 
 	if (!slink) {
 		r = log_oom();
@@ -110,14 +111,15 @@ static int generate_unit(struct ttyent *typ, const char *out_dir)
 
 	r = mksymlink(out_name, slink);
 	if (r < 0) {
-		log_error("Failed to make default.target wants-link: %s\n", strerror(errno));
+		log_error("Failed to make rcng-scripts.target wants-link: %s\n", strerror(errno));
 		r = -errno;
 		goto finish;
 	}
 
 	free(slink);
 
-	slink = strjoin(out_dir, "/default.target.after/console-login-", typ->ty_name, ".service", NULL);
+	slink = strjoin(out_dir, "/rcng-scripts.target.after/console-login-", typ->ty_name,
+	    ".service", NULL);
 
 	if (!slink) {
 		r = log_oom();
@@ -126,7 +128,7 @@ static int generate_unit(struct ttyent *typ, const char *out_dir)
 
 	r = mksymlink(out_name, slink);
 	if (r < 0) {
-		log_error("Failed to make default.target after-link: %s\n", strerror(errno));
+		log_error("Failed to make rcng-scripts.target after-link: %s\n", strerror(errno));
 		r = -errno;
 		goto finish;
 	}

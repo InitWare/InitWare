@@ -20,7 +20,7 @@ have been included with this software
  *
  * rcng2unit [-e] [-s] -o /output/directory /etc/rc.d/script
  *
- * -e: Add the generated unit-file as a dependency of default.target
+ * -e: Add the generated unit-file as a dependency of rcng-scripts.target
  * -n: Generate a no-op unit file (i.e. for very early startup scripts ran
  *     outwith initware.)
  */
@@ -248,33 +248,35 @@ static int emit_units(const char *out_dir, RcNgService *svc, bool wanted_by_defa
 	fputc('\n', out_f);
 
         if (wanted_by_default) {
-                slink = strjoin(out_dir, "/default.target.wants/", svc->name, ".service", NULL);
+		slink = strjoin(out_dir, "/rcng-scripts.target.wants/", svc->name, ".service", NULL);
 
-                if (!slink) {
+		if (!slink) {
                         r = log_oom();
                         goto finish;
                 }
 
                 r = mksymlink(out_name, slink);
                 if (r < 0) {
-                        log_error("Failed to make default.target wants-link: %s\n", strerror(errno));
-                        r = -errno;
+			log_error("Failed to make rcng-scripts.target wants-link: %s\n",
+			    strerror(errno));
+			r = -errno;
                         goto finish;
                 }
 
                 free(slink);
 
-                slink = strjoin(out_dir, "/default.target.after/", svc->name, ".service", NULL);
+		slink = strjoin(out_dir, "/rcng-scripts.target.after/", svc->name, ".service", NULL);
 
-                if (!slink) {
+		if (!slink) {
                         r = log_oom();
                         goto finish;
                 }
 
                 r = mksymlink(out_name, slink);
                 if (r < 0) {
-                        log_error("Failed to make default.target after-link: %s\n", strerror(errno));
-                        r = -errno;
+			log_error("Failed to make rcng-scripts.target after-link: %s\n",
+			    strerror(errno));
+			r = -errno;
                         goto finish;
                 }
         }

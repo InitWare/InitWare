@@ -1242,10 +1242,10 @@ int manager_load_unit(
          * start any services or anything. */
 
         r = manager_load_unit_prepare(m, name, path, e, _ret);
-        if (r != 0)
-                return r;
+	if (r != 0)
+		return r;
 
-        manager_dispatch_load_queue(m);
+	manager_dispatch_load_queue(m);
 
         if (_ret)
                 *_ret = unit_follow_merge(*_ret);
@@ -2919,7 +2919,7 @@ void manager_recheck_journal(Manager *m) {
                 return;
         }
 
-        /* Hmm, OK, so the socket is fully up and the service is up
+	/* Hmm, OK, so the socket is fully up and the service is up
          * too, then let's make use of the thing. */
         log_open();
 }

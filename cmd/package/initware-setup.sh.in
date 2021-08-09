@@ -1,0 +1,5 @@
+#
+# A script to set up an InitWare system.
+#
+
+socket_wants="
