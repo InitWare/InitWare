@@ -362,7 +362,7 @@ static int journal_file_allocate(JournalFile *f, uint64_t offset, uint64_t size)
 		/* Note that the glibc fallocate() fallback is very
 		 inefficient, hence we try to minimize the allocation area
 			   as we can. */
-#ifdef Sys_Plat_NetBSD
+#if defined(Sys_Plat_NetBSD) | !defined(Have_posix_fallocate)
 	r = ftruncate(f->fd, new_size);
 #else
 	r = posix_fallocate(f->fd, old_size, new_size - old_size);

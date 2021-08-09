@@ -116,10 +116,10 @@ static uint64_t available_space(Server *s, bool verbose)
 		return 0;
 
 	if (s->system_journal) {
-		f = "/var/log/journal/";
+		f = "/var/log/evlog/";
 		m = &s->system_metrics;
 	} else {
-		f = "/run/log/journal/";
+		f = AbsDir_PkgRunState "/evlog/";
 		m = &s->runtime_metrics;
 	}
 
@@ -271,7 +271,7 @@ static JournalFile *find_journal(Server *s, uid_t uid)
 	if (f)
 		return f;
 
-	if (asprintf(&p, "/var/log/journal/" SD_ID128_FORMAT_STR "/user-%lu.journal",
+	if (asprintf(&p, "/var/log/evlog/" SD_ID128_FORMAT_STR "/user-%lu.journal",
 		SD_ID128_FORMAT_VAL(machine), (unsigned long) uid) < 0)
 		return s->system_journal;
 
@@ -391,7 +391,7 @@ void server_vacuum(Server *s)
 	sd_id128_to_string(machine, ids);
 
 	if (s->system_journal) {
-		char *p = strappenda("/var/log/journal/", ids);
+		char *p = strappenda("/var/log/evlog/", ids);
 
 		r = journal_directory_vacuum(p, s->system_metrics.max_use, s->max_retention_usec,
 		    &s->oldest_file_usec);
@@ -400,7 +400,7 @@ void server_vacuum(Server *s)
 	}
 
 	if (s->runtime_journal) {
-		char *p = strappenda("/run/log/journal/", ids);
+		char *p = strappenda((AbsDir_PkgRunState "/evlog"), ids);
 
 		r = journal_directory_vacuum(p, s->runtime_metrics.max_use, s->max_retention_usec,
 		    &s->oldest_file_usec);
@@ -927,13 +927,13 @@ static int system_journal_open(Server *s)
 		/* If in auto mode: first try to create the machine
 		 * path, but not the prefix.
 		 *
-		 * If in persistent mode: create /var/log/journal and
+		 * If in persistent mode: create /var/log/evlog and
 		 * the machine path */
 
 		if (s->storage == STORAGE_PERSISTENT)
-			(void) mkdir("/var/log/journal/", 0755);
+			(void) mkdir("/var/log/evlog/", 0755);
 
-		fn = strappenda("/var/log/journal/", ids);
+		fn = strappenda("/var/log/evlog/", ids);
 		(void) mkdir(fn, 0755);
 
 		fn = strappenda(fn, "/system.journal");
@@ -952,19 +952,17 @@ static int system_journal_open(Server *s)
 
 	if (!s->runtime_journal && (s->storage != STORAGE_NONE)) {
 
-		fn = strjoin("/var/run/journal/", ids, "/system.journal", NULL);
+		fn = strjoin(AbsDir_PkgRunState "/evlog", ids, "/system.journal", NULL);
 		if (!fn)
 			return -ENOMEM;
 
 		if (s->system_journal) {
-
 			/* Try to open the runtime journal, but only
 			 * if it already exists, so that we can flush
 			 * it into the system journal */
 
 			r = journal_file_open(fn, O_RDWR, 0640, s->compress, false,
 			    &s->runtime_metrics, s->mmap, NULL, &s->runtime_journal);
-			free(fn);
 
 			if (r < 0) {
 				if (r != -ENOENT)
@@ -974,22 +972,24 @@ static int system_journal_open(Server *s)
 				r = 0;
 			}
 
-		} else {
+			free(fn);
 
+		} else {
 			/* OK, we really need the runtime journal, so create
 			 * it if necessary. */
 
 			(void) mkdir_parents(fn, 0755);
-			printf("Begin.\n");
 			r = journal_file_open_reliably(fn, O_RDWR | O_CREAT, 0640, s->compress,
 			    false, &s->runtime_metrics, s->mmap, NULL, &s->runtime_journal);
-			free(fn);
 
 			if (r < 0) {
 				log_error("Failed to open runtime journal %s (try 2): %s", fn,
 				    strerror(-r));
+				free(fn);
+
 				return r;
 			}
+			free(fn);
 		}
 
 		if (s->runtime_journal)
@@ -1091,7 +1091,7 @@ finish:
 	s->runtime_journal = NULL;
 
 	if (r >= 0)
-		rm_rf("/run/log/journal", false, true, false);
+		rm_rf(AbsDir_PkgRunState "/evlog", false, true, false);
 
 	sd_journal_close(j);
 
@@ -1164,7 +1164,10 @@ void process_datagram_io(struct ev_loop *evloop, ev_io *watch, int revents)
 				 * NAME_MAX. For now we use that, but
 				 * this should be updated one day when
 				 * the final limit is known.*/
-			uint8_t buf[CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE) +
+			uint8_t buf[
+#ifdef CMSG_CREDS_STRUCT_SIZE
+			    CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE) +
+#endif
 			    CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(int)) /* fds */
 #ifdef SCM_SECURITY
 			    + CMSG_SPACE(NAME_MAX) /* selinux label */

@@ -348,7 +348,7 @@ int journal_file_fss_load(JournalFile *f)
 	if (r < 0)
 		return r;
 
-	if (asprintf(&p, "/var/log/journal/" SD_ID128_FORMAT_STR "/fss",
+	if (asprintf(&p, "/var/log/evlog/" SD_ID128_FORMAT_STR "/fss",
 		SD_ID128_FORMAT_VAL(machine)) < 0)
 		return -ENOMEM;
 

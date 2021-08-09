@@ -439,8 +439,12 @@ int server_open_kernel_seqnum(Server *s)
 		    "Failed to open " AbsDir_PkgRunState "/journal/kernel-seqnum, ignoring: %m");
 		return 0;
 	}
-
-	if (posix_fallocate(fd, 0, sizeof(uint64_t)) < 0) {
+#if defined(Have_posix_fallocate)
+	if (posix_fallocate(fd, 0, sizeof(uint64_t)) < 0)
+#else
+	if (ftruncate(fd, sizeof(uint64_t)) < 0)
+#endif
+	{
 		log_error("Failed to allocate sequential number file, ignoring: %m");
 		return 0;
 	}
