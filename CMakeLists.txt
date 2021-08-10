@@ -22,12 +22,6 @@ cmake_policy(VERSION 3.9)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# basic definitions
-
-set(PACKAGE_NAME InitWare)
-set(PACKAGE_VERSION 0.9alpha)
-set(PACKAGE_STRING "${PACKAGE_NAME} version ${PACKAGE_VERSION}")
-
 set(DISTRIBUTION ${CMAKE_SYSTEM})
 
 include(FindPkgConfig)
@@ -69,7 +63,7 @@ endmacro()
 
 set(Default_Use_CGroups OFF)
 set(Default_Linux "none")
-set(Default_AbsDir_RunState "/var/run")
+set(Default_INSTALL_RUNSTATE_DIR "/var/run")
 set(Default_Kind_Automount "none")
 set(Default_Kind_Mount "none")
 set(Default_Kind_Swap "none")
@@ -80,7 +74,7 @@ if(CMAKE_SYSTEM_NAME MATCHES ".*Linux")
   set(Default_Kind_Automount "linux")
   set(Default_Kind_Mount "linux")
   set(Default_Kind_Swap "linux")
-  set(Default_AbsDir_RunState "/run")
+  set(Default_INSTALL_RUNSTATE_DIR "/run")
   add_definitions("-D_GNU_SOURCE")
 elseif(CMAKE_SYSTEM_NAME MATCHES "kFreeBSD.*|FreeBSD")
   set(Sys_Plat_BSD TRUE)
@@ -193,38 +187,42 @@ option(Use_MQueue "Use POSIX message queues" ${Have_mq_open})
 option(Use_PAM "Use PAM authentication" ${Have_PAM})
 
 if(${Use_SystemdCompat})
-set(PkgDirName "systemd")
+set(PACKAGE_NAME systemd)
+set(PACKAGE_VERSION v208)
+set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
 else()
-set(PkgDirName "InitWare")
+set(PACKAGE_NAME InitWare)
+set(PACKAGE_VERSION 0.9alpha)
+set(PACKAGE_STRING "${PACKAGE_NAME} version ${PACKAGE_VERSION}")
 endif()
 
 # Paths, either absolute ("full") or relative ("rel")
-set(AbsDir_RunState "${Default_AbsDir_RunState}"
+set(INSTALL_RUNSTATE_DIR "${Default_INSTALL_RUNSTATE_DIR}"
   CACHE STRING
   "Full path to the system runtime state directory, e.g. /var/run")
 
-set(AbsDir_PkgRunState "${AbsDir_RunState}/${PkgDirName}"
+set(INSTALL_PKGRUNSTATE_DIR "${INSTALL_RUNSTATE_DIR}/${PACKAGE_NAME}"
   CACHE STRING
-  "Full path to the directory in which to store the run-time state of InitWare,
-e.g. /var/run/InitWare")
+  "Full path to the directory in which to store the run-time state of \
+InitWare, e.g. /var/run/InitWare")
 
-set(AbsDir_User_RunStateBase "${AbsDir_RunState}/user"
+set(INSTALL_USERSTATE_DIR "${INSTALL_RUNSTATE_DIR}/user"
   CACHE STRING
-  "Full path to the directory in which to generate subdirectories for runtime
+  "Full path to the directory in which to generate subdirectories for runtime \
 state of each logged-in user, e.g. /var/run/user")
 
-set(RelDir_PkgLib "lib/${PkgDirName}" CACHE STRING
-"Relative to the install prefix, the directory for storing \
-system-provided, read-only InitWare configuration and unit0files. ")
+set(INSTALL_PKGLIB_DIR "${CMAKE_INSTALL_PREFIX}/lib/${PACKAGE_NAME}" CACHE STRING
+"Full path to the directory for storing system-provided, read-only InitWare \
+configuration and unit-files (not actual libraries). ")
 
-set(RelDir_PkgLibExec "${CMAKE_INSTALL_LIBEXECDIR}/${PkgDirName}"
+set(INSTALL_PKGLIBEXEC_DIR "${CMAKE_INSTALL_FULL_LIBEXECDIR}/${PACKAGE_NAME}"
   CACHE STRING
-  "Relative to the install prefix, the directory for storing executables not \
+  "Full path to the directory for storing executables not \
 intended for running by the user, e.g. agents and generators.")
 
-set(RelDir_PkgSysConf "${CMAKE_INSTALL_SYSCONFDIR}/${PkgDirName}"
+set(INSTALL_PKGSYSCONF_DIR "${CMAKE_INSTALL_FULL_SYSCONFDIR}/${PACKAGE_NAME}"
   CACHE STRING
-  "Relative to the install prefix, the directory for storing  \
+  "Full path to the directory for storing  \
 node-specific, administrator-modifiable configuration and unit-files.")
 
 if(Use_Libdevattr OR Use_Libudev)
@@ -270,44 +268,33 @@ endif()
 #-------------------------------------------------------------------------------
 
 # systemdstatedir
-set(AbsDir_InitWareStateDir ${CMAKE_INSTALL_LOCALSTATEDIR}/lib/${PkgDirName})
-set(AbsDir_PkgLib ${CMAKE_INSTALL_PREFIX}/${RelDir_PkgLib})
-set(AbsDir_PkgLibExec ${CMAKE_INSTALL_PREFIX}/${RelDir_PkgLibExec})
-set(AbsDir_PkgSysConf ${CMAKE_INSTALL_PREFIX}/${RelDir_PkgSysConf})
+set(INSTALL_PKGLOCALSTATE_DIR ${CMAKE_INSTALL_LOCALSTATEDIR}/lib/${PACKAGE_NAME})
 
-set(RelDir_UserUnitfiles ${RelDir_PkgLib}/user)
-set(userunitdir ${AbsDir_PkgLib}/user)
-set(usergeneratordir ${AbsDir_PkgLibExec}/user-generators)
+set(SYSTEM_CONFIG_UNIT_PATH ${INSTALL_PKGSYSCONF_DIR}/system)
+set(SYSTEM_DATA_UNIT_PATH ${INSTALL_PKGLIB_DIR}/system)
+set(SYSTEM_GENERATOR_PATH ${INSTALL_PKGLIBEXEC_DIR}/system-generators)
 
-set(RelDir_SystemUnitfiles ${RelDir_PkgLib}/system)
-set(systemunitdir ${AbsDir_PkgLib}/system)
-set(systemgeneratordir ${AbsDir_PkgLibExec}/system-generators)
-
-set(SYSTEM_CONFIG_UNIT_PATH ${AbsDir_PkgSysConf}/system)
-set(SYSTEM_DATA_UNIT_PATH ${systemunitdir})
-set(SYSTEM_GENERATOR_PATH ${systemgeneratordir})
-
-set(USER_CONFIG_UNIT_PATH ${AbsDir_PkgSysConf}/user)
-set(USER_DATA_UNIT_PATH ${userunitdir})
-set(USER_GENERATOR_PATH ${usergeneratordir})
+set(USER_CONFIG_UNIT_PATH ${INSTALL_PKGSYSCONF_DIR}/user)
+set(USER_DATA_UNIT_PATH ${INSTALL_PKGLIB_DIR}/user)
+set(USER_GENERATOR_PATH ${INSTALL_PKGLIBEXEC_DIR}/user-generators)
 
 # data paths
-set(AbsPath_CatalogDatabase ${AbsDir_InitWareStateDir}/catalog/database)
+set(AbsPath_CatalogDatabase ${INSTALL_PKGLOCALSTATE_DIR}/catalog/database)
 
 # binary paths
 set(SYSTEMCTL_BINARY_PATH ${CMAKE_INSTALL_FULL_BINDIR}/svcctl)
-set(SYSTEMD_BINARY_PATH ${AbsDir_PkgLibExec}/svc.managerd)
-set(SYSTEMD_CGROUP_AGENT_AGENT ${AbsDir_PkgLibExec}/svc.cgroups-agent)
-set(SYSTEMD_SHUTDOWN_BINARY_PATH ${AbsDir_PkgLibExec}/svc.shutdown)
-set(SYSTEMD_SLEEP_BINARY_PATH ${AbsDir_PkgLibExec}/svc.sleep)
+set(SYSTEMD_BINARY_PATH ${INSTALL_PKGLIBEXEC_DIR}/svc.managerd)
+set(SYSTEMD_CGROUP_AGENT_AGENT ${INSTALL_PKGLIBEXEC_DIR}/svc.cgroups-agent)
+set(SYSTEMD_SHUTDOWN_BINARY_PATH ${INSTALL_PKGLIBEXEC_DIR}/svc.shutdown)
+set(SYSTEMD_SLEEP_BINARY_PATH ${INSTALL_PKGLIBEXEC_DIR}/svc.sleep)
 set(SYSTEMD_TTY_ASK_PASSWORD_AGENT_BINARY_PATH
-  ${AbsDir_PkgLibExec}/svc.tty-ask-password-agent)
+  ${INSTALL_PKGLIBEXEC_DIR}/svc.tty-ask-password-agent)
 set(SYSTEMD_STDIO_BRIDGE_BINARY_PATH
-  ${AbsDir_PkgLibExec}/svc.stdio-bridge)
+  ${INSTALL_PKGLIBEXEC_DIR}/svc.stdio-bridge)
 #todo: find
 set(POLKIT_AGENT_BINARY_PATH ${CMAKE_INSTALL_FULL_BINDIR}/pkttyagent)
 
-set(BinPath_Runrcng ${AbsDir_PkgLibExec}/runrcng.sh)
+set(BinPath_Runrcng ${INSTALL_PKGLIBEXEC_DIR}/runrcng.sh)
 
 #-------------------------------------------------------------------------------
 # actual building commands
@@ -367,12 +354,12 @@ FShow(".swap" Kind_Swap)
 
 message("Paths:")
 FShow("Prefix" CMAKE_INSTALL_PREFIX)
-FShow("  -> InitWare-internal executables" AbsDir_PkgLibExec)
-FShow("  -> System-provided InitWare data" AbsDir_PkgLib)
-FShow("  -> Node-specific InitWare data" AbsDir_PkgSysConf)
-FShow("System runtime state" AbsDir_RunState)
-FShow("User runtime state base" AbsDir_User_RunStateBase)
-FShow("InitWare runtime state" AbsDir_PkgRunState)
+FShow("  -> InitWare-internal executables" INSTALL_PKGLIBEXEC_DIR)
+FShow("  -> System-provided InitWare data" INSTALL_PKGLIB_DIR)
+FShow("  -> Node-specific InitWare data" INSTALL_PKGSYSCONF_DIR)
+FShow("System runtime state" INSTALL_RUNSTATE_DIR)
+FShow("User runtime state base" INSTALL_USERSTATE_DIR)
+FShow("InitWare runtime state" INSTALL_PKGRUNSTATE_DIR)
 
 # finally, add relevant options to the M4 macro definitions
 foreach(option Sys_Plat_Linux Sys_Plat_BSD Sys_Plat_DragonFlyBSD

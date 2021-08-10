@@ -48,8 +48,8 @@ int main(int argc, char *argv[]) {
          * this to avoid an activation loop when we start dbus when we
          * are called when the dbus service is shut down. */
 
-        bus = dbus_connection_open_private("unix:path=" AbsDir_PkgRunState "/private", &error);
-        if (!bus) {
+	bus = dbus_connection_open_private("unix:path=" INSTALL_PKGRUNSTATE_DIR "/private", &error);
+	if (!bus) {
                 log_warning("Failed to get D-Bus connection: %s", bus_error_message(&error));
                 goto finish;
         }

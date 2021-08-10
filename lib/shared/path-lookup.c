@@ -46,8 +46,8 @@ int user_config_home(char **config_home) {
 
         e = getenv("XDG_CONFIG_HOME");
         if (e) {
-                r = strappend(e, "/" PkgDirName "/user");
-                if (!r)
+		r = strappend(e, "/" PACKAGE_NAME "/user");
+		if (!r)
                         return -ENOMEM;
 
                 *config_home = r;
@@ -57,8 +57,8 @@ int user_config_home(char **config_home) {
 
                 home = getenv("HOME");
                 if (home) {
-                        r = strappend(home, "/.config/" PkgDirName "/user");
-                        if (!r)
+			r = strappend(home, "/.config/" PACKAGE_NAME "/user");
+			if (!r)
                                 return -ENOMEM;
 
                         *config_home = r;
@@ -122,18 +122,18 @@ static char** user_dirs(
                         goto fail;
         }
 
-        /* We don't treat /etc/xdg/$PkgDirName here as the spec
+	/* We don't treat /etc/xdg/$PACKAGE_NAME here as the spec
          * suggests because we assume that that is a link to
-         * /etc/$PkgDirName/ anyway. */
+         * /etc/$PACKAGE_NAME/ anyway. */
 
-        e = getenv("XDG_DATA_HOME");
+	e = getenv("XDG_DATA_HOME");
         if (e) {
-                if (asprintf(&data_home, "%s/" PkgDirName "/user", e) < 0)
-                        goto fail;
+		if (asprintf(&data_home, "%s/" PACKAGE_NAME "/user", e) < 0)
+			goto fail;
 
         } else if (home) {
-                if (asprintf(&data_home, "%s/.local/share/" PkgDirName "/user", home) < 0)
-                        goto fail;
+		if (asprintf(&data_home, "%s/.local/share/" PACKAGE_NAME "/user", home) < 0)
+			goto fail;
 
                 /* There is really no need for two unit dirs in $HOME,
                  * except to be fully compliant with the XDG spec. We
@@ -143,8 +143,8 @@ static char** user_dirs(
                  * one. */
 
                 mkdir_parents_label(data_home, 0777);
-                (void) symlink("../../../.config/" PkgDirName "/user", data_home);
-        }
+		(void) symlink("../../../.config/" PACKAGE_NAME "/user", data_home);
+	}
 
         e = getenv("XDG_DATA_DIRS");
         if (e)
@@ -174,8 +174,8 @@ static char** user_dirs(
         }
 
         if (!strv_isempty(config_dirs)) {
-                t = strv_merge_concat(r, config_dirs, "/" PkgDirName "/user");
-                if (!t)
+		t = strv_merge_concat(r, config_dirs, "/" PACKAGE_NAME "/user");
+		if (!t)
                         goto finish;
                 strv_free(r);
                 r = t;
@@ -204,8 +204,8 @@ static char** user_dirs(
         }
 
         if (!strv_isempty(data_dirs)) {
-                t = strv_merge_concat(r, data_dirs, "/" PkgDirName "/user");
-                if (!t)
+		t = strv_merge_concat(r, data_dirs, "/" PACKAGE_NAME "/user");
+		if (!t)
                         goto fail;
                 strv_free(r);
                 r = t;

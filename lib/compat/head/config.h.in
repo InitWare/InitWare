@@ -1,5 +1,5 @@
-#ifndef IW_CONFIG_H_
-#define IW_CONFIG_H_
+#ifndef CONFIG_H_IN_
+#define CONFIG_H_IN_
 
 #cmakedefine Sys_Plat_Linux
 #cmakedefine Sys_Plat_BSD
@@ -85,15 +85,14 @@
 /*
  * Paths
  */
-#define AbsDir_PkgRunState "@AbsDir_PkgRunState@"
-#define AbsDir_PkgSysConf "@AbsDir_PkgSysConf@"
-#define AbsDir_RunState "@AbsDir_RunState@"
-#define AbsDir_User_RunStateBase "@AbsDir_User_RunStateBase@"
-#define AbsDir_PkgLib "@AbsDir_PkgLib@"
-#define AbsDir_PkgVarLib "@AbsDir_InitWareStateDir@"
+#define INSTALL_PKGRUNSTATE_DIR "@INSTALL_PKGRUNSTATE_DIR@"
+#define INSTALL_PKGSYSCONF_DIR "@INSTALL_PKGSYSCONF_DIR@"
+#define INSTALL_RUNSTATE_DIR "@INSTALL_RUNSTATE_DIR@"
+#define INSTALL_USERSTATE_DIR "@INSTALL_USERSTATE_DIR@"
+#define INSTALL_PKGLIB_DIR "@INSTALL_PKGLIB_DIR@"
+#define AbsDir_PkgVarLib "@INSTALL_PKGLOCALSTATE_DIR@"
 
-#define PkgDirName "@PkgDirName@"
-
+#define PACKAGE_NAME "@PACKAGE_NAME@"
 #define SYSTEM_CONFIG_FILE "@SYSTEM_CONFIG_FILE@"
 #define SYSTEM_CONFIG_UNIT_PATH "@SYSTEM_CONFIG_UNIT_PATH@"
 #define SYSTEM_DATA_UNIT_PATH "@SYSTEM_DATA_UNIT_PATH@"
@@ -121,4 +120,4 @@
 #cmakedefine BinPath_Runrcng "@BinPath_Runrcng@"
 #define POLKIT_AGENT_BINARY_PATH "@POLKIT_AGENT_BINARY_PATH@"
 
-#endif /* IW_CONFIG_H_ */
+#endif /* CONFIG_H_IN_ */

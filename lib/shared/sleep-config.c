@@ -50,27 +50,18 @@ int parse_sleep_config(const char *verb, char ***_modes, char ***_states) {
         int r;
         FILE _cleanup_fclose_ *f;
 
-        f = fopen(AbsDir_PkgSysConf "/sleep.conf", "re");
-        if (!f)
-                log_full(
-                        errno == ENOENT ? LOG_DEBUG : LOG_WARNING,
-                        "Failed to open configuration file " AbsDir_PkgSysConf "/sleep.conf: %m");
-        else {
-                r = config_parse(
-                        NULL,
-                        AbsDir_PkgSysConf "/sleep.conf",
-                        f,
-                        "Sleep\0",
-                        config_item_table_lookup,
-                        (void *) items,
-                        false,
-                        false,
-                        NULL);
-                if (r < 0)
+	f = fopen(INSTALL_PKGSYSCONF_DIR "/sleep.conf", "re");
+	if (!f)
+		log_full(errno == ENOENT ? LOG_DEBUG : LOG_WARNING,
+		    "Failed to open configuration file " INSTALL_PKGSYSCONF_DIR "/sleep.conf: %m");
+	else {
+		r = config_parse(NULL, INSTALL_PKGSYSCONF_DIR "/sleep.conf", f, "Sleep\0",
+		    config_item_table_lookup, (void *) items, false, false, NULL);
+		if (r < 0)
                         log_warning("Failed to parse configuration file: %s", strerror(-r));
-        }
+	}
 
-        if (streq(verb, "suspend")) {
+	if (streq(verb, "suspend")) {
                 /* empty by default */
                 USE(modes, suspend_mode);
 

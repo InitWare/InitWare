@@ -239,12 +239,13 @@ _public_ PAM_EXTERN int pam_sm_open_session(
         if (streq_ptr(service, "systemd-user")) {
                 char *p, *rt = NULL;
 
-                if (asprintf(&p, AbsDir_PkgRunState "/users/%lu", (unsigned long) pw->pw_uid) < 0) {
-                        r = PAM_BUF_ERR;
+		if (asprintf(&p, INSTALL_PKGRUNSTATE_DIR "/users/%lu", (unsigned long) pw->pw_uid) <
+		    0) {
+			r = PAM_BUF_ERR;
                         goto finish;
-                }
+		}
 
-                r = parse_env_file(p, NEWLINE,
+		r = parse_env_file(p, NEWLINE,
                                    "RUNTIME", &rt,
                                    NULL);
                 free(p);

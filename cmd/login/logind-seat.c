@@ -50,8 +50,8 @@ Seat *seat_new(Manager *m, const char *id) {
         if (!s)
                 return NULL;
 
-        s->state_file = strappend(AbsDir_PkgRunState "/seats/", id);
-        if (!s->state_file) {
+	s->state_file = strappend(INSTALL_PKGRUNSTATE_DIR "/seats/", id);
+	if (!s->state_file) {
                 free(s);
                 return NULL;
         }
@@ -98,8 +98,8 @@ int seat_save(Seat *s) {
         if (!s->started)
                 return 0;
 
-        r = mkdir_safe_label(AbsDir_PkgRunState "/seats", 0755, 0, 0);
-        if (r < 0)
+	r = mkdir_safe_label(INSTALL_PKGRUNSTATE_DIR "/seats", 0755, 0, 0);
+	if (r < 0)
                 goto finish;
 
         r = fopen_temporary(s->state_file, &f, &temp_path);

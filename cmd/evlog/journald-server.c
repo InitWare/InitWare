@@ -119,7 +119,7 @@ static uint64_t available_space(Server *s, bool verbose)
 		f = "/var/log/evlog/";
 		m = &s->system_metrics;
 	} else {
-		f = AbsDir_PkgRunState "/evlog/";
+		f = INSTALL_PKGRUNSTATE_DIR "/evlog/";
 		m = &s->runtime_metrics;
 	}
 
@@ -400,7 +400,7 @@ void server_vacuum(Server *s)
 	}
 
 	if (s->runtime_journal) {
-		char *p = strappenda((AbsDir_PkgRunState "/evlog"), ids);
+		char *p = strappenda((INSTALL_PKGRUNSTATE_DIR "/evlog"), ids);
 
 		r = journal_directory_vacuum(p, s->runtime_metrics.max_use, s->max_retention_usec,
 		    &s->oldest_file_usec);
@@ -922,7 +922,7 @@ static int system_journal_open(Server *s)
 	sd_id128_to_string(machine, ids);
 
 	if (!s->system_journal && (s->storage == STORAGE_PERSISTENT || s->storage == STORAGE_AUTO) &&
-	    access(AbsDir_PkgRunState "/journal/flushed", F_OK) >= 0) {
+	    access(INSTALL_PKGRUNSTATE_DIR "/journal/flushed", F_OK) >= 0) {
 
 		/* If in auto mode: first try to create the machine
 		 * path, but not the prefix.
@@ -952,7 +952,7 @@ static int system_journal_open(Server *s)
 
 	if (!s->runtime_journal && (s->storage != STORAGE_NONE)) {
 
-		fn = strjoin(AbsDir_PkgRunState "/evlog", ids, "/system.journal", NULL);
+		fn = strjoin(INSTALL_PKGRUNSTATE_DIR "/evlog/", ids, "/system.journal", NULL);
 		if (!fn)
 			return -ENOMEM;
 
@@ -1091,7 +1091,7 @@ finish:
 	s->runtime_journal = NULL;
 
 	if (r >= 0)
-		rm_rf(AbsDir_PkgRunState "/evlog", false, true, false);
+		rm_rf(INSTALL_PKGRUNSTATE_DIR "/evlog", false, true, false);
 
 	sd_journal_close(j);
 
@@ -1112,7 +1112,7 @@ static void sigusr1_signal(struct ev_loop *loop, ev_signal *watch, int revents)
 {
 	Server *s = watch->data;
 	log_info("Received request to flush runtime journal");
-	touch(AbsDir_PkgRunState "/journal/flushed");
+	touch(INSTALL_PKGRUNSTATE_DIR "/journal/flushed");
 	server_flush_to_var(s);
 	server_sync(s);
 }
@@ -1357,7 +1357,7 @@ static int server_parse_proc_cmdline(Server *s)
 
 static int server_parse_config_file(Server *s)
 {
-	static const char fn[] = AbsDir_PkgSysConf "/journald.conf";
+	static const char fn[] = INSTALL_PKGSYSCONF_DIR "/journald.conf";
 	_cleanup_fclose_ FILE *f = NULL;
 	int r;
 
@@ -1450,7 +1450,7 @@ int server_init(Server *s)
 		s->rate_limit_interval = s->rate_limit_burst = 0;
 	}
 
-	mkdir_p(AbsDir_PkgRunState "/journal", 0755);
+	mkdir_p(INSTALL_PKGRUNSTATE_DIR "/journal", 0755);
 
 	s->user_journals = hashmap_new(trivial_hash_func, trivial_compare_func);
 	if (!s->user_journals)
@@ -1475,8 +1475,8 @@ int server_init(Server *s)
 
 	for (fd = SD_LISTEN_FDS_START; fd < SD_LISTEN_FDS_START + n; fd++) {
 
-		if (sd_is_socket_unix(fd, SOCK_DGRAM, -1, AbsDir_PkgRunState "/journal/socket", 0) >
-		    0) {
+		if (sd_is_socket_unix(fd, SOCK_DGRAM, -1,
+			INSTALL_PKGRUNSTATE_DIR "/journal/socket", 0) > 0) {
 
 			if (s->native_watch.fd >= 0) {
 				log_error("Too many native sockets passed.");
@@ -1486,7 +1486,7 @@ int server_init(Server *s)
 			s->native_watch.fd = fd;
 
 		} else if (sd_is_socket_unix(fd, SOCK_STREAM, 1,
-			       AbsDir_PkgRunState "/journal/stdout", 0) > 0) {
+			       INSTALL_PKGRUNSTATE_DIR "/journal/stdout", 0) > 0) {
 
 			if (s->stdout_watch.fd >= 0) {
 				log_error("Too many stdout sockets passed.");

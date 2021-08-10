@@ -550,39 +550,35 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
         m->current_job_id = 1; /* start as id #1, so that we can leave #0 around as "null-like" value */
 
         if (running_as == SYSTEMD_SYSTEM) {
-                m->runtime_state_dir = strdup(AbsDir_RunState);
-                if (!m->runtime_state_dir) {
-                        r = ENOMEM;
-                        goto fail;
-                }
+		m->runtime_state_dir = strdup(INSTALL_RUNSTATE_DIR);
+		if (!m->runtime_state_dir) {
+			r = ENOMEM;
+			goto fail;
+		}
 
-        } else {
-                const char *e = getenv("XDG_RUNTIME_DIR");
-                if (!e) {
-                        r = asprintf(
-                                &m->runtime_state_dir,
-                                AbsDir_User_RunStateBase "/%llu",
-                                (long long unsigned) getuid());
-                        if (r < 0)
-                                goto fail;
+	} else {
+		const char *e = getenv("XDG_RUNTIME_DIR");
+		if (!e) {
+			r = asprintf(&m->runtime_state_dir, INSTALL_USERSTATE_DIR "/%llu",
+			    (long long unsigned) getuid());
+			if (r < 0)
+				goto fail;
 
 
-                        r = mkdir(m->runtime_state_dir, 0700);
-                        if (r < 0 && !(errno == EEXIST && is_dir(m->runtime_state_dir))) {
-                                log_error(
-                                        "Failed to create user's runtime state directory %s: %s",
-                                        m->runtime_state_dir,
-                                        strerror(-r));
-                                goto fail;
-                        }
+			r = mkdir(m->runtime_state_dir, 0700);
+			if (r < 0 && !(errno == EEXIST && is_dir(m->runtime_state_dir))) {
+				log_error("Failed to create user's runtime state directory %s: %s",
+				    m->runtime_state_dir, strerror(-r));
+				goto fail;
+			}
 
-                        setenv("XDG_RUNTIME_DIR", m->runtime_state_dir, 0);
-                } else
-                        m->runtime_state_dir = strdup(e);
-        }
+			setenv("XDG_RUNTIME_DIR", m->runtime_state_dir, 0);
+		} else
+			m->runtime_state_dir = strdup(e);
+	}
 
-        m->iw_state_dir = strjoin(m->runtime_state_dir, "/" PkgDirName, NULL);
-        if (!m->iw_state_dir) {
+	m->iw_state_dir = strjoin(m->runtime_state_dir, "/" PACKAGE_NAME, NULL);
+	if (!m->iw_state_dir) {
                 r = ENOMEM;
                 goto fail;
         }
@@ -2754,9 +2750,9 @@ static int create_generator_dir(Manager *m, char **generator, const char *name) 
 
         if (m->running_as == SYSTEMD_SYSTEM && getpid() == 1) {
 
-                p = strappend(AbsDir_PkgRunState "/", name);
-                if (!p)
-                        return log_oom();
+		p = strappend(INSTALL_PKGRUNSTATE_DIR "/", name);
+		if (!p)
+			return log_oom();
 
                 r = mkdir_p_label(p, 0755);
                 if (r < 0) {
@@ -2933,9 +2929,9 @@ void manager_set_show_status(Manager *m, bool b) {
         m->show_status = b;
 
         if (b)
-                touch(AbsDir_PkgRunState "/show-status");
-        else
-                unlink(AbsDir_PkgRunState "/show-status");
+		touch(INSTALL_PKGRUNSTATE_DIR "/show-status");
+	else
+		unlink(INSTALL_PKGRUNSTATE_DIR "/show-status");
 }
 
 static bool manager_get_show_status(Manager *m) {

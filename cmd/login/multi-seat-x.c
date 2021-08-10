@@ -52,14 +52,14 @@ int main(int argc, char *argv[]) {
                 goto fail;
         }
 
-        r = mkdir_safe_label(AbsDir_PkgRunState "/multi-session-x", 0755, 0, 0);
-        if (r < 0) {
+	r = mkdir_safe_label(INSTALL_PKGRUNSTATE_DIR "/multi-session-x", 0755, 0, 0);
+	if (r < 0) {
                 log_error("Failed to create directory: %s", strerror(-r));
                 goto fail;
         }
 
-        path = strappend(AbsDir_PkgRunState "/multi-session-x/", seat);
-        if (!path) {
+	path = strappend(INSTALL_PKGRUNSTATE_DIR "/multi-session-x/", seat);
+	if (!path) {
                 log_oom();
                 goto fail;
         }

@@ -428,7 +428,7 @@ int server_open_stdout_socket(Server *s)
 	if (s->stdout_watch.fd < 0) {
 		union sockaddr_union sa = {
 			.un.sun_family = AF_UNIX,
-			.un.sun_path = AbsDir_PkgRunState "/journal/stdout",
+			.un.sun_path = INSTALL_PKGRUNSTATE_DIR "/journal/stdout",
 		};
 
 		fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);

@@ -227,12 +227,12 @@ static int open_null_as(int flags, int nfd) {
  */
 static int connect_logger_as(const ExecContext *context, ExecOutput output, const char *ident, const char *unit_id, int nfd) {
         int fd, r;
-        union sockaddr_union sa = {
-                .un.sun_family = AF_UNIX,
-                .un.sun_path = AbsDir_PkgRunState "/journal/stdout",
-        };
+	union sockaddr_union sa = {
+		.un.sun_family = AF_UNIX,
+		.un.sun_path = INSTALL_PKGRUNSTATE_DIR "/journal/stdout",
+	};
 
-        assert(context);
+	assert(context);
         assert(output < _EXEC_OUTPUT_MAX);
         assert(ident);
         assert(nfd >= 0);

@@ -48,8 +48,8 @@ User* user_new(Manager *m, uid_t uid, gid_t gid, const char *name) {
         if (!u->name)
                 goto fail;
 
-        if (asprintf(&u->state_file, AbsDir_PkgRunState "/users/%lu", (unsigned long) uid) < 0)
-                goto fail;
+	if (asprintf(&u->state_file, INSTALL_PKGRUNSTATE_DIR "/users/%lu", (unsigned long) uid) < 0)
+		goto fail;
 
         if (hashmap_put(m->users, ULONG_TO_PTR((unsigned long) uid), u) < 0)
                 goto fail;
@@ -110,8 +110,8 @@ int user_save(User *u) {
         if (!u->started)
                 return 0;
 
-        r = mkdir_safe_label(AbsDir_PkgRunState "/users", 0755, 0, 0);
-        if (r < 0)
+	r = mkdir_safe_label(INSTALL_PKGRUNSTATE_DIR "/users", 0755, 0, 0);
+	if (r < 0)
                 goto finish;
 
         r = fopen_temporary(u->state_file, &f, &temp_path);
@@ -304,14 +304,14 @@ static int user_mkdir_runtime_path(User *u) {
 
         assert(u);
 
-	r = mkdir_safe_label(AbsDir_User_RunStateBase, 0755, 0, 0);
+	r = mkdir_safe_label(INSTALL_USERSTATE_DIR, 0755, 0, 0);
 	if (r < 0 && r != -EEXIST) {
-		log_error("Failed to create " AbsDir_User_RunStateBase ": %s", strerror(-r));
+		log_error("Failed to create " INSTALL_USERSTATE_DIR ": %s", strerror(-r));
 		return r;
         }
 
         if (!u->runtime_path) {
-		if (asprintf(&p, AbsDir_User_RunStateBase "/%lu", (unsigned long) u->uid) < 0)
+		if (asprintf(&p, INSTALL_USERSTATE_DIR "/%lu", (unsigned long) u->uid) < 0)
 			return log_oom();
         } else
                 p = u->runtime_path;

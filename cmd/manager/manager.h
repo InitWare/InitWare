@@ -259,19 +259,19 @@ struct Manager {
          * value where Unit objects are contained. */
         Hashmap *units_requiring_mounts_for;
 
-        /**
+	/**
          * The runtime state base directory for this session.
          *
-         * If a system instance: a copy of AbsDir_PkgRunState.
+         * If a system instance: a copy of INSTALL_RUNSTATE_DIR.
          * If a user instance: loaded from XDG_RUNTIME_DIR if possible,
-         * otherwise synthesised as AbsDir_User_RunStateBase/$getpid().
+         * otherwise synthesised as INSTALL_USERSTATE_DIR/$getuid().
          *
          * e.g. /var/run
          * e.g. /var/run/user/1000
          */
-        char *runtime_state_dir;
+	char *runtime_state_dir;
 
-        /* $runtime_state_dir/$PkgDirName */
+        /* $runtime_state_dir/$PACKAGE_NAME */
         char *iw_state_dir;
 
 #ifdef Use_KQProc

@@ -264,13 +264,10 @@ static int create_socket(char **name) {
                 return -errno;
         }
 
-        snprintf(
-                sa.un.sun_path,
-                sizeof(sa.un.sun_path) - 1,
-                AbsDir_PkgRunState "/ask-password/sck.%llu",
-                random_ull());
+	snprintf(sa.un.sun_path, sizeof(sa.un.sun_path) - 1,
+	    INSTALL_PKGRUNSTATE_DIR "/ask-password/sck.%llu", random_ull());
 
-        RUN_WITH_UMASK(0177) {
+	RUN_WITH_UMASK(0177) {
                 r = bind(fd, &sa.sa, offsetof(struct sockaddr_un, sun_path) + strlen(sa.un.sun_path));
         }
 
@@ -316,8 +313,8 @@ int ask_password_agent(
                 _FD_MAX
         };
 
-        char temp[] = AbsDir_PkgRunState "/ask-password/tmp.XXXXXX";
-        char final[sizeof(temp)] = "";
+	char temp[] = INSTALL_PKGRUNSTATE_DIR "/ask-password/tmp.XXXXXX";
+	char final[sizeof(temp)] = "";
         int fd = -1, r;
         FILE *f = NULL;
         char *socket_name = NULL;
@@ -331,9 +328,9 @@ int ask_password_agent(
         sigset_add_many(&mask, SIGINT, SIGTERM, -1);
         assert_se(sigprocmask(SIG_BLOCK, &mask, &oldmask) == 0);
 
-        mkdir_p_label(AbsDir_PkgRunState "/ask-password", 0755);
+	mkdir_p_label(INSTALL_PKGRUNSTATE_DIR "/ask-password", 0755);
 
-        RUN_WITH_UMASK(0022) {
+	RUN_WITH_UMASK(0022) {
                 fd = mkostemp(temp, O_CLOEXEC);
         }
 

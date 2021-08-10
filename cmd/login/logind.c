@@ -315,13 +315,13 @@ int manager_enumerate_seats(Manager *m) {
          * actually create any seats. Removes data of seats that no
          * longer exist. */
 
-        d = opendir(AbsDir_PkgRunState "/seats");
-        if (!d) {
+	d = opendir(INSTALL_PKGRUNSTATE_DIR "/seats");
+	if (!d) {
                 if (errno == ENOENT)
                         return 0;
 
-                log_error("Failed to open " AbsDir_PkgRunState "/seats: %m");
-                return -errno;
+		log_error("Failed to open " INSTALL_PKGRUNSTATE_DIR "/seats: %m");
+		return -errno;
         }
 
         FOREACH_DIRENT(de, d, return -errno) {
@@ -388,13 +388,13 @@ int manager_enumerate_users(Manager *m) {
         r = manager_enumerate_linger_users(m);
 
         /* Read in user data stored on disk */
-        d = opendir(AbsDir_PkgRunState "/users");
-        if (!d) {
+	d = opendir(INSTALL_PKGRUNSTATE_DIR "/users");
+	if (!d) {
                 if (errno == ENOENT)
                         return 0;
 
-                log_error("Failed to open " AbsDir_PkgRunState "/users: %m");
-                return -errno;
+		log_error("Failed to open " INSTALL_PKGRUNSTATE_DIR "/users: %m");
+		return -errno;
         }
 
         FOREACH_DIRENT(de, d, return -errno) {
@@ -429,13 +429,13 @@ int manager_enumerate_sessions(Manager *m) {
         assert(m);
 
         /* Read in session data stored on disk */
-        d = opendir(AbsDir_PkgRunState "/sessions");
-        if (!d) {
+	d = opendir(INSTALL_PKGRUNSTATE_DIR "/sessions");
+	if (!d) {
                 if (errno == ENOENT)
                         return 0;
 
-                log_error("Failed to open " AbsDir_PkgRunState "/sessions: %m");
-                return -errno;
+		log_error("Failed to open " INSTALL_PKGRUNSTATE_DIR "/sessions: %m");
+		return -errno;
         }
 
         FOREACH_DIRENT(de, d, return -errno) {
@@ -476,13 +476,13 @@ int manager_enumerate_inhibitors(Manager *m) {
 
         assert(m);
 
-        d = opendir(AbsDir_PkgRunState "/inhibit");
-        if (!d) {
+	d = opendir(INSTALL_PKGRUNSTATE_DIR "/inhibit");
+	if (!d) {
                 if (errno == ENOENT)
                         return 0;
 
-                log_error("Failed to open " AbsDir_PkgRunState "/inhibit: %m");
-                return -errno;
+		log_error("Failed to open " INSTALL_PKGRUNSTATE_DIR "/inhibit: %m");
+		return -errno;
         }
 
         FOREACH_DIRENT(de, d, return -errno) {
@@ -1171,9 +1171,9 @@ int manager_run(Manager *m) {
 }
 
 static int manager_parse_config_file(Manager *m) {
-        static const char fn[] = AbsDir_PkgSysConf "/logind.conf";
-        _cleanup_fclose_ FILE *f = NULL;
-        int r;
+	static const char fn[] = INSTALL_PKGSYSCONF_DIR "/logind.conf";
+	_cleanup_fclose_ FILE *f = NULL;
+	int r;
 
         assert(m);
 
@@ -1211,16 +1211,16 @@ int main(int argc, char *argv[]) {
                 goto finish;
         }
 
-        /* Always create the directories people can create inotify
+	/* Always create the directories people can create inotify
          * watches in. Note that some applications might check for the
-         * existence of @AbsDir_PkgRunState@/seats/ to determine whether
+         * existence of @INSTALL_PKGRUNSTATE_DIR@/seats/ to determine whether
          * logind is available, so please always make sure this check
          * stays in. */
-        mkdir_label(AbsDir_PkgRunState "/seats", 0755);
-        mkdir_label(AbsDir_PkgRunState "/users", 0755);
-        mkdir_label(AbsDir_PkgRunState "/sessions", 0755);
+	mkdir_label(INSTALL_PKGRUNSTATE_DIR "/seats", 0755);
+	mkdir_label(INSTALL_PKGRUNSTATE_DIR "/users", 0755);
+	mkdir_label(INSTALL_PKGRUNSTATE_DIR "/sessions", 0755);
 
-        m = manager_new();
+	m = manager_new();
         if (!m) {
                 r = log_oom();
                 goto finish;

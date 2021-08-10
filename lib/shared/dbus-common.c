@@ -113,9 +113,10 @@ int bus_connect(DBusBusType t, DBusConnection **_bus, bool *_private, DBusError 
                 /* If we are root, then let's talk directly to the
                  * system instance, instead of going via the bus */
 
-                bus = dbus_connection_open_private("unix:path=" AbsDir_PkgRunState "/private", error);
-                if (!bus)
-                        return -EIO;
+		bus = dbus_connection_open_private("unix:path=" INSTALL_PKGRUNSTATE_DIR "/private",
+		    error);
+		if (!bus)
+			return -EIO;
 
         } else {
                 if (t == DBUS_BUS_SESSION) {
@@ -129,8 +130,8 @@ int bus_connect(DBusBusType t, DBusConnection **_bus, bool *_private, DBusError 
                         if (e) {
                                 char *p;
 
-                                if (asprintf(&p, "unix:path=%s/" PkgDirName "/private", e) < 0)
-                                        return -ENOMEM;
+				if (asprintf(&p, "unix:path=%s/" PACKAGE_NAME "/private", e) < 0)
+					return -ENOMEM;
 
                                 bus = dbus_connection_open_private(p, NULL);
                                 free(p);

@@ -90,11 +90,11 @@ static int get_config_path(UnitFileScope scope, bool runtime, const char *root_d
         case UNIT_FILE_SYSTEM:
 
                 if (root_dir && runtime)
-                        asprintf(&p, "%s" AbsDir_PkgRunState "/system", root_dir);
-                else if (runtime)
-                        p = strdup(AbsDir_PkgRunState "/system");
-                else if (root_dir)
-                        asprintf(&p, "%s/%s", root_dir, SYSTEM_CONFIG_UNIT_PATH);
+			asprintf(&p, "%s" INSTALL_PKGRUNSTATE_DIR "/system", root_dir);
+		else if (runtime)
+			p = strdup(INSTALL_PKGRUNSTATE_DIR "/system");
+		else if (root_dir)
+			asprintf(&p, "%s/%s", root_dir, SYSTEM_CONFIG_UNIT_PATH);
                 else
                         p = strdup(SYSTEM_CONFIG_UNIT_PATH);
 
@@ -106,9 +106,9 @@ static int get_config_path(UnitFileScope scope, bool runtime, const char *root_d
                         return -EINVAL;
 
                 if (runtime)
-                        p = strdup(AbsDir_PkgRunState "/user");
-                else
-                        p = strdup(USER_CONFIG_UNIT_PATH);
+			p = strdup(INSTALL_PKGRUNSTATE_DIR "/user");
+		else
+			p = strdup(USER_CONFIG_UNIT_PATH);
                 break;
 
         case UNIT_FILE_USER:
@@ -1785,30 +1785,26 @@ int unit_file_query_preset(UnitFileScope scope, const char *name) {
         assert(name);
 
         if (scope == UNIT_FILE_SYSTEM)
-                r = conf_files_list(&files, ".preset", NULL,
-                                    AbsDir_PkgSysConf "/system-preset",
-                                    AbsDir_PkgLib "/system-preset",
+		r = conf_files_list(&files, ".preset", NULL,
+		    INSTALL_PKGSYSCONF_DIR "/system-preset", INSTALL_PKGLIB_DIR "/system-preset",
 #ifdef Use_SystemdCompat
-                                    "/etc/systemd/system-preset",
-                                    "/usr/local/lib/systemd/system-preset",
-                                    "/usr/lib/systemd/system-preset",
+		    "/etc/systemd/system-preset", "/usr/local/lib/systemd/system-preset",
+		    "/usr/lib/systemd/system-preset",
 #ifdef HAVE_SPLIT_USR
-                                    "/lib/systemd/system-preset",
+		    "/lib/systemd/system-preset",
 #endif
 #endif
-                                    NULL);
-        else if (scope == UNIT_FILE_GLOBAL)
-                r = conf_files_list(&files, ".preset", NULL,
-                                    AbsDir_PkgSysConf "/user-preset",
-                                    AbsDir_PkgLib "/user-preset",
+		    NULL);
+	else if (scope == UNIT_FILE_GLOBAL)
+		r = conf_files_list(&files, ".preset", NULL, INSTALL_PKGSYSCONF_DIR "/user-preset",
+		    INSTALL_PKGLIB_DIR "/user-preset",
 #ifdef Use_SystemdCompat
-                                    "/etc/systemd/user-preset",
-                                    "/usr/local/lib/systemd/user-preset",
-                                    "/usr/lib/systemd/user-preset",
+		    "/etc/systemd/user-preset", "/usr/local/lib/systemd/user-preset",
+		    "/usr/lib/systemd/user-preset",
 #endif
-                                    NULL);
-        else
-                return 1;
+		    NULL);
+	else
+		return 1;
 
         if (r < 0)
                 return r;

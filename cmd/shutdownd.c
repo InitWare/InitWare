@@ -204,8 +204,8 @@ static int update_schedule_file(struct sd_shutdown_command *c) {
 
         assert(c);
 
-        r = mkdir_safe_label(AbsDir_PkgRunState "/shutdown", 0755, 0, 0);
-        if (r < 0) {
+	r = mkdir_safe_label(INSTALL_PKGRUNSTATE_DIR "/shutdown", 0755, 0, 0);
+	if (r < 0) {
                 log_error("Failed to create shutdown subdirectory: %s", strerror(-r));
                 return r;
         }
@@ -214,8 +214,8 @@ static int update_schedule_file(struct sd_shutdown_command *c) {
         if (!t)
                 return log_oom();
 
-        r = fopen_temporary(AbsDir_PkgRunState "/shutdown/scheduled", &f, &temp_path);
-        if (r < 0) {
+	r = fopen_temporary(INSTALL_PKGRUNSTATE_DIR "/shutdown/scheduled", &f, &temp_path);
+	if (r < 0) {
                 log_error("Failed to save information about scheduled shutdowns: %s", strerror(-r));
                 free(t);
                 return r;
@@ -241,15 +241,15 @@ static int update_schedule_file(struct sd_shutdown_command *c) {
 
         fflush(f);
 
-        if (ferror(f) || rename(temp_path, AbsDir_PkgRunState "/shutdown/scheduled") < 0) {
-                log_error("Failed to write information about scheduled shutdowns: %m");
-                r = -errno;
+	if (ferror(f) || rename(temp_path, INSTALL_PKGRUNSTATE_DIR "/shutdown/scheduled") < 0) {
+		log_error("Failed to write information about scheduled shutdowns: %m");
+		r = -errno;
 
-                unlink(temp_path);
-                unlink(AbsDir_PkgRunState "/shutdown/scheduled");
-        }
+		unlink(temp_path);
+		unlink(INSTALL_PKGRUNSTATE_DIR "/shutdown/scheduled");
+	}
 
-        fclose(f);
+	fclose(f);
         free(temp_path);
 
         return r;
@@ -443,9 +443,9 @@ finish:
         if (unlink_nologin)
                 unlink("/run/nologin");
 
-        unlink(AbsDir_PkgRunState "/shutdown/scheduled");
+	unlink(INSTALL_PKGRUNSTATE_DIR "/shutdown/scheduled");
 
-        if (exec_shutdown && !b.command.dry_run) {
+	if (exec_shutdown && !b.command.dry_run) {
                 char sw[3];
 
                 sw[0] = '-';

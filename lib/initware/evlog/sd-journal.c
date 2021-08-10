@@ -1469,7 +1469,7 @@ static int add_directory(sd_journal *j, const char *prefix, const char *dirname)
 
 	if ((j->flags & SD_JOURNAL_LOCAL_ONLY) &&
 	    (sd_id128_from_string(dirname, &id) < 0 || sd_id128_get_machine(&mid) < 0 ||
-		!(sd_id128_equal(id, mid) || path_startswith(prefix, AbsDir_PkgRunState))))
+		!(sd_id128_equal(id, mid) || path_startswith(prefix, INSTALL_PKGRUNSTATE_DIR))))
 		return 0;
 
 	path = strjoin(prefix, "/", dirname, NULL);
@@ -1551,7 +1551,7 @@ static int add_root_directory(sd_journal *j, const char *p)
 	assert(j);
 	assert(p);
 
-	if ((j->flags & SD_JOURNAL_RUNTIME_ONLY) && !path_startswith(p, AbsDir_PkgRunState))
+	if ((j->flags & SD_JOURNAL_RUNTIME_ONLY) && !path_startswith(p, INSTALL_PKGRUNSTATE_DIR))
 		return -EINVAL;
 
 	d = opendir(p);
@@ -1658,8 +1658,8 @@ static int remove_directory(sd_journal *j, Directory *d)
 static int add_search_paths(sd_journal *j)
 {
 	int r;
-	const char search_paths[] = AbsDir_PkgRunState
-	    "/journal\0"
+	const char search_paths[] = INSTALL_PKGRUNSTATE_DIR
+	    "/evlog\0"
 	    "/var/log/evlog\0";
 	const char *p;
 

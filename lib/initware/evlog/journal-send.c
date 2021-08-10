@@ -219,7 +219,7 @@ _public_ int sd_journal_sendv(const struct iovec *iov, int n)
 	int i, j = 0;
 	struct sockaddr_un sa = {
 		.sun_family = AF_UNIX,
-		.sun_path = AbsDir_PkgRunState "/journal/socket",
+		.sun_path = INSTALL_PKGRUNSTATE_DIR "/journal/socket",
 	};
 	struct msghdr mh = {
 		.msg_name = &sa,
@@ -422,7 +422,7 @@ _public_ int sd_journal_stream_fd(const char *identifier, int priority, int leve
 {
 	union sockaddr_union sa = {
 		.un.sun_family = AF_UNIX,
-		.un.sun_path = AbsDir_PkgRunState "/journal/stdout",
+		.un.sun_path = INSTALL_PKGRUNSTATE_DIR "/journal/stdout",
 	};
 	int fd;
 	char *header;

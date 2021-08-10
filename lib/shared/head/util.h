@@ -719,7 +719,7 @@ static inline unsigned u64log2(uint64_t n) {
 }
 
 static inline bool logind_running(void) {
-        return access(AbsDir_PkgRunState "/seats/", F_OK) >= 0;
+	return access(INSTALL_PKGRUNSTATE_DIR "/seats/", F_OK) >= 0;
 }
 
 #define DECIMAL_STR_WIDTH(x)                            \

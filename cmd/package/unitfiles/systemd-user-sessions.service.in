@@ -13,5 +13,5 @@ After=remote-fs.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=@AbsDir_PkgLibExec@/user-sessions start
-ExecStop=@AbsDir_PkgLibExec@/user-sessions stop
+ExecStart=@INSTALL_PKGLIBEXEC_DIR@/user-sessions start
+ExecStop=@INSTALL_PKGLIBEXEC_DIR@/user-sessions stop

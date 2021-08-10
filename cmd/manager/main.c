@@ -82,7 +82,7 @@
 #include "loopback-setup.h"
 #endif
 
-const char pidfile_path[] = AbsDir_PkgRunState "/initware.pid";
+const char pidfile_path[] = INSTALL_PKGRUNSTATE_DIR "/initware.pid";
 
 static enum {
         ACTION_RUN,
@@ -697,10 +697,10 @@ static int parse_config_file(void) {
         const char *fn;
         int r;
 
-        fn = arg_running_as == SYSTEMD_SYSTEM ? AbsDir_PkgSysConf "/system.conf" :
-                                                AbsDir_PkgSysConf "/user.conf";
-        f = fopen(fn, "re");
-        if (!f) {
+	fn = arg_running_as == SYSTEMD_SYSTEM ? INSTALL_PKGSYSCONF_DIR "/system.conf" :
+						      INSTALL_PKGSYSCONF_DIR "/user.conf";
+	f = fopen(fn, "re");
+	if (!f) {
                 if (errno == ENOENT)
                         return 0;
 

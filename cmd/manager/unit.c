@@ -3072,10 +3072,10 @@ static int drop_in_file(Unit *u, UnitSetPropertiesMode mode, const char *name, c
 
                 p = strjoin(c, "/", u->id, ".d", NULL);
         } else if (mode == UNIT_PERSISTENT && !u->transient)
-                p = strjoin(AbsDir_PkgSysConf "/system/", u->id, ".d", NULL);
-        else
-                p = strjoin(AbsDir_PkgRunState "/system/", u->id, ".d", NULL);
-        if (!p)
+		p = strjoin(INSTALL_PKGSYSCONF_DIR "/system/", u->id, ".d", NULL);
+	else
+		p = strjoin(INSTALL_PKGRUNSTATE_DIR "/system/", u->id, ".d", NULL);
+	if (!p)
                 return -ENOMEM;
 
         q = strjoin(p, "/90-", b, ".conf", NULL);
@@ -3221,12 +3221,12 @@ int unit_make_transient(Unit *u) {
 
                 mkdir_p(c, 0755);
         } else {
-                u->fragment_path = strappend(AbsDir_PkgRunState "/system/", u->id);
-                if (!u->fragment_path)
+		u->fragment_path = strappend(INSTALL_PKGRUNSTATE_DIR "/system/", u->id);
+		if (!u->fragment_path)
                         return -ENOMEM;
 
-                mkdir_p(AbsDir_PkgRunState "/system", 0755);
-        }
+		mkdir_p(INSTALL_PKGRUNSTATE_DIR "/system", 0755);
+	}
 
         return write_string_file_atomic_label(u->fragment_path, "# Transient stub");
 }

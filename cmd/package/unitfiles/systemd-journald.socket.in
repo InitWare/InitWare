@@ -17,8 +17,8 @@ Before=sockets.target
 IgnoreOnIsolate=yes
 
 [Socket]
-ListenStream=@AbsDir_PkgRunState@/journal/stdout
-ListenDatagram=@AbsDir_PkgRunState@/journal/socket
+ListenStream=@INSTALL_PKGRUNSTATE_DIR@/journal/stdout
+ListenDatagram=@INSTALL_PKGRUNSTATE_DIR@/journal/socket
 SocketMode=0666
 PassCredentials=yes
 PassSecurity=yes

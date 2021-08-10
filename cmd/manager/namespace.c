@@ -138,8 +138,8 @@ static int apply_mount(
         switch (m->mode) {
 
         case INACCESSIBLE:
-                what = AbsDir_PkgRunState "/inaccessible";
-                break;
+		what = INSTALL_PKGRUNSTATE_DIR "/inaccessible";
+		break;
 
         case READONLY:
         case READWRITE:

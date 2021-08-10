@@ -1,0 +1,25 @@
+#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+
+# See tmpfiles.d(5) for details
+
+d @INSTALL_USERSTATE_DIR@ 0755 root root ~10d
+
+d @INSTALL_PKGRUNSTATE_DIR@ 0755 root root -
+d @INSTALL_PKGRUNSTATE_DIR@/ask-password 0755 root root -
+d @INSTALL_PKGRUNSTATE_DIR@/seats 0755 root root -
+d @INSTALL_PKGRUNSTATE_DIR@/sessions 0755 root root -
+d @INSTALL_PKGRUNSTATE_DIR@/users 0755 root root -
+d @INSTALL_PKGRUNSTATE_DIR@/machines 0755 root root -
+d @INSTALL_PKGRUNSTATE_DIR@/shutdown 0755 root root -
+
+# these would typically actually be for group systemd-journal
+
+d /var/log/evlog 2755 root wheel - -
+d /var/log/evlog/%m 2755 root wheel - -
+d @INSTALL_PKGRUNSTATE_DIR@/evlog 2755 root wheel - -
+d @INSTALL_PKGRUNSTATE_DIR@/evlog/%m 2755 root wheel - -

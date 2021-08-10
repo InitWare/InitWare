@@ -1240,23 +1240,23 @@ static int send_shutdownd(usec_t t, char mode, bool dry_run, bool warn, const ch
                 .dry_run = dry_run,
                 .warn_wall = warn,
         };
-        union sockaddr_union sockaddr = {
-                .un.sun_family = AF_UNIX,
-                .un.sun_path = AbsDir_PkgRunState "/shutdownd",
-        };
-        struct iovec iovec[2] = { {
+	union sockaddr_union sockaddr = {
+		.un.sun_family = AF_UNIX,
+		.un.sun_path = INSTALL_PKGRUNSTATE_DIR "/shutdownd",
+	};
+	struct iovec iovec[2] = { {
                 .iov_base = (char *) &c,
                 .iov_len = offsetof(struct sd_shutdown_command, wall_message),
         } };
-        struct msghdr msghdr = {
-                .msg_name = &sockaddr,
-                .msg_namelen = offsetof(struct sockaddr_un, sun_path) +
-                        sizeof(AbsDir_PkgRunState "/shutdownd") - 1,
-                .msg_iov = iovec,
-                .msg_iovlen = 1,
-        };
+	struct msghdr msghdr = {
+		.msg_name = &sockaddr,
+		.msg_namelen = offsetof(struct sockaddr_un, sun_path) +
+		    sizeof(INSTALL_PKGRUNSTATE_DIR "/shutdownd") - 1,
+		.msg_iov = iovec,
+		.msg_iovlen = 1,
+	};
 
-        fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+	fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
         if (fd < 0)
                 return -errno;
 

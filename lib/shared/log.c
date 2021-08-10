@@ -175,11 +175,11 @@ void log_close_journal(void) {
 }
 
 static int log_open_journal(void) {
-        union sockaddr_union sa = {
-                .un.sun_family = AF_UNIX,
-                .un.sun_path = AbsDir_PkgRunState "/journal/socket",
-        };
-        int r;
+	union sockaddr_union sa = {
+		.un.sun_family = AF_UNIX,
+		.un.sun_path = INSTALL_PKGRUNSTATE_DIR "/journal/socket",
+	};
+	int r;
 
         if (journal_fd >= 0)
                 return 0;

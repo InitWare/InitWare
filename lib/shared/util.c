@@ -2571,38 +2571,44 @@ int rm_rf_children_dangerous(int fd, bool only_dirs, bool honour_sticky, struct 
         return ret;
 }
 
-_pure_ static int is_temporary_fs(struct statfs *s) {
+_pure_ static int is_temporary_fs(const char *path, struct statfs *s)
+{
 #ifdef Sys_Plat_Linux
         assert(s);
         return
                 F_TYPE_EQUAL(s->f_type, TMPFS_MAGIC) ||
                 F_TYPE_EQUAL(s->f_type, RAMFS_MAGIC);
 #else
-        unimplemented();
-        return false;
+	return path_startswith(path, "/var/run") || path_startswith(path, "/tmp") ||
+	    path_startswith(path, "/run");
 #endif
 }
 
 int rm_rf_children(int fd, bool only_dirs, bool honour_sticky, struct stat *root_dev) {
-        struct statfs s;
+#ifdef Sys_Plat_Linux
+	struct statfs s;
 
-        assert(fd >= 0);
+	assert(fd >= 0);
 
-        if (fstatfs(fd, &s) < 0) {
-                safe_close(fd);
-                return -errno;
-        }
+	if (fstatfs(fd, &s) < 0) {
+		safe_close(fd);
+		return -errno;
+	}
 
-        /* We refuse to clean disk file systems with this call. This
+	/* We refuse to clean disk file systems with this call. This
          * is extra paranoia just to be sure we never ever remove
          * non-state data */
-        if (!is_temporary_fs(&s)) {
-                log_error("Attempted to remove disk file system, and we can't allow that.");
-                safe_close(fd);
-                return -EPERM;
-        }
+	if (!is_temporary_fs(NULL, &s)) {
+		log_error("Attempted to remove disk file system, and we can't allow that.");
+		safe_close(fd);
+		return -EPERM;
+	}
 
-        return rm_rf_children_dangerous(fd, only_dirs, honour_sticky, root_dev);
+	return rm_rf_children_dangerous(fd, only_dirs, honour_sticky, root_dev);
+#else
+	log_error("rm_rf_children is unimplemented for non-Linux platforms.");
+	return -ENOTSUP;
+#endif
 }
 
 static int rm_rf_internal(const char *path, bool only_dirs, bool delete_root, bool honour_sticky, bool dangerous) {
@@ -2633,15 +2639,16 @@ static int rm_rf_internal(const char *path, bool only_dirs, bool delete_root, bo
                         if (statfs(path, &s) < 0)
                                 return -errno;
 
-                        if (!is_temporary_fs(&s)) {
-                                log_error("Attempted to remove disk file system, and we can't allow that.");
-                                return -EPERM;
-                        }
-                }
+			if (!is_temporary_fs(path, &s)) {
+				log_error(
+				    "Attempted to remove disk file system, and we can't allow that.");
+				return -EPERM;
+			}
+		}
 
-                if (delete_root && !only_dirs)
-                        if (unlink(path) < 0 && errno != ENOENT)
-                                return -errno;
+		if (delete_root && !only_dirs)
+			if (unlink(path) < 0 && errno != ENOENT)
+				return -errno;
 
                 return 0;
         }
@@ -2652,26 +2659,26 @@ static int rm_rf_internal(const char *path, bool only_dirs, bool delete_root, bo
                         return -errno;
                 }
 
-                if (!is_temporary_fs(&s)) {
-                        log_error("Attempted to remove disk file system, and we can't allow that.");
-                        safe_close(fd);
-                        return -EPERM;
-                }
-        }
+		if (!is_temporary_fs(path, &s)) {
+			log_error("Attempted to remove disk file system, and we can't allow that.");
+			safe_close(fd);
+			return -EPERM;
+		}
+	}
 
-        r = rm_rf_children_dangerous(fd, only_dirs, honour_sticky, NULL);
-        if (delete_root) {
+	r = rm_rf_children_dangerous(fd, only_dirs, honour_sticky, NULL);
+	if (delete_root) {
 
-                if (honour_sticky && file_is_priv_sticky(path) > 0)
+		if (honour_sticky && file_is_priv_sticky(path) > 0)
                         return r;
 
                 if (rmdir(path) < 0 && errno != ENOENT) {
                         if (r == 0)
                                 r = -errno;
                 }
-        }
+	}
 
-        return r;
+	return r;
 }
 
 int rm_rf(const char *path, bool only_dirs, bool delete_root, bool honour_sticky) {
@@ -4922,11 +4929,10 @@ bool in_initrd(void) {
          * emptying when transititioning to the main systemd.
          */
 
-        saved = access("/etc/initrd-release", F_OK) >= 0 &&
-                statfs("/", &s) >= 0 &&
-                is_temporary_fs(&s);
+	saved = access("/etc/initrd-release", F_OK) >= 0 && statfs("/", &s) >= 0 &&
+	    is_temporary_fs(NULL, &s);
 
-        return saved;
+	return saved;
 }
 
 void warn_melody(void) {

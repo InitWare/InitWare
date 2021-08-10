@@ -89,5 +89,5 @@ set(system_unitfiles basic.target bluetooth.target cryptsetup-pre.target
     ${CMAKE_CURRENT_BINARY_DIR}/user@.service
     x-.slice)
 
-install(FILES ${user_unitfiles} DESTINATION ${RelDir_UserUnitfiles})
-install(FILES ${system_unitfiles} DESTINATION ${RelDir_SystemUnitfiles})
+install(FILES ${user_unitfiles} DESTINATION ${USER_DATA_UNIT_PATH})
+install(FILES ${system_unitfiles} DESTINATION ${SYSTEM_DATA_UNIT_PATH})

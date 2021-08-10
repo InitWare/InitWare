@@ -26,7 +26,7 @@ target_link_libraries(svc.logind login-core)
 
 add_executable(user-sessions user-sessions.c)
 target_link_libraries(user-sessions iw-shared)
-install(TARGETS svc.logind user-sessions RUNTIME DESTINATION ${RelDir_PkgLibExec})
+install(TARGETS svc.logind user-sessions RUNTIME DESTINATION ${INSTALL_PKGLIBEXEC_DIR})
 
 set(loginctl_srcs loginctl.c)
 if(Use_Libudev)

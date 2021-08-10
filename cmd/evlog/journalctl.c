@@ -1078,7 +1078,7 @@ static int setup_keys(void)
 	uint64_t n;
 	struct stat st;
 
-	r = stat(AbsDir_PkgRunState "/evlog", &st);
+	r = stat(INSTALL_PKGRUNSTATE_DIR "/evlog", &st);
 	if (r < 0 && errno != ENOENT && errno != ENOTDIR) {
 		log_error("stat(\"%s\") failed: %m", bsDir_PkgRunState "/evlog");
 		return -errno;
@@ -1086,7 +1086,7 @@ static int setup_keys(void)
 
 	if (r < 0 || !S_ISDIR(st.st_mode)) {
 		log_error("%s is not a directory, must be using persistent logging for FSS.",
-		    AbsDir_PkgRunState "/evlog");
+		    INSTALL_PKGRUNSTATE_DIR "/evlog");
 		return r < 0 ? -errno : -ENOTDIR;
 	}
 
@@ -1102,7 +1102,7 @@ static int setup_keys(void)
 		return r;
 	}
 
-	if (asprintf(&p, AbsDir_PkgRunState "/evlog" SD_ID128_FORMAT_STR "/fss",
+	if (asprintf(&p, INSTALL_PKGRUNSTATE_DIR "/evlog" SD_ID128_FORMAT_STR "/fss",
 		SD_ID128_FORMAT_VAL(machine)) < 0)
 		return log_oom();
 
@@ -1121,7 +1121,7 @@ static int setup_keys(void)
 		}
 	}
 
-	if (asprintf(&k, AbsDir_PkgRunState "/evlog" SD_ID128_FORMAT_STR "/fss.tmp.XXXXXX",
+	if (asprintf(&k, INSTALL_PKGRUNSTATE_DIR "/evlog" SD_ID128_FORMAT_STR "/fss.tmp.XXXXXX",
 		SD_ID128_FORMAT_VAL(machine)) < 0) {
 		r = log_oom();
 		goto finish;
@@ -1408,9 +1408,9 @@ static int access_check(sd_journal *j)
 
 	if (set_contains(j->errors, INT_TO_PTR(-EACCES))) {
 #ifdef HAVE_ACL
-		/* If AbsDir_PkgRunState "/evlog" doesn't even exist,
+		/* If INSTALL_PKGRUNSTATE_DIR "/evlog" doesn't even exist,
 		 * unprivileged users have no access at all */
-		if (access(AbsDir_PkgRunState "/evlog", F_OK) < 0 && geteuid() != 0 &&
+		if (access(INSTALL_PKGRUNSTATE_DIR "/evlog", F_OK) < 0 && geteuid() != 0 &&
 		    in_group("systemd-journal") <= 0) {
 			log_error(
 			    "Unprivileged users cannot access messages, unless persistent log storage is\n"
@@ -1418,7 +1418,7 @@ static int access_check(sd_journal *j)
 			return -EACCES;
 		}
 
-		/* If AbsDir_PkgRunState "/evlog" exists, try to pring a nice
+		/* If INSTALL_PKGRUNSTATE_DIR "/evlog" exists, try to pring a nice
 		   notice if the user lacks access to it */
 		if (!arg_quiet && geteuid() != 0) {
 			r = access_check_var_log_journal(j);

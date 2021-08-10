@@ -16,5 +16,5 @@ target_link_libraries(evlogctl iw-shared iw-evlog iw-id128)
 add_executable(evlogcat cat.c)
 target_link_libraries(evlogcat iw-shared iw-evlog)
 
-install(TARGETS evlogd RUNTIME DESTINATION ${RelDir_PkgLibExec})
+install(TARGETS evlogd RUNTIME DESTINATION ${INSTALL_PKGLIBEXEC_DIR})
 install(TARGETS evlogcat evlogctl RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

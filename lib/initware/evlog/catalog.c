@@ -44,7 +44,7 @@ const char *const catalog_file_dirs[] = {
 #ifdef Use_SystemdCompat
 	"/usr/local/lib/systemd/catalog/",
 #endif
-	AbsDir_PkgLib "/catalog/", NULL
+	INSTALL_PKGLIB_DIR "/catalog/", NULL
 };
 
 #define CATALOG_SIGNATURE                              \

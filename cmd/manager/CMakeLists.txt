@@ -64,4 +64,4 @@ endif()
 add_executable(svc.managerd main.c)
 target_link_libraries(svc.managerd manager-core)
 
-install(TARGETS svc.managerd RUNTIME DESTINATION ${RelDir_PkgLibExec})
+install(TARGETS svc.managerd RUNTIME DESTINATION ${INSTALL_PKGLIBEXEC_DIR})
