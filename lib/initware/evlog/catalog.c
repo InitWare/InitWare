@@ -292,7 +292,7 @@ static long write_catalog(const char *database, Hashmap *h, struct strbuf *sb, C
 	}
 
 	zero(header);
-	memcpy(header.signature, CATALOG_SIGNATURE, sizeof(header.signature));
+	memcpy(header.signature, (CATALOG_SIGNATURE), sizeof(header.signature));
 	header.header_size = htole64(ALIGN_TO(sizeof(CatalogHeader), 8));
 	header.catalog_item_size = htole64(sizeof(CatalogItem));
 	header.n_items = htole64(hashmap_size(h));
