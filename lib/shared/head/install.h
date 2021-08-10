@@ -24,11 +24,11 @@
 #include "hashmap.h"
 
 typedef enum UnitFileScope {
-        UNIT_FILE_SYSTEM,
-        UNIT_FILE_GLOBAL,
-        UNIT_FILE_USER,
-        _UNIT_FILE_SCOPE_MAX,
-        _UNIT_FILE_SCOPE_INVALID = -1
+	UNIT_FILE_SYSTEM,
+	UNIT_FILE_GLOBAL, /* global user scope */
+	UNIT_FILE_USER,	  /* user-specific user scope */
+	_UNIT_FILE_SCOPE_MAX,
+	_UNIT_FILE_SCOPE_INVALID = -1
 } UnitFileScope;
 
 typedef enum UnitFileState {

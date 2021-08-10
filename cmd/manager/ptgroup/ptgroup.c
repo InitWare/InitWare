@@ -420,7 +420,7 @@ void ptg_release(PTGroup *grp)
 	assert(grp);
 
 	if (!ptg_is_empty_recursive(grp))
-		log_warning("Releasing non-empty PTGroup; processes will be lost\n");
+		log_debug("Releasing non-empty PTGroup; processes will be lost\n");
 
 	SET_FOREACH (cld, grp->groups, i)
 		ptg_release(cld);

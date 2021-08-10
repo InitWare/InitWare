@@ -691,15 +691,16 @@ int log_metav_object(
 
         PROTECT_ERRNO;
         char buffer[LINE_MAX];
+	char fmtcpy[LINE_MAX];
 
-        if (_likely_(LOG_PRI(level) > log_max_level))
-                return 0;
+	if (_likely_(LOG_PRI(level) > log_max_level))
+		return 0;
 
-        vsnprintf(buffer, sizeof(buffer), format, ap);
-        char_array_0(buffer);
+	expand_percentm(_saved_errno_, format, fmtcpy);
+	vsnprintf(buffer, sizeof(buffer), fmtcpy, ap);
+	char_array_0(buffer);
 
-        return log_dispatch(level, file, line, func,
-                            object_name, object, buffer);
+	return log_dispatch(level, file, line, func, object_name, object, buffer);
 }
 
 int log_meta_object(

@@ -65,3 +65,14 @@ add_executable(svc.managerd main.c)
 target_link_libraries(svc.managerd manager-core)
 
 install(TARGETS svc.managerd RUNTIME DESTINATION ${INSTALL_PKGLIBEXEC_DIR})
+
+configure_file(org.InitWare.Scheduler1.service.in
+  org.InitWare.Scheduler1.service)
+configure_file(org.InitWare.Scheduler1.conf.in org.InitWare.Scheduler1.conf)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.InitWare.Scheduler1.service
+  DESTINATION ${INSTALL_DBUSSERVICES_DIR}
+  RENAME ${SCHEDULER_DBUS_BUSNAME}.service)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.InitWare.Scheduler1.conf
+  DESTINATION ${INSTALL_DBUSCONF_DIR}
+  RENAME ${SCHEDULER_DBUS_BUSNAME}.conf)

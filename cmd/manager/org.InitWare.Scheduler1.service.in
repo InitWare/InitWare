@@ -6,6 +6,6 @@
 #  (at your option) any later version.
 
 [D-BUS Service]
-Name=org.freedesktop.systemd1
+Name=@SCHEDULER_DBUS_BUSNAME@
 Exec=/bin/false
 User=root

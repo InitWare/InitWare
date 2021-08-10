@@ -42,8 +42,9 @@ set(user_unitfiles user/exit.target user/default.target shutdown.target
     sockets.target timers.target paths.target bluetooth.target printer.target
     sound.target smartcard.target)
 
-set(system_unitfiles basic.target bluetooth.target cryptsetup-pre.target
-    cryptsetup.target ${CMAKE_CURRENT_BINARY_DIR}/debug-shell.service
+set(system_unitfiles auxiliary-manager.target basic.target bluetooth.target
+    cryptsetup-pre.target cryptsetup.target
+    ${CMAKE_CURRENT_BINARY_DIR}/debug-shell.service
     ${CMAKE_CURRENT_BINARY_DIR}/emergency.service
     emergency.target final.target getty.target graphical.target
     ${CMAKE_CURRENT_BINARY_DIR}/halt-local.service halt.target hibernate.target

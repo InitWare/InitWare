@@ -770,8 +770,8 @@ static void socket_apply_socket_options(Socket *s, int fd) {
                 if (setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &value, sizeof(value)) < 0)
 #endif
                         if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &value, sizeof(value)) < 0)
-                                log_warning_unit(UNIT(s)->id, "SO_RCVBUF failed: %m");
-        }
+				log_info_unit(UNIT(s)->id, "SO_RCVBUF failed: %m");
+	}
 
         if (s->send_buffer > 0) {
                 int value = (int) s->send_buffer;
@@ -780,8 +780,8 @@ static void socket_apply_socket_options(Socket *s, int fd) {
                 if (setsockopt(fd, SOL_SOCKET, SO_SNDBUFFORCE, &value, sizeof(value)) < 0)
 #endif
                         if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &value, sizeof(value)) < 0)
-                                log_warning_unit(UNIT(s)->id, "SO_SNDBUF failed: %m");
-        }
+				log_info_unit(UNIT(s)->id, "SO_SNDBUF failed: %m");
+	}
 
 #ifdef SO_MARK
         if (s->mark >= 0)

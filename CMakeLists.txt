@@ -196,6 +196,12 @@ set(PACKAGE_VERSION 0.9alpha)
 set(PACKAGE_STRING "${PACKAGE_NAME} version ${PACKAGE_VERSION}")
 endif()
 
+if (${Use_SystemdDBus})
+set(SCHEDULER_DBUS_BUSNAME "org.freedesktop.systemd1")
+else()
+set(SCHEDULER_DBUS_BUSNAME "org.InitWare.Scheduler1")
+endif()
+
 # Paths, either absolute ("full") or relative ("rel")
 set(INSTALL_RUNSTATE_DIR "${Default_INSTALL_RUNSTATE_DIR}"
   CACHE STRING
@@ -224,6 +230,21 @@ set(INSTALL_PKGSYSCONF_DIR "${CMAKE_INSTALL_FULL_SYSCONFDIR}/${PACKAGE_NAME}"
   CACHE STRING
   "Full path to the directory for storing  \
 node-specific, administrator-modifiable configuration and unit-files.")
+
+set(INSTALL_DBUSSERVICES_DIR
+  "${CMAKE_INSTALL_FULL_DATAROOTDIR}/dbus-1/system-services"
+  CACHE STRING
+  "Full path to the directory for storing D-Bus system service files.")
+
+set(INSTALL_DBUSCONF_DIR
+  "${CMAKE_INSTALL_FULL_DATAROOTDIR}/dbus-1/system.d"
+  CACHE STRING
+  "Full path to the directory for storing D-Bus system service configuration.")
+
+set(INSTALL_POLKITACTION_DIR
+  "${CMAKE_INSTALL_FULL_DATAROOTDIR}/polkit-1/actions"
+  CACHE STRING
+  "Full path to the directory for storing D-Bus system service configuration.")
 
 if(Use_Libdevattr OR Use_Libudev)
   set(Default_Kind_Device "udev")

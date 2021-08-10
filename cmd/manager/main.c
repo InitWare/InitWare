@@ -2034,7 +2034,7 @@ finish:
 	if (getpid() == 1)
 		freeze();
 
-	log_info("Exiting.\n");
+	log_info("InitWare manager exiting.\n");
 
 	return retval;
 }

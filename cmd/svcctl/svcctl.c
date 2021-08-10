@@ -1196,40 +1196,39 @@ static int systemctl_main(DBusConnection *bus, int argc, char *argv[], DBusError
 
         /* Require a bus connection for all operations but
          * enable/disable */
-        if (!streq(verbs[i].verb, "enable") && !streq(verbs[i].verb, "disable") &&
-            !streq(verbs[i].verb, "is-enabled") && !streq(verbs[i].verb, "list-unit-files") &&
-            !streq(verbs[i].verb, "reenable") && !streq(verbs[i].verb, "preset") &&
-            !streq(verbs[i].verb, "mask") && !streq(verbs[i].verb, "unmask") && !streq(verbs[i].verb, "link") &&
-            !streq(verbs[i].verb, "set-default") && !streq(verbs[i].verb, "get-default")) {
+	if (!streq(verbs[i].verb, "enable") && !streq(verbs[i].verb, "disable") &&
+	    !streq(verbs[i].verb, "is-enabled") && !streq(verbs[i].verb, "list-unit-files") &&
+	    !streq(verbs[i].verb, "reenable") && !streq(verbs[i].verb, "preset") &&
+	    !streq(verbs[i].verb, "mask") && !streq(verbs[i].verb, "unmask") &&
+	    !streq(verbs[i].verb, "link") && !streq(verbs[i].verb, "set-default") &&
+	    !streq(verbs[i].verb, "get-default")) {
 
-                if (running_in_chroot() > 0) {
-                        log_info("Running in chroot, ignoring request.");
-                        return 0;
-                }
+		if (running_in_chroot() > 0) {
+			log_info("Running in chroot, ignoring request.");
+			return 0;
+		}
 
-                if (((!streq(verbs[i].verb, "reboot") && !streq(verbs[i].verb, "halt") &&
-                      !streq(verbs[i].verb, "poweroff")) ||
-                     arg_force <= 0) &&
-                    !bus) {
-                        log_error(
-                                "Failed to get D-Bus connection: %s",
-                                dbus_error_is_set(error) ? error->message :
-                                                           "No connection to service manager.");
-                        return -EIO;
-                }
+		if (((!streq(verbs[i].verb, "reboot") && !streq(verbs[i].verb, "halt") &&
+			 !streq(verbs[i].verb, "poweroff")) ||
+			arg_force <= 0) &&
+		    !bus) {
+			log_error("Failed to get D-Bus connection: %s",
+			    dbus_error_is_set(error) ? error->message :
+							     "No connection to service manager.");
+			return -EIO;
+		}
+	} else {
 
-        } else {
+		// Deleted - consider a --no-dbus command line switch maybe?
+		if (!bus && false /* !avoid_bus() */) {
+			log_error("Failed to get D-Bus connection: %s",
+			    dbus_error_is_set(error) ? error->message :
+							     "No connection to service manager.");
+			return -EIO;
+		}
+	}
 
-                if (!bus && !avoid_bus()) {
-                        log_error(
-                                "Failed to get D-Bus connection: %s",
-                                dbus_error_is_set(error) ? error->message :
-                                                           "No connection to service manager.");
-                        return -EIO;
-                }
-        }
-
-        return verbs[i].dispatch(bus, argv + optind);
+	return verbs[i].dispatch(bus, argv + optind);
 }
 
 static int send_shutdownd(usec_t t, char mode, bool dry_run, bool warn, const char *message) {

@@ -14,11 +14,11 @@
 <busconfig>
 
         <policy user="root">
-                <allow own="org.freedesktop.systemd1"/>
+                <allow own="@SCHEDULER_DBUS_BUSNAME@"/>
 
                 <!-- Root clients can do everything -->
-                <allow send_destination="org.freedesktop.systemd1"/>
-                <allow receive_sender="org.freedesktop.systemd1"/>
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"/>
+                <allow receive_sender="@SCHEDULER_DBUS_BUSNAME@"/>
 
                 <!-- systemd may receive activator requests -->
                 <allow receive_interface="org.freedesktop.systemd1.Activator"
@@ -26,71 +26,71 @@
         </policy>
 
         <policy context="default">
-                <deny send_destination="org.freedesktop.systemd1"/>
+                <deny send_destination="@SCHEDULER_DBUS_BUSNAME@"/>
 
-                <allow send_destination="org.freedesktop.systemd1"
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"
                        send_interface="org.freedesktop.DBus.Introspectable"/>
 
-                <allow send_destination="org.freedesktop.systemd1"
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"
                        send_interface="org.freedesktop.DBus.Peer"/>
 
-                <allow send_destination="org.freedesktop.systemd1"
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"
                        send_interface="org.freedesktop.DBus.Properties"
                        send_member="Get"/>
 
-                <allow send_destination="org.freedesktop.systemd1"
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"
                        send_interface="org.freedesktop.DBus.Properties"
                        send_member="GetAll"/>
 
-                <allow send_destination="org.freedesktop.systemd1"
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"
                        send_interface="org.freedesktop.systemd1.Manager"
                        send_member="GetUnit"/>
 
-                <allow send_destination="org.freedesktop.systemd1"
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"
                        send_interface="org.freedesktop.systemd1.Manager"
                        send_member="GetUnitByPID"/>
 
-                <allow send_destination="org.freedesktop.systemd1"
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"
                        send_interface="org.freedesktop.systemd1.Manager"
                        send_member="LoadUnit"/>
 
-                <allow send_destination="org.freedesktop.systemd1"
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"
                        send_interface="org.freedesktop.systemd1.Manager"
                        send_member="GetJob"/>
 
-                <allow send_destination="org.freedesktop.systemd1"
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"
                        send_interface="org.freedesktop.systemd1.Manager"
                        send_member="ListUnits"/>
 
-                <allow send_destination="org.freedesktop.systemd1"
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"
                        send_interface="org.freedesktop.systemd1.Manager"
                        send_member="ListUnitFiles"/>
 
-                <allow send_destination="org.freedesktop.systemd1"
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"
                        send_interface="org.freedesktop.systemd1.Manager"
                        send_member="GetUnitFileState"/>
 
-                <allow send_destination="org.freedesktop.systemd1"
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"
                        send_interface="org.freedesktop.systemd1.Manager"
                        send_member="ListJobs"/>
 
-                <allow send_destination="org.freedesktop.systemd1"
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"
                        send_interface="org.freedesktop.systemd1.Manager"
                        send_member="Subscribe"/>
 
-                <allow send_destination="org.freedesktop.systemd1"
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"
                        send_interface="org.freedesktop.systemd1.Manager"
                        send_member="Unsubscribe"/>
 
-                <allow send_destination="org.freedesktop.systemd1"
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"
                        send_interface="org.freedesktop.systemd1.Manager"
                        send_member="Dump"/>
 
-                <allow send_destination="org.freedesktop.systemd1"
+                <allow send_destination="@SCHEDULER_DBUS_BUSNAME@"
                        send_interface="org.freedesktop.systemd1.Manager"
                        send_member="GetDefaultTarget"/>
 
-                <allow receive_sender="org.freedesktop.systemd1"/>
+                <allow receive_sender="@SCHEDULER_DBUS_BUSNAME@"/>
         </policy>
 
 </busconfig>

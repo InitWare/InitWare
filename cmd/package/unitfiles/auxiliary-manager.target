@@ -1,0 +1,6 @@
+[Unit]
+Description=Auxiliary Service Management
+Requires=basic.target
+Conflicts=rescue.service rescue.target
+After=basic.target rescue.service rescue.target
+AllowIsolate=yes
