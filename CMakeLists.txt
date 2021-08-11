@@ -326,7 +326,7 @@ target_include_directories(internal INTERFACE common head head/systemd)
 
 add_subdirectory(vendor/iw-cjson)
 add_subdirectory(vendor/iw-libev)
-add_subdirectory(vendor/iw-sqlite)
+#add_subdirectory(vendor/iw-sqlite)
 
 # if (build_doc) or something like that
 add_subdirectory(vendor/iw-docbook2mdoc)

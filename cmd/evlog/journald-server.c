@@ -619,8 +619,8 @@ static void dispatch_message_real(Server *s, struct iovec *iovec, unsigned n, un
 			if (cg_path_get_owner_uid(c, &owner) >= 0) {
 				owner_valid = true;
 
-				sprintf(owner_uid, "_SYSTEMD_OWNER_UID=%lu", (unsigned long)
-		owner); IOVEC_SET_STRING(iovec[n++], owner_uid);
+				sprintf(owner_uid, "_SYSTEMD_OWNER_UID=%lu", (unsigned long) owner);
+				IOVEC_SET_STRING(iovec[n++], owner_uid);
 			}
 
 			if (cg_path_get_unit(c, &t) >= 0) {
@@ -839,8 +839,8 @@ void server_driver_message(Server *s, sd_id128_t message_id, const char *format,
 	ucred.uid = getuid();
 	ucred.gid = getgid();
 
-	dispatch_message_real(s, iovec, n, ELEMENTSOF(iovec), &ucred, NULL, NULL, 0, NULL,
-	    LOG_INFO, 0);
+	dispatch_message_real(s, iovec, n, ELEMENTSOF(iovec), &ucred, NULL, NULL, 0,
+	    "systemd-journald.service", LOG_INFO, 0);
 }
 
 void server_dispatch_message(Server *s, struct iovec *iovec, unsigned n, unsigned m,

@@ -2730,23 +2730,13 @@ static void print_status_info(UnitStatusInfo *i, bool *ellipsized) {
 #endif
 
         if (i->id && arg_transport != TRANSPORT_SSH) {
-                printf("\n");
-#ifdef Have_Journal
-                show_journal_by_unit(
-                        stdout,
-                        i->id,
-                        arg_output,
-                        0,
-                        i->inactive_exit_timestamp_monotonic,
-                        arg_lines,
-                        getuid(),
-                        flags,
-                        arg_scope == UNIT_FILE_SYSTEM,
-                        ellipsized);
-#endif
-        }
+		printf("\n");
+		show_journal_by_unit(stdout, i->id, arg_output, 0,
+		    i->inactive_exit_timestamp_monotonic, arg_lines, getuid(), flags,
+		    arg_scope == UNIT_FILE_SYSTEM, ellipsized);
+	}
 
-        if (i->need_daemon_reload)
+	if (i->need_daemon_reload)
                 printf("\n%sWarning:%s Unit file changed on disk, 'systemctl %sdaemon-reload' recommended.\n",
                        ansi_highlight_red(),
                        ansi_highlight_off(),
