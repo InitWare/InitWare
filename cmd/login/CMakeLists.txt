@@ -1,8 +1,8 @@
 add_custom_command(
-  OUTPUT logind-gperf.c
-  COMMAND gperf < ${CMAKE_CURRENT_SOURCE_DIR}/logind-gperf.gperf
-    > logind-gperf.c
-  DEPENDS  ${CMAKE_CURRENT_SOURCE_DIR}/logind-gperf.gperf)
+    OUTPUT logind-gperf.c
+    COMMAND gperf < ${CMAKE_CURRENT_SOURCE_DIR}/logind-gperf.gperf
+	> logind-gperf.c
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/logind-gperf.gperf)
 
 set(login_srcs logind-core.c logind-dbus.c logind-device.c
     logind-device.h logind-action.c
@@ -13,12 +13,12 @@ set(login_srcs logind-core.c logind-dbus.c logind-device.c
     login-shared.c login-shared.h ${CMAKE_CURRENT_BINARY_DIR}/logind-gperf.c)
 
 if(Use_Libudev)
-    list(APPEND login_srcs logind-button.c)
+	list(APPEND login_srcs logind-button.c)
 endif()
 
 add_library(login-core ${login_srcs})
 target_link_libraries(login-core iw-shared iw-dbus iw-daemon
-  iw-label ${UDev_Libs})
+    iw-label ${UDev_Libs})
 target_include_directories(login-core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(svc.logind logind.c)
@@ -30,7 +30,7 @@ install(TARGETS svc.logind user-sessions RUNTIME DESTINATION ${INSTALL_PKGLIBEXE
 
 set(loginctl_srcs loginctl.c)
 if(Use_Libudev)
-    list(APPEND loginctl_srcs sysfs-show.c)
+	list(APPEND loginctl_srcs sysfs-show.c)
 endif()
 
 add_executable(svcloginctl ${loginctl_srcs})
@@ -38,6 +38,6 @@ target_link_libraries(svcloginctl iw-shared iw-dbus ${UDev_Libs})
 install(TARGETS svcloginctl RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 if(Use_PAM)
-    add_library(initware_pam SHARED pam-module.c)
-    target_link_libraries(initware_pam iw-shared iw-dbus pam)
+	add_library(initware_pam SHARED pam-module.c)
+	target_link_libraries(initware_pam iw-shared iw-dbus pam)
 endif()

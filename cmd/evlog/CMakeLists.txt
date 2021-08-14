@@ -1,8 +1,7 @@
-add_custom_command(
-  OUTPUT journald-gperf.c
-  COMMAND gperf < ${CMAKE_CURRENT_SOURCE_DIR}/journald-gperf.gperf
-    > journald-gperf.c
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/journald-gperf.gperf)
+add_custom_command(OUTPUT journald-gperf.c
+    COMMAND gperf < ${CMAKE_CURRENT_SOURCE_DIR}/journald-gperf.gperf
+	> journald-gperf.c
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/journald-gperf.gperf)
 
 add_executable(evlogd journald.c journald-console.c journald-kmsg.c
     journald-native.c journald-rate-limit.c journald-server.c journald-stream.c
