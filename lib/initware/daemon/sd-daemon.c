@@ -463,10 +463,10 @@ _sd_export_ int sd_notify(int unset_environment, const char *state) {
         msghdr.msg_iov = &iovec;
         msghdr.msg_iovlen = 1;
 
-#ifdef __FreeBSD__
-        /* CMSG_SPACE(0) may return value different than zero, which results in
+#if defined(__FreeBSD__) || defined(__DragonFly__)
+	/* CMSG_SPACE(0) may return value different than zero, which results in
          * miscalculated controllen. */
-        msghdr.msg_controllen = CMSG_SPACE(sizeof(struct cmsgcred));
+	msghdr.msg_controllen = CMSG_SPACE(sizeof(struct cmsgcred));
 
         msghdr.msg_control = alloca(msghdr.msg_controllen);
 

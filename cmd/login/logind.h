@@ -32,7 +32,7 @@
 #include "list.h"
 #include "util.h"
 
-#ifdef Use_udev
+#ifdef Use_libudev
 #        include <libudev.h>
 #endif
 
@@ -61,8 +61,8 @@ struct Manager {
         IWLIST_HEAD(Session, session_gc_queue);
         IWLIST_HEAD(User, user_gc_queue);
 
-#ifdef Use_udev
-        struct udev *udev;
+#ifdef Use_libudev
+	struct udev *udev;
         struct udev_monitor *udev_seat_monitor, *udev_device_monitor, *udev_vcsa_monitor, *udev_button_monitor;
 
         ev_io udev_seat_watch;
@@ -137,7 +137,7 @@ int manager_add_user_by_name(Manager *m, const char *name, User **_user);
 int manager_add_user_by_uid(Manager *m, uid_t uid, User **_user);
 int manager_add_inhibitor(Manager *m, const char* id, Inhibitor **_inhibitor);
 
-#ifdef Use_udev
+#ifdef Use_libudev
 int manager_process_seat_device(Manager *m, struct udev_device *d);
 int manager_process_button_device(Manager *m, struct udev_device *d);
 #endif

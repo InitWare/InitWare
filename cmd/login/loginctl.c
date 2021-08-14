@@ -525,8 +525,8 @@ static void print_seat_status_info(SeatStatusInfo *i) {
                         c = 0;
 
                 printf("\t Devices:\n");
-#ifdef Use_udev
-                show_sysfs(i->id, "\t\t  ", c);
+#ifdef Use_libudev
+		show_sysfs(i->id, "\t\t  ", c);
 #else
                 printf("\t\t  %s\n", i->id);
 #endif

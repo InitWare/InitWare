@@ -674,16 +674,20 @@ int socket_getpeercred(int fd, struct socket_ucred *xucred) {
 
         return 0;
 #elif defined(LOCAL_PEERCRED)
-                struct xucred cred;
-        socklen_t len = sizeof cred;
+	struct xucred cred;
+	socklen_t len = sizeof cred;
 
-        if (getsockopt(fd, 0, LOCAL_PEERCRED, &cred, &len) < 0)
-                return -errno;
+	if (getsockopt(fd, 0, LOCAL_PEERCRED, &cred, &len) < 0)
+		return -errno;
         xucred->gid = cred.cr_gid;
         xucred->uid = cred.cr_uid;
-        xucred->pid = cred.cr_pid;
+#ifndef Sys_Plat_DragonFlyBSD
+	xucred->pid = cred.cr_pid;
+#else
+	xucred->pid = 0;
+#endif
 
-        return 0;
+	return 0;
 #elif defined(LOCAL_PEEREID)
         struct unpcbid unp;
         socklen_t unpl = sizeof unp;

@@ -46,6 +46,9 @@ foreach (DOCBOOK_IN ${DOCBOOKS})
 endforeach ()
 
 foreach (MAN_IN ${MDOCS})
+	get_filename_component(MAN_EXT ${MAN_IN} LAST_EXT)
+	string(SUBSTRING ${MAN_EXT} 1 -1 MAN_NUM)
+
 	install(FILES ${MAN_IN}
 	    DESTINATION ${CMAKE_INSTALL_MANDIR}/man${MAN_NUM})
 endforeach ()

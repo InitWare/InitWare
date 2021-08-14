@@ -202,8 +202,8 @@ int manager_add_button(Manager *m, const char *name, Button **_button) {
                 return 0;
         }
 
-#ifdef Use_udev
-        b = button_new(m, name);
+#ifdef Use_libudev
+	b = button_new(m, name);
         if (!b)
                 return -ENOMEM;
 
@@ -258,7 +258,7 @@ void manager_drop_busname(Manager *m, const char *name) {
                 free(key);
 }
 
-#ifdef Use_udev
+#ifdef Use_libudev
 int manager_process_seat_device(Manager *m, struct udev_device *d) {
         Device *device;
         int r;

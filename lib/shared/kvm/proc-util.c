@@ -15,9 +15,16 @@ have been included with this software
 
 #include <sys/types.h>
 #include <sys/signal.h>
-#include <sys/proc.h>
 
 #include <assert.h>
+
+#include "compat.h"
+
+#ifndef Sys_Plat_DragonFlyBSD
+#include <sys/proc.h>
+#else
+#include <sys/user.h>
+#endif
 
 #include "kvm.h"
 #include "strv.h"

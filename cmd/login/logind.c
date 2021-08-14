@@ -34,7 +34,7 @@
 #include "mkdir.h"
 #include "strv.h"
 
-#ifdef Use_udev
+#ifdef Use_libudev
 #        include <libudev.h>
 #endif
 
@@ -53,8 +53,8 @@ Manager *manager_new(void) {
                 return NULL;
 
         ev_io_zero(m->console_active_watch);
-#ifdef Use_udev
-        ev_io_zero(m->udev_device_watch);
+#ifdef Use_libudev
+	ev_io_zero(m->udev_device_watch);
         ev_io_zero(m->udev_seat_watch);
         ev_io_zero(m->udev_vcsa_watch);
         ev_io_zero(m->udev_button_watch);
@@ -98,8 +98,8 @@ Manager *manager_new(void) {
                 return NULL;
         }
 
-#ifdef Use_udev
-        m->udev = udev_new();
+#ifdef Use_libudev
+	m->udev = udev_new();
         if (!m->udev) {
                 manager_free(m);
                 return NULL;
@@ -156,8 +156,8 @@ void manager_free(Manager *m) {
 
         ev_io_stop_close_zero(m->evloop, &m->console_active_watch);
 
-#ifdef Use_udev
-        if (m->udev_seat_monitor)
+#ifdef Use_libudev
+	if (m->udev_seat_monitor)
                 udev_monitor_unref(m->udev_seat_monitor);
         if (m->udev_device_monitor)
                 udev_monitor_unref(m->udev_device_monitor);
@@ -190,8 +190,8 @@ void manager_free(Manager *m) {
 }
 
 int manager_enumerate_devices(Manager *m) {
-#ifdef Use_udev
-        struct udev_list_entry *item = NULL, *first = NULL;
+#ifdef Use_libudev
+	struct udev_list_entry *item = NULL, *first = NULL;
         struct udev_enumerate *e;
         int r;
 
@@ -243,8 +243,8 @@ finish:
 }
 
 int manager_enumerate_buttons(Manager *m) {
-#ifdef Use_udev
-        struct udev_list_entry *item = NULL, *first = NULL;
+#ifdef Use_libudev
+	struct udev_list_entry *item = NULL, *first = NULL;
         struct udev_enumerate *e;
         int r;
 
@@ -507,7 +507,7 @@ int manager_enumerate_inhibitors(Manager *m) {
         return r;
 }
 
-#ifdef Use_udev
+#ifdef Use_libudev
 static void manager_dispatch_seat_udev(struct ev_loop *loop, ev_io *watch, int revents)
 {
         struct udev_device *d;
@@ -792,8 +792,8 @@ static int manager_connect_console(Manager *m)
 
 static int manager_connect_udev(Manager *m)
 {
-#ifdef Use_udev
-        int r;
+#ifdef Use_libudev
+	int r;
 
         assert(m);
         assert(!m->udev_seat_monitor);

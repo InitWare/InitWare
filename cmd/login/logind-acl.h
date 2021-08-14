@@ -26,7 +26,7 @@
 
 #include "compat.h"
 
-#ifdef Use_udev
+#ifdef Use_libudev
 #include <libudev.h>
 #endif
 
@@ -51,7 +51,7 @@ static inline int devnode_acl(const char *path,
         return 0;
 }
 
-#ifdef Use_udev
+#ifdef Use_libudev
 static inline int devnode_acl_all(struct udev *udev,
                                   const char *seat,
                                   bool flush,

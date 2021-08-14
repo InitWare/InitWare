@@ -29,11 +29,15 @@ have been included with this software
 
 #ifdef Sys_Plat_FreeBSD
 /* KVM is platform-specific enough to not bother with CMake. */
-#        include <sys/user.h>
+#include <sys/user.h>
+#endif
+
+#ifdef Sys_Plat_DragonFlyBSD
+#include <kinfo.h>
 #endif
 
 kvm_t *open_kvm();
 
 extern kvm_t *g_kd;
 
-#endif
+#endif /* KVM_H_ */

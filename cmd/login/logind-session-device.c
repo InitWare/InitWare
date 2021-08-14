@@ -32,7 +32,7 @@
 #include "util.h"
 #include "missing.h"
 
-#ifdef Use_udev
+#ifdef Use_libudev
 #        include <libudev.h>
 #endif
 
@@ -271,7 +271,7 @@ static void session_device_stop(SessionDevice *sd) {
         sd->active = false;
 }
 
-#ifdef Use_udev
+#ifdef Use_libudev
 static DeviceType detect_device_type(struct udev_device *dev) {
         const char *sysname, *subsystem;
         DeviceType type;
@@ -293,8 +293,8 @@ static DeviceType detect_device_type(struct udev_device *dev) {
 #endif
 
 static int session_device_verify(SessionDevice *sd) {
-#ifdef Use_udev
-        struct udev_device *dev, *p = NULL;
+#ifdef Use_libudev
+	struct udev_device *dev, *p = NULL;
         const char *sp, *node;
         int r;
 

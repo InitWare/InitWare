@@ -814,7 +814,7 @@ fail:
         return r;
 }
 
-#ifdef Use_udev
+#ifdef Use_libudev
 static int trigger_device(Manager *m, struct udev_device *d) {
         struct udev_enumerate *e;
         struct udev_list_entry *first, *item;
@@ -2077,8 +2077,8 @@ static DBusHandlerResult manager_message_handler(
                 if (r < 0)
                         return bus_send_error_reply(connection, message, &error, r);
 
-#ifdef Use_udev
-                r = attach_device(m, seat, sysfs);
+#ifdef Use_libudev
+		r = attach_device(m, seat, sysfs);
 #else
                 r = 0;
 #endif
@@ -2104,8 +2104,8 @@ static DBusHandlerResult manager_message_handler(
                 if (r < 0)
                         return bus_send_error_reply(connection, message, &error, r);
 
-#ifdef Use_udev
-                r = flush_devices(m);
+#ifdef Use_libudev
+		r = flush_devices(m);
 #else
                 r = 0;
 #endif

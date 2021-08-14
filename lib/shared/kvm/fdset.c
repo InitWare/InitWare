@@ -20,10 +20,12 @@ have been included with this software
 #include "set.h"
 
 #if defined(Sys_Plat_FreeBSD)
-#        include <libutil.h>
-#        define ki_fd kf_fd
+#include <libutil.h>
+#define ki_fd kf_fd
 #elif defined(Sys_Plat_OpenBSD)
 #define ki_fd fd_fd
+#elif defined(Sys_Plat_DragonFlyBSD)
+#define ki_fd f_fd
 #endif
 
 #ifdef Sys_Plat_NetBSD
@@ -66,8 +68,11 @@ struct kinfo_file *get_files(int *cnt)
 
 int fdset_new_fill(FDSet **_s)
 {
-        int r = 0;
-        FDSet *s;
+#if defined(Sys_Plat_DragonFlyBSD)
+	return -ENOTSUP;
+#else
+	int r = 0;
+	FDSet *s;
         struct kinfo_file *files = NULL;
         int cnt;
 
@@ -90,7 +95,7 @@ int fdset_new_fill(FDSet **_s)
 #elif defined(Sys_Plat_NetBSD)
         files = get_files(&cnt);
 #elif defined(Sys_Plat_OpenBSD)
-        files = kvm_getfiles(g_kd, KERN_FILE_BYPID, getpid(), sizeof(struct kinfo_file), &cnt);
+	files = kvm_getfiles(g_kd, KERN_FILE_BYPID, getpid(), sizeof(struct kinfo_file), &cnt);
 #endif
 
         if (!files)
@@ -121,4 +126,5 @@ finish:
                 set_free(MAKE_SET(s));
 
         return r;
+#endif
 }
