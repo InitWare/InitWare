@@ -118,6 +118,11 @@ def add_summary(template, indexpages):
     para.text = COUNTS.format(count=count, pages=len(pages))
 
 def make_page(*xml_files):
+    try:
+      tree.register_namespace('', "http://docbook.org/ns/docbook")
+    except:
+      pass
+
     template = tree.fromstring(TEMPLATE)
     index = make_index(xml_files)
 
