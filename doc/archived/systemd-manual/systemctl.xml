@@ -766,7 +766,7 @@ kobject-uevent 1 systemd-udevd-kernel.socket systemd-udevd.service
             parameter properties such as resource control settings at
             runtime. Not all properties may be changed at runtime, but
             many resource control settings (primarily those in
-            <citerefentry><refentrytitle>systemd.resource-control</refentrytitle><manvolnum>5</manvolnum></citerefentry>)
+            <citerefentry><refentrytitle>unitfile_rlimit</refentrytitle><manvolnum>5</manvolnum></citerefentry>)
             may. The changes are applied instantly, and stored on disk
             for future boots, unless <option>--runtime</option> is
             passed, in which case the settings only apply until the

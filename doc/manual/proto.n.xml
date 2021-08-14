@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<refentry version="5.1" xmlns="http://docbook.org/ns/docbook"
+          xmlns:xlink="http://www.w3.org/1999/xlink"
+          xmlns:xila="http://www.w3.org/2001/XInclude/local-attributes"
+          xmlns:xi="http://www.w3.org/2001/XInclude"
+          xmlns:trans="http://docbook.org/ns/transclusion"
+          xmlns:svg="http://www.w3.org/2000/svg"
+          xmlns:m="http://www.w3.org/1998/Math/MathML"
+          xmlns:html="http://www.w3.org/1999/xhtml"
+          xmlns:db="http://docbook.org/ns/docbook">
+  <refmeta>
+    <refentrytitle>manpage</refentrytitle>
+
+    <manvolnum>0</manvolnum>
+
+    <refmiscinfo class="manual">Nonexistent Manual</refmiscinfo>
+
+    <refmiscinfo class="source">InitWare 0.7alpha</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>manpage</refname>
+
+    <refpurpose>example manpage</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>doit</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsection>
+    <title>Description</title>
+
+    <para>
+    An example manpage.
+    </para>
+  </refsection>
+</refentry>

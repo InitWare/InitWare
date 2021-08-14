@@ -26,41 +26,41 @@ from xml_helper import *
 MDASH = ' — ' if sys.version_info.major >= 3 else ' -- '
 
 TEMPLATE = '''\
-<refentry id="systemd.index" conditional="HAVE_PYTHON">
+<refentry version="5.1" xmlns="http://docbook.org/ns/docbook"
+          xmlns:xlink="http://www.w3.org/1999/xlink"
+          xmlns:xila="http://www.w3.org/2001/XInclude/local-attributes"
+          xmlns:xi="http://www.w3.org/2001/XInclude"
+          xmlns:trans="http://docbook.org/ns/transclusion"
+          xmlns:svg="http://www.w3.org/2000/svg"
+          xmlns:m="http://www.w3.org/1998/Math/MathML"
+          xmlns:html="http://www.w3.org/1999/xhtml"
+          xmlns:db="http://docbook.org/ns/docbook">
 
   <refentryinfo>
-    <title>systemd.index</title>
-    <productname>systemd</productname>
-
-    <authorgroup>
-      <author>
-        <contrib>Developer</contrib>
-        <firstname>Lennart</firstname>
-        <surname>Poettering</surname>
-        <email>lennart@poettering.net</email>
-      </author>
-    </authorgroup>
+    <title>Contents</title>
+    <productname>InitWare Suite of Middleware</productname>
   </refentryinfo>
 
   <refmeta>
-    <refentrytitle>systemd.index</refentrytitle>
+    <refentrytitle>Contents</refentrytitle>
     <manvolnum>7</manvolnum>
+    <refmiscinfo class="source">InitWare 0.7alpha</refmiscinfo>
   </refmeta>
 
-  <refnamediv>
-    <refname>systemd.index</refname>
-    <refpurpose>List all manpages from the systemd project</refpurpose>
-  </refnamediv>
+  <refsect1 id='contents'>
+    <title>InitWare Suite of Middleware Manual Pages</title>
+    <para>
+    <variablelist>
+
+    </variablelist>
+    </para>
+  </refsect1>
+
 </refentry>
 '''
 
 SUMMARY = '''\
   <refsect1>
-    <title>See Also</title>
-    <para>
-      <citerefentry><refentrytitle>systemd.directives</refentrytitle><manvolnum>7</manvolnum></citerefentry>
-    </para>
-
     <para id='counts' />
   </refsect1>
 '''
@@ -68,30 +68,27 @@ SUMMARY = '''\
 COUNTS = '\
 This index contains {count} entries, referring to {pages} individual manual pages.'
 
-
-def check_id(page, t):
-    id = t.getroot().get('id')
-    if not re.search('/' + id + '[.]', page):
-        raise ValueError("id='{}' is not the same as page name '{}'".format(id, page))
+ns = {'db': 'http://docbook.org/ns/docbook', } # add more as needed
 
 def make_index(pages):
     index = collections.defaultdict(list)
     for p in pages:
         t = xml_parse(p)
-        check_id(p, t)
-        section = t.find('./refmeta/manvolnum').text
-        refname = t.find('./refnamediv/refname').text
-        purpose = ' '.join(t.find('./refnamediv/refpurpose').text.split())
-        for f in t.findall('./refnamediv/refname'):
+        section = t.find('./db:refmeta/db:manvolnum', ns).text
+        refname = t.find('./db:refnamediv/db:refname', ns).text
+        purpose = ' '.join(t.find('./db:refnamediv/db:refpurpose', ns).text.split())
+        for f in t.findall('./db:refnamediv/db:refname', ns):
             infos = (f.text, section, purpose, refname)
-            index[f.text[0].upper()].append(infos)
+            index[section].append(infos)
     return index
 
 def add_letter(template, letter, pages):
-    refsect1 = tree.SubElement(template, 'refsect1')
-    title = tree.SubElement(refsect1, 'title')
-    title.text = letter
-    para = tree.SubElement(refsect1, 'para')
+    clist = template.find("./db:refsect1[@id='contents']/db:para/db:variablelist", ns)
+    varlistentry = tree.SubElement(clist, 'varlistentry')
+    term = tree.SubElement(varlistentry, 'term')
+    listitem = tree.SubElement(varlistentry, 'listitem')
+    term.text = "Section " + letter
+    para = tree.SubElement(listitem, 'para')
     for info in sorted(pages, key=lambda info: str.lower(info[0])):
         refname, section, purpose, realname = info
 

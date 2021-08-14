@@ -259,7 +259,7 @@
                                 <option>StandardOutput=</option>
                                 and <option>StandardError=</option>
                                 (see
-                                <citerefentry><refentrytitle>systemd.exec</refentrytitle><manvolnum>5</manvolnum></citerefentry>
+                                <citerefentry><refentrytitle>unitfile_exec</refentrytitle><manvolnum>5</manvolnum></citerefentry>
                                 for details). Takes one of
                                 <option>inherit</option>,
                                 <option>null</option>,

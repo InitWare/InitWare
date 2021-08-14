@@ -279,7 +279,7 @@
                                 your own, rely on systemd's privilege
                                 dropping code instead of implementing
                                 it in the daemon, and similar. See
-                                <citerefentry><refentrytitle>systemd.exec</refentrytitle><manvolnum>5</manvolnum></citerefentry>
+                                <citerefentry><refentrytitle>unitfile_exec</refentrytitle><manvolnum>5</manvolnum></citerefentry>
                                 for the available
                                 controls.</para></listitem>
 
@@ -346,7 +346,7 @@
                                 see
                                 <citerefentry><refentrytitle>sd-daemon</refentrytitle><manvolnum>3</manvolnum></citerefentry>
                                 and
-                                <citerefentry><refentrytitle>systemd.exec</refentrytitle><manvolnum>5</manvolnum></citerefentry>.</para></listitem>
+                                <citerefentry><refentrytitle>unitfile_exec</refentrytitle><manvolnum>5</manvolnum></citerefentry>.</para></listitem>
 
                         </orderedlist>
 

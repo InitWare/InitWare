@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<refentry version="5.1" xmlns="http://docbook.org/ns/docbook"
+          xmlns:xlink="http://www.w3.org/1999/xlink"
+          xmlns:xila="http://www.w3.org/2001/XInclude/local-attributes"
+          xmlns:xi="http://www.w3.org/2001/XInclude"
+          xmlns:trans="http://docbook.org/ns/transclusion"
+          xmlns:svg="http://www.w3.org/2000/svg"
+          xmlns:m="http://www.w3.org/1998/Math/MathML"
+          xmlns:html="http://www.w3.org/1999/xhtml"
+          xmlns:db="http://docbook.org/ns/docbook">
+  <!--
+  This file is part of systemd.
+
+  Copyright 2010 Lennart Poettering
+
+  systemd is free software; you can redistribute it and/or modify it
+  under the terms of the GNU Lesser General Public License as published by
+  the Free Software Foundation; either version 2.1 of the License, or
+  (at your option) any later version.
+
+  systemd is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  Lesser General Public License for more details.
+
+  You should have received a copy of the GNU Lesser General Public License
+  along with systemd; If not, see <http://www.gnu.org/licenses/>.
+-->
+
+  <refmeta>
+    <refentrytitle>unitfile_kill</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo class="manual">File Formats</refmiscinfo>
+
+    <refmiscinfo class="source">InitWare 0.7alpha</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>unitfile_kill</refname>
+
+    <refpurpose>Kill environment configuration</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <para><replaceable>name</replaceable><filename>.service</filename> ,
+    <replaceable>name</replaceable><filename>.socket</filename> ,
+    <replaceable>name</replaceable><filename>.mount</filename> ,
+    <replaceable>name</replaceable><filename>.swap</filename></para>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Unit configuration files for services, sockets, mount points and
+    swap devices share a subset of configuration options which define the
+    process killing parameters of spawned processes.</para>
+
+    <para>This man page lists the configuration options shared by these four
+    unit types. See <citerefentry>
+        <refentrytitle>unitfile</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> for the common options of all unit configuration files,
+    and <citerefentry>
+        <refentrytitle>unitfile_service</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>unitfile_socket</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>unitfile_swap</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> and <citerefentry>
+        <refentrytitle>unitfile_mount</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> for more information on the specific unit configuration
+    files. The execution specific configuration options are configured in the
+    [Service], [Socket], [Mount], or [Swap] section, depending on the unit
+    type.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Options</title>
+
+    <variablelist class="unit-directives">
+      <varlistentry>
+        <term>
+          <varname>KillMode=</varname>
+        </term>
+
+        <listitem>
+          <para>Specifies how processes of this service shall be killed. One
+          of <option>control-group</option> , <option>process</option> ,
+          <option>none</option> .</para>
+
+          <para>If set to <option>control-group</option> , all remaining
+          processes in the control group of this unit will be terminated on
+          unit stop (for services: after the stop command is executed, as
+          configured with <varname>ExecStop=</varname> ). If set to
+          <option>process</option> , only the main process itself is killed.
+          If set to <option>none</option> , no process is killed. In this case
+          only the stop command will be executed on unit stop, but no process
+          be killed otherwise. Processes remaining alive after stop are left
+          in their control group and the control group continues to exist
+          after stop unless it is empty. Defaults to
+          <option>control-group</option> .</para>
+
+          <para>Processes will first be terminated via
+          <constant>SIGTERM</constant> (unless the signal to send is changed
+          via <varname>KillSignal=</varname> ). Optionally, this is
+          immediately followed by a <constant>SIGHUP</constant> (if enabled
+          with <varname>SendSIGHUP=</varname> ). If then, after a delay
+          (configured via the <varname>TimeoutStopSec=</varname> option),
+          processes still remain, the termination request is repeated with the
+          <constant>SIGKILL</constant> signal (unless this is disabled via the
+          <varname>SendSIGKILL=</varname> option). See <citerefentry>
+              <refentrytitle>kill</refentrytitle>
+
+              <manvolnum>2</manvolnum>
+            </citerefentry> for more information.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>
+          <varname>KillSignal=</varname>
+        </term>
+
+        <listitem>
+          <para>Specifies which signal to use when killing a service. Defaults
+          to <constant>SIGTERM</constant> .</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>
+          <varname>SendSIGHUP=</varname>
+        </term>
+
+        <listitem>
+          <para>Specifies whether to send <constant>SIGHUP</constant> to
+          remaining processes immediately after sending the signal configured
+          with <varname>KillSignal=</varname> . This is useful to indicate to
+          shells and shell-like programs that their connection has been
+          severed. Takes a boolean value. Defaults to "no".</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>
+          <varname>SendSIGKILL=</varname>
+        </term>
+
+        <listitem>
+          <para>Specifies whether to send <constant>SIGKILL</constant> to
+          remaining processes after a timeout, if the normal shutdown
+          procedure left processes of the service around. Takes a boolean
+          value. Defaults to "yes".</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>See Also</title>
+
+    <para><citerefentry>
+        <refentrytitle>systemd</refentrytitle>
+
+        <manvolnum>1</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>systemctl</refentrytitle>
+
+        <manvolnum>1</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>journalctl</refentrytitle>
+
+        <manvolnum>8</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>unitfile</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>unitfile_service</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>unitfile_socket</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>unitfile_swap</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>unitfile_mount</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>unitfile_exec</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>systemd.directives</refentrytitle>
+
+        <manvolnum>7</manvolnum>
+      </citerefentry></para>
+  </refsect1>
+</refentry>

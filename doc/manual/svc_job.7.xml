@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<refentry version="5.1" xmlns="http://docbook.org/ns/docbook"
+          xmlns:xlink="http://www.w3.org/1999/xlink"
+          xmlns:xila="http://www.w3.org/2001/XInclude/local-attributes"
+          xmlns:xi="http://www.w3.org/2001/XInclude"
+          xmlns:trans="http://docbook.org/ns/transclusion"
+          xmlns:svg="http://www.w3.org/2000/svg"
+          xmlns:m="http://www.w3.org/1998/Math/MathML"
+          xmlns:html="http://www.w3.org/1999/xhtml"
+          xmlns:db="http://docbook.org/ns/docbook">
+  <refmeta>
+    <refentrytitle>svc_job</refentrytitle>
+
+    <manvolnum>7</manvolnum>
+
+    <refmiscinfo class="manual">Standards, Environments, Macros, Character
+    Sets, and Miscellany.</refmiscinfo>
+
+    <refmiscinfo class="source">InitWare 0.7alpha</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>svc_job</refname>
+
+    <refpurpose>service scheduler jobs</refpurpose>
+  </refnamediv>
+
+  <refsection>
+    <title>Description</title>
+
+    <para>Jobs are one of the three fundamental elements (the Holy Trinity) of
+    InitWare, along with units (<citerefentry>
+        <refentrytitle>svc_unit</refentrytitle>
+
+        <manvolnum>7</manvolnum>
+      </citerefentry>) and transactions (<citerefentry>
+        <refentrytitle>svc_transaction</refentrytitle>
+
+        <manvolnum>7</manvolnum>
+      </citerefentry>).</para>
+  </refsection>
+</refentry>

@@ -177,7 +177,7 @@ along with systemd; If not, see <http://www.gnu.org/licenses/>.
         immediately after SIGTERM. This is useful to indicate to
         shells and shell-like processes that the connection has been
         severed. Also see <varname>SendSIGHUP=</varname> in
-        <citerefentry><refentrytitle>systemd.kill</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
+        <citerefentry><refentrytitle>unitfile_kill</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
         </para>
         </listitem>
       </varlistentry>

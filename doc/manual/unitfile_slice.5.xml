@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<refentry version="5.1" xmlns="http://docbook.org/ns/docbook"
+          xmlns:xlink="http://www.w3.org/1999/xlink"
+          xmlns:xila="http://www.w3.org/2001/XInclude/local-attributes"
+          xmlns:xi="http://www.w3.org/2001/XInclude"
+          xmlns:trans="http://docbook.org/ns/transclusion"
+          xmlns:svg="http://www.w3.org/2000/svg"
+          xmlns:m="http://www.w3.org/1998/Math/MathML"
+          xmlns:html="http://www.w3.org/1999/xhtml"
+          xmlns:db="http://docbook.org/ns/docbook">
+  <!--
+  This file is part of systemd.
+
+  Copyright 2010 Lennart Poettering
+
+  systemd is free software; you can redistribute it and/or modify it
+  under the terms of the GNU Lesser General Public License as published by
+  the Free Software Foundation; either version 2.1 of the License, or
+  (at your option) any later version.
+
+  systemd is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  Lesser General Public License for more details.
+
+  You should have received a copy of the GNU Lesser General Public License
+  along with systemd; If not, see <http://www.gnu.org/licenses/>.
+-->
+
+  <refmeta>
+    <refentrytitle>unitfile_slice</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo class="manual">File Formats</refmiscinfo>
+
+    <refmiscinfo class="source">InitWare 0.7alpha</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>unitfile_slice</refname>
+
+    <refpurpose>Slice unit configuration</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <para><replaceable>name</replaceable><filename>.slice</filename></para>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>A unit configuration file whose name ends in
+    <literal>.slice</literal> encodes information about a slice which is a
+    concept for hierarchically managing resources of a group of processes.
+    This management is performed by creating a node in the Linux Control Group
+    (cgroup) tree. Units that manage processes (primarily scope and service
+    units) may be assigned to a specific slice. For each slice, certain
+    resource limits may be set that apply to all processes of all units
+    contained in that slice. Slices are organized hierarchically in a tree.
+    The name of the slice encodes the location in the tree. The name consists
+    of a dash-separated series of names, which describes the path to the slice
+    from the root slice. The root slice is named, <filename>-.slice</filename>
+    . Example: <filename>foo-bar.slice</filename> is a slice that is located
+    within <filename>foo.slice</filename> , which in turn is located in the
+    root slice <filename>-.slice</filename> .</para>
+
+    <para>By default, service and scope units are placed in
+    <filename>system.slice</filename> , virtual machines and containers
+    registered with <citerefentry>
+        <refentrytitle>systemd-machined</refentrytitle>
+
+        <manvolnum>1</manvolnum>
+      </citerefentry> are found in <filename>machine.slice</filename> , and
+    user sessions handled by <citerefentry>
+        <refentrytitle>systemd-logind</refentrytitle>
+
+        <manvolnum>1</manvolnum>
+      </citerefentry> in <filename>user.slice</filename> . See <citerefentry>
+        <refentrytitle>systemd.special</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> for more information.</para>
+
+    <para>See <citerefentry>
+        <refentrytitle>unitfile</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> for the common options of all unit configuration files.
+    The common configuration items are configured in the generic [Unit] and
+    [Install] sections. The slice specific configuration options are
+    configured in the [Slice] section. Currently, only generic resource
+    control settings as described in <citerefentry>
+        <refentrytitle>unitfile_rlimit</refentrytitle>
+
+        <manvolnum>7</manvolnum>
+      </citerefentry> are allowed.</para>
+
+    <para>Unless <varname>DefaultDependencies=false</varname> is used, slice
+    units will implicitly have dependencies of type
+    <varname>Conflicts=</varname> and <varname>Before=</varname> on
+    <filename>shutdown.target</filename> . These ensure that slice units are
+    removed prior to system shutdown. Only slice units involved with early
+    boot or late system shutdown should disable this option.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See Also</title>
+
+    <para><citerefentry>
+        <refentrytitle>systemd</refentrytitle>
+
+        <manvolnum>1</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>unitfile</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>unitfile_rlimit</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>unitfile_service</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>unitfile_scope</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>systemd.special</refentrytitle>
+
+        <manvolnum>7</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>systemd.directives</refentrytitle>
+
+        <manvolnum>7</manvolnum>
+      </citerefentry></para>
+  </refsect1>
+</refentry>

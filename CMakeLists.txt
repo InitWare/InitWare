@@ -111,6 +111,7 @@ pkg_check_modules(Cap IMPORTED_TARGET libcap)
 pkg_check_modules(DBus REQUIRED IMPORTED_TARGET dbus-1)
 
 find_package (Threads REQUIRED)
+find_package (Python COMPONENTS Interpreter)
 
 check_include_file(asm/types.h Have_asm_types_h)
 check_include_file(linux/netlink.h Have_linux_netlink_h)
@@ -192,7 +193,7 @@ set(PACKAGE_VERSION v208)
 set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
 else()
 set(PACKAGE_NAME InitWare)
-set(PACKAGE_VERSION 0.9alpha)
+set(PACKAGE_VERSION 0.7alpha)
 set(PACKAGE_STRING "${PACKAGE_NAME} version ${PACKAGE_VERSION}")
 endif()
 

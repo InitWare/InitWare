@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<refentry version="5.1" xmlns="http://docbook.org/ns/docbook"
+          xmlns:xlink="http://www.w3.org/1999/xlink"
+          xmlns:xila="http://www.w3.org/2001/XInclude/local-attributes"
+          xmlns:xi="http://www.w3.org/2001/XInclude"
+          xmlns:trans="http://docbook.org/ns/transclusion"
+          xmlns:svg="http://www.w3.org/2000/svg"
+          xmlns:m="http://www.w3.org/1998/Math/MathML"
+          xmlns:html="http://www.w3.org/1999/xhtml"
+          xmlns:db="http://docbook.org/ns/docbook">
+  <!--
+  This file is part of systemd.
+
+  Copyright 2010 Lennart Poettering
+
+  systemd is free software; you can redistribute it and/or modify it
+  under the terms of the GNU Lesser General Public License as published by
+  the Free Software Foundation; either version 2.1 of the License, or
+  (at your option) any later version.
+
+  systemd is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  Lesser General Public License for more details.
+
+  You should have received a copy of the GNU Lesser General Public License
+  along with systemd; If not, see <http://www.gnu.org/licenses/>.
+-->
+
+  <refmeta>
+    <refentrytitle>unitfile_scope</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo class="manual">File Formats</refmiscinfo>
+
+    <refmiscinfo class="source">InitWare 0.7alpha</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>unitfile_scope</refname>
+
+    <refpurpose>Scope unit configuration</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <para><replaceable>name</replaceable><filename>.scope</filename></para>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Scope units are not configured via unit configuration files, but are
+    only created programmatically using the bus interfaces of systemd. They
+    are named similar to filenames. A unit whose name ends in
+    <literal>.scope</literal> refers to a scope unit. Scopes units manage a
+    set of system processes. Unlike service units, scope units manage
+    externally created processes, and do not fork off processes on its
+    own.</para>
+
+    <para>The main purpose of scope units is grouping worker processes of a
+    system service for organization and for managing resources.</para>
+
+    <para><command> systemd-run <option>--scope</option> </command> may be
+    used to easily launch a command in a new scope unit from the command
+    line.</para>
+
+    <para>See the <ulink
+    url="http://www.freedesktop.org/wiki/Software/systemd/ControlGroupInterface/">New
+    Control Group Interfaces</ulink> for an introduction how to make use of
+    scope units from programs.</para>
+
+    <para>Unless <varname>DefaultDependencies=false</varname> is used, scope
+    units will implicitly have dependencies of type
+    <varname>Conflicts=</varname> and <varname>Before=</varname> on
+    <filename>shutdown.target</filename> . These ensure that scope units are
+    removed prior to system shutdown. Only scope units involved with early
+    boot or late system shutdown should disable this option.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See Also</title>
+
+    <para><citerefentry>
+        <refentrytitle>systemd</refentrytitle>
+
+        <manvolnum>1</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>systemd-run</refentrytitle>
+
+        <manvolnum>1</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>unitfile</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>unitfile_rlimit</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>unitfile_service</refentrytitle>
+
+        <manvolnum>5</manvolnum>
+      </citerefentry> , <citerefentry>
+        <refentrytitle>systemd.directives</refentrytitle>
+
+        <manvolnum>7</manvolnum>
+      </citerefentry> .</para>
+  </refsect1>
+</refentry>
