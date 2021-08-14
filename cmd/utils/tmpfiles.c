@@ -54,6 +54,10 @@
 #include <sys/capability.h>
 #endif
 
+#ifdef Have_sys_sysmacros_h
+#include <sys/sysmacros.h>
+#endif
+
 /* This reads all files listed in /etc/tmpfiles.d/?*.conf and creates
  * them in the file system. This is intended to be used to create
  * properly owned directories beneath /tmp, /var/tmp, /run, which are

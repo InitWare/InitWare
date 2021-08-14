@@ -51,7 +51,7 @@ static void forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned 
 	union {
 		struct cmsghdr cmsghdr;
 #ifdef Sys_Plat_Linux
-		uint8_t buf[CMSG_SPACE(sizeof(CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE)))];
+		uint8_t buf[CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE)];
 #endif
 	} control;
 
@@ -68,8 +68,9 @@ static void forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned 
 		cmsg = CMSG_FIRSTHDR(&msghdr);
 		cmsg->cmsg_level = SOL_SOCKET;
 		cmsg->cmsg_type = SCM_CREDENTIALS;
-		cmsg->cmsg_len = CMSG_LEN(CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE));
-		memcpy(CMSG_DATA(cmsg), ucred, CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE));
+		cmsg->cmsg_len = CMSG_LEN(CMSG_CREDS_STRUCT_SIZE);
+		memcpy(CMSG_DATA(cmsg), ucred, CMSG_CREDS_STRUCT_SIZE);
+		cmsg = CMSG_FIRSTHDR(&msghdr);
 		msghdr.msg_controllen = cmsg->cmsg_len;
 	}
 #endif
@@ -98,7 +99,7 @@ static void forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned 
 
 		u = *ucred;
 		u.pid = getpid();
-		memcpy(CMSG_DATA(cmsg), &u, CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE));
+		memcpy(CMSG_DATA(cmsg), &u, CMSG_CREDS_STRUCT_SIZE);
 
 		if (sendmsg(s->syslog_watch.fd, &msghdr, MSG_NOSIGNAL) >= 0)
 			return;

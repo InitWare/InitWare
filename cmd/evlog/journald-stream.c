@@ -294,7 +294,7 @@ void stdout_stream_process(struct ev_loop *evloop, ev_io *watch, int revents)
 
 	if (revents != EV_READ) {
 		log_error("Bad event for stdout stream: %d\n", revents);
-		return;
+		goto closeit;
 	}
 
 	l = read(s->watch.fd, s->buffer + s->length, sizeof(s->buffer) - 1 - s->length);
@@ -304,21 +304,21 @@ void stdout_stream_process(struct ev_loop *evloop, ev_io *watch, int revents)
 			return;
 
 		log_warning("Failed to read from stream: %m");
-		return;
+		goto closeit;
 	}
 
 	if (l == 0) {
 		r = stdout_stream_scan(s, true);
-		if (r < 0)
-			return;
-
-		return;
+		goto closeit;
 	}
 
 	s->length += l;
 	r = stdout_stream_scan(s, false);
-	if (r < 0)
-		return;
+	if (r >= 0)
+		return; /* all OK */
+
+closeit:
+	stdout_stream_free(s);
 
 	return;
 }
