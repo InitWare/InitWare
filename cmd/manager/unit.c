@@ -1904,7 +1904,6 @@ void unit_tidy_watch_pids(Unit *u, pid_t except1, pid_t except2)
 }
 
 #pragma region Timers &Periodics
-
 static void unit_timer_cb(struct ev_loop *evloop, ev_timer *watch, int revents)
 {
         UNIT_VTABLE((Unit *) watch->data)->timer_event(watch->data, 1, watch);
@@ -1995,7 +1994,6 @@ void unit_unwatch_periodic(Unit *u, ev_periodic *watch)
         ev_periodic_stop(u->manager->evloop, watch);
         ev_periodic_zero(watch);
 }
-
 #pragma endregion
 
 bool unit_job_is_applicable(Unit *u, JobType j) {

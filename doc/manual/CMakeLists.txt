@@ -7,8 +7,7 @@ set(DOCBOOKS svc_job.7.xml unitfile.5.xml unitfile_automount.5.xml
     unitfile_scope.5.xml unitfile_socket.5.xml)
 
 if (Python_FOUND)
-	set(INDEX_XML "${CMAKE_CURRENT_BINARY_DIR}/index.xml")
-	set(INDEX_HTML "${CMAKE_CURRENT_BINARY_DIR}/index.xml")
+	set(INDEX_XML "${CMAKE_CURRENT_BINARY_DIR}/index.7.xml")
 
 	add_custom_command (OUTPUT  ${INDEX_XML}
 	    COMMAND $<TARGET_FILE:Python::Interpreter>
@@ -16,9 +15,9 @@ if (Python_FOUND)
 		${INDEX_XML} ${DOCBOOKS}
 	    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 	    DEPENDS ${DOCBOOKS}
-	    COMMENT "Generating manual page index index.xml")
+	    COMMENT "Generating manual page index index.7.xml")
 
-	list(APPEND DOCBOOKS ${CMAKE_CURRENT_BINARY_DIR}/index.xml)
+	list(APPEND DOCBOOKS ${CMAKE_CURRENT_BINARY_DIR}/index.7.xml)
 endif ()
 
 foreach (DOCBOOK_IN ${DOCBOOKS})

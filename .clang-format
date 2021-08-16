@@ -35,6 +35,7 @@ AlwaysBreakBeforeMultilineStrings: true
 AlwaysBreakTemplateDeclarations: Yes
 BinPackArguments: true
 BinPackParameters: true
+BitFieldColonSpacing: After
 BraceWrapping:
   SplitEmptyFunction: false
   SplitEmptyRecord: false

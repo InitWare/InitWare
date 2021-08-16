@@ -1619,7 +1619,7 @@ int exec_spawn(ExecCommand *command,
 #elif defined(Use_PTGroups)
         if (ptgroup_attach(ptg, ptm, pid) < 0)
                 log_error("Failed to attach pid %lu to ptgroup!", (unsigned long) pid);
-        
+
         if (write(waitfd[1], "0", 1) < 0)
                 log_error("Failed to write to pid %lu's wait-pipe!", (unsigned long) pid);
         close(waitfd[1]);

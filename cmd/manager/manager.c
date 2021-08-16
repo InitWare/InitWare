@@ -183,7 +183,6 @@ static int manager_setup_notify(Manager *m)
 }
 
 #pragma region Jobs - in - progress and Idle
-
 static void manager_print_jobs_in_progress(Manager *m);
 
 static void jobs_in_progress_timer_cb(struct ev_loop *evloop, ev_timer *watch, int revents)
@@ -373,7 +372,6 @@ static void close_idle_pipe(Manager *m)
         close_pipe(m->idle_pipe);
         close_pipe(m->idle_pipe + 2);
 }
-
 #pragma endregion
 
 

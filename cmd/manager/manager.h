@@ -67,6 +67,33 @@ typedef enum ManagerExitCode {
         _MANAGER_EXIT_CODE_INVALID = -1
 } ManagerExitCode;
 
+/** Additional flags for system instances. */
+typedef enum SystemdSystemFlags {
+	/**
+         * Running as PID 1?
+         *
+         * If so, we have special signal disposition and carry out special tasks
+         * (like mounting API filesystems).
+         */
+	SYSTEMD_PID1 = 1,
+	/**
+         * Running in a container?
+         *
+         * If so, and running as PID1, we skip things like setting up the clock
+         * and timezone, SELinux, etc.
+         *
+         */
+	SYSTEMD_CONTAINER = 2,
+	/**
+         * Running as an auxiliary service manager?
+         *
+         * Formally speaking, whether the D-Bus system bus is under our control.
+         * If true, then the scheduler will quit if it fails to connect to the
+         * system D-Bus.
+         */
+	SYSTEMD_AUXILIARY = 4,
+} SystemdSystemFlags;
+
 #include "unit.h"
 #include "job.h"
 #include "hashmap.h"
@@ -213,42 +240,52 @@ struct Manager {
          * file system */
         int pin_cgroupfs_fd;
 
-        /* Flags */
-        SystemdRunningAs running_as;
-        ManagerExitCode exit_code:5;
 
-        bool dispatching_load_queue:1;
-        bool dispatching_run_queue:1;
-        bool dispatching_dbus_queue:1;
+#pragma region Scheduler run state
+	/** Whether the scheduler is running as System or per-User manager. */
+	SystemdRunningAs running_as;
 
-        bool taint_usr:1;
+	/** If running as System manager, additional system manager flags. */
+	SystemdSystemFlags system_flags;
 
-        bool show_status;
-        bool confirm_spawn;
-        bool no_console_output;
+	/**
+         * If set to anything other than MANAGER_RUNNING, the main loop exits
+         * and carries out the specified kind of exit.
+         */
+	ManagerExitCode exit_code: 5;
+#pragma endregion
 
-        ExecOutput default_std_output, default_std_error;
+	bool dispatching_load_queue: 1;
+	bool dispatching_run_queue: 1;
+	bool dispatching_dbus_queue: 1;
 
-        usec_t default_restart_usec, default_timeout_start_usec,
-                default_timeout_stop_usec;
+	bool taint_usr: 1;
 
-        usec_t default_start_limit_interval;
-        unsigned default_start_limit_burst;
+	bool show_status;
+	bool confirm_spawn;
+	bool no_console_output;
 
-        struct rlimit *rlimit[RLIM_NLIMITS];
+	ExecOutput default_std_output, default_std_error;
 
-        /* non-zero if we are reloading or reexecuting, */
-        int n_reloading;
+	usec_t default_restart_usec, default_timeout_start_usec, default_timeout_stop_usec;
 
-        unsigned n_installed_jobs;
-        unsigned n_failed_jobs;
+	usec_t default_start_limit_interval;
+	unsigned default_start_limit_burst;
 
-        /* Jobs in progress watching */
-        unsigned n_running_jobs;
-        unsigned n_on_console;
-        unsigned jobs_in_progress_iteration;
+	struct rlimit *rlimit[RLIM_NLIMITS];
 
-        /* Type=idle pipes */
+	/* non-zero if we are reloading or reexecuting, */
+	int n_reloading;
+
+	unsigned n_installed_jobs;
+	unsigned n_failed_jobs;
+
+	/* Jobs in progress watching */
+	unsigned n_running_jobs;
+	unsigned n_on_console;
+	unsigned jobs_in_progress_iteration;
+
+	/* Type=idle pipes */
         int idle_pipe[4];
 
         char *switch_root;

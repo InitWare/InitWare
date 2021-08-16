@@ -95,6 +95,7 @@ static enum {
 
 static char *arg_default_unit = NULL;
 static SystemdRunningAs arg_running_as = _SYSTEMD_RUNNING_AS_INVALID;
+static bool arg_auxiliary = false;
 
 static bool arg_dump_core = true;
 static bool arg_crash_shell = false;
@@ -751,55 +752,63 @@ static int parse_proc_cmdline(void) {
 
 static int parse_argv(int argc, char *argv[]) {
 
-        enum {
-                ARG_LOG_LEVEL = 0x100,
-                ARG_LOG_TARGET,
-                ARG_LOG_COLOR,
-                ARG_LOG_LOCATION,
-                ARG_UNIT,
-                ARG_SYSTEM,
-                ARG_USER,
-                ARG_TEST,
-                ARG_VERSION,
-                ARG_DUMP_CONFIGURATION_ITEMS,
-                ARG_DUMP_CORE,
-                ARG_CRASH_SHELL,
-                ARG_CONFIRM_SPAWN,
-                ARG_SHOW_STATUS,
-                ARG_DESERIALIZE,
-                ARG_DAEMONISE,
-                ARG_SWITCHED_ROOT,
-                ARG_INTROSPECT,
-                ARG_DEFAULT_STD_OUTPUT,
-                ARG_DEFAULT_STD_ERROR
-        };
+	enum {
+		ARG_LOG_LEVEL = 0x100,
+		ARG_LOG_TARGET,
+		ARG_LOG_COLOR,
+		ARG_LOG_LOCATION,
+		ARG_UNIT,
+		ARG_SYSTEM,
+		ARG_AUXILIARY,
+		ARG_USER,
+		ARG_TEST,
+		ARG_VERSION,
+		ARG_DUMP_CONFIGURATION_ITEMS,
+		ARG_DUMP_CORE,
+		ARG_CRASH_SHELL,
+		ARG_CONFIRM_SPAWN,
+		ARG_SHOW_STATUS,
+		ARG_DESERIALIZE,
+		ARG_DAEMONISE,
+		ARG_SWITCHED_ROOT,
+		ARG_INTROSPECT,
+		ARG_DEFAULT_STD_OUTPUT,
+		ARG_DEFAULT_STD_ERROR
+	};
 
-        static const struct option options[] = {
-                { "log-level",                required_argument, NULL, ARG_LOG_LEVEL                },
-                { "log-target",               required_argument, NULL, ARG_LOG_TARGET               },
-                { "log-color",                optional_argument, NULL, ARG_LOG_COLOR                },
-                { "log-location",             optional_argument, NULL, ARG_LOG_LOCATION             },
-                { "unit",                     required_argument, NULL, ARG_UNIT                     },
-                { "system",                   no_argument,       NULL, ARG_SYSTEM                   },
-                { "user",                     no_argument,       NULL, ARG_USER                     },
-                { "test",                     no_argument,       NULL, ARG_TEST                     },
-                { "help",                     no_argument,       NULL, 'h'                          },
-                { "version",                  no_argument,       NULL, ARG_VERSION                  },
-                { "dump-configuration-items", no_argument,       NULL, ARG_DUMP_CONFIGURATION_ITEMS },
-                { "dump-core",                optional_argument, NULL, ARG_DUMP_CORE                },
-                { "crash-shell",              optional_argument, NULL, ARG_CRASH_SHELL              },
-                { "confirm-spawn",            optional_argument, NULL, ARG_CONFIRM_SPAWN            },
-                { "show-status",              optional_argument, NULL, ARG_SHOW_STATUS              },
-                { "deserialize",              required_argument, NULL, ARG_DESERIALIZE              },
-                { "daemonise",                no_argument, NULL, ARG_DAEMONISE                      },
-                { "switched-root",            no_argument,       NULL, ARG_SWITCHED_ROOT            },
-                { "introspect",               optional_argument, NULL, ARG_INTROSPECT               },
-                { "default-standard-output",  required_argument, NULL, ARG_DEFAULT_STD_OUTPUT,      },
-                { "default-standard-error",   required_argument, NULL, ARG_DEFAULT_STD_ERROR,       },
-                { NULL,                       0,                 NULL, 0                            }
-        };
+	static const struct option options[] = { { "log-level", required_argument, NULL,
+						     ARG_LOG_LEVEL },
+		{ "log-target", required_argument, NULL, ARG_LOG_TARGET },
+		{ "log-color", optional_argument, NULL, ARG_LOG_COLOR },
+		{ "log-location", optional_argument, NULL, ARG_LOG_LOCATION },
+		{ "unit", required_argument, NULL, ARG_UNIT },
+		{ "system", no_argument, NULL, ARG_SYSTEM },
+		{ "user", no_argument, NULL, ARG_USER }, { "test", no_argument, NULL, ARG_TEST },
+		{ "help", no_argument, NULL, 'h' }, { "version", no_argument, NULL, ARG_VERSION },
+		{ "dump-configuration-items", no_argument, NULL, ARG_DUMP_CONFIGURATION_ITEMS },
+		{ "dump-core", optional_argument, NULL, ARG_DUMP_CORE },
+		{ "crash-shell", optional_argument, NULL, ARG_CRASH_SHELL },
+		{ "confirm-spawn", optional_argument, NULL, ARG_CONFIRM_SPAWN },
+		{ "show-status", optional_argument, NULL, ARG_SHOW_STATUS },
+		{ "deserialize", required_argument, NULL, ARG_DESERIALIZE },
+		{ "daemonise", no_argument, NULL, ARG_DAEMONISE },
+		{ "switched-root", no_argument, NULL, ARG_SWITCHED_ROOT },
+		{ "introspect", optional_argument, NULL, ARG_INTROSPECT },
+		{
+		    "default-standard-output",
+		    required_argument,
+		    NULL,
+		    ARG_DEFAULT_STD_OUTPUT,
+		},
+		{
+		    "default-standard-error",
+		    required_argument,
+		    NULL,
+		    ARG_DEFAULT_STD_ERROR,
+		},
+		{ NULL, 0, NULL, 0 } };
 
-        int c, r;
+	int c, r;
 
         assert(argc >= 1);
         assert(argv);
@@ -883,9 +892,13 @@ static int parse_argv(int argc, char *argv[]) {
                         arg_running_as = SYSTEMD_SYSTEM;
                         break;
 
-                case ARG_USER:
-                        arg_running_as = SYSTEMD_USER;
-                        break;
+		case ARG_AUXILIARY:
+			arg_auxiliary = true;
+			break;
+
+		case ARG_USER:
+			arg_running_as = SYSTEMD_USER;
+			break;
 
                 case ARG_TEST:
                         arg_action = ACTION_TEST;
@@ -1287,6 +1300,7 @@ int main(int argc, char *argv[]) {
         bool queue_default_job = false;
         char *switch_root_dir = NULL, *switch_root_init = NULL;
         static struct rlimit saved_rlimit_nofile = { 0, 0 };
+	bool is_pid1 = false;
 #ifdef Sys_Plat_BSD
 	struct pidfh *pfh = NULL;
 	pid_t oldpid;
@@ -1330,11 +1344,32 @@ int main(int argc, char *argv[]) {
 	}
 #endif
 
+	is_pid1 = getpid() == 1;
+
 	/* Determine if this is a reexecution or normal bootup. We do
          * the full command line parsing much later, so let's just
          * have a quick peek here. */
 	if (strv_find(argv + 1, "--deserialize"))
 		skip_setup = true;
+
+	if (strv_find(argv + 1, "--system"))
+		arg_running_as = SYSTEMD_SYSTEM;
+	else /* no explicit argument means run as user manager. */
+		arg_running_as = SYSTEMD_USER;
+
+	if (strv_find(argv + 1, "--auxiliary")) {
+		skip_setup = 1;
+		arg_auxiliary = true;
+		if (is_pid1) {
+			log_error("Cannot be both PID 1 and auxiliary.\n");
+			retval = EXIT_FAILURE;
+			goto finish;
+		} else if (arg_running_as != SYSTEMD_SYSTEM) {
+			log_error("Only system instances can be auxiliary.\n");
+			retval = EXIT_FAILURE;
+			goto finish;
+		}
+	}
 
 	/* If we have switched root, do all the special setup
          * things */
@@ -1346,61 +1381,63 @@ int main(int argc, char *argv[]) {
            called 'systemd'. That is confusing, hence let's call us
            systemd right-away. */
 #ifdef Have_program_invocation_short_name
-        program_invocation_short_name = systemd;
+	program_invocation_short_name = systemd;
 #endif
 #if defined(Have_sys_prctl_h)
 	prctl(PR_SET_NAME, systemd);
 #elif defined(HAVE_setproctitle)
 #endif
 
-        saved_argv = argv;
-        saved_argc = argc;
+	saved_argv = argv;
+	saved_argc = argc;
 
-        log_show_color(isatty(STDERR_FILENO) > 0);
+	log_show_color(isatty(STDERR_FILENO) > 0);
 
-        /* Disable the umask logic */
-        if (getpid() == 1)
-                umask(0);
+	/* Disable the umask logic */
+	if (arg_running_as == SYSTEMD_SYSTEM)
+		umask(0);
 
-        if (getpid() == 1 && detect_container(NULL) <= 0) {
+	if (arg_running_as == SYSTEMD_SYSTEM && detect_container(NULL) <= 0) {
 
-                /* Running outside of a container as PID 1 */
-                arg_running_as = SYSTEMD_SYSTEM;
-                make_null_stdio();
-                log_set_target(LOG_TARGET_KMSG);
-                log_open();
+		/* Running outside of a container as system manager */
+		assert(arg_running_as == SYSTEMD_SYSTEM);
+		make_null_stdio();
+		log_set_target(LOG_TARGET_KMSG);
+		log_open();
 
-                if (in_initrd())
-                        initrd_timestamp = userspace_timestamp;
+		if (in_initrd())
+			initrd_timestamp = userspace_timestamp;
 
-                if (!skip_setup) {
+		if (!skip_setup) {
 #ifdef Sys_Plat_Linux
-                        mount_setup_early();
-                        if (selinux_setup(&loaded_policy) < 0)
-                                goto finish;
+			mount_setup_early();
+			if (selinux_setup(&loaded_policy) < 0)
+				goto finish;
 #endif
-                        if (ima_setup() < 0)
-                                goto finish;
-                        if (smack_setup() < 0)
-                                goto finish;
-                }
+			if (ima_setup() < 0)
+				goto finish;
+			if (smack_setup() < 0)
+				goto finish;
+		}
 
-                if (label_init(NULL) < 0)
-                        goto finish;
+		if (label_init(NULL) < 0)
+			goto finish;
 
-                if (!skip_setup) {
+		if (!skip_setup) {
 #ifdef Sys_Plat_Linux
-                        if (hwclock_is_localtime() > 0) {
-                                int min;
+			if (hwclock_is_localtime() > 0) {
+				int min;
 
-                                /* The first-time call to settimeofday() does a time warp in the kernel */
-                                r = hwclock_set_timezone(&min);
-                                if (r < 0)
-                                        log_error("Failed to apply local time delta, ignoring: %s", strerror(-r));
-                                else
-                                        log_info("RTC configured in localtime, applying delta of %i minutes to system time.", min);
-                        } else if (!in_initrd()) {
-                                /*
+				/* The first-time call to settimeofday() does a time warp in the kernel */
+				r = hwclock_set_timezone(&min);
+				if (r < 0)
+					log_error("Failed to apply local time delta, ignoring: %s",
+					    strerror(-r));
+				else
+					log_info("RTC configured in localtime, applying delta of %i minutes to system time.",
+					    min);
+			} else if (!in_initrd()) {
+				/*
                                  * Do dummy first-time call to seal the kernel's time warp magic
                                  *
                                  * Do not call this this from inside the initrd. The initrd might not
@@ -1408,79 +1445,78 @@ int main(int argc, char *argv[]) {
                                  * that way. In such case, we need to delay the time-warp or the sealing
                                  * until we reach the real system.
                                  */
-                                hwclock_reset_timezone();
+				hwclock_reset_timezone();
 
-                                /* Tell the kernel our timezone */
-                                r = hwclock_set_timezone(NULL);
-                                if (r < 0)
-                                        log_error("Failed to set the kernel's timezone, ignoring: %s", strerror(-r));
-                        }
+				/* Tell the kernel our timezone */
+				r = hwclock_set_timezone(NULL);
+				if (r < 0)
+					log_error("Failed to set the kernel's timezone, ignoring: %s",
+					    strerror(-r));
+			}
 #else
 #endif
-                }
+		}
 
-                /* Set the default for later on, but don't actually
+		/* Set the default for later on, but don't actually
                  * open the logs like this for now. Note that if we
                  * are transitioning from the initrd there might still
                  * be journal fd open, and we shouldn't attempt
                  * opening that before we parsed /proc/cmdline which
                  * might redirect output elsewhere. */
-                log_set_target(LOG_TARGET_JOURNAL_OR_KMSG);
+		log_set_target(LOG_TARGET_JOURNAL_OR_KMSG);
 
-        } else if (getpid() == 1) {
-                /* Running inside a container, as PID 1 */
-                arg_running_as = SYSTEMD_SYSTEM;
-                log_set_target(LOG_TARGET_CONSOLE);
-                log_close_console(); /* force reopen of /dev/console */
-                log_open();
+	} else if (arg_running_as == SYSTEMD_SYSTEM) {
+		/* Running inside a container, as PID 1 */
+		log_set_target(LOG_TARGET_CONSOLE);
+		log_close_console(); /* force reopen of /dev/console */
+		log_open();
 
-                /* For the later on, see above... */
-                log_set_target(LOG_TARGET_JOURNAL);
+		/* For the later on, see above... */
+		log_set_target(LOG_TARGET_JOURNAL);
 
-                /* clear the kernel timestamp,
+		/* clear the kernel timestamp,
                  * because we are in a container */
-                kernel_timestamp.monotonic = 0ULL;
-                kernel_timestamp.realtime = 0ULL;
+		kernel_timestamp.monotonic = 0ULL;
+		kernel_timestamp.realtime = 0ULL;
 
-        } else {
-                /* Running as user instance */
-                arg_running_as = SYSTEMD_USER;
-                log_set_target(LOG_TARGET_AUTO);
-                log_open();
+	} else {
+		/* Running as user instance */
+		log_set_target(LOG_TARGET_AUTO);
+		log_open();
 
-                /* clear the kernel timestamp,
+		/* clear the kernel timestamp,
                  * because we are not PID 1 */
-                kernel_timestamp.monotonic = 0ULL;
-                kernel_timestamp.realtime = 0ULL;
-        }
+		kernel_timestamp.monotonic = 0ULL;
+		kernel_timestamp.realtime = 0ULL;
+	}
 
-        /* Initialize default unit */
-        r = set_default_unit(SPECIAL_DEFAULT_TARGET);
-        if (r < 0) {
-                log_error("Failed to set default unit %s: %s", SPECIAL_DEFAULT_TARGET, strerror(-r));
-                goto finish;
-        }
+	/* Initialize default unit */
+	r = set_default_unit(SPECIAL_DEFAULT_TARGET);
+	if (r < 0) {
+		log_error("Failed to set default unit %s: %s", SPECIAL_DEFAULT_TARGET, strerror(-r));
+		goto finish;
+	}
 
-        r = initialize_join_controllers();
-        if (r < 0)
-                goto finish;
+	r = initialize_join_controllers();
+	if (r < 0)
+		goto finish;
 
-        /* Mount /proc, /sys and friends, so that /proc/cmdline and
+	/* Mount /proc, /sys and friends, so that /proc/cmdline and
          * /proc/$PID/fd is available. */
-        if (getpid() == 1) {
+	if (is_pid1) {
 #ifdef Sys_Plat_Linux
                 r = mount_setup(loaded_policy);
 #endif
                 if (r < 0)
                         goto finish;
-        }
+	}
 
-        /* Reset all signal handlers. */
-        assert_se(reset_all_signal_handlers() == 0);
+	/* Reset all signal handlers. */
+	assert_se(reset_all_signal_handlers() == 0);
 
-        ignore_signals(SIGNALS_IGNORE, -1);
+	ignore_signals(SIGNALS_IGNORE, -1);
 
-        if (parse_config_file() < 0)
+	if (parse_config_file() < 0)
                 goto finish;
 
         if (arg_running_as == SYSTEMD_SYSTEM)
@@ -1554,39 +1590,39 @@ int main(int argc, char *argv[]) {
         /* Reset the console, but only if this is really init and we
          * are freshly booted */
         if (arg_running_as == SYSTEMD_SYSTEM && arg_action == ACTION_RUN)
-                console_setup(getpid() == 1 && !skip_setup);
+		console_setup(is_pid1 && !skip_setup);
 
-        /* Open the logging devices, if possible and necessary */
-        log_open();
+	/* Open the logging devices, if possible and necessary */
+	log_open();
 
         /* Make sure we leave a core dump without panicing the
          * kernel. */
-        if (getpid() == 1) {
-                install_crash_handler();
+	if (is_pid1) {
+		install_crash_handler();
 
 #ifdef Sys_Plat_Linux
                 r = mount_cgroup_controllers(arg_join_controllers);
 #endif
                 if (r < 0)
                         goto finish;
-        }
+	}
 
-        if (arg_running_as == SYSTEMD_SYSTEM) {
-                const char *virtualization = NULL;
+	if (arg_running_as == SYSTEMD_SYSTEM) {
+		const char *virtualization = NULL;
 
-                log_info(PACKAGE_STRING " running in system mode. (" SYSTEMD_FEATURES ")");
+		log_info(PACKAGE_STRING " running in system mode. (" SYSTEMD_FEATURES ")");
 
-                detect_virtualization(&virtualization);
-                if (virtualization)
-                        log_info("Detected virtualization '%s'.", virtualization);
+		detect_virtualization(&virtualization);
+		if (virtualization)
+			log_info("Detected virtualization '%s'.", virtualization);
 
-                if (in_initrd())
-                        log_info("Running in initial RAM disk.");
+		if (in_initrd())
+			log_info("Running in initial RAM disk.");
 
-        } else
-                log_debug(PACKAGE_STRING " running in user mode. (" SYSTEMD_FEATURES ")");
+	} else
+		log_info(PACKAGE_STRING " running in user mode. (" SYSTEMD_FEATURES ")");
 
-        if (arg_running_as == SYSTEMD_SYSTEM && !skip_setup) {
+	if (arg_running_as == SYSTEMD_SYSTEM && !skip_setup) {
                 if (arg_show_status || plymouth_running())
                         status_welcome();
 
@@ -1609,11 +1645,9 @@ int main(int argc, char *argv[]) {
 
 #ifdef Sys_Plat_Linux
         if (arg_running_as == SYSTEMD_SYSTEM && arg_runtime_watchdog > 0)
-                watchdog_set_timeout(&arg_runtime_watchdog);
-#endif
+		watchdog_set_timeout(&arg_runtime_watchdog);
 
-#ifdef Sys_Plat_Linux
-        if (arg_timer_slack_nsec != (nsec_t) -1)
+	if (arg_timer_slack_nsec != (nsec_t) -1)
                 if (prctl(PR_SET_TIMERSLACK, arg_timer_slack_nsec) < 0)
                         log_error("Failed to adjust timer slack: %m");
 #endif
@@ -1658,9 +1692,16 @@ int main(int argc, char *argv[]) {
                 goto finish;
         }
 
-        m->confirm_spawn = arg_confirm_spawn;
-        m->default_std_output = arg_default_std_output;
-        m->default_std_error = arg_default_std_error;
+	if (is_pid1)
+		m->system_flags |= SYSTEMD_PID1;
+	if (arg_auxiliary)
+		m->system_flags |= SYSTEMD_AUXILIARY;
+	if (detect_container(NULL))
+		m->system_flags |= SYSTEMD_CONTAINER;
+
+	m->confirm_spawn = arg_confirm_spawn;
+	m->default_std_output = arg_default_std_output;
+	m->default_std_error = arg_default_std_error;
         m->default_restart_usec = arg_default_restart_usec;
         m->default_timeout_start_usec = arg_default_timeout_start_usec;
         m->default_timeout_stop_usec = arg_default_timeout_stop_usec;
@@ -1907,7 +1948,9 @@ finish:
                         if (switch_root_dir)
                                 args[i++] = "--switched-root";
                         args[i++] = arg_running_as == SYSTEMD_SYSTEM ? "--system" : "--user";
-                        args[i++] = "--deserialize";
+			if (m->system_flags & SYSTEMD_AUXILIARY)
+				args[i++] = "--auxiliary";
+			args[i++] = "--deserialize";
                         args[i++] = sfd;
                         args[i++] = NULL;
 
