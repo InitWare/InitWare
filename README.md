@@ -23,9 +23,14 @@ retains compatibility with many systemd interfaces.
 ## How does InitWare differ from systemd?
 
 In three ways: InitWare is highly portable, it is more modular, and it is of a
-much more clearly-defined scope. See [The InitWare philosophy].
+much more clearly-defined scope. See [The InitWare philosophy]. Some components
+of systemd failing to provide compelling benefits are dropped; see
+[Dropped components].
 
 [The InitWare philosophy]: https://github.com/InitWare/InitWare/wiki/The-InitWare-philosophy
+
+[Dropped components]: https://github.com/InitWare/InitWare/wiki/Dropped-components
+
 
 ## How compatible is InitWare with systemd?
 
