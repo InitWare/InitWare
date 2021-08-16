@@ -114,10 +114,11 @@ following:
 - Typical build prerequisites (e.g. `build-essential` on Debian)
 - CMake 3.9+
 - GPerf
+- Pkg-Config or pkgconf
 - M4, Awk
 
-For building HTML documentation, OpenBSD's [ManDoc](https://mandoc.bsd.lv) is
-required.
+For building the index manual page, Python 3 is required. To build HTML
+documentation, DocBook stylesheets and LibXML's `xsltproc` are required.
 
 Building is done in the typical CMake way, i.e.
 `git submodule update --init --recursive && cmake && make && make install`.
