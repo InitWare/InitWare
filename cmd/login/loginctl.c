@@ -284,7 +284,7 @@ static int show_unit_cgroup(DBusConnection *bus, const char *interface, const ch
 
         r = bus_method_call_with_reply(
                         bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         path,
                         "org.freedesktop.DBus.Properties",
                         "Get",

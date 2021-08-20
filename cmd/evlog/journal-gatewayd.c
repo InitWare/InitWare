@@ -756,9 +756,9 @@ static int get_virtualization(char **v)
 	if (r < 0)
 		return r;
 
-	r = sd_bus_call_method(bus, "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
+	r = sd_bus_call_method(bus, SCHEDULER_DBUS_BUSNAME, "/org/freedesktop/systemd1",
 	    "org.freedesktop.DBus.Properties", "Get", NULL, &reply, "ss",
-	    "org.freedesktop.systemd1.Manager", "Virtualization");
+	    SCHEDULER_DBUS_INTERFACE_MANAGER, "Virtualization");
 	if (r < 0)
 		return r;
 

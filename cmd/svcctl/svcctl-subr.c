@@ -342,7 +342,7 @@ static int get_unit_list(DBusConnection *bus, DBusMessage **reply, struct unit_i
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 "/org/freedesktop/systemd1",
                 SCHEDULER_DBUS_INTERFACE ".Manager",
                 "ListUnits",
@@ -402,7 +402,7 @@ static int get_triggered_units(DBusConnection *bus, const char *unit_path, char 
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 unit_path,
                 "org.freedesktop.DBus.Properties",
                 "Get",
@@ -453,7 +453,7 @@ static int get_listening(DBusConnection *bus, const char *unit_path, char ***lis
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 unit_path,
                 "org.freedesktop.DBus.Properties",
                 "Get",
@@ -800,7 +800,7 @@ int list_unit_files(DBusConnection *bus, char **args) {
         } else {
                 r = bus_method_call_with_reply(
                         bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         "/org/freedesktop/systemd1",
                         SCHEDULER_DBUS_INTERFACE ".Manager",
                         "ListUnitFiles",
@@ -936,7 +936,7 @@ static int list_dependencies_get_dependencies(DBusConnection *bus, const char *n
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 path,
                 "org.freedesktop.DBus.Properties",
                 "GetAll",
@@ -1109,7 +1109,7 @@ int get_default(DBusConnection *bus, char **args) {
         } else {
                 r = bus_method_call_with_reply(
                         bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         "/org/freedesktop/systemd1",
                         SCHEDULER_DBUS_INTERFACE ".Manager",
                         "GetDefaultTarget",
@@ -1224,7 +1224,7 @@ int list_jobs(DBusConnection *bus, char **args) {
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 "/org/freedesktop/systemd1",
                 SCHEDULER_DBUS_INTERFACE ".Manager",
                 "ListJobs",
@@ -1311,7 +1311,7 @@ int cancel_job(DBusConnection *bus, char **args) {
 
                 r = bus_method_call_with_reply(
                         bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         "/org/freedesktop/systemd1",
                         SCHEDULER_DBUS_INTERFACE ".Manager",
                         "CancelJob",
@@ -1346,7 +1346,7 @@ static int need_daemon_reload(DBusConnection *bus, const char *unit) {
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 "/org/freedesktop/systemd1",
                 SCHEDULER_DBUS_INTERFACE ".Manager",
                 "GetUnit",
@@ -1366,7 +1366,7 @@ static int need_daemon_reload(DBusConnection *bus, const char *unit) {
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 path,
                 "org.freedesktop.DBus.Properties",
                 "Get",
@@ -1586,7 +1586,7 @@ static int check_one_unit(DBusConnection *bus, const char *name, char **check_st
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 "/org/freedesktop/systemd1",
                 SCHEDULER_DBUS_INTERFACE ".Manager",
                 "GetUnit",
@@ -1613,7 +1613,7 @@ static int check_one_unit(DBusConnection *bus, const char *name, char **check_st
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 path,
                 "org.freedesktop.DBus.Properties",
                 "Get",
@@ -1675,7 +1675,7 @@ static void check_triggering_units(DBusConnection *bus, const char *unit_name) {
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 unit_path,
                 "org.freedesktop.DBus.Properties",
                 "Get",
@@ -1712,7 +1712,7 @@ static void check_triggering_units(DBusConnection *bus, const char *unit_name) {
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 unit_path,
                 "org.freedesktop.DBus.Properties",
                 "Get",
@@ -1783,7 +1783,7 @@ static int start_unit_one(
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 "/org/freedesktop/systemd1",
                 SCHEDULER_DBUS_INTERFACE ".Manager",
                 method,
@@ -1992,7 +1992,7 @@ int reboot_with_logind(DBusConnection *bus, enum action a) {
                 return -EINVAL;
         }
 
-	return bus_method_call_with_reply(bus, "org.freedesktop.login1", "/org/freedesktop/login1",
+	return bus_method_call_with_reply(bus, SESSIOND_DBUS_BUSNAME, "/org/freedesktop/login1",
 	    SESSIOND_DBUS_INTERFACE ".Manager", method, NULL, NULL, DBUS_TYPE_BOOLEAN,
 	    &interactive, DBUS_TYPE_INVALID);
 #else
@@ -2236,7 +2236,7 @@ int kill_unit(DBusConnection *bus, char **args) {
 
                 r = bus_method_call_with_reply(
                         bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         "/org/freedesktop/systemd1",
                         SCHEDULER_DBUS_INTERFACE ".Manager",
                         "KillUnit",
@@ -3334,7 +3334,7 @@ static int show_one(
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 path,
                 "org.freedesktop.DBus.Properties",
                 "GetAll",
@@ -3431,7 +3431,7 @@ static int show_one_by_pid(const char *verb, DBusConnection *bus, uint32_t pid, 
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 "/org/freedesktop/systemd1",
                 SCHEDULER_DBUS_INTERFACE ".Manager",
                 "GetUnitByPID",
@@ -3841,7 +3841,7 @@ int snapshot(DBusConnection *bus, char **args) {
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 "/org/freedesktop/systemd1",
                 SCHEDULER_DBUS_INTERFACE ".Manager",
                 "CreateSnapshot",
@@ -3866,7 +3866,7 @@ int snapshot(DBusConnection *bus, char **args) {
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 path,
                 "org.freedesktop.DBus.Properties",
                 "Get",
@@ -3916,7 +3916,7 @@ int delete_snapshot(DBusConnection *bus, char **args) {
 
                 r = bus_method_call_with_reply(
                         bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         "/org/freedesktop/systemd1",
                         SCHEDULER_DBUS_INTERFACE ".Manager",
                         "RemoveSnapshot",
@@ -3957,7 +3957,7 @@ int daemon_reload(DBusConnection *bus, char **args) {
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 "/org/freedesktop/systemd1",
                 SCHEDULER_DBUS_INTERFACE ".Manager",
                 method,
@@ -3996,7 +3996,7 @@ int reset_failed(DBusConnection *bus, char **args) {
 
                 r = bus_method_call_with_reply(
                         bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         "/org/freedesktop/systemd1",
                         SCHEDULER_DBUS_INTERFACE ".Manager",
                         "ResetFailedUnit",
@@ -4022,7 +4022,7 @@ int show_environment(DBusConnection *bus, char **args) {
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 "/org/freedesktop/systemd1",
                 "org.freedesktop.DBus.Properties",
                 "Get",
@@ -4097,7 +4097,7 @@ int switch_root(DBusConnection *bus, char **args) {
 
         return bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 "/org/freedesktop/systemd1",
                 SCHEDULER_DBUS_INTERFACE ".Manager",
                 "SwitchRoot",
@@ -4600,7 +4600,7 @@ int unit_is_enabled(DBusConnection *bus, char **args) {
 
                         r = bus_method_call_with_reply(
                                 bus,
-                                SCHEDULER_DBUS_INTERFACE,
+                                SCHEDULER_DBUS_BUSNAME,
                                 "/org/freedesktop/systemd1",
                                 SCHEDULER_DBUS_INTERFACE ".Manager",
                                 "GetUnitFileState",

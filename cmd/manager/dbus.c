@@ -599,7 +599,7 @@ static int init_registered_system_bus(Manager *m) {
 
                 dbus_bus_add_match(m->system_bus,
                                    "type='signal',"
-                                   "interface='org.freedesktop.systemd1.Agent',"
+                                   "interface='" SCHEDULER_DBUS_INTERFACE ".Agent',"
                                    "member='Released',"
                                    "path='/org/freedesktop/systemd1/agent'",
                                    &error);
@@ -641,7 +641,7 @@ static int init_registered_api_bus(Manager *m) {
         dbus_bus_add_match(m->api_bus,
                            "type='signal',"
                            "sender='"DBUS_SERVICE_DBUS"',"
-                           "interface='org.freedesktop.systemd1.Activator',"
+                           "interface='" SCHEDULER_DBUS_INTERFACE ".Activator',"
                            "member='ActivationRequest',"
                            "path='"DBUS_PATH_DBUS"'",
                            NULL);

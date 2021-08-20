@@ -59,7 +59,7 @@
 
 #define INTERFACES_LIST                              \
         BUS_GENERIC_INTERFACES_LIST                  \
-        "org.freedesktop.login1.User\0"
+        SESSIOND_DBUS_INTERFACE ".User\0"
 
 static int bus_user_append_display(DBusMessageIter *i, const char *property, void *data) {
         DBusMessageIter sub;

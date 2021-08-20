@@ -1027,7 +1027,7 @@ static int execute_shutdown_or_sleep(
 
         r = bus_method_call_with_reply(
                         m->bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         "/org/freedesktop/systemd1",
                         SCHEDULER_DBUS_INTERFACE ".Manager",
                         "StartUnit",
@@ -2635,7 +2635,7 @@ int manager_start_unit(Manager *manager, const char *unit, DBusError *error, cha
 
         r = bus_method_call_with_reply(
                         manager->bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         "/org/freedesktop/systemd1",
                         SCHEDULER_DBUS_INTERFACE ".Manager",
                         "StartUnit",
@@ -2680,7 +2680,7 @@ int manager_stop_unit(Manager *manager, const char *unit, DBusError *error, char
 
         r = bus_method_call_with_reply(
                         manager->bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         "/org/freedesktop/systemd1",
                         SCHEDULER_DBUS_INTERFACE ".Manager",
                         "StopUnit",
@@ -2739,7 +2739,7 @@ int manager_abandon_scope(Manager *manager, const char *scope, DBusError *error)
 
         r = bus_method_call_with_reply(
                 manager->bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 path,
                 SCHEDULER_DBUS_INTERFACE ".Scope",
                 "Abandon",
@@ -2768,7 +2768,7 @@ int manager_kill_unit(Manager *manager, const char *unit, KillWho who, int signo
 
         r = bus_method_call_with_reply(
                         manager->bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         "/org/freedesktop/systemd1",
                         SCHEDULER_DBUS_INTERFACE ".Manager",
                         "KillUnit",
@@ -2808,7 +2808,7 @@ int manager_unit_is_active(Manager *manager, const char *unit) {
 
         r = bus_method_call_with_reply(
                         manager->bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         path,
                         "org.freedesktop.DBus.Properties",
                         "Get",

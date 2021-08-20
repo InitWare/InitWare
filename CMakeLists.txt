@@ -183,6 +183,9 @@ else ()
 	set(SESSIOND_DBUS_BUSNAME "org.InitWare.SessionManager1")
 endif ()
 
+set(SCHEDULER_DBUS_INTERFACE ${SCHEDULER_DBUS_BUSNAME})
+set(SESSIOND_DBUS_INTERFACE ${SESSIOND_DBUS_BUSNAME})
+
 # Paths, either absolute ("full") or relative ("rel")
 set(INSTALL_RUNSTATE_DIR
     "${Default_INSTALL_RUNSTATE_DIR}"

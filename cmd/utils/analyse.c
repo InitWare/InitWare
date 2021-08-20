@@ -108,7 +108,7 @@ static int bus_get_uint64_property(DBusConnection *bus, const char *path, const 
 
         r = bus_method_call_with_reply(
                         bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         path,
                         "org.freedesktop.DBus.Properties",
                         "Get",
@@ -180,7 +180,7 @@ static int acquire_time_data(DBusConnection *bus, struct unit_times **out) {
 
         r = bus_method_call_with_reply(
                         bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         "/org/freedesktop/systemd1",
                         SCHEDULER_DBUS_INTERFACE ".Manager",
                         "ListUnits",
@@ -669,7 +669,7 @@ static int list_dependencies_get_dependencies(DBusConnection *bus, const char *n
 
         r = bus_method_call_with_reply(
                 bus,
-                SCHEDULER_DBUS_INTERFACE,
+                SCHEDULER_DBUS_BUSNAME,
                 path,
                 "org.freedesktop.DBus.Properties",
                 "GetAll",
@@ -1090,7 +1090,7 @@ static int graph_one(DBusConnection *bus, const struct unit_info *u, char *patte
 
         r = bus_method_call_with_reply(
                         bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         u->unit_path,
                         "org.freedesktop.DBus.Properties",
                         "GetAll",
@@ -1138,7 +1138,7 @@ static int dot(DBusConnection *bus, char* patterns[]) {
 
         r = bus_method_call_with_reply(
                         bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         "/org/freedesktop/systemd1",
                         SCHEDULER_DBUS_INTERFACE ".Manager",
                         "ListUnits",
@@ -1203,7 +1203,7 @@ static int dump(DBusConnection *bus, char **args) {
 
         r = bus_method_call_with_reply(
                         bus,
-                        SCHEDULER_DBUS_INTERFACE,
+                        SCHEDULER_DBUS_BUSNAME,
                         "/org/freedesktop/systemd1",
                         SCHEDULER_DBUS_INTERFACE ".Manager",
                         "Dump",
