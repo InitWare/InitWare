@@ -54,8 +54,8 @@ _noreturn_ static void pager_fallback(void) {
 
 int pager_open(bool jump_to_end) {
         int fd[2];
-        const char *pager;
-        pid_t parent_pid;
+	const char *pager, *lesscharset;
+	pid_t parent_pid;
         int r;
 
         if (pager_pid > 0)
@@ -98,7 +98,10 @@ int pager_open(bool jump_to_end) {
                 else
                         setenv("LESS", "FRSXMK", 1);
 
-                /* Make sure the pager goes away when the parent dies */
+		if (is_locale_utf8())
+			setenv("LESSCHARSET", "utf-8", 1);
+
+		/* Make sure the pager goes away when the parent dies */
 #ifdef PR_SET_PDEATHSIG
                 if (prctl(PR_SET_PDEATHSIG, SIGTERM) < 0)
                         _exit(EXIT_FAILURE);
