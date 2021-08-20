@@ -359,13 +359,23 @@ void stdout_stream_new(struct ev_loop *evloop, ev_io *watch, int revents)
 
 	assert(s);
 
-	fd = accept4(s->stdout_watch.fd, NULL, NULL, SOCK_NONBLOCK | SOCK_CLOEXEC);
+	fd = accept4(s->stdout_watch.fd, NULL, NULL, 0);
+
 	if (fd < 0) {
 		if (errno == EAGAIN)
 			return;
 
 		log_error("Failed to accept stdout connection: %m");
 		return;
+	}
+
+	r = fd_cloexec(fd, true);
+	r = r < 0 ? r : fd_nonblock(fd, true);
+
+	if (r < 0) {
+		log_error_errno(-r, "Failed to set cloexec or nonblock: %m");
+		close(fd);
+		return r;
 	}
 
 	if (s->n_stdout_streams >= STDOUT_STREAMS_MAX) {
@@ -431,10 +441,20 @@ int server_open_stdout_socket(Server *s)
 			.un.sun_path = INSTALL_PKGRUNSTATE_DIR "/journal/stdout",
 		};
 
-		fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
+		fd = socket(AF_UNIX, SOCK_STREAM, 0);
+
 		if (fd < 0) {
 			log_error("socket() failed: %m");
 			return -errno;
+		}
+
+		r = fd_cloexec(fd, true);
+		r = r < 0 ? r : fd_nonblock(fd, true);
+
+		if (r < 0) {
+			log_error_errno(-r, "Failed to set cloexec or nonblock: %m");
+			close(fd);
+			return r;
 		}
 
 		unlink(sa.un.sun_path);

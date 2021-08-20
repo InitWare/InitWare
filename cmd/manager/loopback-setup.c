@@ -240,9 +240,18 @@ static int check_loopback(void) {
         /* If we failed to set up the loop back device, check whether
          * it might already be set up */
 
-        fd = socket(AF_INET, SOCK_DGRAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+        fd = socket(AF_INET, SOCK_DGRAM, 0);
         if (fd < 0)
                 return -errno;
+
+	r = fd_cloexec(fd, true);
+	r = r < 0 ? r : fd_nonblock(fd, true);
+
+	if (r < 0) {
+		log_error_errno(-r, "Failed to set cloexec or nonblock: %m");
+		close(fd);
+		return r;
+	}
 
         if (bind(fd, &sa.sa, sizeof(sa.in)) >= 0)
                 r = 1;

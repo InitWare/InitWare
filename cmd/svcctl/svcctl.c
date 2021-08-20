@@ -1256,10 +1256,20 @@ static int send_shutdownd(usec_t t, char mode, bool dry_run, bool warn, const ch
 		.msg_iov = iovec,
 		.msg_iovlen = 1,
 	};
+        int r;
 
-	fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+	fd = socket(AF_UNIX, SOCK_DGRAM, 0);
         if (fd < 0)
                 return -errno;
+
+	r = fd_cloexec(fd, true);
+	r = r < 0 ? r : fd_nonblock(fd, true);
+
+	if (r < 0) {
+		log_error_errno(-r, "Failed to set cloexec or nonblock: %m");
+		close(fd);
+		return r;
+	}
 
         if (!isempty(message)) {
                 iovec[1].iov_base = (char *) message;

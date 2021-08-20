@@ -2207,6 +2207,9 @@ static void socket_fd_event(Unit *u, int fd, int revents, ev_io *w)
 
                 socket_apply_socket_options(s, cfd);
         }
+
+#else
+        log_error("Socket accepting unimplemented!");
 #endif
 
         socket_enter_running(s, cfd);

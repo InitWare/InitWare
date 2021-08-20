@@ -365,10 +365,19 @@ int server_open_native_socket(Server *s)
 
 	if (s->native_watch.fd < 0) {
 
-		fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
+		fd = socket(AF_UNIX, SOCK_DGRAM, 0);
 		if (fd < 0) {
 			log_error("socket() failed: %m");
 			return -errno;
+		}
+
+		r = fd_cloexec(fd, true);
+		r = r < 0 ? r : fd_nonblock(fd, true);
+
+		if (r < 0) {
+			log_error_errno(-r, "Failed to set cloexec or nonblock: %m");
+			close(fd);
+			return r;
 		}
 
 		zero(sa);

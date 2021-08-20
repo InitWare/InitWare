@@ -145,13 +145,23 @@ static int manager_setup_notify(Manager *m)
         ev_io_init(
                 &m->notify_watch,
                 notify_io_cb,
-                socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0),
+                socket(AF_UNIX, SOCK_DGRAM, 0),
                 EV_READ);
 
         if (m->notify_watch.fd < 0) {
                 log_error("Failed to allocate notification socket: %m");
                 return -errno;
         }
+
+        r = fd_cloexec(m->notify_watch.fd, true);
+	r = r < 0 ? r : fd_nonblock(m->notify_watch.fd, true);
+
+	if (r < 0) {
+		log_error_errno(-r, "Failed to set cloexec or nonblock: %m");
+		close(m->notify_watch.fd);
+		ev_io_zero(m->notify_watch);
+		return r;
+	}
 
         strncpy(sa.un.sun_path, m->notify_socket, sizeof(sa.un.sun_path));
         unlink(m->notify_socket);
@@ -1919,6 +1929,7 @@ void manager_send_unit_audit(Manager *m, Unit *u, int type, bool success) {
 
 void manager_send_unit_plymouth(Manager *m, Unit *u) {
         int fd = -1;
+        int r;
         union sockaddr_union sa;
         int n = 0;
         char *message = NULL;
@@ -1944,11 +1955,20 @@ void manager_send_unit_plymouth(Manager *m, Unit *u) {
 
         /* We set SOCK_NONBLOCK here so that we rather drop the
          * message then wait for plymouth */
-        fd = socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0);
+        fd = socket(AF_UNIX, SOCK_STREAM, 0);
         if (fd < 0) {
                 log_error("socket() failed: %m");
                 return;
         }
+
+	r = fd_cloexec(fd, true);
+	r = r < 0 ? r : fd_nonblock(fd, true);
+
+	if (r < 0) {
+		log_error_errno(-r, "Failed to set cloexec or nonblock: %m");
+		close(fd);
+		return;
+	}
 
         zero(sa);
         sa.sa.sa_family = AF_UNIX;

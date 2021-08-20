@@ -46,4 +46,4 @@ done
 
 printf "Starting InitWare manager"
 export LD_LIBRARY_PATH=/usr/local/lib:/usr/pkg/lib
-exec /usr/local/libexec/InitWare/svc.managerd --system  
+exec /usr/local/libexec/InitWare/svc.managerd --system

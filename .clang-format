@@ -96,7 +96,7 @@ IncludeBlocks: Preserve
 #
 # Include blocks are sorted by Priority, then within those blocks are sorted by
 # SortPriority.
-# 
+#
 # n.b. these categories are more aspirational than anything else. Follow the
 # style guidelines instead, section Include-File Ordering
 #

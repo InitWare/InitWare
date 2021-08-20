@@ -107,10 +107,18 @@ void log_close_syslog(void) {
 static int create_log_socket(int type) {
         int fd;
         struct timeval tv;
+        int r;
 
-        fd = socket(AF_UNIX, type|SOCK_CLOEXEC, 0);
+        fd = socket(AF_UNIX, type, 0);
         if (fd < 0)
                 return -errno;
+
+	r = fd_cloexec(fd, true);
+
+	if (r < 0) {
+		close(fd);
+		return r;
+	}
 
         fd_inc_sndbuf(fd, SNDBUF_SIZE);
 

@@ -80,7 +80,7 @@ int log_meta(
 
 /** Logs, then returns -error. */
 int log_meta_errno(
-                int level, 
+                int level,
                 int error,
                 const char*file,
                 int line,

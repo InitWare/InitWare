@@ -65,13 +65,21 @@ int socket_address_listen(
         if (r < 0)
                 return r;
 
-        fd = socket(socket_address_family(a), a->type | SOCK_NONBLOCK | SOCK_CLOEXEC, a->protocol);
+        fd = socket(socket_address_family(a), a->type, a->protocol);
         r = fd < 0 ? -errno : 0;
 
         label_socket_clear();
 
         if (r < 0)
                 return r;
+
+	r = fd_cloexec(fd, true);
+	r = r < 0 ? r : fd_nonblock(fd, true);
+
+	if (r < 0) {
+		log_error_errno(-r, "Failed to set cloexec or nonblock: %m");
+		goto fail;
+	}
 
         if (socket_address_family(a) == AF_INET6 && only != SOCKET_ADDRESS_DEFAULT) {
                 int flag = only == SOCKET_ADDRESS_IPV6_ONLY;

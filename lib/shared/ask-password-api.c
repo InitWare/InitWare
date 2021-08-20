@@ -258,11 +258,20 @@ static int create_socket(char **name) {
 
         assert(name);
 
-        fd = socket(AF_UNIX, SOCK_DGRAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0);
+        fd = socket(AF_UNIX, SOCK_DGRAM, 0);
         if (fd < 0) {
                 log_error("socket() failed: %m");
                 return -errno;
         }
+
+	r = fd_cloexec(fd, true);
+	r = r < 0 ? r : fd_nonblock(fd, true);
+
+	if (r < 0) {
+		log_error_errno(-r, "Failed to set cloexec or nonblock: %m");
+		close(fd);
+		return r;
+	}
 
 	snprintf(sa.un.sun_path, sizeof(sa.un.sun_path) - 1,
 	    INSTALL_PKGRUNSTATE_DIR "/ask-password/sck.%llu", random_ull());

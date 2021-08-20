@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   Copyright 2010 Lennart Poettering
 
@@ -61,6 +59,24 @@
 #  define _sd_export_
 #endif
 
+static int cloexec(int fd)
+{
+	int flags;
+
+	flags = fcntl(fd, F_GETFD);
+
+	if (flags < 0)
+		return -errno;
+
+	if (flags & FD_CLOEXEC)
+		return 0;
+
+	if (fcntl(fd, F_SETFD, flags | FD_CLOEXEC) < 0)
+		return -errno;
+
+	return 0;
+}
+
 _sd_export_ int sd_listen_fds(int unset_environment) {
 
 #if defined(DISABLE_SYSTEMD)
@@ -116,21 +132,9 @@ _sd_export_ int sd_listen_fds(int unset_environment) {
         }
 
         for (fd = SD_LISTEN_FDS_START; fd < SD_LISTEN_FDS_START + (int) l; fd ++) {
-                int flags;
-
-                flags = fcntl(fd, F_GETFD);
-                if (flags < 0) {
-                        r = -errno;
+                r = cloexec(fd);
+                if (r < 0)
                         goto finish;
-                }
-
-                if (flags & FD_CLOEXEC)
-                        continue;
-
-                if (fcntl(fd, F_SETFD, flags | FD_CLOEXEC) < 0) {
-                        r = -errno;
-                        goto finish;
-                }
         }
 
         r = (int) l;
@@ -411,7 +415,7 @@ _sd_export_ int sd_is_mq(int fd, const char *path) {
 }
 
 _sd_export_ int sd_notify(int unset_environment, const char *state) {
-#if defined(DISABLE_SYSTEMD) || !defined(SOCK_CLOEXEC)
+#if defined(DISABLE_SYSTEMD)
         return 0;
 #else
         int fd = -1, r;
@@ -436,11 +440,18 @@ _sd_export_ int sd_notify(int unset_environment, const char *state) {
                 goto finish;
         }
 
-        fd = socket(AF_UNIX, SOCK_DGRAM|SOCK_CLOEXEC, 0);
+        fd = socket(AF_UNIX, SOCK_DGRAM, 0);
         if (fd < 0) {
                 r = -errno;
                 goto finish;
         }
+
+	r = cloexec(fd);
+
+	if (r < 0) {
+		close(fd);
+		goto finish;
+	}
 
         memset(&sockaddr, 0, sizeof(sockaddr));
         sockaddr.sa.sa_family = AF_UNIX;
@@ -531,7 +542,7 @@ _sd_export_ int sd_booted(void) {
         if (lstat(INSTALL_PKGRUNSTATE_DIR "/system/", &st) < 0)
                 return 0;
 
-        return !!S_ISDIR(st.st_mode); 
+        return !!S_ISDIR(st.st_mode);
         */
 	return 1;
 #endif

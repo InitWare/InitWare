@@ -159,9 +159,17 @@ static int get_seat_from_display(const char *display, const char **seat, uint32_
                  return r;
          strncpy(sa.un.sun_path, p, sizeof(sa.un.sun_path) - 1);
 
-         fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+         fd = socket(AF_UNIX, SOCK_STREAM, 0);
          if (fd < 0)
                  return -errno;
+
+        r = fd_cloexec(fd, true);
+
+	if (r < 0) {
+		log_error_errno(-r, "Failed to set cloexec: %m");
+		close(fd);
+		return r;
+	}
 
          if (connect(fd, &sa.sa, offsetof(struct sockaddr_un, sun_path) + strlen(sa.un.sun_path)) < 0)
                  return -errno;

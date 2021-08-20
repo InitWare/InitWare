@@ -60,14 +60,23 @@ static int journal_fd(void)
 {
 	int fd;
 	static int fd_plus_one = 0;
+	int r;
 
 retry:
 	if (fd_plus_one > 0)
 		return fd_plus_one - 1;
 
-	fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+	fd = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (fd < 0)
 		return -errno;
+
+	r = fd_cloexec(fd, true);
+
+	if (r < 0) {
+		log_error_errno(-r, "Failed to set cloexec: %m");
+		close(fd);
+		return r;
+	}
 
 	fd_inc_sndbuf(fd, SNDBUF_SIZE);
 
@@ -432,9 +441,17 @@ _public_ int sd_journal_stream_fd(const char *identifier, int priority, int leve
 	if (priority < 0 || priority > 7)
 		return -EINVAL;
 
-	fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+	fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (fd < 0)
 		return -errno;
+
+	r = fd_cloexec(fd, true);
+
+	if (r < 0) {
+		log_error_errno(-r, "Failed to set cloexec or nonblock: %m");
+		close(fd);
+		return r;
+	}
 
 	r = connect(fd, &sa.sa,
 	    offsetof(union sockaddr_union, un.sun_path) + strlen(sa.un.sun_path));
