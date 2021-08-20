@@ -664,8 +664,8 @@ static int manager_connect_bus(Manager *m) {
 
         dbus_bus_add_match(m->bus,
                            "type='signal',"
-                           "sender='org.freedesktop.systemd1',"
-                           "interface='org.freedesktop.systemd1.Manager',"
+                           "sender='" SCHEDULER_DBUS_BUSNAME "',"
+                           "interface='" SCHEDULER_DBUS_INTERFACE_MANAGER "',"
                            "member='JobRemoved',"
                            "path='/org/freedesktop/systemd1'",
                            &error);
@@ -676,8 +676,8 @@ static int manager_connect_bus(Manager *m) {
 
         dbus_bus_add_match(m->bus,
                            "type='signal',"
-                           "sender='org.freedesktop.systemd1',"
-                           "interface='org.freedesktop.systemd1.Manager',"
+                           "sender='" SCHEDULER_DBUS_BUSNAME "',"
+                           "interface='" SCHEDULER_DBUS_INTERFACE_MANAGER "',"
                            "member='UnitRemoved',"
                            "path='/org/freedesktop/systemd1'",
                            &error);
@@ -688,7 +688,7 @@ static int manager_connect_bus(Manager *m) {
 
         dbus_bus_add_match(m->bus,
                            "type='signal',"
-                           "sender='org.freedesktop.systemd1',"
+                           "sender='" SCHEDULER_DBUS_BUSNAME "',"
                            "interface='org.freedesktop.DBus.Properties',"
                            "member='PropertiesChanged'",
                            &error);
@@ -699,8 +699,8 @@ static int manager_connect_bus(Manager *m) {
 
         dbus_bus_add_match(m->bus,
                            "type='signal',"
-                           "sender='org.freedesktop.systemd1',"
-                           "interface='org.freedesktop.systemd1.Manager',"
+                           "sender='" SCHEDULER_DBUS_BUSNAME "',"
+                           "interface='" SCHEDULER_DBUS_INTERFACE_MANAGER "',"
                            "member='Reloading',"
                            "path='/org/freedesktop/systemd1'",
                            &error);
@@ -723,8 +723,9 @@ static int manager_connect_bus(Manager *m) {
                 dbus_error_free(&error);
         }
 
-        r = dbus_bus_request_name(m->bus, "org.freedesktop.login1", DBUS_NAME_FLAG_DO_NOT_QUEUE, &error);
-        if (dbus_error_is_set(&error)) {
+	r = dbus_bus_request_name(m->bus, SESSIOND_DBUS_BUSNAME, DBUS_NAME_FLAG_DO_NOT_QUEUE,
+	    &error);
+	if (dbus_error_is_set(&error)) {
                 log_error("Failed to register name on bus: %s", bus_error_message(&error));
                 r = -EIO;
                 goto fail;
@@ -1202,6 +1203,7 @@ int main(int argc, char *argv[]) {
         log_set_facility(LOG_AUTH);
         log_parse_environment();
         log_open();
+        log_set_max_level(LOG_DEBUG);
 
         umask(0022);
 

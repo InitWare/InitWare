@@ -1496,8 +1496,8 @@ static int enable_wait_for_jobs(DBusConnection *bus) {
         dbus_bus_add_match(
                 bus,
                 "type='signal',"
-                "sender='org.freedesktop.systemd1',"
-                "interface='org.freedesktop.systemd1.Manager',"
+                "sender='"SCHEDULER_DBUS_BUSNAME"',"
+                "interface='"SCHEDULER_DBUS_INTERFACE_MANAGER"',"
                 "member='JobRemoved',"
                 "path='/org/freedesktop/systemd1'",
                 &error);
@@ -1992,17 +1992,9 @@ int reboot_with_logind(DBusConnection *bus, enum action a) {
                 return -EINVAL;
         }
 
-        return bus_method_call_with_reply(
-                bus,
-                "org.freedesktop.login1",
-                "/org/freedesktop/login1",
-                "org.freedesktop.login1.Manager",
-                method,
-                NULL,
-                NULL,
-                DBUS_TYPE_BOOLEAN,
-                &interactive,
-                DBUS_TYPE_INVALID);
+	return bus_method_call_with_reply(bus, "org.freedesktop.login1", "/org/freedesktop/login1",
+	    SESSIOND_DBUS_INTERFACE ".Manager", method, NULL, NULL, DBUS_TYPE_BOOLEAN,
+	    &interactive, DBUS_TYPE_INVALID);
 #else
         return -ENOSYS;
 #endif
@@ -2032,16 +2024,9 @@ int check_inhibitors(DBusConnection *bus, enum action a) {
         if (!on_tty())
                 return 0;
 
-        r = bus_method_call_with_reply(
-                bus,
-                "org.freedesktop.login1",
-                "/org/freedesktop/login1",
-                "org.freedesktop.login1.Manager",
-                "ListInhibitors",
-                &reply,
-                NULL,
-                DBUS_TYPE_INVALID);
-        if (r < 0)
+	r = bus_method_call_with_reply(bus, SESSIOND_DBUS_BUSNAME, "/org/freedesktop/login1",
+	    SESSIOND_DBUS_INTERFACE ".Manager", "ListInhibitors", &reply, NULL, DBUS_TYPE_INVALID);
+	if (r < 0)
                 /* If logind is not around, then there are no inhibitors... */
                 return 0;
 

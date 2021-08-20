@@ -35,14 +35,11 @@ static int inhibit(DBusConnection *bus, const char *what) {
 
         dbus_error_init(&error);
 
-        m = dbus_message_new_method_call(
-                        "org.freedesktop.login1",
-                        "/org/freedesktop/login1",
-                        "org.freedesktop.login1.Manager",
-                        "Inhibit");
-        assert(m);
+	m = dbus_message_new_method_call(SESSIOND_DBUS_BUSNAME, "/org/freedesktop/login1",
+	    SESSIOND_DBUS_INTERFACE ".Manager", "Inhibit");
+	assert(m);
 
-        assert_se(dbus_message_append_args(m,
+	assert_se(dbus_message_append_args(m,
                                            DBUS_TYPE_STRING, &what,
                                            DBUS_TYPE_STRING, &who,
                                            DBUS_TYPE_STRING, &reason,
@@ -70,14 +67,11 @@ static void print_inhibitors(DBusConnection *bus) {
 
         dbus_error_init(&error);
 
-        m = dbus_message_new_method_call(
-                        "org.freedesktop.login1",
-                        "/org/freedesktop/login1",
-                        "org.freedesktop.login1.Manager",
-                        "ListInhibitors");
-        assert(m);
+	m = dbus_message_new_method_call(SESSIOND_DBUS_BUSNAME, "/org/freedesktop/login1",
+	    SESSIOND_DBUS_INTERFACE ".Manager", "ListInhibitors");
+	assert(m);
 
-        reply = dbus_connection_send_with_reply_and_block(bus, m, -1, &error);
+	reply = dbus_connection_send_with_reply_and_block(bus, m, -1, &error);
         assert(reply);
 
         assert(dbus_message_iter_init(reply, &iter));

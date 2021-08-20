@@ -27,7 +27,7 @@
 #include "dbus-common.h"
 
 #define BUS_USER_INTERFACE \
-        " <interface name=\"org.freedesktop.login1.User\">\n"           \
+        " <interface name=\"" SESSIOND_DBUS_INTERFACE ".User\">\n"           \
         "  <method name=\"Terminate\"/>\n"                              \
         "  <method name=\"Kill\">\n"                                    \
         "   <arg name=\"signal\" type=\"s\"/>\n"                        \
@@ -240,7 +240,7 @@ static DBusHandlerResult user_message_dispatch(
         assert(connection);
         assert(message);
 
-        if (dbus_message_is_method_call(message, "org.freedesktop.login1.User", "Terminate")) {
+        if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".User", "Terminate")) {
 
                 r = user_stop(u);
                 if (r < 0)
@@ -249,7 +249,7 @@ static DBusHandlerResult user_message_dispatch(
                 reply = dbus_message_new_method_return(message);
                 if (!reply)
                         goto oom;
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.User", "Kill")) {
+        } else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".User", "Kill")) {
                 int32_t signo;
 
                 if (!dbus_message_get_args(
@@ -272,7 +272,7 @@ static DBusHandlerResult user_message_dispatch(
 
         } else {
                 const BusBoundProperties bps[] = {
-                        { "org.freedesktop.login1.User", bus_login_user_properties, u },
+                        { SESSIOND_DBUS_INTERFACE ".User", bus_login_user_properties, u },
                         { NULL, }
                 };
 
@@ -343,11 +343,10 @@ int user_send_signal(User *u, bool new_user) {
 
         assert(u);
 
-        m = dbus_message_new_signal("/org/freedesktop/login1",
-                                    "org.freedesktop.login1.Manager",
-                                    new_user ? "UserNew" : "UserRemoved");
+	m = dbus_message_new_signal("/org/freedesktop/login1", SESSIOND_DBUS_INTERFACE ".Manager",
+	    new_user ? "UserNew" : "UserRemoved");
 
-        if (!m)
+	if (!m)
                 return -ENOMEM;
 
         p = user_bus_path(u);
@@ -382,7 +381,7 @@ int user_send_changed(User *u, const char *properties) {
         if (!p)
                 return -ENOMEM;
 
-        m = bus_properties_changed_new(p, "org.freedesktop.login1.User", properties);
+        m = bus_properties_changed_new(p, SESSIOND_DBUS_INTERFACE ".User", properties);
         if (!m)
                 return -ENOMEM;
 

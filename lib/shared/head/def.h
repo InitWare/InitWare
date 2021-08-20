@@ -57,10 +57,16 @@
 
 #ifdef Use_SystemdDBus
 #define SCHEDULER_DBUS_BUSNAME "org.freedesktop.systemd1"
-#define SCHEDULER_DBUS_INTERFACE "org.freedesktop.systemd1"
+#define SCHEDULER_DBUS_INTERFACE SCHEDULER_DBUS_BUSNAME
+#define SESSIOND_DBUS_BUSNAME "org.freedesktop.login1"
+#define SESSIOND_DBUS_INTERFACE SESSIOND_DBUS_BUSNAME
 #else
 #define SCHEDULER_DBUS_BUSNAME "org.InitWare.Scheduler1"
-#define SCHEDULER_DBUS_INTERFACE "org.InitWare.Scheduler1"
+#define SCHEDULER_DBUS_INTERFACE SCHEDULER_DBUS_BUSNAME
+#define SESSIOND_DBUS_BUSNAME "org.InitWare.SessionManager1"
+#define SESSIOND_DBUS_INTERFACE SESSIOND_DBUS_BUSNAME
 #endif
+
+#define SCHEDULER_DBUS_INTERFACE_MANAGER SCHEDULER_DBUS_INTERFACE ".Manager"
 
 #endif /* DEF_H_ */

@@ -1297,7 +1297,7 @@ static int service_load(Unit *u) {
 
                 if (s->type == SERVICE_DBUS || s->bus_name) {
                         r = unit_add_two_dependencies_by_name(u, UNIT_AFTER, UNIT_WANTS, // FIXME: was dbus_socket
-                                                              SPECIAL_DBUS_SOCKET, NULL, true);
+                                                              SPECIAL_DBUS_SERVICE, NULL, true);
                         if (r < 0)
                                 return r;
                 }

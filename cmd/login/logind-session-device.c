@@ -66,10 +66,9 @@ static void session_device_notify(SessionDevice *sd, enum SessionDeviceNotificat
         if (!path)
                 return;
 
-        m = dbus_message_new_signal(path,
-                                    "org.freedesktop.login1.Session",
-                                    (type == SESSION_DEVICE_RESUME) ? "ResumeDevice" : "PauseDevice");
-        if (!m)
+	m = dbus_message_new_signal(path, SESSIOND_DBUS_INTERFACE ".Session",
+	    (type == SESSION_DEVICE_RESUME) ? "ResumeDevice" : "PauseDevice");
+	if (!m)
                 return;
 
         if (!dbus_message_set_destination(m, sd->session->controller))

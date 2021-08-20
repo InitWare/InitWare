@@ -42,7 +42,7 @@
 #include "virt.h"
 
 #define BUS_MANAGER_INTERFACE                                           \
-        " <interface name=\"org.freedesktop.login1.Manager\">\n"        \
+        " <interface name=\"" SESSIOND_DBUS_INTERFACE ".Manager\">\n"   \
         "  <method name=\"GetSession\">\n"                              \
         "   <arg name=\"id\" type=\"s\" direction=\"in\"/>\n"           \
         "   <arg name=\"session\" type=\"o\" direction=\"out\"/>\n"     \
@@ -246,7 +246,7 @@
 
 #define INTERFACES_LIST                              \
         BUS_GENERIC_INTERFACES_LIST                  \
-        "org.freedesktop.login1.Manager\0"
+        SESSIOND_DBUS_INTERFACE ".Manager\0"
 
 static int bus_manager_append_idle_hint(DBusMessageIter *i, const char *property, void *data) {
         Manager *m = data;
@@ -1198,8 +1198,9 @@ static int send_prepare_for(Manager *m, InhibitWhat w, bool _active) {
         assert(w < _INHIBIT_WHAT_MAX);
         assert(signal_name[w]);
 
-        message = dbus_message_new_signal("/org/freedesktop/login1", "org.freedesktop.login1.Manager", signal_name[w]);
-        if (!message)
+	message = dbus_message_new_signal("/org/freedesktop/login1",
+	    SESSIOND_DBUS_INTERFACE ".Manager", signal_name[w]);
+	if (!message)
                 return -ENOMEM;
 
         if (!dbus_message_append_args(message, DBUS_TYPE_BOOLEAN, &active, DBUS_TYPE_INVALID) ||
@@ -1382,936 +1383,865 @@ static DBusHandlerResult manager_message_handler(
 
         dbus_error_init(&error);
 
-        if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "GetSession")) {
-                const char *name;
-                char *p;
-                Session *session;
-                bool b;
-
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_STRING, &name,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
-
-                session = hashmap_get(m->sessions, name);
-                if (!session)
-                        return bus_send_error_reply(connection, message, &error, -ENOENT);
-
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
-
-                p = session_bus_path(session);
-                if (!p)
-                        goto oom;
-
-                b = dbus_message_append_args(
-                                reply,
-                                DBUS_TYPE_OBJECT_PATH, &p,
-                                DBUS_TYPE_INVALID);
-                free(p);
-
-                if (!b)
-                        goto oom;
-
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "GetSessionByPID")) {
-                uint32_t pid;
-                char *p;
-                Session *session;
-                bool b;
-
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_UINT32, &pid,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
-
-                r = manager_get_session_by_pid(m, pid, &session);
-                if (r <= 0)
-                        return bus_send_error_reply(connection, message, NULL, r < 0 ? r : -ENOENT);
-
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
-
-                p = session_bus_path(session);
-                if (!p)
-                        goto oom;
-
-                b = dbus_message_append_args(
-                                reply,
-                                DBUS_TYPE_OBJECT_PATH, &p,
-                                DBUS_TYPE_INVALID);
-                free(p);
-
-                if (!b)
-                        goto oom;
-
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "GetUser")) {
-                uint32_t uid;
-                char *p;
-                User *user;
-                bool b;
-
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_UINT32, &uid,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
-
-                user = hashmap_get(m->users, ULONG_TO_PTR((unsigned long) uid));
-                if (!user)
-                        return bus_send_error_reply(connection, message, &error, -ENOENT);
-
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
-
-                p = user_bus_path(user);
-                if (!p)
-                        goto oom;
-
-                b = dbus_message_append_args(
-                                reply,
-                                DBUS_TYPE_OBJECT_PATH, &p,
-                                DBUS_TYPE_INVALID);
-                free(p);
-
-                if (!b)
-                        goto oom;
-
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "GetUserByPID")) {
-                uint32_t pid;
-                char *p;
-                User *user;
-                bool b;
-
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_UINT32, &pid,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
-
-                r = manager_get_user_by_pid(m, pid, &user);
-                if (r <= 0)
-                        return bus_send_error_reply(connection, message, NULL, r < 0 ? r : -ENOENT);
-
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
-
-                p = user_bus_path(user);
-                if (!p)
-                        goto oom;
-
-                b = dbus_message_append_args(
-                                reply,
-                                DBUS_TYPE_OBJECT_PATH, &p,
-                                DBUS_TYPE_INVALID);
-                free(p);
-
-                if (!b)
-                        goto oom;
-
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "GetSeat")) {
-                const char *name;
-                char *p;
-                Seat *seat;
-                bool b;
-
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_STRING, &name,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
-
-                seat = hashmap_get(m->seats, name);
-                if (!seat)
-                        return bus_send_error_reply(connection, message, &error, -ENOENT);
-
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
-
-                p = seat_bus_path(seat);
-                if (!p)
-                        goto oom;
-
-                b = dbus_message_append_args(
-                                reply,
-                                DBUS_TYPE_OBJECT_PATH, &p,
-                                DBUS_TYPE_INVALID);
-                free(p);
-
-                if (!b)
-                        goto oom;
-
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "ListSessions")) {
-                char *p;
-                Session *session;
-                Iterator i;
-                DBusMessageIter iter, sub;
-                const char *empty = "";
-
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
-
-                dbus_message_iter_init_append(reply, &iter);
-
-                if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(susso)", &sub))
-                        goto oom;
-
-                HASHMAP_FOREACH(session, m->sessions, i) {
-                        DBusMessageIter sub2;
-                        uint32_t uid;
-
-                        if (!dbus_message_iter_open_container(&sub, DBUS_TYPE_STRUCT, NULL, &sub2))
-                                goto oom;
-
-                        uid = session->user->uid;
-
-                        p = session_bus_path(session);
-                        if (!p)
-                                goto oom;
-
-                        if (!dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &session->id) ||
-                            !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_UINT32, &uid) ||
-                            !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &session->user->name) ||
-                            !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, session->seat ? (const char**) &session->seat->id : &empty) ||
-                            !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_OBJECT_PATH, &p)) {
-                                free(p);
-                                goto oom;
-                        }
-
-                        free(p);
-
-                        if (!dbus_message_iter_close_container(&sub, &sub2))
-                                goto oom;
-                }
-
-                if (!dbus_message_iter_close_container(&iter, &sub))
-                        goto oom;
-
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "ListUsers")) {
-                User *user;
-                Iterator i;
-                DBusMessageIter iter, sub;
-
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
-
-                dbus_message_iter_init_append(reply, &iter);
-
-                if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(uso)", &sub))
-                        goto oom;
-
-                HASHMAP_FOREACH(user, m->users, i) {
-                        _cleanup_free_ char *p = NULL;
-                        DBusMessageIter sub2;
-                        uint32_t uid;
-
-                        if (!dbus_message_iter_open_container(&sub, DBUS_TYPE_STRUCT, NULL, &sub2))
-                                goto oom;
-
-                        uid = user->uid;
-
-                        p = user_bus_path(user);
-                        if (!p)
-                                goto oom;
-
-                        if (!dbus_message_iter_append_basic(&sub2, DBUS_TYPE_UINT32, &uid) ||
-                            !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &user->name) ||
-                            !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_OBJECT_PATH, &p)) {
-                                free(p);
-                                goto oom;
-                        }
+	if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager", "GetSession")) {
+		const char *name;
+		char *p;
+		Session *session;
+		bool b;
+
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_STRING, &name,
+			DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
+
+		session = hashmap_get(m->sessions, name);
+		if (!session)
+			return bus_send_error_reply(connection, message, &error, -ENOENT);
+
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
+
+		p = session_bus_path(session);
+		if (!p)
+			goto oom;
+
+		b = dbus_message_append_args(reply, DBUS_TYPE_OBJECT_PATH, &p, DBUS_TYPE_INVALID);
+		free(p);
+
+		if (!b)
+			goto oom;
+
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "GetSessionByPID")) {
+		uint32_t pid;
+		char *p;
+		Session *session;
+		bool b;
+
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_UINT32, &pid,
+			DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
+
+		r = manager_get_session_by_pid(m, pid, &session);
+		if (r <= 0)
+			return bus_send_error_reply(connection, message, NULL, r < 0 ? r : -ENOENT);
+
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
+
+		p = session_bus_path(session);
+		if (!p)
+			goto oom;
+
+		b = dbus_message_append_args(reply, DBUS_TYPE_OBJECT_PATH, &p, DBUS_TYPE_INVALID);
+		free(p);
+
+		if (!b)
+			goto oom;
+
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "GetUser")) {
+		uint32_t uid;
+		char *p;
+		User *user;
+		bool b;
+
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_UINT32, &uid,
+			DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
+
+		user = hashmap_get(m->users, ULONG_TO_PTR((unsigned long) uid));
+		if (!user)
+			return bus_send_error_reply(connection, message, &error, -ENOENT);
+
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
+
+		p = user_bus_path(user);
+		if (!p)
+			goto oom;
+
+		b = dbus_message_append_args(reply, DBUS_TYPE_OBJECT_PATH, &p, DBUS_TYPE_INVALID);
+		free(p);
+
+		if (!b)
+			goto oom;
+
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "GetUserByPID")) {
+		uint32_t pid;
+		char *p;
+		User *user;
+		bool b;
+
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_UINT32, &pid,
+			DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
+
+		r = manager_get_user_by_pid(m, pid, &user);
+		if (r <= 0)
+			return bus_send_error_reply(connection, message, NULL, r < 0 ? r : -ENOENT);
+
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
-                        if (!dbus_message_iter_close_container(&sub, &sub2))
-                                goto oom;
-                }
+		p = user_bus_path(user);
+		if (!p)
+			goto oom;
 
-                if (!dbus_message_iter_close_container(&iter, &sub))
-                        goto oom;
+		b = dbus_message_append_args(reply, DBUS_TYPE_OBJECT_PATH, &p, DBUS_TYPE_INVALID);
+		free(p);
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "ListSeats")) {
-                Seat *seat;
-                Iterator i;
-                DBusMessageIter iter, sub;
+		if (!b)
+			goto oom;
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "GetSeat")) {
+		const char *name;
+		char *p;
+		Seat *seat;
+		bool b;
 
-                dbus_message_iter_init_append(reply, &iter);
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_STRING, &name,
+			DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(so)", &sub))
-                        goto oom;
+		seat = hashmap_get(m->seats, name);
+		if (!seat)
+			return bus_send_error_reply(connection, message, &error, -ENOENT);
+
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
+
+		p = seat_bus_path(seat);
+		if (!p)
+			goto oom;
 
-                HASHMAP_FOREACH(seat, m->seats, i) {
-                        _cleanup_free_ char *p = NULL;
-                        DBusMessageIter sub2;
+		b = dbus_message_append_args(reply, DBUS_TYPE_OBJECT_PATH, &p, DBUS_TYPE_INVALID);
+		free(p);
 
-                        if (!dbus_message_iter_open_container(&sub, DBUS_TYPE_STRUCT, NULL, &sub2))
-                                goto oom;
+		if (!b)
+			goto oom;
 
-                        p = seat_bus_path(seat);
-                        if (!p)
-                                goto oom;
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "ListSessions")) {
+		char *p;
+		Session *session;
+		Iterator i;
+		DBusMessageIter iter, sub;
+		const char *empty = "";
 
-                        if (!dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &seat->id) ||
-                            !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_OBJECT_PATH, &p)) {
-                                free(p);
-                                goto oom;
-                        }
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
-                        if (!dbus_message_iter_close_container(&sub, &sub2))
-                                goto oom;
-                }
+		dbus_message_iter_init_append(reply, &iter);
 
-                if (!dbus_message_iter_close_container(&iter, &sub))
-                        goto oom;
+		if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(susso)", &sub))
+			goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "ListInhibitors")) {
-                Inhibitor *inhibitor;
-                Iterator i;
-                DBusMessageIter iter, sub;
+		HASHMAP_FOREACH (session, m->sessions, i) {
+			DBusMessageIter sub2;
+			uint32_t uid;
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
+			if (!dbus_message_iter_open_container(&sub, DBUS_TYPE_STRUCT, NULL, &sub2))
+				goto oom;
 
-                dbus_message_iter_init_append(reply, &iter);
+			uid = session->user->uid;
 
-                if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(ssssuu)", &sub))
-                        goto oom;
+			p = session_bus_path(session);
+			if (!p)
+				goto oom;
 
-                HASHMAP_FOREACH(inhibitor, m->inhibitors, i) {
-                        DBusMessageIter sub2;
-                        dbus_uint32_t uid, pid;
-                        const char *what, *who, *why, *mode;
+			if (!dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &session->id) ||
+			    !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_UINT32, &uid) ||
+			    !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING,
+				&session->user->name) ||
+			    !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING,
+				session->seat ? (const char **) &session->seat->id : &empty) ||
+			    !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_OBJECT_PATH, &p)) {
+				free(p);
+				goto oom;
+			}
 
-                        if (!dbus_message_iter_open_container(&sub, DBUS_TYPE_STRUCT, NULL, &sub2))
-                                goto oom;
+			free(p);
 
-                        what = strempty(inhibit_what_to_string(inhibitor->what));
-                        who = strempty(inhibitor->who);
-                        why = strempty(inhibitor->why);
-                        mode = strempty(inhibit_mode_to_string(inhibitor->mode));
-                        uid = (dbus_uint32_t) inhibitor->uid;
-                        pid = (dbus_uint32_t) inhibitor->pid;
+			if (!dbus_message_iter_close_container(&sub, &sub2))
+				goto oom;
+		}
 
-                        if (!dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &what) ||
-                            !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &who) ||
-                            !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &why) ||
-                            !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &mode) ||
-                            !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_UINT32, &uid) ||
-                            !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_UINT32, &pid))
-                                goto oom;
+		if (!dbus_message_iter_close_container(&iter, &sub))
+			goto oom;
 
-                        if (!dbus_message_iter_close_container(&sub, &sub2))
-                                goto oom;
-                }
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "ListUsers")) {
+		User *user;
+		Iterator i;
+		DBusMessageIter iter, sub;
 
-                if (!dbus_message_iter_close_container(&iter, &sub))
-                        goto oom;
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
+		dbus_message_iter_init_append(reply, &iter);
+
+		if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(uso)", &sub))
+			goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "Inhibit")) {
+		HASHMAP_FOREACH (user, m->users, i) {
+			_cleanup_free_ char *p = NULL;
+			DBusMessageIter sub2;
+			uint32_t uid;
+
+			if (!dbus_message_iter_open_container(&sub, DBUS_TYPE_STRUCT, NULL, &sub2))
+				goto oom;
+
+			uid = user->uid;
+
+			p = user_bus_path(user);
+			if (!p)
+				goto oom;
 
-                r = bus_manager_inhibit(m, connection, message, &error, &reply);
+			if (!dbus_message_iter_append_basic(&sub2, DBUS_TYPE_UINT32, &uid) ||
+			    !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &user->name) ||
+			    !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_OBJECT_PATH, &p)) {
+				free(p);
+				goto oom;
+			}
 
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, &error, r);
+			if (!dbus_message_iter_close_container(&sub, &sub2))
+				goto oom;
+		}
 
+		if (!dbus_message_iter_close_container(&iter, &sub))
+			goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "CreateSession")) {
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "ListSeats")) {
+		Seat *seat;
+		Iterator i;
+		DBusMessageIter iter, sub;
 
-                r = bus_manager_create_session(m, message);
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
-                /* Don't delay the work on OOM here, since it might be
+		dbus_message_iter_init_append(reply, &iter);
+
+		if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(so)", &sub))
+			goto oom;
+
+		HASHMAP_FOREACH (seat, m->seats, i) {
+			_cleanup_free_ char *p = NULL;
+			DBusMessageIter sub2;
+
+			if (!dbus_message_iter_open_container(&sub, DBUS_TYPE_STRUCT, NULL, &sub2))
+				goto oom;
+
+			p = seat_bus_path(seat);
+			if (!p)
+				goto oom;
+
+			if (!dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &seat->id) ||
+			    !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_OBJECT_PATH, &p)) {
+				free(p);
+				goto oom;
+			}
+
+			if (!dbus_message_iter_close_container(&sub, &sub2))
+				goto oom;
+		}
+
+		if (!dbus_message_iter_close_container(&iter, &sub))
+			goto oom;
+
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "ListInhibitors")) {
+		Inhibitor *inhibitor;
+		Iterator i;
+		DBusMessageIter iter, sub;
+
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
+
+		dbus_message_iter_init_append(reply, &iter);
+
+		if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(ssssuu)", &sub))
+			goto oom;
+
+		HASHMAP_FOREACH (inhibitor, m->inhibitors, i) {
+			DBusMessageIter sub2;
+			dbus_uint32_t uid, pid;
+			const char *what, *who, *why, *mode;
+
+			if (!dbus_message_iter_open_container(&sub, DBUS_TYPE_STRUCT, NULL, &sub2))
+				goto oom;
+
+			what = strempty(inhibit_what_to_string(inhibitor->what));
+			who = strempty(inhibitor->who);
+			why = strempty(inhibitor->why);
+			mode = strempty(inhibit_mode_to_string(inhibitor->mode));
+			uid = (dbus_uint32_t) inhibitor->uid;
+			pid = (dbus_uint32_t) inhibitor->pid;
+
+			if (!dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &what) ||
+			    !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &who) ||
+			    !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &why) ||
+			    !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_STRING, &mode) ||
+			    !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_UINT32, &uid) ||
+			    !dbus_message_iter_append_basic(&sub2, DBUS_TYPE_UINT32, &pid))
+				goto oom;
+
+			if (!dbus_message_iter_close_container(&sub, &sub2))
+				goto oom;
+		}
+
+		if (!dbus_message_iter_close_container(&iter, &sub))
+			goto oom;
+
+
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "Inhibit")) {
+
+		r = bus_manager_inhibit(m, connection, message, &error, &reply);
+
+		if (r < 0)
+			return bus_send_error_reply(connection, message, &error, r);
+
+
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "CreateSession")) {
+
+		r = bus_manager_create_session(m, message);
+
+		/* Don't delay the work on OOM here, since it might be
                  * triggered by a low RLIMIT_NOFILE here (since we
                  * send a dupped fd to the client), and we'd rather
                  * see this fail quickly then be retried later */
 
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, NULL, r);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, NULL, r);
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "ReleaseSession")) {
-                const char *name;
-                Session *session;
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "ReleaseSession")) {
+		const char *name;
+		Session *session;
 
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_STRING, &name,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_STRING, &name,
+			DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                session = hashmap_get(m->sessions, name);
-                if (!session)
-                        return bus_send_error_reply(connection, message, &error, -ENOENT);
+		session = hashmap_get(m->sessions, name);
+		if (!session)
+			return bus_send_error_reply(connection, message, &error, -ENOENT);
 
-                session_release(session);
+		session_release(session);
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "ActivateSession")) {
-                const char *name;
-                Session *session;
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "ActivateSession")) {
+		const char *name;
+		Session *session;
 
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_STRING, &name,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_STRING, &name,
+			DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                session = hashmap_get(m->sessions, name);
-                if (!session)
-                        return bus_send_error_reply(connection, message, &error, -ENOENT);
+		session = hashmap_get(m->sessions, name);
+		if (!session)
+			return bus_send_error_reply(connection, message, &error, -ENOENT);
 
-                r = session_activate(session);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, NULL, r);
+		r = session_activate(session);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, NULL, r);
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "ActivateSessionOnSeat")) {
-                const char *session_name, *seat_name;
-                Session *session;
-                Seat *seat;
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "ActivateSessionOnSeat")) {
+		const char *session_name, *seat_name;
+		Session *session;
+		Seat *seat;
 
-                /* Same as ActivateSession() but refuses to work if
+		/* Same as ActivateSession() but refuses to work if
                  * the seat doesn't match */
 
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_STRING, &session_name,
-                                    DBUS_TYPE_STRING, &seat_name,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_STRING, &session_name,
+			DBUS_TYPE_STRING, &seat_name, DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                session = hashmap_get(m->sessions, session_name);
-                if (!session)
-                        return bus_send_error_reply(connection, message, &error, -ENOENT);
+		session = hashmap_get(m->sessions, session_name);
+		if (!session)
+			return bus_send_error_reply(connection, message, &error, -ENOENT);
 
-                seat = hashmap_get(m->seats, seat_name);
-                if (!seat)
-                        return bus_send_error_reply(connection, message, &error, -ENOENT);
+		seat = hashmap_get(m->seats, seat_name);
+		if (!seat)
+			return bus_send_error_reply(connection, message, &error, -ENOENT);
 
-                if (session->seat != seat)
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
+		if (session->seat != seat)
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                r = session_activate(session);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, NULL, r);
+		r = session_activate(session);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, NULL, r);
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "LockSession") ||
-                   dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "UnlockSession")) {
-                const char *name;
-                Session *session;
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "LockSession") ||
+	    dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		"UnlockSession")) {
+		const char *name;
+		Session *session;
 
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_STRING, &name,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_STRING, &name,
+			DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                session = hashmap_get(m->sessions, name);
-                if (!session)
-                        return bus_send_error_reply(connection, message, NULL, -ENOENT);
+		session = hashmap_get(m->sessions, name);
+		if (!session)
+			return bus_send_error_reply(connection, message, NULL, -ENOENT);
 
-                if (session_send_lock(session, streq(dbus_message_get_member(message), "LockSession")) < 0)
-                        goto oom;
+		if (session_send_lock(session,
+			streq(dbus_message_get_member(message), "LockSession")) < 0)
+			goto oom;
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "LockSessions") ||
-                   dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "UnlockSessions")) {
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "LockSessions") ||
+	    dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		"UnlockSessions")) {
 
-                r = session_send_lock_all(m, streq(dbus_message_get_member(message), "LockSessions"));
-                if (r < 0)
-                        bus_send_error_reply(connection, message, NULL, r);
+		r = session_send_lock_all(m,
+		    streq(dbus_message_get_member(message), "LockSessions"));
+		if (r < 0)
+			bus_send_error_reply(connection, message, NULL, r);
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "KillSession")) {
-                const char *swho;
-                int32_t signo;
-                KillWho who;
-                const char *name;
-                Session *session;
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "KillSession")) {
+		const char *swho;
+		int32_t signo;
+		KillWho who;
+		const char *name;
+		Session *session;
 
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_STRING, &name,
-                                    DBUS_TYPE_STRING, &swho,
-                                    DBUS_TYPE_INT32, &signo,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_STRING, &name,
+			DBUS_TYPE_STRING, &swho, DBUS_TYPE_INT32, &signo, DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                if (isempty(swho))
-                        who = KILL_ALL;
-                else {
-                        who = kill_who_from_string(swho);
-                        if (who < 0)
-                                return bus_send_error_reply(connection, message, &error, -EINVAL);
-                }
+		if (isempty(swho))
+			who = KILL_ALL;
+		else {
+			who = kill_who_from_string(swho);
+			if (who < 0)
+				return bus_send_error_reply(connection, message, &error, -EINVAL);
+		}
 
-                if (signo <= 0 || signo >= NSIG)
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
+		if (signo <= 0 || signo >= NSIG)
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                session = hashmap_get(m->sessions, name);
-                if (!session)
-                        return bus_send_error_reply(connection, message, &error, -ENOENT);
+		session = hashmap_get(m->sessions, name);
+		if (!session)
+			return bus_send_error_reply(connection, message, &error, -ENOENT);
 
-                r = session_kill(session, who, signo);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, NULL, r);
+		r = session_kill(session, who, signo);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, NULL, r);
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "KillUser")) {
-                uint32_t uid;
-                User *user;
-                int32_t signo;
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "KillUser")) {
+		uint32_t uid;
+		User *user;
+		int32_t signo;
 
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_UINT32, &uid,
-                                    DBUS_TYPE_INT32, &signo,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_UINT32, &uid,
+			DBUS_TYPE_INT32, &signo, DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                if (signo <= 0 || signo >= NSIG)
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
+		if (signo <= 0 || signo >= NSIG)
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                user = hashmap_get(m->users, ULONG_TO_PTR((unsigned long) uid));
-                if (!user)
-                        return bus_send_error_reply(connection, message, &error, -ENOENT);
+		user = hashmap_get(m->users, ULONG_TO_PTR((unsigned long) uid));
+		if (!user)
+			return bus_send_error_reply(connection, message, &error, -ENOENT);
 
-                r = user_kill(user, signo);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, NULL, r);
+		r = user_kill(user, signo);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, NULL, r);
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "TerminateSession")) {
-                const char *name;
-                Session *session;
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "TerminateSession")) {
+		const char *name;
+		Session *session;
 
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_STRING, &name,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_STRING, &name,
+			DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                session = hashmap_get(m->sessions, name);
-                if (!session)
-                        return bus_send_error_reply(connection, message, &error, -ENOENT);
+		session = hashmap_get(m->sessions, name);
+		if (!session)
+			return bus_send_error_reply(connection, message, &error, -ENOENT);
 
-                r = session_stop(session);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, NULL, r);
+		r = session_stop(session);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, NULL, r);
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "TerminateUser")) {
-                uint32_t uid;
-                User *user;
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "TerminateUser")) {
+		uint32_t uid;
+		User *user;
 
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_UINT32, &uid,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_UINT32, &uid,
+			DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                user = hashmap_get(m->users, ULONG_TO_PTR((unsigned long) uid));
-                if (!user)
-                        return bus_send_error_reply(connection, message, &error, -ENOENT);
+		user = hashmap_get(m->users, ULONG_TO_PTR((unsigned long) uid));
+		if (!user)
+			return bus_send_error_reply(connection, message, &error, -ENOENT);
 
-                r = user_stop(user);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, NULL, r);
+		r = user_stop(user);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, NULL, r);
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "TerminateSeat")) {
-                const char *name;
-                Seat *seat;
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "TerminateSeat")) {
+		const char *name;
+		Seat *seat;
 
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_STRING, &name,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_STRING, &name,
+			DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                seat = hashmap_get(m->seats, name);
-                if (!seat)
-                        return bus_send_error_reply(connection, message, &error, -ENOENT);
+		seat = hashmap_get(m->seats, name);
+		if (!seat)
+			return bus_send_error_reply(connection, message, &error, -ENOENT);
 
-                r = seat_stop_sessions(seat);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, NULL, r);
+		r = seat_stop_sessions(seat);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, NULL, r);
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "SetUserLinger")) {
-                uint32_t uid;
-                struct passwd *pw;
-                dbus_bool_t b, interactive;
-                char *path;
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "SetUserLinger")) {
+		uint32_t uid;
+		struct passwd *pw;
+		dbus_bool_t b, interactive;
+		char *path;
 
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_UINT32, &uid,
-                                    DBUS_TYPE_BOOLEAN, &b,
-                                    DBUS_TYPE_BOOLEAN, &interactive,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_UINT32, &uid,
+			DBUS_TYPE_BOOLEAN, &b, DBUS_TYPE_BOOLEAN, &interactive, DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                errno = 0;
-                pw = getpwuid(uid);
-                if (!pw)
-                        return bus_send_error_reply(connection, message, NULL, errno ? -errno : -EINVAL);
+		errno = 0;
+		pw = getpwuid(uid);
+		if (!pw)
+			return bus_send_error_reply(connection, message, NULL,
+			    errno ? -errno : -EINVAL);
 
-                r = verify_polkit(connection, message, "org.freedesktop.login1.set-user-linger", interactive, NULL, &error);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, &error, r);
+		r = verify_polkit(connection, message, "org.freedesktop.login1.set-user-linger",
+		    interactive, NULL, &error);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, &error, r);
 
-                mkdir_p_label(AbsDir_PkgVarLib "", 0755);
+		mkdir_p_label(AbsDir_PkgVarLib "", 0755);
 
-                r = mkdir_safe_label(AbsDir_PkgVarLib "/linger", 0755, 0, 0);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, &error, r);
+		r = mkdir_safe_label(AbsDir_PkgVarLib "/linger", 0755, 0, 0);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, &error, r);
 
-                path = strappend(AbsDir_PkgVarLib "/linger/", pw->pw_name);
-                if (!path)
-                        goto oom;
+		path = strappend(AbsDir_PkgVarLib "/linger/", pw->pw_name);
+		if (!path)
+			goto oom;
 
-                if (b) {
-                        User *u;
+		if (b) {
+			User *u;
 
-                        r = touch(path);
-                        free(path);
+			r = touch(path);
+			free(path);
 
-                        if (r < 0)
-                                return bus_send_error_reply(connection, message, &error, r);
+			if (r < 0)
+				return bus_send_error_reply(connection, message, &error, r);
 
-                        if (manager_add_user_by_uid(m, uid, &u) >= 0)
-                                user_start(u);
+			if (manager_add_user_by_uid(m, uid, &u) >= 0)
+				user_start(u);
 
-                } else {
-                        User *u;
+		} else {
+			User *u;
 
-                        r = unlink(path);
-                        free(path);
+			r = unlink(path);
+			free(path);
 
-                        if (r < 0 && errno != ENOENT)
-                                return bus_send_error_reply(connection, message, &error, -errno);
+			if (r < 0 && errno != ENOENT)
+				return bus_send_error_reply(connection, message, &error, -errno);
 
-                        u = hashmap_get(m->users, ULONG_TO_PTR((unsigned long) uid));
-                        if (u)
-                                user_add_to_gc_queue(u);
-                }
+			u = hashmap_get(m->users, ULONG_TO_PTR((unsigned long) uid));
+			if (u)
+				user_add_to_gc_queue(u);
+		}
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "AttachDevice")) {
-                const char *sysfs, *seat;
-                dbus_bool_t interactive;
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "AttachDevice")) {
+		const char *sysfs, *seat;
+		dbus_bool_t interactive;
 
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_STRING, &seat,
-                                    DBUS_TYPE_STRING, &sysfs,
-                                    DBUS_TYPE_BOOLEAN, &interactive,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_STRING, &seat, DBUS_TYPE_STRING,
+			&sysfs, DBUS_TYPE_BOOLEAN, &interactive, DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                if (!path_startswith(sysfs, "/sys") || !seat_name_is_valid(seat))
-                        return bus_send_error_reply(connection, message, NULL, -EINVAL);
+		if (!path_startswith(sysfs, "/sys") || !seat_name_is_valid(seat))
+			return bus_send_error_reply(connection, message, NULL, -EINVAL);
 
-                r = verify_polkit(connection, message, "org.freedesktop.login1.attach-device", interactive, NULL, &error);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, &error, r);
+		r = verify_polkit(connection, message, "org.freedesktop.login1.attach-device",
+		    interactive, NULL, &error);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, &error, r);
 
 #ifdef Use_libudev
 		r = attach_device(m, seat, sysfs);
 #else
-                r = 0;
+		r = 0;
 #endif
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, NULL, -EINVAL);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, NULL, -EINVAL);
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "FlushDevices")) {
-                dbus_bool_t interactive;
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "FlushDevices")) {
+		dbus_bool_t interactive;
 
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_BOOLEAN, &interactive,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_BOOLEAN, &interactive,
+			DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                r = verify_polkit(connection, message, "org.freedesktop.login1.flush-devices", interactive, NULL, &error);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, &error, r);
+		r = verify_polkit(connection, message, "org.freedesktop.login1.flush-devices",
+		    interactive, NULL, &error);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, &error, r);
 
 #ifdef Use_libudev
 		r = flush_devices(m);
 #else
-                r = 0;
+		r = 0;
 #endif
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, NULL, -EINVAL);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, NULL, -EINVAL);
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "PowerOff")) {
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "PowerOff")) {
 
-                r = bus_manager_do_shutdown_or_sleep(
-                                m, connection, message,
-                                SPECIAL_POWEROFF_TARGET,
-                                INHIBIT_SHUTDOWN,
-                                "org.freedesktop.login1.power-off",
-                                "org.freedesktop.login1.power-off-multiple-sessions",
-                                "org.freedesktop.login1.power-off-ignore-inhibit",
-                                NULL,
-                                &error, &reply);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, &error, r);
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "Reboot")) {
-                r = bus_manager_do_shutdown_or_sleep(
-                                m, connection, message,
-                                SPECIAL_REBOOT_TARGET,
-                                INHIBIT_SHUTDOWN,
-                                "org.freedesktop.login1.reboot",
-                                "org.freedesktop.login1.reboot-multiple-sessions",
-                                "org.freedesktop.login1.reboot-ignore-inhibit",
-                                NULL,
-                                &error, &reply);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, &error, r);
+		r = bus_manager_do_shutdown_or_sleep(m, connection, message,
+		    SPECIAL_POWEROFF_TARGET, INHIBIT_SHUTDOWN, "org.freedesktop.login1.power-off",
+		    "org.freedesktop.login1.power-off-multiple-sessions",
+		    "org.freedesktop.login1.power-off-ignore-inhibit", NULL, &error, &reply);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, &error, r);
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "Reboot")) {
+		r = bus_manager_do_shutdown_or_sleep(m, connection, message, SPECIAL_REBOOT_TARGET,
+		    INHIBIT_SHUTDOWN, "org.freedesktop.login1.reboot",
+		    "org.freedesktop.login1.reboot-multiple-sessions",
+		    "org.freedesktop.login1.reboot-ignore-inhibit", NULL, &error, &reply);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, &error, r);
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "Suspend")) {
-                r = bus_manager_do_shutdown_or_sleep(
-                                m, connection, message,
-                                SPECIAL_SUSPEND_TARGET,
-                                INHIBIT_SLEEP,
-                                "org.freedesktop.login1.suspend",
-                                "org.freedesktop.login1.suspend-multiple-sessions",
-                                "org.freedesktop.login1.suspend-ignore-inhibit",
-                                "suspend",
-                                &error, &reply);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, &error, r);
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "Hibernate")) {
-                r = bus_manager_do_shutdown_or_sleep(
-                                m, connection, message,
-                                SPECIAL_HIBERNATE_TARGET,
-                                INHIBIT_SLEEP,
-                                "org.freedesktop.login1.hibernate",
-                                "org.freedesktop.login1.hibernate-multiple-sessions",
-                                "org.freedesktop.login1.hibernate-ignore-inhibit",
-                                "hibernate",
-                                &error, &reply);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, &error, r);
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "Suspend")) {
+		r = bus_manager_do_shutdown_or_sleep(m, connection, message,
+		    SPECIAL_SUSPEND_TARGET, INHIBIT_SLEEP, "org.freedesktop.login1.suspend",
+		    "org.freedesktop.login1.suspend-multiple-sessions",
+		    "org.freedesktop.login1.suspend-ignore-inhibit", "suspend", &error, &reply);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, &error, r);
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "Hibernate")) {
+		r = bus_manager_do_shutdown_or_sleep(m, connection, message,
+		    SPECIAL_HIBERNATE_TARGET, INHIBIT_SLEEP, "org.freedesktop.login1.hibernate",
+		    "org.freedesktop.login1.hibernate-multiple-sessions",
+		    "org.freedesktop.login1.hibernate-ignore-inhibit", "hibernate", &error, &reply);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, &error, r);
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "HybridSleep")) {
-                r = bus_manager_do_shutdown_or_sleep(
-                                m, connection, message,
-                                SPECIAL_HYBRID_SLEEP_TARGET,
-                                INHIBIT_SLEEP,
-                                "org.freedesktop.login1.hibernate",
-                                "org.freedesktop.login1.hibernate-multiple-sessions",
-                                "org.freedesktop.login1.hibernate-ignore-inhibit",
-                                "hybrid-sleep",
-                                &error, &reply);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, &error, r);
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "HybridSleep")) {
+		r = bus_manager_do_shutdown_or_sleep(m, connection, message,
+		    SPECIAL_HYBRID_SLEEP_TARGET, INHIBIT_SLEEP, "org.freedesktop.login1.hibernate",
+		    "org.freedesktop.login1.hibernate-multiple-sessions",
+		    "org.freedesktop.login1.hibernate-ignore-inhibit", "hybrid-sleep", &error,
+		    &reply);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, &error, r);
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "CanPowerOff")) {
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "CanPowerOff")) {
 
-                r = bus_manager_can_shutdown_or_sleep(
-                                m, connection, message,
-                                INHIBIT_SHUTDOWN,
-                                "org.freedesktop.login1.power-off",
-                                "org.freedesktop.login1.power-off-multiple-sessions",
-                                "org.freedesktop.login1.power-off-ignore-inhibit",
-                                NULL,
-                                &error, &reply);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, &error, r);
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "CanReboot")) {
-                r = bus_manager_can_shutdown_or_sleep(
-                                m, connection, message,
-                                INHIBIT_SHUTDOWN,
-                                "org.freedesktop.login1.reboot",
-                                "org.freedesktop.login1.reboot-multiple-sessions",
-                                "org.freedesktop.login1.reboot-ignore-inhibit",
-                                NULL,
-                                &error, &reply);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, &error, r);
+		r = bus_manager_can_shutdown_or_sleep(m, connection, message, INHIBIT_SHUTDOWN,
+		    "org.freedesktop.login1.power-off",
+		    "org.freedesktop.login1.power-off-multiple-sessions",
+		    "org.freedesktop.login1.power-off-ignore-inhibit", NULL, &error, &reply);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, &error, r);
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "CanReboot")) {
+		r = bus_manager_can_shutdown_or_sleep(m, connection, message, INHIBIT_SHUTDOWN,
+		    "org.freedesktop.login1.reboot",
+		    "org.freedesktop.login1.reboot-multiple-sessions",
+		    "org.freedesktop.login1.reboot-ignore-inhibit", NULL, &error, &reply);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, &error, r);
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "CanSuspend")) {
-                r = bus_manager_can_shutdown_or_sleep(
-                                m, connection, message,
-                                INHIBIT_SLEEP,
-                                "org.freedesktop.login1.suspend",
-                                "org.freedesktop.login1.suspend-multiple-sessions",
-                                "org.freedesktop.login1.suspend-ignore-inhibit",
-                                "suspend",
-                                &error, &reply);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, &error, r);
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "CanSuspend")) {
+		r = bus_manager_can_shutdown_or_sleep(m, connection, message, INHIBIT_SLEEP,
+		    "org.freedesktop.login1.suspend",
+		    "org.freedesktop.login1.suspend-multiple-sessions",
+		    "org.freedesktop.login1.suspend-ignore-inhibit", "suspend", &error, &reply);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, &error, r);
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "CanHibernate")) {
-                r = bus_manager_can_shutdown_or_sleep(
-                                m, connection, message,
-                                INHIBIT_SLEEP,
-                                "org.freedesktop.login1.hibernate",
-                                "org.freedesktop.login1.hibernate-multiple-sessions",
-                                "org.freedesktop.login1.hibernate-ignore-inhibit",
-                                "hibernate",
-                                &error, &reply);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, &error, r);
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "CanHibernate")) {
+		r = bus_manager_can_shutdown_or_sleep(m, connection, message, INHIBIT_SLEEP,
+		    "org.freedesktop.login1.hibernate",
+		    "org.freedesktop.login1.hibernate-multiple-sessions",
+		    "org.freedesktop.login1.hibernate-ignore-inhibit", "hibernate", &error, &reply);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, &error, r);
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Manager", "CanHybridSleep")) {
-                r = bus_manager_can_shutdown_or_sleep(
-                                m, connection, message,
-                                INHIBIT_SLEEP,
-                                "org.freedesktop.login1.hibernate",
-                                "org.freedesktop.login1.hibernate-multiple-sessions",
-                                "org.freedesktop.login1.hibernate-ignore-inhibit",
-                                "hybrid-sleep",
-                                &error, &reply);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, &error, r);
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Manager",
+		       "CanHybridSleep")) {
+		r = bus_manager_can_shutdown_or_sleep(m, connection, message, INHIBIT_SLEEP,
+		    "org.freedesktop.login1.hibernate",
+		    "org.freedesktop.login1.hibernate-multiple-sessions",
+		    "org.freedesktop.login1.hibernate-ignore-inhibit", "hybrid-sleep", &error,
+		    &reply);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, &error, r);
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.DBus.Introspectable", "Introspect")) {
-                char *introspection = NULL;
-                FILE *f;
-                Iterator i;
-                Session *session;
-                Seat *seat;
-                User *user;
-                size_t size;
-                char *p;
+	} else if (dbus_message_is_method_call(message, "org.freedesktop.DBus.Introspectable",
+		       "Introspect")) {
+		char *introspection = NULL;
+		FILE *f;
+		Iterator i;
+		Session *session;
+		Seat *seat;
+		User *user;
+		size_t size;
+		char *p;
 
-                if (!(reply = dbus_message_new_method_return(message)))
-                        goto oom;
+		if (!(reply = dbus_message_new_method_return(message)))
+			goto oom;
 
-                /* We roll our own introspection code here, instead of
+		/* We roll our own introspection code here, instead of
                  * relying on bus_default_message_handler() because we
                  * need to generate our introspection string
                  * dynamically. */
 
-                if (!(f = open_memstream(&introspection, &size)))
-                        goto oom;
+		if (!(f = open_memstream(&introspection, &size)))
+			goto oom;
 
-                fputs(INTROSPECTION_BEGIN, f);
+		fputs(INTROSPECTION_BEGIN, f);
 
-                HASHMAP_FOREACH(seat, m->seats, i) {
-                        p = bus_path_escape(seat->id);
+		HASHMAP_FOREACH (seat, m->seats, i) {
+			p = bus_path_escape(seat->id);
 
-                        if (p) {
-                                fprintf(f, "<node name=\"seat/%s\"/>", p);
-                                free(p);
-                        }
-                }
+			if (p) {
+				fprintf(f, "<node name=\"seat/%s\"/>", p);
+				free(p);
+			}
+		}
 
-                HASHMAP_FOREACH(user, m->users, i)
-                        fprintf(f, "<node name=\"user/_%llu\"/>", (unsigned long long) user->uid);
+		HASHMAP_FOREACH (user, m->users, i)
+			fprintf(f, "<node name=\"user/_%llu\"/>", (unsigned long long) user->uid);
 
-                HASHMAP_FOREACH(session, m->sessions, i) {
-                        p = bus_path_escape(session->id);
+		HASHMAP_FOREACH (session, m->sessions, i) {
+			p = bus_path_escape(session->id);
 
-                        if (p) {
-                                fprintf(f, "<node name=\"session/%s\"/>", p);
-                                free(p);
-                        }
-                }
+			if (p) {
+				fprintf(f, "<node name=\"session/%s\"/>", p);
+				free(p);
+			}
+		}
 
-                fputs(INTROSPECTION_END, f);
+		fputs(INTROSPECTION_END, f);
 
-                if (ferror(f)) {
-                        fclose(f);
-                        free(introspection);
-                        goto oom;
-                }
+		if (ferror(f)) {
+			fclose(f);
+			free(introspection);
+			goto oom;
+		}
 
-                fclose(f);
+		fclose(f);
 
-                if (!introspection)
-                        goto oom;
+		if (!introspection)
+			goto oom;
 
-                if (!dbus_message_append_args(reply, DBUS_TYPE_STRING, &introspection, DBUS_TYPE_INVALID)) {
-                        free(introspection);
-                        goto oom;
-                }
+		if (!dbus_message_append_args(reply, DBUS_TYPE_STRING, &introspection,
+			DBUS_TYPE_INVALID)) {
+			free(introspection);
+			goto oom;
+		}
 
-                free(introspection);
-        } else {
-                const BusBoundProperties bps[] = {
-                        { "org.freedesktop.login1.Manager", bus_login_manager_properties, m },
-                        { NULL, }
-                };
-                return bus_default_message_handler(connection, message, NULL, INTERFACES_LIST, bps);
-        }
+		free(introspection);
+	} else {
+		const BusBoundProperties bps[] = { { SESSIOND_DBUS_INTERFACE ".Manager",
+						       bus_login_manager_properties, m },
+			{
+			    NULL,
+			} };
+		return bus_default_message_handler(connection, message, NULL, INTERFACES_LIST, bps);
+	}
 
-        if (reply) {
+	if (reply) {
                 if (!bus_maybe_send_reply(connection, message, reply))
                         goto oom;
         }
@@ -2513,10 +2443,9 @@ int manager_send_changed(Manager *manager, const char *properties) {
 
         assert(manager);
 
-        m = bus_properties_changed_new("/org/freedesktop/login1",
-                                       "org.freedesktop.login1.Manager",
-                                       properties);
-        if (!m)
+	m = bus_properties_changed_new("/org/freedesktop/login1",
+	    SESSIOND_DBUS_INTERFACE ".Manager", properties);
+	if (!m)
                 return -ENOMEM;
 
         if (!dbus_connection_send(manager->bus, m, NULL))

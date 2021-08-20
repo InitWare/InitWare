@@ -776,39 +776,35 @@ static int parse_argv(int argc, char *argv[]) {
 		ARG_DEFAULT_STD_ERROR
 	};
 
-	static const struct option options[] = { { "log-level", required_argument, NULL,
-						     ARG_LOG_LEVEL },
-		{ "log-target", required_argument, NULL, ARG_LOG_TARGET },
-		{ "log-color", optional_argument, NULL, ARG_LOG_COLOR },
-		{ "log-location", optional_argument, NULL, ARG_LOG_LOCATION },
-		{ "unit", required_argument, NULL, ARG_UNIT },
-		{ "system", no_argument, NULL, ARG_SYSTEM },
-		{ "user", no_argument, NULL, ARG_USER }, { "test", no_argument, NULL, ARG_TEST },
-		{ "help", no_argument, NULL, 'h' }, { "version", no_argument, NULL, ARG_VERSION },
-		{ "dump-configuration-items", no_argument, NULL, ARG_DUMP_CONFIGURATION_ITEMS },
-		{ "dump-core", optional_argument, NULL, ARG_DUMP_CORE },
-		{ "crash-shell", optional_argument, NULL, ARG_CRASH_SHELL },
-		{ "confirm-spawn", optional_argument, NULL, ARG_CONFIRM_SPAWN },
-		{ "show-status", optional_argument, NULL, ARG_SHOW_STATUS },
-		{ "deserialize", required_argument, NULL, ARG_DESERIALIZE },
-		{ "daemonise", no_argument, NULL, ARG_DAEMONISE },
-		{ "switched-root", no_argument, NULL, ARG_SWITCHED_ROOT },
-		{ "introspect", optional_argument, NULL, ARG_INTROSPECT },
-		{
-		    "default-standard-output",
-		    required_argument,
-		    NULL,
-		    ARG_DEFAULT_STD_OUTPUT,
-		},
-		{
-		    "default-standard-error",
-		    required_argument,
-		    NULL,
-		    ARG_DEFAULT_STD_ERROR,
-		},
-		{ NULL, 0, NULL, 0 } };
+        /* clang-format off */
+	static const struct option options[] = {
+                { "log-level",                required_argument, NULL, ARG_LOG_LEVEL                },
+                { "log-target",               required_argument, NULL, ARG_LOG_TARGET               },
+                { "log-color",                optional_argument, NULL, ARG_LOG_COLOR                },
+                { "log-location",             optional_argument, NULL, ARG_LOG_LOCATION             },
+                { "unit",                     required_argument, NULL, ARG_UNIT                     },
+                { "system",                   no_argument,       NULL, ARG_SYSTEM                   },
+                { "auxiliary",                no_argument,       NULL, ARG_SYSTEM                   },
+                { "user",                     no_argument,       NULL, ARG_USER                     },
+                { "test",                     no_argument,       NULL, ARG_TEST                     },
+                { "help",                     no_argument,       NULL, 'h'                          },
+                { "version",                  no_argument,       NULL, ARG_VERSION                  },
+                { "dump-configuration-items", no_argument,       NULL, ARG_DUMP_CONFIGURATION_ITEMS },
+                { "dump-core",                optional_argument, NULL, ARG_DUMP_CORE                },
+                { "crash-shell",              optional_argument, NULL, ARG_CRASH_SHELL              },
+                { "confirm-spawn",            optional_argument, NULL, ARG_CONFIRM_SPAWN            },
+                { "show-status",              optional_argument, NULL, ARG_SHOW_STATUS              },
+                { "deserialize",              required_argument, NULL, ARG_DESERIALIZE              },
+                { "daemonise",                no_argument, NULL, ARG_DAEMONISE                      },
+                { "switched-root",            no_argument,       NULL, ARG_SWITCHED_ROOT            },
+                { "introspect",               optional_argument, NULL, ARG_INTROSPECT               },
+                { "default-standard-output",  required_argument, NULL, ARG_DEFAULT_STD_OUTPUT,      },
+                { "default-standard-error",   required_argument, NULL, ARG_DEFAULT_STD_ERROR,       },
+                { NULL,                       0,                 NULL, 0                            }
+        };
+        /* clang-format on */
 
-	int c, r;
+        int c, r;
 
         assert(argc >= 1);
         assert(argv);
@@ -898,7 +894,7 @@ static int parse_argv(int argc, char *argv[]) {
 
 		case ARG_USER:
 			arg_running_as = SYSTEMD_USER;
-			break;
+                        break;
 
                 case ARG_TEST:
                         arg_action = ACTION_TEST;
@@ -1362,13 +1358,15 @@ int main(int argc, char *argv[]) {
 		arg_auxiliary = true;
 		if (is_pid1) {
 			log_error("Cannot be both PID 1 and auxiliary.\n");
-			retval = EXIT_FAILURE;
-			goto finish;
-		} else if (arg_running_as != SYSTEMD_SYSTEM) {
-			log_error("Only system instances can be auxiliary.\n");
-			retval = EXIT_FAILURE;
-			goto finish;
+				retval = EXIT_FAILURE;
+				goto finish;
 		}
+                else if (arg_running_as != SYSTEMD_SYSTEM)
+                {
+                        log_error("Only system instances can be auxiliary.\n");
+				retval = EXIT_FAILURE;
+				goto finish;
+                }
 	}
 
 	/* If we have switched root, do all the special setup
@@ -1516,7 +1514,7 @@ int main(int argc, char *argv[]) {
 
 	ignore_signals(SIGNALS_IGNORE, -1);
 
-	if (parse_config_file() < 0)
+        if (parse_config_file() < 0)
                 goto finish;
 
         if (arg_running_as == SYSTEMD_SYSTEM)
@@ -1593,7 +1591,7 @@ int main(int argc, char *argv[]) {
 		console_setup(is_pid1 && !skip_setup);
 
 	/* Open the logging devices, if possible and necessary */
-	log_open();
+        log_open();
 
         /* Make sure we leave a core dump without panicing the
          * kernel. */
@@ -1608,21 +1606,21 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (arg_running_as == SYSTEMD_SYSTEM) {
-		const char *virtualization = NULL;
+                const char *virtualization = NULL;
 
-		log_info(PACKAGE_STRING " running in system mode. (" SYSTEMD_FEATURES ")");
+                log_info(PACKAGE_STRING " running in system mode. (" SYSTEMD_FEATURES ")");
 
-		detect_virtualization(&virtualization);
-		if (virtualization)
-			log_info("Detected virtualization '%s'.", virtualization);
+                detect_virtualization(&virtualization);
+                if (virtualization)
+                        log_info("Detected virtualization '%s'.", virtualization);
 
-		if (in_initrd())
-			log_info("Running in initial RAM disk.");
+                if (in_initrd())
+                        log_info("Running in initial RAM disk.");
 
-	} else
-		log_info(PACKAGE_STRING " running in user mode. (" SYSTEMD_FEATURES ")");
+        } else
+                log_info(PACKAGE_STRING " running in user mode. (" SYSTEMD_FEATURES ")");
 
-	if (arg_running_as == SYSTEMD_SYSTEM && !skip_setup) {
+        if (arg_running_as == SYSTEMD_SYSTEM && !skip_setup) {
                 if (arg_show_status || plymouth_running())
                         status_welcome();
 
@@ -1645,9 +1643,9 @@ int main(int argc, char *argv[]) {
 
 #ifdef Sys_Plat_Linux
         if (arg_running_as == SYSTEMD_SYSTEM && arg_runtime_watchdog > 0)
-		watchdog_set_timeout(&arg_runtime_watchdog);
+                watchdog_set_timeout(&arg_runtime_watchdog);
 
-	if (arg_timer_slack_nsec != (nsec_t) -1)
+        if (arg_timer_slack_nsec != (nsec_t) -1)
                 if (prctl(PR_SET_TIMERSLACK, arg_timer_slack_nsec) < 0)
                         log_error("Failed to adjust timer slack: %m");
 #endif
@@ -1694,14 +1692,14 @@ int main(int argc, char *argv[]) {
 
 	if (is_pid1)
 		m->system_flags |= SYSTEMD_PID1;
-	if (arg_auxiliary)
-		m->system_flags |= SYSTEMD_AUXILIARY;
-	if (detect_container(NULL))
-		m->system_flags |= SYSTEMD_CONTAINER;
+        if (arg_auxiliary)
+                m->system_flags |= SYSTEMD_AUXILIARY;
+        if(detect_container(NULL))
+                m->system_flags |= SYSTEMD_CONTAINER;
 
 	m->confirm_spawn = arg_confirm_spawn;
 	m->default_std_output = arg_default_std_output;
-	m->default_std_error = arg_default_std_error;
+        m->default_std_error = arg_default_std_error;
         m->default_restart_usec = arg_default_restart_usec;
         m->default_timeout_start_usec = arg_default_timeout_start_usec;
         m->default_timeout_stop_usec = arg_default_timeout_stop_usec;
@@ -1948,9 +1946,9 @@ finish:
                         if (switch_root_dir)
                                 args[i++] = "--switched-root";
                         args[i++] = arg_running_as == SYSTEMD_SYSTEM ? "--system" : "--user";
-			if (m->system_flags & SYSTEMD_AUXILIARY)
-				args[i++] = "--auxiliary";
-			args[i++] = "--deserialize";
+                        if (m->system_flags & SYSTEMD_AUXILIARY)
+                        args[i++] = "--auxiliary";
+                        args[i++] = "--deserialize";
                         args[i++] = sfd;
                         args[i++] = NULL;
 

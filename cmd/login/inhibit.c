@@ -45,21 +45,12 @@ static int inhibit(DBusConnection *bus, DBusError *error) {
         _cleanup_dbus_message_unref_ DBusMessage *reply = NULL;
         int r;
 
-        r = bus_method_call_with_reply(
-                        bus,
-                        "org.freedesktop.login1",
-                        "/org/freedesktop/login1",
-                        "org.freedesktop.login1.Manager",
-                        "Inhibit",
-                        &reply,
-                        NULL,
-                        DBUS_TYPE_STRING, &arg_what,
-                        DBUS_TYPE_STRING, &arg_who,
-                        DBUS_TYPE_STRING, &arg_why,
-                        DBUS_TYPE_STRING, &arg_mode,
-                        DBUS_TYPE_INVALID);
-        if (r < 0)
-                return r;
+	r = bus_method_call_with_reply(bus, SESSIOND_DBUS_BUSNAME, "/org/freedesktop/login1",
+	    SESSIOND_DBUS_INTERFACE ".Manager", "Inhibit", &reply, NULL, DBUS_TYPE_STRING,
+	    &arg_what, DBUS_TYPE_STRING, &arg_who, DBUS_TYPE_STRING, &arg_why, DBUS_TYPE_STRING,
+	    &arg_mode, DBUS_TYPE_INVALID);
+	if (r < 0)
+		return r;
 
         if (!dbus_message_get_args(reply, error,
                                    DBUS_TYPE_UNIX_FD, &r,
@@ -75,17 +66,10 @@ static int print_inhibitors(DBusConnection *bus, DBusError *error) {
         DBusMessageIter iter, sub, sub2;
         int r;
 
-        r = bus_method_call_with_reply(
-                        bus,
-                        "org.freedesktop.login1",
-                        "/org/freedesktop/login1",
-                        "org.freedesktop.login1.Manager",
-                        "ListInhibitors",
-                        &reply,
-                        NULL,
-                        DBUS_TYPE_INVALID);
-        if (r < 0)
-                return r;
+	r = bus_method_call_with_reply(bus, SESSIOND_DBUS_BUSNAME, "/org/freedesktop/login1",
+	    SESSIOND_DBUS_INTERFACE ".Manager", "ListInhibitors", &reply, NULL, DBUS_TYPE_INVALID);
+	if (r < 0)
+		return r;
 
         if (!dbus_message_iter_init(reply, &iter))
                 return -ENOMEM;

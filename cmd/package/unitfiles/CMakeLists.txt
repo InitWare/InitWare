@@ -8,6 +8,7 @@ endforeach()
 foreach(unit_in
   debug-shell.service.in emergency.service.in halt-local.service.in
   rescue.service.in
+  check-dbus-up.service.in
   systemd-ask-password-console.path.in
   systemd-ask-password-console.service.in
   systemd-ask-password-wall.path.in
@@ -44,6 +45,7 @@ set(user_unitfiles user/exit.target user/default.target shutdown.target
 
 set(system_unitfiles auxiliary-manager.target basic.target bluetooth.target
     cryptsetup-pre.target cryptsetup.target
+    ${CMAKE_CURRENT_BINARY_DIR}/check-dbus-up.service
     ${CMAKE_CURRENT_BINARY_DIR}/debug-shell.service
     ${CMAKE_CURRENT_BINARY_DIR}/emergency.service
     emergency.target final.target getty.target graphical.target

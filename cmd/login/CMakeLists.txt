@@ -37,7 +37,22 @@ add_executable(svcloginctl ${loginctl_srcs})
 target_link_libraries(svcloginctl iw-shared iw-dbus ${UDev_Libs})
 install(TARGETS svcloginctl RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+configure_file(org.InitWare.SessionManager1.service.in
+  org.InitWare.SessionManager1.service)
+configure_file(org.InitWare.SessionManager1.conf.in
+    org.InitWare.SessionManager1.conf)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.InitWare.SessionManager1.service
+    DESTINATION ${INSTALL_DBUSSERVICES_DIR}
+    RENAME ${SESSIOND_DBUS_BUSNAME}.service)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.InitWare.SessionManager1.conf
+    DESTINATION ${INSTALL_DBUSCONF_DIR}
+    RENAME ${SESSIOND_DBUS_BUSNAME}.conf)
+
 if(Use_PAM)
-	add_library(initware_pam SHARED pam-module.c)
-	target_link_libraries(initware_pam iw-shared iw-dbus pam)
+	add_library(pam_initware SHARED pam-module.c)
+	target_link_libraries(pam_initware iw-shared iw-dbus pam)
+    set_target_properties(pam_initware PROPERTIES PREFIX "")
+    install(TARGETS pam_initware DESTINATION lib/security)
 endif()

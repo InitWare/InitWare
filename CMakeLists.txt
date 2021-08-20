@@ -177,8 +177,10 @@ endif ()
 
 if (${Use_SystemdDBus})
 	set(SCHEDULER_DBUS_BUSNAME "org.freedesktop.systemd1")
+	set(SESSIOND_DBUS_BUSNAME "org.freedesktop.login1")
 else ()
 	set(SCHEDULER_DBUS_BUSNAME "org.InitWare.Scheduler1")
+	set(SESSIOND_DBUS_BUSNAME "org.InitWare.SessionManager1")
 endif ()
 
 # Paths, either absolute ("full") or relative ("rel")

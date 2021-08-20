@@ -24,7 +24,7 @@ After=dbus.service
 ExecStart=@INSTALL_PKGLIBEXEC_DIR@/svc.logind
 Restart=always
 RestartSec=1
-BusName=org.freedesktop.login1
+BusName=@SESSIOND_DBUS_BUSNAME@
 
 # Increase the default a bit in order to allow many simultaneous
 # logins since we keep one fd open per session.

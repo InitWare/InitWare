@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -27,6 +25,7 @@
 #include <pwd.h>
 #include <locale.h>
 
+#include "def.h"
 #include "log.h"
 #include "util.h"
 #include "macro.h"
@@ -84,9 +83,9 @@ static int list_sessions(DBusConnection *bus, char **args, unsigned n) {
 
         r = bus_method_call_with_reply (
                         bus,
-                        "org.freedesktop.login1",
+                        SESSIOND_DBUS_BUSNAME,
                         "/org/freedesktop/login1",
-                        "org.freedesktop.login1.Manager",
+                        SESSIOND_DBUS_INTERFACE ".Manager",
                         "ListSessions",
                         &reply,
                         NULL,
@@ -149,9 +148,9 @@ static int list_users(DBusConnection *bus, char **args, unsigned n) {
 
         r = bus_method_call_with_reply (
                         bus,
-                        "org.freedesktop.login1",
+                        SESSIOND_DBUS_BUSNAME,
                         "/org/freedesktop/login1",
-                        "org.freedesktop.login1.Manager",
+                        SESSIOND_DBUS_INTERFACE ".Manager",
                         "ListUsers",
                         &reply,
                         NULL,
@@ -212,9 +211,9 @@ static int list_seats(DBusConnection *bus, char **args, unsigned n) {
 
         r = bus_method_call_with_reply (
                         bus,
-                        "org.freedesktop.login1",
+                        SESSIOND_DBUS_BUSNAME,
                         "/org/freedesktop/login1",
-                        "org.freedesktop.login1.Manager",
+                        SESSIOND_DBUS_INTERFACE ".Manager",
                         "ListSeats",
                         &reply,
                         NULL,
@@ -889,7 +888,7 @@ static int show_one(const char *verb, DBusConnection *bus, const char *path, boo
 
         r = bus_method_call_with_reply(
                         bus,
-                        "org.freedesktop.login1",
+                        SESSIOND_DBUS_BUSNAME,
                         path,
                         "org.freedesktop.DBus.Properties",
                         "GetAll",
@@ -1006,9 +1005,9 @@ static int show(DBusConnection *bus, char **args, unsigned n) {
 
                         ret = bus_method_call_with_reply (
                                         bus,
-                                        "org.freedesktop.login1",
+                                        SESSIOND_DBUS_BUSNAME,
                                         "/org/freedesktop/login1",
-                                        "org.freedesktop.login1.Manager",
+                                        SESSIOND_DBUS_INTERFACE ".Manager",
                                         "GetSession",
                                         &reply,
                                         NULL,
@@ -1028,9 +1027,9 @@ static int show(DBusConnection *bus, char **args, unsigned n) {
                         u = (uint32_t) uid;
                         ret = bus_method_call_with_reply(
                                         bus,
-                                        "org.freedesktop.login1",
+                                        SESSIOND_DBUS_BUSNAME,
                                         "/org/freedesktop/login1",
-                                        "org.freedesktop.login1.Manager",
+                                        SESSIOND_DBUS_INTERFACE ".Manager",
                                         "GetUser",
                                         &reply,
                                         NULL,
@@ -1041,9 +1040,9 @@ static int show(DBusConnection *bus, char **args, unsigned n) {
 
                         ret = bus_method_call_with_reply(
                                         bus,
-                                        "org.freedesktop.login1",
+                                        SESSIOND_DBUS_BUSNAME,
                                         "/org/freedesktop/login1",
-                                        "org.freedesktop.login1.Manager",
+                                        SESSIOND_DBUS_INTERFACE ".Manager",
                                         "GetSeat",
                                         &reply,
                                         NULL,
@@ -1084,9 +1083,9 @@ static int activate(DBusConnection *bus, char **args, unsigned n) {
 
                 ret = bus_method_call_with_reply (
                                 bus,
-                                "org.freedesktop.login1",
+                                SESSIOND_DBUS_BUSNAME,
                                 "/org/freedesktop/login1",
-                                "org.freedesktop.login1.Manager",
+                                SESSIOND_DBUS_INTERFACE ".Manager",
                                 streq(args[0], "lock-session")      ? "LockSession" :
                                 streq(args[0], "unlock-session")    ? "UnlockSession" :
                                 streq(args[0], "terminate-session") ? "TerminateSession" :
@@ -1116,9 +1115,9 @@ static int kill_session(DBusConnection *bus, char **args, unsigned n) {
 
                 r = bus_method_call_with_reply (
                         bus,
-                        "org.freedesktop.login1",
+                        SESSIOND_DBUS_BUSNAME,
                         "/org/freedesktop/login1",
-                        "org.freedesktop.login1.Manager",
+                        SESSIOND_DBUS_INTERFACE ".Manager",
                         "KillSession",
                         NULL,
                         NULL,
@@ -1157,9 +1156,9 @@ static int enable_linger(DBusConnection *bus, char **args, unsigned n) {
                 u = (uint32_t) uid;
                 r = bus_method_call_with_reply (
                         bus,
-                        "org.freedesktop.login1",
+                        SESSIOND_DBUS_BUSNAME,
                         "/org/freedesktop/login1",
-                        "org.freedesktop.login1.Manager",
+                        SESSIOND_DBUS_INTERFACE ".Manager",
                         "SetUserLinger",
                         NULL,
                         NULL,
@@ -1193,9 +1192,9 @@ static int terminate_user(DBusConnection *bus, char **args, unsigned n) {
                 u = (uint32_t) uid;
                 r = bus_method_call_with_reply (
                         bus,
-                        "org.freedesktop.login1",
+                        SESSIOND_DBUS_BUSNAME,
                         "/org/freedesktop/login1",
-                        "org.freedesktop.login1.Manager",
+                        SESSIOND_DBUS_INTERFACE ".Manager",
                         "TerminateUser",
                         NULL,
                         NULL,
@@ -1230,9 +1229,9 @@ static int kill_user(DBusConnection *bus, char **args, unsigned n) {
                 u = (uint32_t) uid;
                 r = bus_method_call_with_reply (
                         bus,
-                        "org.freedesktop.login1",
+                        SESSIOND_DBUS_BUSNAME,
                         "/org/freedesktop/login1",
-                        "org.freedesktop.login1.Manager",
+                        SESSIOND_DBUS_INTERFACE ".Manager",
                         "KillUser",
                         NULL,
                         NULL,
@@ -1259,9 +1258,9 @@ static int attach(DBusConnection *bus, char **args, unsigned n) {
 
                 r = bus_method_call_with_reply (
                         bus,
-                        "org.freedesktop.login1",
+                        SESSIOND_DBUS_BUSNAME,
                         "/org/freedesktop/login1",
-                        "org.freedesktop.login1.Manager",
+                        SESSIOND_DBUS_INTERFACE ".Manager",
                         "AttachDevice",
                         NULL,
                         NULL,
@@ -1285,9 +1284,9 @@ static int flush_devices(DBusConnection *bus, char **args, unsigned n) {
 
         return bus_method_call_with_reply (
                         bus,
-                        "org.freedesktop.login1",
+                        SESSIOND_DBUS_BUSNAME,
                         "/org/freedesktop/login1",
-                        "org.freedesktop.login1.Manager",
+                        SESSIOND_DBUS_INTERFACE ".Manager",
                         "FlushDevices",
                         NULL,
                         NULL,
@@ -1302,9 +1301,9 @@ static int lock_sessions(DBusConnection *bus, char **args, unsigned n) {
 
         return bus_method_call_with_reply (
                         bus,
-                        "org.freedesktop.login1",
+                        SESSIOND_DBUS_BUSNAME,
                         "/org/freedesktop/login1",
-                        "org.freedesktop.login1.Manager",
+                        SESSIOND_DBUS_INTERFACE ".Manager",
                         streq(args[0], "lock-sessions") ? "LockSessions" : "UnlockSessions",
                         NULL,
                         NULL,
@@ -1321,9 +1320,9 @@ static int terminate_seat(DBusConnection *bus, char **args, unsigned n) {
 
                 r = bus_method_call_with_reply (
                         bus,
-                        "org.freedesktop.login1",
+                        SESSIOND_DBUS_BUSNAME,
                         "/org/freedesktop/login1",
-                        "org.freedesktop.login1.Manager",
+                        SESSIOND_DBUS_INTERFACE ".Manager",
                         "TerminateSeat",
                         NULL,
                         NULL,

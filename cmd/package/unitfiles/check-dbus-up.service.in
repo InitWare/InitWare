@@ -1,0 +1,13 @@
+[Unit]
+Description=Tests if the D-Bus System Bus is up
+
+[Service]
+Type=oneshot
+# FIXME: NetBSDism
+ExecStart=/usr/pkg/bin/dbus-send --system --dest=org.freedesktop.DBus  /org/freedesktop/DBus org.freedesktop.DBus.ListNames
+RemainAfterExit=true
+
+[Install]
+Alias=dbus.service
+RequiredBy=auxiliary-manager.target
+Before=auxiliary-manager.target

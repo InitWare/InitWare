@@ -27,22 +27,23 @@
 #include "dbus-common.h"
 #include "util.h"
 
-#define BUS_SEAT_INTERFACE \
-        " <interface name=\"org.freedesktop.login1.Seat\">\n"           \
-        "  <method name=\"Terminate\"/>\n"                              \
-        "  <method name=\"ActivateSession\">\n"                         \
-        "   <arg name=\"id\" type=\"s\"/>\n"                            \
-        "  </method>\n"                                                 \
-        "  <property name=\"Id\" type=\"s\" access=\"read\"/>\n"        \
-        "  <property name=\"ActiveSession\" type=\"so\" access=\"read\"/>\n" \
-        "  <property name=\"CanMultiSession\" type=\"b\" access=\"read\"/>\n" \
-        "  <property name=\"CanTTY\" type=\"b\" access=\"read\"/>\n" \
-        "  <property name=\"CanGraphical\" type=\"b\" access=\"read\"/>\n" \
-        "  <property name=\"Sessions\" type=\"a(so)\" access=\"read\"/>\n" \
-        "  <property name=\"IdleHint\" type=\"b\" access=\"read\"/>\n"  \
-        "  <property name=\"IdleSinceHint\" type=\"t\" access=\"read\"/>\n" \
-        "  <property name=\"IdleSinceHintMonotonic\" type=\"t\" access=\"read\"/>\n" \
-        " </interface>\n"                                               \
+#define BUS_SEAT_INTERFACE                                                           \
+	" <interface name=\"" SESSIOND_DBUS_INTERFACE                                \
+	".Seat\">\n"                                                                 \
+	"  <method name=\"Terminate\"/>\n"                                           \
+	"  <method name=\"ActivateSession\">\n"                                      \
+	"   <arg name=\"id\" type=\"s\"/>\n"                                         \
+	"  </method>\n"                                                              \
+	"  <property name=\"Id\" type=\"s\" access=\"read\"/>\n"                     \
+	"  <property name=\"ActiveSession\" type=\"so\" access=\"read\"/>\n"         \
+	"  <property name=\"CanMultiSession\" type=\"b\" access=\"read\"/>\n"        \
+	"  <property name=\"CanTTY\" type=\"b\" access=\"read\"/>\n"                 \
+	"  <property name=\"CanGraphical\" type=\"b\" access=\"read\"/>\n"           \
+	"  <property name=\"Sessions\" type=\"a(so)\" access=\"read\"/>\n"           \
+	"  <property name=\"IdleHint\" type=\"b\" access=\"read\"/>\n"               \
+	"  <property name=\"IdleSinceHint\" type=\"t\" access=\"read\"/>\n"          \
+	"  <property name=\"IdleSinceHintMonotonic\" type=\"t\" access=\"read\"/>\n" \
+	" </interface>\n"
 
 #define INTROSPECTION                                                   \
         DBUS_INTROSPECT_1_0_XML_DOCTYPE_DECL_NODE                       \
@@ -53,9 +54,9 @@
         BUS_INTROSPECTABLE_INTERFACE                                    \
         "</node>\n"
 
-#define INTERFACES_LIST                              \
-        BUS_GENERIC_INTERFACES_LIST                  \
-        "org.freedesktop.login1.Seat\0"
+#define INTERFACES_LIST             \
+	BUS_GENERIC_INTERFACES_LIST \
+	SESSIOND_DBUS_INTERFACE ".Seat\0"
 
 static int bus_seat_append_active(DBusMessageIter *i, const char *property, void *data) {
         DBusMessageIter sub;
@@ -259,47 +260,46 @@ static DBusHandlerResult seat_message_dispatch(
 
         dbus_error_init(&error);
 
-        if (dbus_message_is_method_call(message, "org.freedesktop.login1.Seat", "Terminate")) {
+	if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Seat", "Terminate")) {
 
-                r = seat_stop_sessions(s);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, NULL, r);
+		r = seat_stop_sessions(s);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, NULL, r);
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
 
-        } else if (dbus_message_is_method_call(message, "org.freedesktop.login1.Seat", "ActivateSession")) {
-                const char *name;
-                Session *session;
+	} else if (dbus_message_is_method_call(message, SESSIOND_DBUS_INTERFACE ".Seat",
+		       "ActivateSession")) {
+		const char *name;
+		Session *session;
 
-                if (!dbus_message_get_args(
-                                    message,
-                                    &error,
-                                    DBUS_TYPE_STRING, &name,
-                                    DBUS_TYPE_INVALID))
-                        return bus_send_error_reply(connection, message, &error, -EINVAL);
+		if (!dbus_message_get_args(message, &error, DBUS_TYPE_STRING, &name,
+			DBUS_TYPE_INVALID))
+			return bus_send_error_reply(connection, message, &error, -EINVAL);
 
-                session = hashmap_get(s->manager->sessions, name);
-                if (!session || session->seat != s)
-                        return bus_send_error_reply(connection, message, &error, -ENOENT);
+		session = hashmap_get(s->manager->sessions, name);
+		if (!session || session->seat != s)
+			return bus_send_error_reply(connection, message, &error, -ENOENT);
 
-                r = session_activate(session);
-                if (r < 0)
-                        return bus_send_error_reply(connection, message, NULL, r);
+		r = session_activate(session);
+		if (r < 0)
+			return bus_send_error_reply(connection, message, NULL, r);
 
-                reply = dbus_message_new_method_return(message);
-                if (!reply)
-                        goto oom;
-        } else {
-                const BusBoundProperties bps[] = {
-                        { "org.freedesktop.login1.Seat", bus_login_seat_properties, s },
-                        { NULL, }
-                };
-                return bus_default_message_handler(connection, message, INTROSPECTION, INTERFACES_LIST, bps);
-        }
+		reply = dbus_message_new_method_return(message);
+		if (!reply)
+			goto oom;
+	} else {
+		const BusBoundProperties bps[] = { { SESSIOND_DBUS_INTERFACE ".Seat",
+						       bus_login_seat_properties, s },
+			{
+			    NULL,
+			} };
+		return bus_default_message_handler(connection, message, INTROSPECTION, INTERFACES_LIST, bps);
+	}
 
-        if (reply) {
+	if (reply) {
                 if (!bus_maybe_send_reply(connection, message, reply))
                         goto oom;
         }
@@ -363,11 +363,10 @@ int seat_send_signal(Seat *s, bool new_seat) {
 
         assert(s);
 
-        m = dbus_message_new_signal("/org/freedesktop/login1",
-                                    "org.freedesktop.login1.Manager",
-                                    new_seat ? "SeatNew" : "SeatRemoved");
-        if (!m)
-                return -ENOMEM;
+	m = dbus_message_new_signal("/org/freedesktop/login1", SESSIOND_DBUS_INTERFACE ".Manager",
+	    new_seat ? "SeatNew" : "SeatRemoved");
+	if (!m)
+		return -ENOMEM;
 
         p = seat_bus_path(s);
         if (!p)
@@ -399,8 +398,8 @@ int seat_send_changed(Seat *s, const char *properties) {
         if (!p)
                 return -ENOMEM;
 
-        m = bus_properties_changed_new(p, "org.freedesktop.login1.Seat", properties);
-        if (!m)
+	m = bus_properties_changed_new(p, SESSIOND_DBUS_INTERFACE ".Seat", properties);
+	if (!m)
                 return -ENOMEM;
 
         if (!dbus_connection_send(s->manager->bus, m, NULL))

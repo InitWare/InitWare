@@ -52,8 +52,8 @@
 #        include <security/pam_misc.h>
 #        include <security/pam_modutil.h>
 #else
-//#        define pam_syslog(handle, level, ...) printf(__VA_ARGS__)
-#	define pam_syslog(...)
+#define pam_syslog(handle, level, ...) printf(__VA_ARGS__)
+//#	define pam_syslog(...) syslog()
 #	define pam_misc_setenv pam_setenv
 #endif
 
@@ -193,7 +193,7 @@ _public_ PAM_EXTERN int pam_sm_open_session(
                 int argc, const char **argv) {
 
         struct passwd *pw;
-	bool debug = false;
+	bool debug = true; //false;
 	const char *username, *id, *object_path, *runtime_path, *service = NULL, *tty = NULL, *display = NULL, *remote_user = NULL, *remote_host = NULL, *seat = NULL, *type = NULL, *class = NULL, *class_pam = NULL, *cvtnr = NULL;
         DBusError error;
         uint32_t uid, pid;
@@ -211,22 +211,19 @@ _public_ PAM_EXTERN int pam_sm_open_session(
         dbus_error_init(&error);
 
         /* Make this a NOP on non-logind systems */
-        if (!logind_running())
-                return PAM_SUCCESS;
+	if (!logind_running())
+		return PAM_SUCCESS;
 
-        if (parse_argv(handle,
-                       argc, argv,
-                       &class_pam,
-                       &debug) < 0) {
-                r = PAM_SESSION_ERR;
-                goto finish;
-        }
+	if (parse_argv(handle, argc, argv, &class_pam, &debug) < 0) {
+		r = PAM_SESSION_ERR;
+		goto finish;
+	}
 
-        if (debug)
-                pam_syslog(handle, LOG_DEBUG, "pam-systemd initializing");
+	if (debug)
+		pam_syslog(handle, LOG_DEBUG, "pam-systemd initializing");
 
-        r = get_user_data(handle, &username, &pw);
-        if (r != PAM_SUCCESS)
+	r = get_user_data(handle, &username, &pw);
+	if (r != PAM_SUCCESS)
                 goto finish;
 
         /* Make sure we don't enter a loop by talking to
@@ -279,18 +276,15 @@ _public_ PAM_EXTERN int pam_sm_open_session(
                 goto finish;
         }
 
-        m = dbus_message_new_method_call(
-                        "org.freedesktop.login1",
-                        "/org/freedesktop/login1",
-                        "org.freedesktop.login1.Manager",
-                        "CreateSession");
-        if (!m) {
-                pam_syslog(handle, LOG_ERR, "Could not allocate create session message.");
+	m = dbus_message_new_method_call(SESSIOND_DBUS_BUSNAME, "/org/freedesktop/login1",
+	    SESSIOND_DBUS_INTERFACE ".Manager", "CreateSession");
+	if (!m) {
+		pam_syslog(handle, LOG_ERR, "Could not allocate create session message.");
                 r = PAM_BUF_ERR;
                 goto finish;
-        }
+	}
 
-        uid = pw->pw_uid;
+	uid = pw->pw_uid;
         pid = getpid();
 
 #ifdef PAM_XDISPLAY
@@ -542,18 +536,15 @@ _public_ PAM_EXTERN int pam_sm_close_session(
                         goto finish;
                 }
 
-                m = dbus_message_new_method_call(
-                                "org.freedesktop.login1",
-                                "/org/freedesktop/login1",
-                                "org.freedesktop.login1.Manager",
-                                "ReleaseSession");
-                if (!m) {
-                        pam_syslog(handle, LOG_ERR, "Could not allocate release session message.");
+		m = dbus_message_new_method_call(SESSIOND_DBUS_BUSNAME, "/org/freedesktop/login1",
+		    SESSIOND_DBUS_INTERFACE ".Manager", "ReleaseSession");
+		if (!m) {
+			pam_syslog(handle, LOG_ERR, "Could not allocate release session message.");
                         r = PAM_BUF_ERR;
                         goto finish;
-                }
+		}
 
-                if (!dbus_message_append_args(m,
+		if (!dbus_message_append_args(m,
                                               DBUS_TYPE_STRING, &id,
                                               DBUS_TYPE_INVALID)) {
                         pam_syslog(handle, LOG_ERR, "Could not attach parameters to message.");
