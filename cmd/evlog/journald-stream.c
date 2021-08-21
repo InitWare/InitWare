@@ -375,7 +375,7 @@ void stdout_stream_new(struct ev_loop *evloop, ev_io *watch, int revents)
 	if (r < 0) {
 		log_error_errno(-r, "Failed to set cloexec or nonblock: %m");
 		close(fd);
-		return r;
+		return;
 	}
 
 	if (s->n_stdout_streams >= STDOUT_STREAMS_MAX) {

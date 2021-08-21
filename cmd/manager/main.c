@@ -1399,7 +1399,7 @@ int main(int argc, char *argv[]) {
 
 		/* Running outside of a container as system manager */
 		assert(arg_running_as == SYSTEMD_SYSTEM);
-		make_null_stdio();
+		//make_null_stdio();
 		log_set_target(LOG_TARGET_KMSG);
 		log_open();
 

@@ -1417,7 +1417,6 @@ static int manager_process_notify_fd(Manager *m) {
                         return -errno;
                 }
 
-
 #ifdef CMSG_CREDS_STRUCT
 		n = cmsg_readucred(&control.cmsghdr, &ucred);
 		if (!n) {
@@ -1489,7 +1488,7 @@ static int manager_dispatch_sigchld(Manager *m) {
                     return -errno;
             }
 
-            if (si.si_pid <= 0)
+	    if (si.si_pid <= 0)
                     break;
 
             if (si.si_code == CLD_EXITED || si.si_code == CLD_KILLED || si.si_code == CLD_DUMPED) {
@@ -1498,6 +1497,7 @@ static int manager_dispatch_sigchld(Manager *m) {
 
 #ifdef Have_waitid
                     get_process_comm(si.si_pid, &name);
+#endif
 
                     log_debug("Child %lu (%s) died (code=%s, status=%i/%s)",
                               (long unsigned) si.si_pid, strna(name),
@@ -1506,7 +1506,6 @@ static int manager_dispatch_sigchld(Manager *m) {
                               strna(si.si_code == CLD_EXITED
                                     ? exit_status_to_string(si.si_status, EXIT_STATUS_FULL)
                                     : signal_to_string(si.si_status)));
-#endif
 
 #if defined(Use_CGroups) || defined(Use_KQProc)
                     /* And now figure out the unit this belongs

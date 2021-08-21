@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -19,19 +17,21 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/resource.h>
+
 #include <dbus/dbus.h>
 #include <errno.h>
 
-#include "dbus-execute.h"
-#include "missing.h"
-#include "ioprio.h"
-#include "strv.h"
 #include "dbus-common.h"
-#include "syscall-list.h"
+#include "dbus-execute.h"
 #include "fileio.h"
+#include "ioprio.h"
+#include "missing.h"
+#include "strv.h"
+#include "syscall-list.h"
 
 #ifdef Have_sys_prctl_h
-#        include <sys/prctl.h>
+#include <sys/prctl.h>
 #endif
 
 static DEFINE_BUS_PROPERTY_APPEND_ENUM(bus_execute_append_input, exec_input, ExecInput);
@@ -394,7 +394,9 @@ const BusProperty bus_exec_context_properties[] = {
         { "LimitCORE",                bus_execute_append_rlimits,            "t", 0 },
         { "LimitRSS",                 bus_execute_append_rlimits,            "t", 0 },
         { "LimitNOFILE",              bus_execute_append_rlimits,            "t", 0 },
+#ifdef RLIMIT_AS
         { "LimitAS",                  bus_execute_append_rlimits,            "t", 0 },
+#endif
         { "LimitNPROC",               bus_execute_append_rlimits,            "t", 0 },
         { "LimitMEMLOCK",             bus_execute_append_rlimits,            "t", 0 },
         { "WorkingDirectory",         bus_property_append_string,            "s", offsetof(ExecContext, working_directory),      true },

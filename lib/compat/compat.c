@@ -24,12 +24,12 @@ int waitid(idtype_t idtype, id_t id, siginfo_t *infop, int options)
 		wpoptions = WNOHANG;
 
 	for (;;) {
-		pid_t pid = waitpid(idtype == P_PID ? id : -1, &status, 0);
+		pid_t pid = waitpid(idtype == P_PID ? id : -1, &status, wpoptions);
 
 		if (pid < 0) {
 			if (errno == EINTR)
 				continue;
-			return -1;
+			return -errno;
 		}
 
 		if (WIFCONTINUED(status)|| WIFSTOPPED(status))
@@ -45,6 +45,8 @@ int waitid(idtype_t idtype, id_t id, siginfo_t *infop, int options)
 			infop->si_code = CLD_KILLED;
 			infop->si_status = WTERMSIG(status);
 		}
+
+		return 0;
 	}
 }
 #endif

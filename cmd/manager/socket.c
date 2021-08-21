@@ -1132,6 +1132,9 @@ static int socket_watch_fds(Socket *s) {
                         s->accept &&
                         p->type == SOCKET_SOCKET &&
                         socket_address_can_accept(&p->address);
+#else
+		if(s->accept && p->type == SOCKET_SOCKET && socket_address_can_accept(&p->address))
+			log_error("Accepting sockets not supported!!\n");
 #endif
 
                 if ((r = unit_watch_fd(UNIT(s), p->fd, EV_READ, &p->fd_watch)) < 0)
@@ -2207,9 +2210,6 @@ static void socket_fd_event(Unit *u, int fd, int revents, ev_io *w)
 
                 socket_apply_socket_options(s, cfd);
         }
-
-#else
-        log_error("Socket accepting unimplemented!");
 #endif
 
         socket_enter_running(s, cfd);
