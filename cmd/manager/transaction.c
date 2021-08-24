@@ -736,12 +736,16 @@ int transaction_activate(Transaction *tr, Manager *m, JobMode mode, DBusError *e
 
                 if (m->idle_pipe[0] < 0 && m->idle_pipe[1] < 0 &&
                     m->idle_pipe[2] < 0 && m->idle_pipe[3] < 0) {
-                        pipe2(m->idle_pipe, O_NONBLOCK|O_CLOEXEC);
-                        pipe2(m->idle_pipe + 2, O_NONBLOCK|O_CLOEXEC);
-                }
-        }
+			pipe(m->idle_pipe);
+			pipe(m->idle_pipe + 2);
+			for (int i = 0; i < 4; i++) {
+				fd_cloexec(m->idle_pipe[i], true);
+				fd_nonblock(m->idle_pipe[i], true);
+			}
+		}
+	}
 
-        return 0;
+	return 0;
 }
 
 static Job* transaction_add_one_job(Transaction *tr, JobType type, Unit *unit, bool override, bool *is_new) {

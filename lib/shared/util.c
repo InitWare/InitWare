@@ -2095,9 +2095,9 @@ int make_stdio(int fd) {
 
         assert(fd >= 0);
 
-        r = dup3(fd, STDIN_FILENO, 0);
-        s = dup3(fd, STDOUT_FILENO, 0);
-        t = dup3(fd, STDERR_FILENO, 0);
+        r = dup2(fd, STDIN_FILENO);
+        s = dup2(fd, STDOUT_FILENO);
+        t = dup2(fd, STDERR_FILENO);
 
         if (fd >= 3)
                 safe_close(fd);

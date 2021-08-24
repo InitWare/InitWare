@@ -681,7 +681,7 @@ int socket_getpeercred(int fd, struct socket_ucred *xucred) {
 		return -errno;
         xucred->gid = cred.cr_gid;
         xucred->uid = cred.cr_uid;
-#ifndef Sys_Plat_DragonFlyBSD
+#if !defined(Sys_Plat_DragonFlyBSD) && !defined(Sys_Plat_MacOS)
 	xucred->pid = cred.cr_pid;
 #else
 	xucred->pid = 0;

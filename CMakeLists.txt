@@ -4,7 +4,7 @@ cmake_policy(VERSION 3.9)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-set(DISTRIBUTION ${CMAKE_SYSTEM})
+set(DISTRIBUTION "${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_VERSION}")
 
 include(FindPkgConfig)
 include(GNUInstallDirs)
@@ -75,6 +75,7 @@ elseif (CMAKE_SYSTEM_NAME MATCHES "HP-UX")
 	# make _r functions available
 	add_definitions(-D_REENTRANT=1)
 elseif (APPLE)
+	set(Sys_Plat_MacOS TRUE)
 	set(Sys_Plat_BSD TRUE)
 endif ()
 
@@ -94,6 +95,7 @@ pkg_check_modules(DBus REQUIRED IMPORTED_TARGET dbus-1)
 
 find_package(Threads REQUIRED)
 find_package(Python COMPONENTS Interpreter)
+find_program(GPERF gperf REQUIRED)
 
 check_include_file(asm/types.h Have_asm_types_h)
 check_include_file(linux/netlink.h Have_linux_netlink_h)
@@ -129,7 +131,7 @@ check_symbol_exists(program_invocation_short_name "errno.h"
 check_function_exists(secure_getenv Have_secure_getenv)
 check_function_exists(__secure_getenv Have___secure_getenv)
 check_symbol_exists(strtod_l "stdlib.h" Have_stdlib_strtod_l)
-check_symbol_exists(strtod_l "xlocale.h" Have_xlocale_strtod_l)
+check_symbol_exists(strtod_l "stdlib.h;xlocale.h" Have_xlocale_strtod_l)
 check_symbol_exists(strtonum "stdlib.h" Have_strtonum)
 
 check_type_size_in(__compar_fn_t "stdlib.h" Have___compar_fn_t)

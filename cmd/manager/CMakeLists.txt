@@ -4,7 +4,7 @@ add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.gperf
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/load-fragment-gperf.gperf.m4)
 
 add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.c
-    COMMAND gperf < ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.gperf
+    COMMAND ${GPERF} < ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.gperf
       > ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.c
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.gperf)
 

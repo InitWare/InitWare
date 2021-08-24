@@ -59,6 +59,10 @@
 #  define _sd_export_
 #endif
 
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
+
 static int cloexec(int fd)
 {
 	int flags;

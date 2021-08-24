@@ -1211,6 +1211,10 @@ void process_datagram_io(struct ev_loop *evloop, ev_io *watch, int revents)
 		msghdr.msg_control = &control;
 		msghdr.msg_controllen = sizeof(control);
 
+#ifndef MSG_CMSG_CLOEXEC // FIXME: #28
+#define MSG_CMSG_CLOEXEC 0
+#endif
+
 		n = recvmsg(watch->fd, &msghdr, MSG_DONTWAIT | MSG_CMSG_CLOEXEC);
 		if (n < 0) {
 

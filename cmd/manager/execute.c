@@ -616,10 +616,12 @@ static int enforce_groups(const ExecContext *context, const char *username, gid_
                 }
 
                 /* Second step, set our gids */
-#ifndef Sys_Plat_NetBSD
-                if (setresgid(gid, gid, gid) < 0)
-#else /* on NetBSD, setgid() sets real, effective, and saved GID */
-                if (setgid(gid) < 0)
+#if defined(Sys_Plat_NetBSD) /* on NetBSD, setgid() sets real, effective, and saved GID */
+		if (setgid(gid) < 0)
+#elif defined(Sys_Plat_MacOS)
+		if (setregid(gid, gid) < 0)
+#else
+		if (setresgid(gid, gid, gid) < 0)
 #endif
                         return -errno;
         }
@@ -722,10 +724,12 @@ static int enforce_user(const ExecContext *context, uid_t uid) {
 #endif
 
         /* Third step: actually set the uids */
-#ifndef Sys_Plat_NetBSD
-        if (setresuid(uid, uid, uid) < 0)
-#else /* on NetBSD, setuid() sets real, effective, and saved UID */
-        if (setuid(uid) < 0)
+#if defined(Sys_Plat_NetBSD) /* on NetBSD, setuid() sets real, effective, and saved UID */
+	if (setuid(uid) < 0)
+#elif defined(Sys_Plat_MacOS)
+	if (setreuid(uid, uid) < 0)
+#else
+	if (setresuid(uid, uid, uid) < 0)
 #endif
                 return -errno;
 
@@ -847,47 +851,49 @@ static int setup_pam(
                  * and this will make PR_SET_PDEATHSIG work in most cases.
                  * If this fails, ignore the error - but expect sd-pam threads
                  * to fail to exit normally */
-#        ifndef Sys_Plat_NetBSD
-                if (setresuid(uid, uid, uid) < 0)
-#        else
-                if (setuid(uid) < 0)
-#        endif
-                        log_error("Error: Failed to setresuid() in sd-pam: %s", strerror(-r));
+#if defined(Sys_Plat_NetBSD) /* on NetBSD, setuid() sets real, effective, and saved UID */
+		if (setuid(uid) < 0)
+#elif defined(Sys_Plat_MacOS)
+		if (setreuid(uid, uid) < 0)
+#else
+		if (setresuid(uid, uid, uid) < 0)
+#endif
+			log_error("Error: Failed to setresuid() in sd-pam: %s", strerror(-r));
 
-                /* Wait until our parent died. This will only work if
+		/* Wait until our parent died. This will only work if
                  * the above setresuid() succeeds, otherwise the kernel
                  * will not allow unprivileged parents kill their privileged
                  * children this way. We rely on the control groups kill logic
                  * to do the rest for us. */
-                if (exit_with_parent() < 0)
-                        goto child_finish;
+		if (exit_with_parent() < 0)
+			goto child_finish;
 
-                /* Check if our parent process might already have
+		/* Check if our parent process might already have
                  * died? */
-                if (getppid() == parent_pid) {
-                        for (;;) {
-                                if (sigwait(&ss, &sig) < 0) {
-                                        if (errno == EINTR)
-                                                continue;
+		if (getppid() == parent_pid) {
+			for (;;) {
+				if (sigwait(&ss, &sig) < 0) {
+					if (errno == EINTR)
+						continue;
 
-                                        goto child_finish;
-                                }
+					goto child_finish;
+				}
 
-                                assert(sig == SIGTERM);
-                                break;
-                        }
-                }
+				assert(sig == SIGTERM);
+				break;
+			}
+		}
 
-                /* If our parent died we'll end the session */
-                if (getppid() != parent_pid) {
-                        pam_code = pam_close_session(handle, flags);
-                        if (pam_code != PAM_SUCCESS)
-                                goto child_finish;
-                }
+		/* If our parent died we'll end the session */
+		if (getppid() != parent_pid) {
+			pam_code = pam_close_session(handle, flags);
+			if (pam_code != PAM_SUCCESS)
+				goto child_finish;
+		}
 
-                r = 0;
+		r = 0;
 
-        child_finish:
+	child_finish:
                 pam_end(handle, pam_code | flags);
                 _exit(r);
         }

@@ -37,6 +37,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "bsdstat.h"
 #include "capability.h"
 #include "conf-files.h"
 #include "label.h"

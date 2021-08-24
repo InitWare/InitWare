@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
 
 	saved_stderr = fcntl(STDERR_FILENO, F_DUPFD_CLOEXEC, 3);
 
-	if (dup3(fd, STDOUT_FILENO, 0) < 0 || dup3(fd, STDERR_FILENO, 0) < 0) {
+	if (dup2(fd, STDOUT_FILENO) < 0 || dup2(fd, STDERR_FILENO) < 0) {
 		log_error("Failed to duplicate fd: %m");
 		r = -errno;
 		goto finish;
@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
 
 	/* Let's try to restore a working stderr, so we can print the error message */
 	if (saved_stderr >= 0)
-		dup3(saved_stderr, STDERR_FILENO, 0);
+		dup2(saved_stderr, STDERR_FILENO);
 
 	log_error("Failed to execute process: %s", strerror(-r));
 

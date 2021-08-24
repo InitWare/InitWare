@@ -1,6 +1,6 @@
 add_custom_command(
     OUTPUT logind-gperf.c
-    COMMAND gperf < ${CMAKE_CURRENT_SOURCE_DIR}/logind-gperf.gperf
+    COMMAND ${GPERF} < ${CMAKE_CURRENT_SOURCE_DIR}/logind-gperf.gperf
 	> logind-gperf.c
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/logind-gperf.gperf)
 

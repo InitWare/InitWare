@@ -359,7 +359,7 @@ void stdout_stream_new(struct ev_loop *evloop, ev_io *watch, int revents)
 
 	assert(s);
 
-	fd = accept4(s->stdout_watch.fd, NULL, NULL, 0);
+	fd = accept(s->stdout_watch.fd, NULL, NULL);
 
 	if (fd < 0) {
 		if (errno == EAGAIN)

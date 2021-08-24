@@ -22,6 +22,7 @@
 #include <stddef.h>
 #include <unistd.h>
 
+#include "bsdsocket.h"
 #include "journald-console.h"
 #include "journald-kmsg.h"
 #include "journald-server.h"

@@ -28,15 +28,11 @@
 
 #define SD_JOURNAL_SUPPRESS_LOCATION
 
+#include "bsdendian.h"
+#include "bsdsocket.h"
 #include "sd-journal.h"
 #include "socket-util.h"
 #include "util.h"
-
-#if defined(Have_endian_h)
-#include <endian.h>
-#elif defined(Have_sys_endian_h)
-#include <sys/endian.h>
-#endif
 
 #define SNDBUF_SIZE (8 * 1024 * 1024)
 

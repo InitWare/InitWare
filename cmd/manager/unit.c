@@ -43,6 +43,7 @@ have been included with this software
 #include "systemd/sd-id128.h"
 #include "systemd/sd-messages.h"
 
+#include "bsdstat.h"
 #include "bus-errors.h"
 #include "dbus-unit.h"
 #include "def.h"

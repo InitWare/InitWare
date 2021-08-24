@@ -29,6 +29,7 @@
 #include <attr/xattr.h>
 #endif
 
+#include "bsdstat.h"
 #include "journal-def.h"
 #include "journal-file.h"
 #include "journal-vacuum.h"

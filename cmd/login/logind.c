@@ -974,9 +974,8 @@ static void idle_action_timer_cb(struct ev_loop *loop, ev_timer *watch, int reve
 
 int manager_dispatch_idle_action(Manager *m)
 {
-        struct dual_timestamp since;
-        struct itimerspec its = {};
-        int r;
+	struct dual_timestamp since;
+	int r;
         usec_t n;
         ev_tstamp wait_secs;
 

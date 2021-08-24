@@ -131,8 +131,8 @@ static void wait_for_children(Set *pids, sigset_t *mask) {
                         return;
 
                 timespec_store(&ts, until - n);
-#ifndef Sys_Plat_OpenBSD // FIXME:
-                k = sigtimedwait(mask, NULL, &ts);
+#if !defined(Sys_Plat_OpenBSD) && !defined(Sys_Plat_MacOS) // FIXME:
+		k = sigtimedwait(mask, NULL, &ts);
 #else
 		k = -1;
 		errno = ENOSYS;

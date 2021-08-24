@@ -36,17 +36,10 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "bsdendian.h"
 #include "time-dst.h"
 #include "util.h"
 
-#ifdef Have_sys_endian_h
-#        include <sys/endian.h>
-#elif defined(Have_endian_h)
-#        include <byteswap.h>
-#        include <endian.h>
-#else
-#        error
-#endif
 
 /*
  * If tzh_version is '2' or greater, the above is followed by a second instance

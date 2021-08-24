@@ -138,7 +138,8 @@ void server_driver_message(Server *s, sd_id128_t message_id, const char *format,
     _printf_attr_(3, 4);
 
 /* gperf lookup function */
-const struct ConfigPerfItem *journald_gperf_lookup(register const char *key, register size_t length);
+const struct ConfigPerfItem *
+    journald_gperf_lookup(/*register const char *key, register size_t length*/);
 
 int config_parse_storage(const char *unit, const char *filename, unsigned line, const char *section,
     const char *lvalue, int ltype, const char *rvalue, void *data, void *userdata);

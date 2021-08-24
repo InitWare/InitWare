@@ -7,7 +7,7 @@
 #cmakedefine Sys_Plat_NetBSD
 #cmakedefine Sys_Plat_DragonFlyBSD
 #cmakedefine Sys_Plat_OpenBSD
-#cmakedefine Sys_Plat_HPUX
+#cmakedefine Sys_Plat_MacOS
 
 /*
  * include files

@@ -46,7 +46,11 @@
 #define _public_ __attribute__ ((visibility("default")))
 #define _hidden_ __attribute__ ((visibility("hidden")))
 #define _weakref_(x) __attribute__((weakref(#x)))
+#ifndef Sys_Plat_MacOS
 #define _introspect_(x) __attribute__((section("introspect." x)))
+#else
+#define _introspect_(x)
+#endif
 #define _alignas_(x) __attribute__((aligned(__alignof(x))))
 #define _cleanup_(x) __attribute__((cleanup(x)))
 

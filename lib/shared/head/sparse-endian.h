@@ -18,18 +18,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-#ifndef SPARSE_ENDIAN_H
-#define SPARSE_ENDIAN_H
+#ifndef SPARSE_ENDIAN_H_
+#define SPARSE_ENDIAN_H_
 
-#include "compat.h"
-
-#ifdef Have_sys_endian_h
-#include <sys/endian.h>
-#endif
-#ifdef Have_endian_h
-#include <endian.h>
-#endif
 #include <stdint.h>
+
+#include "bsdendian.h"
 
 #ifndef __bitwise
 #define __bitwise
@@ -42,4 +36,4 @@ typedef uint32_t __bitwise be32_t;
 typedef uint64_t __bitwise le64_t;
 typedef uint64_t __bitwise be64_t;
 
-#endif /* SPARSE_ENDIAN_H */
+#endif /* SPARSE_ENDIAN_H_ */

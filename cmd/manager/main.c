@@ -1620,9 +1620,10 @@ int main(int argc, char *argv[]) {
         } else
                 log_info(PACKAGE_STRING " running in user mode. (" SYSTEMD_FEATURES ")");
 
-        if (arg_running_as == SYSTEMD_SYSTEM && !skip_setup) {
-                if (arg_show_status || plymouth_running())
+        if (arg_show_status || plymouth_running())
                         status_welcome();
+
+        if (arg_running_as == SYSTEMD_SYSTEM && !skip_setup) {
 
 #ifdef HAVE_KMOD
                 kmod_setup();

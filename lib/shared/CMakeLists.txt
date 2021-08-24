@@ -13,16 +13,18 @@ if(Use_CGroups)
 	list(APPEND shared_src cgroup-show.c cgroup-util.c)
 endif()
 
-if(Sys_Plat_Linux)
+if (Sys_Plat_Linux)
 	list(APPEND shared_src linprocfs/fdset.c linprocfs/proc-util.c
 	    cgroup-show.c cgroup-util.c hwclock.c selinux-util.c watchdog.c
 	    utmp-wtmp.c)
-elseif(Sys_Plat_BSD)
+elseif (Sys_Plat_MacOS)
+	list(APPEND shared_src macos/proc-util.c ptgroup-show.c)
+elseif (Sys_Plat_BSD)
 	list(APPEND shared_src kvm/fdset.c kvm/proc-util.c ptgroup-show.c)
 	list(APPEND KVM_Libs kvm)
-else()
+else ()
 	message(FATAL_ERROR "No process utilities for this platform - please port.")
-endif()
+endif ()
 
 if(Sys_Plat_FreeBSD)
 	list(APPEND KVM_Libs util)
