@@ -392,7 +392,9 @@ const BusProperty bus_exec_context_properties[] = {
         { "LimitDATA",                bus_execute_append_rlimits,            "t", 0 },
         { "LimitSTACK",               bus_execute_append_rlimits,            "t", 0 },
         { "LimitCORE",                bus_execute_append_rlimits,            "t", 0 },
+#ifndef Sys_Plat_MacOS
         { "LimitRSS",                 bus_execute_append_rlimits,            "t", 0 },
+#endif
         { "LimitNOFILE",              bus_execute_append_rlimits,            "t", 0 },
 #ifdef RLIMIT_AS
         { "LimitAS",                  bus_execute_append_rlimits,            "t", 0 },

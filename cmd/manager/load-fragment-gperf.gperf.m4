@@ -56,7 +56,9 @@ $1.LimitFSIZE,                   config_parse_limit,                 RLIMIT_FSIZ
 $1.LimitDATA,                    config_parse_limit,                 RLIMIT_DATA,                   offsetof($1, exec_context.rlimit)
 $1.LimitSTACK,                   config_parse_limit,                 RLIMIT_STACK,                  offsetof($1, exec_context.rlimit)
 $1.LimitCORE,                    config_parse_limit,                 RLIMIT_CORE,                   offsetof($1, exec_context.rlimit)
-$1.LimitRSS,                     config_parse_limit,                 RLIMIT_RSS,                    offsetof($1, exec_context.rlimit)
+m4_ifdef(`Sys_Plat_MacOS',
+`$1.LimitRSS,                      config_parse_limit,                 RLIMIT_RSS,                     offsetof($1, exec_context.rlimit)'
+)m4_dnl # ifndef Sys_Plat_MacOS
 $1.LimitNOFILE,                  config_parse_limit,                 RLIMIT_NOFILE,                 offsetof($1, exec_context.rlimit)
 m4_ifdef(`Have_RLIMIT_AS',
 `$1.LimitAS,                      config_parse_limit,                 RLIMIT_AS,                     offsetof($1, exec_context.rlimit)'

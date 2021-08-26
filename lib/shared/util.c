@@ -4536,7 +4536,9 @@ static const char* const rlimit_table[] = {
         [RLIMIT_DATA] = "LimitDATA",
         [RLIMIT_STACK] = "LimitSTACK",
         [RLIMIT_CORE] = "LimitCORE",
+#ifndef Sys_Plat_MacOS
         [RLIMIT_RSS] = "LimitRSS",
+#endif
         [RLIMIT_NOFILE] = "LimitNOFILE",
 #ifdef RLIMIT_AS
         [RLIMIT_AS] = "LimitAS",

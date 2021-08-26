@@ -19,6 +19,49 @@ have been included with this software
 #include "kqproc.h"
 #include "manager.h"
 
+#ifdef Sys_Plat_MacOS
+#include <libproc.h>
+
+#define PROC_FILTER_FLAGS NOTE_EXIT | NOTE_FORK
+#else
+#define PROC_FILTER_FLAGS NOTE_EXIT | NOTE_TRACK
+#define NOTE_EXITSTATUS 0
+#endif
+
+static void dispatch_note_fork(PTManager *ptm, int ppid)
+{
+#ifdef Sys_Plat_MacOS
+	pid_t subprocs[255];
+	int subproccnt;
+
+	subproccnt = proc_listchildpids(ppid, subprocs, sizeof subprocs);
+	if (subproccnt < 0) {
+		log_error("proc_listchildpids failed: %m");
+		return;
+	}
+
+	for (int i = 0; i < subproccnt; i++) {
+		struct kevent kev;
+		int r;
+
+		EV_SET(&kev, subprocs[i], EVFILT_PROC, EV_ADD, PROC_FILTER_FLAGS, 0, NULL);
+		r = kevent(ptm->group.manager->kqproc_io.fd, &kev, 1, NULL, 0, NULL);
+
+		// FIXME: By rights, we shouldn't do any I/O in this loop.
+		if (r < 0)
+			log_error("Failed to watch PID %lld: %m", (long long) subprocs[i]);
+	}
+
+	/*
+	 * Leave actually updating the PTGroups structures until after we've
+	 * hopefully attached the PROC filter to all children in the prior loop.
+	 * This helps our odds in this race.
+	 */
+	for (int i = 0; i < subproccnt; i++)
+		ptmanager_fork(ptm, ppid, subprocs[i]);
+#endif
+}
+
 static void kqproc_io_cb(struct ev_loop *evloop, ev_io *ev, int revents)
 {
         Manager *m = ev->data;
@@ -42,8 +85,12 @@ static void kqproc_io_cb(struct ev_loop *evloop, ev_io *ev, int revents)
                 ptmanager_fork(m->pt_manager, kev.data, kev.ident);
         else if (kev.fflags & NOTE_EXIT)
                 ptmanager_exit(m->pt_manager, kev.ident);
-        else if (kev.fflags & NOTE_TRACKERR)
-                log_error("NOTE_TRACKERR received from Kernel Queue\n");
+	else if (kev.fflags & NOTE_FORK)
+		dispatch_note_fork(m->pt_manager, kev.ident);
+	else if (kev.fflags & NOTE_TRACKERR)
+		log_error("NOTE_TRACKERR received from Kernel Queue\n");
+	else if (kev.fflags & NOTE_EXEC)
+		log_debug("NOTE_EXEC was received");
 }
 
 
@@ -75,13 +122,13 @@ int ptgroup_attach(PTGroup *grp, PTManager *ptm, pid_t pid)
         else if (r == 1)
                 return 1; /* moved group, but already tracked */
 
-        EV_SET(&ev, pid, EVFILT_PROC, EV_ADD, NOTE_EXIT | NOTE_TRACK, 0, NULL);
-        r = kevent(ptm->group.manager->kqproc_io.fd, &ev, 1, NULL, 0, NULL);
+	EV_SET(&ev, pid, EVFILT_PROC, EV_ADD, PROC_FILTER_FLAGS, 0, NULL);
+	r = kevent(ptm->group.manager->kqproc_io.fd, &ev, 1, NULL, 0, NULL);
 
-        if (r < 0) {
-                log_error("Failed to watch PID %lld: %m", (long long) pid);
-                return -errno;
-        }
+	if (r < 0) {
+		log_error("Failed to watch PID %lld: %m", (long long) pid);
+		return -errno;
+	}
 
-        return 1;
+	return 1;
 }

@@ -1585,6 +1585,7 @@ int exec_spawn(ExecCommand *command,
                                 line = NULL;
                         }
                 }
+
                 execve(command->path, final_argv, final_env);
                 err = -errno;
                 r = EXIT_EXEC;
