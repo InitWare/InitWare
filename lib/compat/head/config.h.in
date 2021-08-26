@@ -43,12 +43,12 @@
 #cmakedefine Have_parse_printf_format
 #cmakedefine Have_posix_fallocate
 #cmakedefine Have_program_invocation_short_name
+#cmakedefine HAVE_reallocarray
 #cmakedefine Have___secure_getenv
 #cmakedefine Have_secure_getenv
 #cmakedefine Have_stdlib_strtod_l
 #cmakedefine Have_xlocale_strtod_l
 #cmakedefine Have_strtonum
-
 /*
  * types
  */

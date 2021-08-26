@@ -28,6 +28,10 @@
 #include "dbus-common.h"
 #include "util.h"
 
+#ifdef Sys_Plat_Linux
+#include <sys/sysmacros.h>
+#endif
+
 #define BUS_SESSION_INTERFACE                                                        \
 	" <interface name=\"" SESSIOND_DBUS_INTERFACE                                \
 	".Session\">\n"                                                              \

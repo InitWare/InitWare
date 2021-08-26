@@ -133,6 +133,7 @@ check_function_exists(__secure_getenv Have___secure_getenv)
 check_symbol_exists(strtod_l "stdlib.h" Have_stdlib_strtod_l)
 check_symbol_exists(strtod_l "stdlib.h;xlocale.h" Have_xlocale_strtod_l)
 check_symbol_exists(strtonum "stdlib.h" Have_strtonum)
+check_symbol_exists(reallocarray "stdlib.h" HAVE_reallocarray)
 
 check_type_size_in(__compar_fn_t "stdlib.h" Have___compar_fn_t)
 check_type_size_in("struct cmsgcred" "sys/socket.h" Have_struct_cmsgcred)

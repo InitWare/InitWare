@@ -33,12 +33,14 @@
 #include "missing.h"
 
 #ifdef Use_libudev
-#        include <libudev.h>
+#include <libudev.h>
 #endif
 
 #ifdef Sys_Plat_Linux
-#        include <linux/input.h>
-#        include <linux/ioctl.h>
+#include <sys/sysmacros.h>
+
+#include <linux/input.h>
+#include <linux/ioctl.h>
 #endif
 
 enum SessionDeviceNotifications {
