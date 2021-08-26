@@ -1,5 +1,31 @@
+#include <libproc.h>
+
 #include "fdset.h"
 #include "util.h"
+
+int close_all_fds(const int except[], unsigned n_except)
+{
+	struct proc_fdinfo fdinfo[1023];
+	int fdcnt;
+	int r = 0;
+
+	fdcnt = proc_pidinfo(getpid(), PROC_PIDLISTFDS, 0, fdinfo, sizeof fdinfo);
+	if (fdcnt < 0)
+		log_error("Failed to get process FD info: %m\n");
+	fdcnt = fdcnt / PROC_PIDLISTFD_SIZE;
+
+	for (int i = 0; i < fdcnt; i++) {
+		int fd = fdinfo[i].proc_fd;
+
+		if (fd_in_set(fd, except, n_except))
+			continue;
+		else if (close_nointr(fd) < 0)
+			if (errno != EBADF && r == 0)
+				r = -errno;
+	}
+
+	return r;
+}
 
 int get_parent_of_pid(pid_t pid, pid_t *_ppid)
 {

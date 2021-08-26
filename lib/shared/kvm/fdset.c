@@ -65,6 +65,27 @@ struct kinfo_file *get_files(int *cnt)
 }
 #endif
 
+int close_all_fds(const int except[], unsigned n_except)
+{
+	int r = 0;
+
+	assert(n_except == 0 || except);
+
+
+	assert_se(getrlimit(RLIMIT_NOFILE, &rl) >= 0);
+	for (fd = 3; fd < (int) rl.rlim_max; fd++) {
+
+		if (fd_in_set(fd, except, n_except))
+			continue;
+
+		if (close_nointr(fd) < 0)
+			if (errno != EBADF && r == 0)
+				r = -errno;
+	}
+
+	return r;
+}
+
 
 int fdset_new_fill(FDSet **_s)
 {

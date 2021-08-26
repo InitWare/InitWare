@@ -341,6 +341,7 @@ unsigned random_u(void);
 int fd_nonblock(int fd, bool nonblock);
 int fd_cloexec(int fd, bool cloexec);
 
+_pure_ bool fd_in_set(int fd, const int fdset[], unsigned n_fdset);
 int close_all_fds(const int except[], unsigned n_except);
 
 bool fstype_is_network(const char *fstype);

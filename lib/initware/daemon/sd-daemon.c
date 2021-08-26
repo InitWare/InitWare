@@ -246,8 +246,8 @@ static int sd_is_socket_internal(int fd, int type, int listening) {
                         return 0;
         }
 
-#ifndef __OpenBSD__ // FIXME: #32
-        if (listening >= 0) {
+#if !defined(__OpenBSD__) && !defined(__APPLE__) // FIXME: #32
+	if (listening >= 0) {
                 int accepting = 0;
                 socklen_t l = sizeof(accepting);
 

@@ -22,7 +22,7 @@ StandardOutput=null
 
 # Increase the default a bit in order to allow many simultaneous
 # services being run since we keep one fd open per service.
-LimitNOFILE=16384
+#LimitNOFILE=16384 FIXME: broken on macOS
 
 [Install]
 WantedBy=sysinit.target

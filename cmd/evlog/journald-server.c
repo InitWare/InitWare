@@ -510,9 +510,9 @@ static void dispatch_message_real(Server *s, struct iovec *iovec, unsigned n, un
     const char *unit_id, int priority, pid_t object_pid)
 {
 
-	char pid[sizeof("_PID=") + DECIMAL_STR_MAX(pid_t)],
-	    uid[sizeof("_UID=") + DECIMAL_STR_MAX(uid_t)],
-	    gid[sizeof("_GID=") + DECIMAL_STR_MAX(gid_t)],
+	char pid[sizeof("_PID=") + DECIMAL_STR_MAX(unsigned long)],
+	    uid[sizeof("_UID=") + DECIMAL_STR_MAX(unsigned long)],
+	    gid[sizeof("_GID=") + DECIMAL_STR_MAX(unsigned long)],
 	    owner_uid[sizeof("_SYSTEMD_OWNER_UID=") + DECIMAL_STR_MAX(uid_t)],
 	    source_time[sizeof("_SOURCE_REALTIME_TIMESTAMP=") + DECIMAL_STR_MAX(usec_t)],
 	    boot_id[sizeof("_BOOT_ID=") + 32] = "_BOOT_ID=",
@@ -547,14 +547,20 @@ static void dispatch_message_real(Server *s, struct iovec *iovec, unsigned n, un
 	if (ucred) {
 		realuid = ucred->uid;
 
-		sprintf(pid, "_PID=%lu", (unsigned long) ucred->pid);
-		IOVEC_SET_STRING(iovec[n++], pid);
+		if (ucred->pid != -1) {
+			sprintf(pid, "_PID=%lu", (unsigned long) ucred->pid);
+			IOVEC_SET_STRING(iovec[n++], pid);
+		}
 
-		sprintf(uid, "_UID=%lu", (unsigned long) ucred->uid);
-		IOVEC_SET_STRING(iovec[n++], uid);
+		if (ucred->uid != -1) {
+			sprintf(uid, "_UID=%lu", (unsigned long) ucred->uid);
+			IOVEC_SET_STRING(iovec[n++], uid);
+		}
 
-		sprintf(gid, "_GID=%lu", (unsigned long) ucred->gid);
-		IOVEC_SET_STRING(iovec[n++], gid);
+		if (ucred->gid != -1) {
+			sprintf(gid, "_GID=%lu", (unsigned long) ucred->gid);
+			IOVEC_SET_STRING(iovec[n++], gid);
+		}
 
 		r = get_process_comm(ucred->pid, &t);
 		if (r >= 0) {
@@ -1147,7 +1153,7 @@ void process_datagram_io(struct ev_loop *evloop, ev_io *watch, int revents)
 	for (;;) {
 		struct msghdr msghdr;
 		struct iovec iovec;
-		struct socket_ucred ucred;
+		struct socket_ucred ucred = { -1, -1, -1 };
 		struct timeval *tv = NULL;
 		struct cmsghdr *cmsg;
 		char *label = NULL;
