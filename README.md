@@ -6,7 +6,8 @@ likely do **not** want to try to install InitWare until a first stable
 release is made!
 
 The InitWare Suite of Middleware allows you to manage services and system
-resources as logical entities called units. It runs on GNU/Linux and most BSDs.
+resources as logical entities called units. It runs on GNU/Linux and all modern
+BSDs, including macOS.
 
 Units are automatically scheduled by a job scheduler according to their
 dependency specifications. A user session manager facilitates tracking of users'
@@ -44,7 +45,7 @@ Some details differ by port. See [Systemd compatibility].
 
 #### On what platforms does InitWare run?
 
-On NetBSD, FreeBSD, and GNU/Linux as an init system and on DragonFly BSD and
+On NetBSD, FreeBSD, and GNU/Linux as an init system and on macOS, DragonFly BSD and
 OpenBSD as an auxiliary service manager. See [Support matrix].
 
 [Support Matrix]: https://github.com/InitWare/InitWare/wiki/Support-Matrix
