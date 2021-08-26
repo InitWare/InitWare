@@ -23,6 +23,8 @@ int close_all_fds(const int except[], unsigned n_except)
 
 		if (fd_in_set(fd, except, n_except))
 			continue;
+		else if (fd < 3)
+			continue;
 		else if (close_nointr(fd) < 0)
 			if (errno != EBADF && r == 0)
 				r = -errno;

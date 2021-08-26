@@ -13,7 +13,10 @@ have been included with this software
         All rights reserved.
 *********************************************************************/
 
+#include <sys/param.h>
+
 #include <assert.h>
+#include <ulimit.h>
 
 #include "fdset.h"
 #include "kvm.h"
@@ -67,13 +70,9 @@ struct kinfo_file *get_files(int *cnt)
 
 int close_all_fds(const int except[], unsigned n_except)
 {
-	int r = 0;
+	int r = 0, fd_set;
 
-	assert(n_except == 0 || except);
-
-
-	assert_se(getrlimit(RLIMIT_NOFILE, &rl) >= 0);
-	for (fd = 3; fd < (int) rl.rlim_max; fd++) {
+	for (int fd = 3; fd < 1023; fd++) {
 
 		if (fd_in_set(fd, except, n_except))
 			continue;
