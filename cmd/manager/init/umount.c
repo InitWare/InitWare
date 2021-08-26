@@ -29,7 +29,6 @@
 #include <linux/dm-ioctl.h>
 
 #include "list.h"
-#include "mount-setup.h"
 #include "umount.h"
 #include "path-util.h"
 #include "util.h"

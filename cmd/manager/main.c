@@ -37,49 +37,51 @@
 #include <valgrind/valgrind.h>
 #endif
 
-#include "manager.h"
-#include "log.h"
-#include "load-fragment.h"
-#include "fdset.h"
-#include "special.h"
+#include "build.h"
+#include "capability.h"
 #include "conf-parser.h"
 #include "dbus-common.h"
-#include "missing.h"
-#include "label.h"
-#include "build.h"
-#include "strv.h"
 #include "def.h"
-#include "virt.h"
-#include "watchdog.h"
-#include "path-util.h"
-#include "switch-root.h"
-#include "capability.h"
-#include "killall.h"
 #include "env-util.h"
+#include "fdset.h"
+#include "fileio.h"
 #include "hwclock.h"
+#include "label.h"
+#include "load-fragment.h"
+#include "log.h"
+#include "manager.h"
+#include "missing.h"
+#include "path-util.h"
 #include "sd-daemon.h"
 #include "sd-messages.h"
+#include "special.h"
+#include "strv.h"
+#include "virt.h"
+#include "watchdog.h"
 
-#ifdef HAVE_KMOD
-#include "kmod-setup.h"
+#ifdef Sys_Plat_Linux
+#include "linux/loopback-setup.h"
+#include "linux/mount-setup.h"
 #endif
-#include "hostname-setup.h"
-#include "machine-id-setup.h"
-#include "selinux-setup.h"
-#include "ima-setup.h"
-#include "fileio.h"
-#include "smack-setup.h"
+
+#ifdef FEATURE_init
+#include "init/hostname-setup.h"
+#include "init/ima-setup.h"
+#include "init/killall.h"
+#include "init/machine-id-setup.h"
+#include "init/selinux-setup.h"
+#include "init/smack-setup.h"
+#include "init/switch-root.h"
+#ifdef HAVE_KMOD
+#include "init/kmod-setup.h"
+#endif
+#endif
 
 #ifdef Have_sys_prctl_h
 #include <sys/prctl.h>
 #endif
 #ifdef Have_sys_procctl_h
 #include <sys/procctl.h>
-#endif
-
-#ifdef Sys_Plat_Linux
-#include "mount-setup.h"
-#include "loopback-setup.h"
 #endif
 
 const char pidfile_path[] = INSTALL_PKGRUNSTATE_DIR "/initware.pid";
@@ -1398,7 +1400,7 @@ int main(int argc, char *argv[]) {
 		umask(0);
 
 	if (arg_running_as == SYSTEMD_SYSTEM && detect_container(NULL) <= 0) {
-
+#ifdef FEATURE_init
 		/* Running outside of a container as system manager */
 		assert(arg_running_as == SYSTEMD_SYSTEM);
 		//make_null_stdio();
@@ -1464,6 +1466,10 @@ int main(int argc, char *argv[]) {
                  * opening that before we parsed /proc/cmdline which
                  * might redirect output elsewhere. */
 		log_set_target(LOG_TARGET_JOURNAL_OR_KMSG);
+#else
+	log_error("Build doesn't support running as PID 1");
+	goto finish;
+#endif
 
 	} else if (arg_running_as == SYSTEMD_SYSTEM) {
 		/* Running inside a container, as PID 1 */
@@ -1501,6 +1507,7 @@ int main(int argc, char *argv[]) {
 	if (r < 0)
 		goto finish;
 
+#ifdef FEATURE_init
 	/* Mount /proc, /sys and friends, so that /proc/cmdline and
          * /proc/$PID/fd is available. */
 	if (is_pid1) {
@@ -1510,6 +1517,7 @@ int main(int argc, char *argv[]) {
                 if (r < 0)
                         goto finish;
 	}
+#endif
 
 	/* Reset all signal handlers. */
 	assert_se(reset_all_signal_handlers() == 0);
@@ -1597,6 +1605,7 @@ int main(int argc, char *argv[]) {
 
         /* Make sure we leave a core dump without panicing the
          * kernel. */
+#ifdef FEATURE_init
 	if (is_pid1) {
 		install_crash_handler();
 
@@ -1606,6 +1615,7 @@ int main(int argc, char *argv[]) {
                 if (r < 0)
                         goto finish;
 	}
+#endif
 
 	if (arg_running_as == SYSTEMD_SYSTEM) {
                 const char *virtualization = NULL;
@@ -1626,7 +1636,7 @@ int main(int argc, char *argv[]) {
                         status_welcome();
 
         if (arg_running_as == SYSTEMD_SYSTEM && !skip_setup) {
-
+#ifdef FEATURE_init
 #ifdef HAVE_KMOD
                 kmod_setup();
 #endif
@@ -1642,6 +1652,7 @@ int main(int argc, char *argv[]) {
 #endif
 
                 test_usr();
+#endif
         }
 
 #ifdef Sys_Plat_Linux
@@ -1844,6 +1855,7 @@ int main(int argc, char *argv[]) {
                         log_notice("Reexecuting.");
                         goto finish;
 
+#ifdef FEATURE_init
                 case MANAGER_SWITCH_ROOT:
                         /* Steal the switch root parameters */
                         switch_root_dir = m->switch_root;
@@ -1857,6 +1869,7 @@ int main(int argc, char *argv[]) {
                         reexecute = true;
                         log_notice("Switching root.");
                         goto finish;
+#endif
 
                 case MANAGER_REBOOT:
                 case MANAGER_POWEROFF:
@@ -1912,6 +1925,7 @@ finish:
                 if (saved_rlimit_nofile.rlim_cur > 0)
                         setrlimit(RLIMIT_NOFILE, &saved_rlimit_nofile);
 
+#ifdef FEATURE_init
                 if (switch_root_dir) {
                         /* Kill all remaining processes from the
                          * initrd, but don't wait for them, so that we
@@ -1926,6 +1940,7 @@ finish:
 #endif
                                 log_error("Failed to switch root, ignoring: %s", strerror(-r));
                 }
+#endif
 
                 args_size = MAX(6, argc+1);
                 args = newa(const char*, args_size);

@@ -36,7 +36,7 @@ endif()
 
 add_library(iw-shared ${shared_src})
 target_include_directories(iw-shared PUBLIC head)
-target_link_libraries(iw-shared internal compat iw-cjson iw-ev
+target_link_libraries(iw-shared internal compat iw-cjson iw-ev iw-daemon
     PkgConfig::DBus ${KVM_Libs} ${Cap_Libs})
 
 # ------------------------------------------------------------------------------

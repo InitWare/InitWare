@@ -72,7 +72,6 @@ have been included with this software
 #include "manager.h"
 #include "missing.h"
 #include "mkdir.h"
-#include "mount-setup.h"
 #include "path-lookup.h"
 #include "path-util.h"
 #include "ratelimit.h"

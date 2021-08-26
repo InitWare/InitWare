@@ -46,7 +46,6 @@
 #include "fileio.h"
 #include "ioprio.h"
 #include "log.h"
-#include "loopback-setup.h"
 #include "macro.h"
 #include "missing.h"
 #include "namespace.h"
@@ -60,7 +59,7 @@
 #include "utmp-wtmp.h"
 
 #ifdef Use_PAM
-#        include <security/pam_appl.h>
+#include <security/pam_appl.h>
 #endif
 
 #ifdef Have_sys_prctl_h
@@ -72,6 +71,8 @@
 #include <linux/seccomp-bpf.h>
 #include <linux/fs.h>
 #include <linux/oom.h>
+
+#include "linux/loopback-setup.h"
 #endif
 
 #define IDLE_TIMEOUT_USEC (5*USEC_PER_SEC)
