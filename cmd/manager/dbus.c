@@ -43,6 +43,7 @@ have been included with this software
 #include "bus-errors.h"
 #include "dbus-automount.h"
 #include "dbus-common.h"
+#include "dbus-delegate.h"
 #include "dbus-device.h"
 #include "dbus-job.h"
 #include "dbus-loop-libev.h"

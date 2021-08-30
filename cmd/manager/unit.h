@@ -318,6 +318,8 @@ typedef enum UnitSetPropertiesMode {
 #include "swap.h"
 #endif
 
+#include "delegate.h"
+
 struct UnitVTable {
         /* How much memory does an object of this unit type need */
         size_t object_size;
@@ -521,6 +523,7 @@ DEFINE_CAST(MOUNT, Mount);
 DEFINE_CAST(AUTOMOUNT, Automount);
 DEFINE_CAST(SWAP, Swap);
 #endif
+DEFINE_CAST(DELEGATE, Delegate);
 
 Unit *unit_new(Manager *m, size_t size);
 void unit_free(Unit *u);

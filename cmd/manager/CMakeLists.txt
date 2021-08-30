@@ -18,8 +18,8 @@ add_custom_command(
 set(MANAGER_SRC async.c async.h audit-fd.c condition.c
     dbus.c dbus-execute.c dbus-job.c dbus-kill.c dbus-manager.c dbus-path.c
     dbus-scope.c dbus-service.c dbus-slice.c dbus-snapshot.c dbus-socket.c
-    dbus-target.c dbus-timer.c dbus-unit.c
-    event.c execute.c job.c kill.c
+    dbus-target.c dbus-timer.c dbus-unit.c dbus-delegate.c
+    delegate.c event.c execute.c job.c kill.c
     load-dropin.c load-fragment.c locale-setup.c manager.c
     path.c scope.c service.c slice.c snapshot.c socket.c target.c
     timer.c transaction.c unit.c unit-printf.c

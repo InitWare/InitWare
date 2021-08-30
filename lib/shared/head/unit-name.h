@@ -31,24 +31,25 @@ typedef enum UnitType UnitType;
 typedef enum UnitLoadState UnitLoadState;
 
 enum UnitType {
-        UNIT_SERVICE = 0,
-        UNIT_SOCKET,
-        UNIT_TARGET,
-        UNIT_SNAPSHOT,
-        UNIT_TIMER,
-        UNIT_PATH,
-        UNIT_SLICE,
-        UNIT_SCOPE,
+	UNIT_SERVICE = 0,
+	UNIT_SOCKET,
+	UNIT_TARGET,
+	UNIT_SNAPSHOT,
+	UNIT_TIMER,
+	UNIT_PATH,
+	UNIT_SLICE,
+	UNIT_SCOPE,
 #ifdef Use_udev
-        UNIT_DEVICE,
+	UNIT_DEVICE,
 #endif
 #ifdef Sys_Plat_Linux
-        UNIT_MOUNT,
-        UNIT_AUTOMOUNT,
-        UNIT_SWAP,
+	UNIT_MOUNT,
+	UNIT_AUTOMOUNT,
+	UNIT_SWAP,
 #endif
-        _UNIT_TYPE_MAX,
-        _UNIT_TYPE_INVALID = -1
+	UNIT_DELEGATE,
+	_UNIT_TYPE_MAX,
+	_UNIT_TYPE_INVALID = -1
 };
 
 enum UnitLoadState {

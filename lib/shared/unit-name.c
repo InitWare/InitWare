@@ -32,26 +32,43 @@
         DIGITS LETTERS                          \
         ":-_.\\"
 
-static const char* const unit_type_table[_UNIT_TYPE_MAX] = {
-        [UNIT_SERVICE] = "service",
-        [UNIT_SOCKET] = "socket",
-        [UNIT_TARGET] = "target",
-        [UNIT_SNAPSHOT] = "snapshot",
-        [UNIT_TIMER] = "timer",
-        [UNIT_PATH] = "path",
-        [UNIT_SLICE] = "slice",
-        [UNIT_SCOPE] = "scope",
+static const char *const unit_type_table[_UNIT_TYPE_MAX] = {
+	[UNIT_SERVICE] = "service",
+	[UNIT_SOCKET] = "socket",
+	[UNIT_TARGET] = "target",
+	[UNIT_SNAPSHOT] = "snapshot",
+	[UNIT_TIMER] = "timer",
+	[UNIT_PATH] = "path",
+	[UNIT_SLICE] = "slice",
+	[UNIT_SCOPE] = "scope",
 #ifdef Use_udev
-        [UNIT_DEVICE] = "device",
+	[UNIT_DEVICE] = "device",
 #endif
 #ifdef Sys_Plat_Linux
-        [UNIT_MOUNT] = "mount",
-        [UNIT_AUTOMOUNT] = "automount",
-        [UNIT_SWAP] = "swap",
+	[UNIT_MOUNT] = "mount",
+	[UNIT_AUTOMOUNT] = "automount",
+	[UNIT_SWAP] = "swap",
 #endif
+	[UNIT_DELEGATE] = "delegate",
 };
 
-DEFINE_STRING_TABLE_LOOKUP(unit_type, UnitType);
+const char *unit_type_to_string(UnitType i)
+{
+	if (i < 0 || i >= (UnitType) ELEMENTSOF(unit_type_table))
+		return NULL;
+	return unit_type_table[i];
+}
+
+UnitType unit_type_from_string(const char *s)
+{
+	assert(s);
+	for (UnitType i = 0; i < UNIT_DELEGATE; i++)
+		if (unit_type_table[i] && streq(unit_type_table[i], s))
+			return i;
+	if (startswith(s, "delegate"))
+		return UNIT_DELEGATE;
+	return (UnitType) -1;
+}
 
 static const char* const unit_load_state_table[_UNIT_LOAD_STATE_MAX] = {
         [UNIT_STUB] = "stub",
