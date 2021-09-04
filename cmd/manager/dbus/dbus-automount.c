@@ -21,8 +21,8 @@
 
 #include <errno.h>
 
-#include "dbus-unit.h"
-#include "dbus-automount.h"
+#include "dbus/dbus-unit.h"
+#include "dbus/dbus-automount.h"
 #include "dbus-common.h"
 #include "selinux-access.h"
 

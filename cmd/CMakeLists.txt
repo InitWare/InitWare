@@ -1,4 +1,4 @@
-add_subdirectory(evlog)
+add_subdirectory(syslog)
 add_subdirectory(svcctl)
 add_subdirectory(manager)
 add_subdirectory(rcng)

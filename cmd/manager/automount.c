@@ -33,7 +33,7 @@
 #include "load-fragment.h"
 #include "load-dropin.h"
 #include "unit-name.h"
-#include "dbus-automount.h"
+#include "dbus/dbus-automount.h"
 #include "bus-errors.h"
 #include "special.h"
 #include "label.h"

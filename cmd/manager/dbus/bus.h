@@ -17,8 +17,8 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#ifndef DBUS_H_
-#define DBUS_H_
+#ifndef BUS_H_
+#define BUS_H_
 
 #include <dbus/dbus.h>
 
@@ -54,4 +54,4 @@ int bus_deserialize_item(Manager *m, const char *line);
 extern const char *const bus_interface_table[];
 
 
-#endif /* DBUS_H_ */
+#endif /* BUS_H_ */

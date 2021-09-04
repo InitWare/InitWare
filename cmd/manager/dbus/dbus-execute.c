@@ -23,7 +23,7 @@
 #include <errno.h>
 
 #include "dbus-common.h"
-#include "dbus-execute.h"
+#include "dbus/dbus-execute.h"
 #include "fileio.h"
 #include "ioprio.h"
 #include "missing.h"

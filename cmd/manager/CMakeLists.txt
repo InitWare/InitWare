@@ -1,3 +1,9 @@
+if (USE_SYSTEMD_COMPAT_LINKS)
+	configure_file(systemd.pc.in systemd.pc @ONLY)
+	install(FILES ${CMAKE_CURRENT_BINARY_DIR}/systemd.pc
+	    DESTINATION ${PKGCONF_DIR})
+endif ()
+
 add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.gperf
     COMMAND m4 -P < ${CMAKE_CURRENT_SOURCE_DIR}/load-fragment-gperf.gperf.m4
       > ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.gperf
@@ -15,10 +21,12 @@ add_custom_command(
       > ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf-nulstr.c
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.gperf)
 
-set(MANAGER_SRC async.c async.h audit-fd.c condition.c
-    dbus.c dbus-execute.c dbus-job.c dbus-kill.c dbus-manager.c dbus-path.c
-    dbus-scope.c dbus-service.c dbus-slice.c dbus-snapshot.c dbus-socket.c
-    dbus-target.c dbus-timer.c dbus-unit.c dbus-delegate.c
+set(MANAGER_SRC dbus/bus.c dbus/dbus-execute.c dbus/dbus-job.c dbus/dbus-kill.c
+    dbus/dbus-manager.c dbus/dbus-path.c dbus/dbus-scope.c dbus/dbus-service.c
+    dbus/dbus-slice.c dbus/dbus-snapshot.c dbus/dbus-socket.c dbus/dbus-target.c
+    dbus/dbus-timer.c dbus/dbus-unit.c dbus/dbus-delegate.c
+
+    async.c async.h audit-fd.c condition.c
     delegate.c event.c execute.c job.c kill.c
     load-dropin.c load-fragment.c locale-setup.c manager.c
     path.c scope.c service.c slice.c snapshot.c socket.c target.c
@@ -27,7 +35,7 @@ set(MANAGER_SRC async.c async.h audit-fd.c condition.c
     ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf-nulstr.c)
 
 if(Use_Libudev OR Use_Libdevattr)
-	list(APPEND MANAGER_SRC dbus-device.c device.c)
+	list(APPEND MANAGER_SRC dbus/dbus-device.c device.c)
 endif()
 
 if(Use_KQProc)
@@ -36,10 +44,10 @@ endif()
 
 if(Sys_Plat_Linux)
 	if(Use_Libudev OR Use_Libdevattr)
-		list(APPEND MANAGER_SRC swap.c dbus-swap.c)
+		list(APPEND MANAGER_SRC swap.c dbus/dbus-swap.c)
 	endif()
-	list(APPEND MANAGER_SRC automount.c dbus-automount.c dbus-cgroup.c
-	    dbus-mount.c linux/cgroup.c linux/loopback-setup.c mount.c linux/mount-setup.c init/selinux-setup.c init/switch-root.c
+	list(APPEND MANAGER_SRC automount.c dbus/dbus-automount.c dbus/dbus-cgroup.c
+	    dbus/dbus-mount.c linux/cgroup.c linux/loopback-setup.c mount.c linux/mount-setup.c init/selinux-setup.c init/switch-root.c
 	    namespace.c selinux-access.c)
 endif()
 

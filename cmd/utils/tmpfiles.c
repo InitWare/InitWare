@@ -118,7 +118,7 @@ static char **include_prefixes = NULL;
 static char **exclude_prefixes = NULL;
 
 static const char conf_file_dirs[] =
-#ifdef Use_SystemdCompat
+#ifdef USE_SYSTEMD_DIRS
     "/etc/tmpfiles.d\0"
     "/run/tmpfiles.d\0"
     "/usr/local/lib/tmpfiles.d\0"

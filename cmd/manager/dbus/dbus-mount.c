@@ -21,13 +21,13 @@
 
 #include <errno.h>
 
-#include "dbus-unit.h"
-#include "dbus-execute.h"
-#include "dbus-kill.h"
-#include "dbus-cgroup.h"
+#include "dbus/dbus-unit.h"
+#include "dbus/dbus-execute.h"
+#include "dbus/dbus-kill.h"
+#include "dbus/dbus-cgroup.h"
 #include "dbus-common.h"
 #include "selinux-access.h"
-#include "dbus-mount.h"
+#include "dbus/dbus-mount.h"
 
 #define BUS_MOUNT_INTERFACE                                             \
         " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Mount\">\n"        \

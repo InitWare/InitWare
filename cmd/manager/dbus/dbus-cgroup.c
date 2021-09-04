@@ -22,7 +22,7 @@
 #include <dbus/dbus.h>
 
 #include "path-util.h"
-#include "dbus-cgroup.h"
+#include "dbus/dbus-cgroup.h"
 
 static DEFINE_BUS_PROPERTY_APPEND_ENUM(bus_cgroup_append_device_policy, cgroup_device_policy, CGroupDevicePolicy);
 

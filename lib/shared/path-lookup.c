@@ -46,7 +46,7 @@ int user_config_home(char **config_home) {
 
         e = getenv("XDG_CONFIG_HOME");
         if (e) {
-		r = strappend(e, "/" PACKAGE_NAME "/user");
+		r = strappend(e, "/" PKG_DIR_NAME "/user");
 		if (!r)
                         return -ENOMEM;
 
@@ -57,7 +57,7 @@ int user_config_home(char **config_home) {
 
                 home = getenv("HOME");
                 if (home) {
-			r = strappend(home, "/.config/" PACKAGE_NAME "/user");
+			r = strappend(home, "/.config/" PKG_DIR_NAME "/user");
 			if (!r)
                                 return -ENOMEM;
 
@@ -122,17 +122,17 @@ static char** user_dirs(
                         goto fail;
         }
 
-	/* We don't treat /etc/xdg/$PACKAGE_NAME here as the spec
+	/* We don't treat /etc/xdg/$PKG_DIR_NAME here as the spec
          * suggests because we assume that that is a link to
-         * /etc/$PACKAGE_NAME/ anyway. */
+         * /etc/$PKG_DIR_NAME/ anyway. */
 
 	e = getenv("XDG_DATA_HOME");
         if (e) {
-		if (asprintf(&data_home, "%s/" PACKAGE_NAME "/user", e) < 0)
+		if (asprintf(&data_home, "%s/" PKG_DIR_NAME "/user", e) < 0)
 			goto fail;
 
         } else if (home) {
-		if (asprintf(&data_home, "%s/.local/share/" PACKAGE_NAME "/user", home) < 0)
+		if (asprintf(&data_home, "%s/.local/share/" PKG_DIR_NAME "/user", home) < 0)
 			goto fail;
 
                 /* There is really no need for two unit dirs in $HOME,
@@ -143,7 +143,7 @@ static char** user_dirs(
                  * one. */
 
                 mkdir_parents_label(data_home, 0777);
-		(void) symlink("../../../.config/" PACKAGE_NAME "/user", data_home);
+		(void) symlink("../../../.config/" PKG_DIR_NAME "/user", data_home);
 	}
 
         e = getenv("XDG_DATA_DIRS");
@@ -174,7 +174,7 @@ static char** user_dirs(
         }
 
         if (!strv_isempty(config_dirs)) {
-		t = strv_merge_concat(r, config_dirs, "/" PACKAGE_NAME "/user");
+		t = strv_merge_concat(r, config_dirs, "/" PKG_DIR_NAME "/user");
 		if (!t)
                         goto finish;
                 strv_free(r);
@@ -204,7 +204,7 @@ static char** user_dirs(
         }
 
         if (!strv_isempty(data_dirs)) {
-		t = strv_merge_concat(r, data_dirs, "/" PACKAGE_NAME "/user");
+		t = strv_merge_concat(r, data_dirs, "/" PKG_DIR_NAME "/user");
 		if (!t)
                         goto fail;
                 strv_free(r);

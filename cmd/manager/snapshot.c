@@ -20,7 +20,7 @@
 #include <errno.h>
 
 #include "bus-errors.h"
-#include "dbus-snapshot.h"
+#include "dbus/dbus-snapshot.h"
 #include "def.h"
 #include "snapshot.h"
 #include "unit-name.h"

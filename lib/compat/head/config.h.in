@@ -62,7 +62,7 @@
  * compatibility Use-flags
  */
 #cmakedefine Use_SystemdDBus
-#cmakedefine Use_SystemdCompat
+#cmakedefine USE_SYSTEMD_DIRS
 
 /*
  * feature Use-flags
@@ -85,6 +85,8 @@
 /*
  * Paths
  */
+#define PKG_DIR_NAME "@PKG_DIR_NAME@"
+
 #define INSTALL_PKGRUNSTATE_DIR "@INSTALL_PKGRUNSTATE_DIR@"
 #define INSTALL_PKGSYSCONF_DIR "@INSTALL_PKGSYSCONF_DIR@"
 #define INSTALL_RUNSTATE_DIR "@INSTALL_RUNSTATE_DIR@"
@@ -92,7 +94,6 @@
 #define INSTALL_PKGLIB_DIR "@INSTALL_PKGLIB_DIR@"
 #define AbsDir_PkgVarLib "@INSTALL_PKGLOCALSTATE_DIR@"
 
-#define PACKAGE_NAME "@PACKAGE_NAME@"
 #define SYSTEM_CONFIG_FILE "@SYSTEM_CONFIG_FILE@"
 #define SYSTEM_CONFIG_UNIT_PATH "@SYSTEM_CONFIG_UNIT_PATH@"
 #define SYSTEM_DATA_UNIT_PATH "@SYSTEM_DATA_UNIT_PATH@"

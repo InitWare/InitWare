@@ -59,8 +59,8 @@ have been included with this software
 #include "audit-fd.h"
 #include "boot-timestamps.h"
 #include "bus-errors.h"
-#include "dbus-job.h"
-#include "dbus-unit.h"
+#include "dbus/dbus-job.h"
+#include "dbus/dbus-unit.h"
 #include "def.h"
 #include "env-util.h"
 #include "ev-util.h"
@@ -584,7 +584,7 @@ int manager_new(SystemdRunningAs running_as, bool reexecuting, Manager **_m) {
 			m->runtime_state_dir = strdup(e);
 	}
 
-	m->iw_state_dir = strjoin(m->runtime_state_dir, "/" PACKAGE_NAME, NULL);
+	m->iw_state_dir = strjoin(m->runtime_state_dir, "/" PKG_DIR_NAME, NULL);
 	if (!m->iw_state_dir) {
                 r = ENOMEM;
                 goto fail;

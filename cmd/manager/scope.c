@@ -35,7 +35,7 @@ have been included with this software
 #include <signal.h>
 #include <unistd.h>
 
-#include "dbus-scope.h"
+#include "dbus/dbus-scope.h"
 #include "def.h"
 #include "ev-util.h"
 #include "load-dropin.h"

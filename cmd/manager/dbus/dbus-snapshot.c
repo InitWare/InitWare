@@ -19,9 +19,9 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "dbus-snapshot.h"
+#include "dbus/dbus-snapshot.h"
 #include "dbus-common.h"
-#include "dbus-unit.h"
+#include "dbus/dbus-unit.h"
 #include "selinux-access.h"
 
 #define BUS_SNAPSHOT_INTERFACE                                          \

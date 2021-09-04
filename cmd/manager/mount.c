@@ -23,7 +23,7 @@
 #include <signal.h>
 
 #include "bus-errors.h"
-#include "dbus-mount.h"
+#include "dbus/dbus-mount.h"
 #include "def.h"
 #include "ev-util.h"
 #include "exit-status.h"

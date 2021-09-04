@@ -21,12 +21,12 @@
 
 #include <errno.h>
 
-#include "dbus-unit.h"
+#include "dbus/dbus-unit.h"
 #include "dbus-common.h"
-#include "dbus-cgroup.h"
-#include "dbus-kill.h"
+#include "dbus/dbus-cgroup.h"
+#include "dbus/dbus-kill.h"
 #include "selinux-access.h"
-#include "dbus-scope.h"
+#include "dbus/dbus-scope.h"
 
 #define BUS_SCOPE_INTERFACE                                             \
         " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Scope\">\n"        \

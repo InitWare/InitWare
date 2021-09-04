@@ -19,21 +19,23 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "dbus-unit.h"
-#include "dbus-device.h"
+#include <errno.h>
+
+#include "dbus/dbus-unit.h"
+#include "dbus/dbus-target.h"
 #include "dbus-common.h"
 #include "selinux-access.h"
 
-#define BUS_DEVICE_INTERFACE                                            \
-        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Device\">\n"       \
-        "  <property name=\"SysFSPath\" type=\"s\" access=\"read\"/>\n" \
+
+#define BUS_TARGET_INTERFACE                                            \
+        " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Target\">\n"       \
         " </interface>\n"
 
 #define INTROSPECTION                                                   \
         DBUS_INTROSPECT_1_0_XML_DOCTYPE_DECL_NODE                       \
         "<node>\n"                                                      \
         BUS_UNIT_INTERFACE                                              \
-        BUS_DEVICE_INTERFACE                                            \
+        BUS_TARGET_INTERFACE                                            \
         BUS_PROPERTIES_INTERFACE                                        \
         BUS_PEER_INTERFACE                                              \
         BUS_INTROSPECTABLE_INTERFACE                                    \
@@ -41,24 +43,13 @@
 
 #define INTERFACES_LIST                              \
         BUS_UNIT_INTERFACES_LIST                     \
-        SCHEDULER_DBUS_INTERFACE ".Device\0"
+        SCHEDULER_DBUS_INTERFACE ".Target\0"
 
-const char bus_device_interface[] _introspect_("Device") = BUS_DEVICE_INTERFACE;
+const char bus_target_interface[] _introspect_("Target") = BUS_TARGET_INTERFACE;
 
-const char bus_device_invalidating_properties[] =
-        "SysFSPath\0";
-
-static const BusProperty bus_device_properties[] = {
-        { "SysFSPath", bus_property_append_string, "s", offsetof(Device, sysfs), true },
-        { NULL, }
-};
-
-
-DBusHandlerResult bus_device_message_handler(Unit *u, DBusConnection *c, DBusMessage *message) {
-        Device *d = DEVICE(u);
+DBusHandlerResult bus_target_message_handler(Unit *u, DBusConnection *c, DBusMessage *message) {
         const BusBoundProperties bps[] = {
-                { SCHEDULER_DBUS_INTERFACE ".Unit",   bus_unit_properties,   u },
-                { SCHEDULER_DBUS_INTERFACE ".Device", bus_device_properties, d },
+                { SCHEDULER_DBUS_INTERFACE ".Unit", bus_unit_properties, u },
                 { NULL, }
         };
 

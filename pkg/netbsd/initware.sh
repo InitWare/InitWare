@@ -20,7 +20,7 @@ initware_prestart() {
 
 initware_stop() {
 	@PREFIX@/bin/svcctl halt
-	pkill evlogd
+	pkill svc.evlogd
 }
 
 load_rc_config $name

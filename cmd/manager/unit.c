@@ -45,7 +45,7 @@ have been included with this software
 
 #include "bsdstat.h"
 #include "bus-errors.h"
-#include "dbus-unit.h"
+#include "dbus/dbus-unit.h"
 #include "def.h"
 #include "ev-util.h"
 #include "fileio-label.h"

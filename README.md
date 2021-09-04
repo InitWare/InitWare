@@ -12,7 +12,7 @@ BSDs, including macOS.
 Units are automatically scheduled by a job scheduler according to their
 dependency specifications. A user session manager facilitates tracking of users'
 login sessions, with each user provided their own dedicated service manager.
-Finally the Event Log System provides a system-wide Event Log aggregating
+Finally the InitWare System Log provides a system-wide event log aggregating
 diverse log sources.
 
 The Suite may run either as an init system or as an auxiliary service management
@@ -36,7 +36,7 @@ see [Dropped components].
 #### How compatible is InitWare with systemd?
 
 Unit-files, the `systemctl`, `loginctl`, and `journalctl` commands (provided as
-`svcctl`, `sessionctl`, and `evlogctl` respectively), the systemd1 and Login1
+`svcctl`, `sessionctl`, and `syslogctl` respectively), the systemd1 and Login1
 D-Bus APIs, the sd_notify API, the journald stream and datagram socket
 protocols, and several other interfaces are largely supported on all ports.
 Some details differ by port. See [Systemd compatibility].

@@ -26,7 +26,7 @@
 #include "strv.h"
 #include "log.h"
 #include "unit-name.h"
-#include "dbus-device.h"
+#include "dbus/dbus-device.h"
 #include "def.h"
 #include "path-util.h"
 #include "libudev.h"

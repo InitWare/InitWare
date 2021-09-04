@@ -2,9 +2,13 @@ project(InitWare)
 cmake_minimum_required(VERSION 3.9)
 cmake_policy(VERSION 3.9)
 
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
+set(PACKAGE_NAME InitWare)
+set(PACKAGE_VERSION 0.7alpha)
+set(PACKAGE_STRING "${PACKAGE_NAME} version ${PACKAGE_VERSION}")
+set(SYSTEMD_VERSION 208)
 set(DISTRIBUTION "${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_VERSION}")
+
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include(FindPkgConfig)
 include(GNUInstallDirs)
@@ -50,6 +54,8 @@ set(Default_Kind_Automount "none")
 set(Default_Kind_Mount "none")
 set(Default_Kind_Swap "none")
 
+set(PKGCONF_DIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+
 if (CMAKE_SYSTEM_NAME MATCHES ".*Linux")
 	set(Sys_Plat_Linux TRUE)
 	set(Default_Use_CGroups ON)
@@ -61,6 +67,7 @@ if (CMAKE_SYSTEM_NAME MATCHES ".*Linux")
 elseif (CMAKE_SYSTEM_NAME MATCHES "kFreeBSD.*|FreeBSD")
 	set(Sys_Plat_BSD TRUE)
 	set(Sys_Plat_FreeBSD TRUE)
+	set(PKGCONF_DIR libdata/pkgconfig)
 elseif (CMAKE_SYSTEM_NAME MATCHES "kNetBSD.*|NetBSD.*")
 	set(Sys_Plat_BSD TRUE)
 	set(Sys_Plat_NetBSD TRUE)
@@ -70,13 +77,9 @@ elseif (CMAKE_SYSTEM_NAME MATCHES "kOpenBSD.*|OpenBSD.*")
 elseif (CMAKE_SYSTEM_NAME MATCHES "DragonFly.*")
 	set(Sys_Plat_BSD TRUE)
 	set(Sys_Plat_DragonFlyBSD TRUE)
-elseif (CMAKE_SYSTEM_NAME MATCHES "HP-UX")
-	set(Sys_Plat_HPUX TRUE)
-	# make _r functions available
-	add_definitions(-D_REENTRANT=1)
 elseif (APPLE)
-	set(Sys_Plat_MacOS TRUE)
 	set(Sys_Plat_BSD TRUE)
+	set(Sys_Plat_MacOS TRUE)
 endif ()
 
 if (Sys_Plat_BSD)
@@ -154,8 +157,9 @@ endif ()
 
 # Use flags: these enable or disable features
 option(Use_SystemdDBus "Systemd-compatible D-Bus interface" ON)
-option(Use_SystemdCompat "Systemd-compatible paths and behaviour (Linux-only)"
-    OFF)
+option(USE_SYSTEMD_COMPAT_LINKS "Systemd compatibility links for apps and libs"
+    ON)
+option(USE_SYSTEMD_DIRS "Systemd-compatible search paths" OFF)
 
 option(HAVE_SPLIT_USR "Don't have a jumbled-together /usr and /" ON)
 option(Use_CGroups "Use GNU/Linux Control Groups for advanced process tracking"
@@ -168,14 +172,10 @@ option(Use_Libudev "Use udev (libudev)" ${UDev_FOUND})
 option(Use_MQueue "Use POSIX message queues" ${Have_mq_open})
 option(Use_PAM "Use PAM authentication" ${Have_PAM})
 
-if (${Use_SystemdCompat})
-	set(PACKAGE_NAME systemd)
-	set(PACKAGE_VERSION v208)
-	set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
+if (${USE_SYSTEMD_DIRS})
+	set(PKG_DIR_NAME systemd)
 else ()
-	set(PACKAGE_NAME InitWare)
-	set(PACKAGE_VERSION 0.7alpha)
-	set(PACKAGE_STRING "${PACKAGE_NAME} version ${PACKAGE_VERSION}")
+	set(PKG_DIR_NAME InitWare)
 endif ()
 
 if (${Use_SystemdDBus})
@@ -196,7 +196,7 @@ set(INSTALL_RUNSTATE_DIR
 	"Full path to the system runtime state directory, e.g. /var/run")
 
 set(INSTALL_PKGRUNSTATE_DIR
-    "${INSTALL_RUNSTATE_DIR}/${PACKAGE_NAME}"
+    "${INSTALL_RUNSTATE_DIR}/${PKG_DIR_NAME}"
     CACHE STRING
 	"Full path to the directory in which to store the run-time state of \
 InitWare, e.g. /var/run/InitWare")
@@ -208,19 +208,19 @@ set(INSTALL_USERSTATE_DIR
 state of each logged-in user, e.g. /var/run/user")
 
 set(INSTALL_PKGLIB_DIR
-    "${CMAKE_INSTALL_PREFIX}/lib/${PACKAGE_NAME}"
+    "${CMAKE_INSTALL_PREFIX}/lib/${PKG_DIR_NAME}"
     CACHE STRING
 	"Full path to the directory for storing system-provided, read-only InitWare \
 configuration and unit-files (not actual libraries). ")
 
 set(INSTALL_PKGLIBEXEC_DIR
-    "${CMAKE_INSTALL_FULL_LIBEXECDIR}/${PACKAGE_NAME}"
+    "${CMAKE_INSTALL_FULL_LIBEXECDIR}/${PKG_DIR_NAME}"
     CACHE STRING
 	"Full path to the directory for storing executables not \
 intended for running by the user, e.g. agents and generators.")
 
 set(INSTALL_PKGSYSCONF_DIR
-    "${CMAKE_INSTALL_FULL_SYSCONFDIR}/${PACKAGE_NAME}"
+    "${CMAKE_INSTALL_FULL_SYSCONFDIR}/${PKG_DIR_NAME}"
     CACHE STRING
 	"Full path to the directory for storing  \
 node-specific, administrator-modifiable configuration and unit-files.")
@@ -290,7 +290,7 @@ endif ()
 
 # systemdstatedir
 set(INSTALL_PKGLOCALSTATE_DIR
-    ${CMAKE_INSTALL_LOCALSTATEDIR}/lib/${PACKAGE_NAME})
+    ${CMAKE_INSTALL_LOCALSTATEDIR}/lib/${PKG_DIR_NAME})
 
 set(SYSTEM_CONFIG_UNIT_PATH ${INSTALL_PKGSYSCONF_DIR}/system)
 set(SYSTEM_DATA_UNIT_PATH ${INSTALL_PKGLIB_DIR}/system)
@@ -352,7 +352,8 @@ endfunction (FShow)
 
 message("Feature settings (Use flags):")
 fshow("Systemd-compatible D-Bus interface" Use_SystemdDBus)
-fshow("Systemd-compatible paths & behaviour" Use_SystemdCompat)
+fshow("Systemd-compatible paths & behaviour" USE_SYSTEMD_DIRS)
+fshow("Systemd compatibility links" USE_SYSTEMD_COMPAT_LINKS)
 fshow("Non-combined /usr and /" HAVE_SPLIT_USR)
 
 message("  Advanced process tracking:")

@@ -22,14 +22,14 @@
 #include <errno.h>
 
 #include "dbus-common.h"
-#include "dbus-execute.h"
-#include "dbus-kill.h"
-#include "dbus-service.h"
-#include "dbus-unit.h"
+#include "dbus/dbus-execute.h"
+#include "dbus/dbus-kill.h"
+#include "dbus/dbus-service.h"
+#include "dbus/dbus-unit.h"
 #include "path-util.h"
 #include "selinux-access.h"
 #include "strv.h"
-#include "dbus-cgroup.h"
+#include "dbus/dbus-cgroup.h"
 
 #define BUS_SERVICE_INTERFACE                                           \
         " <interface name=\"" SCHEDULER_DBUS_INTERFACE ".Service\">\n"      \

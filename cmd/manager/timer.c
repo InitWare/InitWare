@@ -20,7 +20,7 @@
 #include <errno.h>
 
 #include "dbus-common.h"
-#include "dbus-timer.h"
+#include "dbus/dbus-timer.h"
 #include "def.h"
 #include "ev-util.h"
 #include "special.h"

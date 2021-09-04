@@ -1787,7 +1787,7 @@ int unit_file_query_preset(UnitFileScope scope, const char *name) {
         if (scope == UNIT_FILE_SYSTEM)
 		r = conf_files_list(&files, ".preset", NULL,
 		    INSTALL_PKGSYSCONF_DIR "/system-preset", INSTALL_PKGLIB_DIR "/system-preset",
-#ifdef Use_SystemdCompat
+#ifdef USE_SYSTEMD_DIRS
 		    "/etc/systemd/system-preset", "/usr/local/lib/systemd/system-preset",
 		    "/usr/lib/systemd/system-preset",
 #ifdef HAVE_SPLIT_USR
@@ -1798,7 +1798,7 @@ int unit_file_query_preset(UnitFileScope scope, const char *name) {
 	else if (scope == UNIT_FILE_GLOBAL)
 		r = conf_files_list(&files, ".preset", NULL, INSTALL_PKGSYSCONF_DIR "/user-preset",
 		    INSTALL_PKGLIB_DIR "/user-preset",
-#ifdef Use_SystemdCompat
+#ifdef USE_SYSTEMD_DIRS
 		    "/etc/systemd/user-preset", "/usr/local/lib/systemd/user-preset",
 		    "/usr/lib/systemd/user-preset",
 #endif

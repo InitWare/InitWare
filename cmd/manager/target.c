@@ -21,7 +21,7 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "dbus-target.h"
+#include "dbus/dbus-target.h"
 #include "def.h"
 #include "load-fragment.h"
 #include "log.h"

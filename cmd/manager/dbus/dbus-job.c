@@ -22,8 +22,8 @@
 #include <errno.h>
 
 #include "dbus-common.h"
-#include "dbus-job.h"
-#include "dbus.h"
+#include "dbus/dbus-job.h"
+#include "bus.h"
 #include "log.h"
 #include "selinux-access.h"
 

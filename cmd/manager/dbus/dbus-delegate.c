@@ -1,27 +1,20 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
+/*
+ *	LICENCE NOTICE
+ *
+ * This source code is part of the InitWare Suite of Middleware, and it is
+ * protected under copyright law. It may not be distributed, copied, or used,
+ * except under the terms of the Library General Public Licence version 2.1 or
+ * later, which should have been included in the file "LICENSE.md".
+ *
+ *	Copyright Notice
+ *
+ *    (c) 2021 David Mackay
+ *        All rights reserved.
+ */
 
-/***
-  This file is part of systemd.
-
-  Copyright 2010 Lennart Poettering
-
-  systemd is free software; you can redistribute it and/or modify it
-  under the terms of the GNU Lesser General Public License as published by
-  the Free Software Foundation; either version 2.1 of the License, or
-  (at your option) any later version.
-
-  systemd is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-  Lesser General Public License for more details.
-
-  You should have received a copy of the GNU Lesser General Public License
-  along with systemd; If not, see <http://www.gnu.org/licenses/>.
-***/
-
-#include "dbus-delegate.h"
+#include "dbus/dbus-delegate.h"
 #include "dbus-common.h"
-#include "dbus-unit.h"
+#include "dbus/dbus-unit.h"
 #include "selinux-access.h"
 
 #define BUS_DELEGATE_INTERFACE                                          \

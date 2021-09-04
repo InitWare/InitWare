@@ -41,7 +41,7 @@
 #include "util.h"
 
 const char *const catalog_file_dirs[] = {
-#ifdef Use_SystemdCompat
+#ifdef USE_SYSTEMD_DIRS
 	"/usr/local/lib/systemd/catalog/",
 #endif
 	INSTALL_PKGLIB_DIR "/catalog/", NULL

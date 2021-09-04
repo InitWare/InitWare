@@ -22,7 +22,7 @@
 #include <errno.h>
 #include <dbus/dbus.h>
 
-#include "dbus-kill.h"
+#include "dbus/dbus-kill.h"
 #include "dbus-common.h"
 
 static DEFINE_BUS_PROPERTY_APPEND_ENUM(bus_kill_append_mode, kill_mode, KillMode);

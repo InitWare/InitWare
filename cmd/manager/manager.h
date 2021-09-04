@@ -99,7 +99,7 @@ typedef enum SystemdSystemFlags {
 #include "hashmap.h"
 #include "list.h"
 #include "set.h"
-#include "dbus.h"
+#include "dbus/bus.h"
 #include "path-lookup.h"
 #include "execute.h"
 #include "unit-name.h"
@@ -308,7 +308,7 @@ struct Manager {
          */
 	char *runtime_state_dir;
 
-        /* $runtime_state_dir/$PACKAGE_NAME */
+        /* $runtime_state_dir/$PKG_DIR_NAME */
         char *iw_state_dir;
 
 #ifdef Use_KQProc

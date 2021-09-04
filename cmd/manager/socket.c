@@ -43,7 +43,7 @@ have been included with this software
 #endif
 
 #include "dbus-common.h"
-#include "dbus-socket.h"
+#include "dbus/dbus-socket.h"
 #include "def.h"
 #include "ev-util.h"
 #include "exit-status.h"

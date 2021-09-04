@@ -4,8 +4,9 @@ libdir=@CMAKE_INSTALL_FULL_LIBDIR@
 includedir=@CMAKE_INSTALL_FULL_INCLUDEDIR@
 
 Name: InitWare-systemd
-Description: 128 Bit ID Utility Library compatibility for InitWare
+Description: Journal Utility Library compatibility for InitWare
 URL: @PACKAGE_URL@
 Version: @SYSTEMD_VERSION@
-Libs: -L${libdir} -liw-id128
+Requires: libsystemd-id128 = @SYSTEMD_VERSION@
+Libs: -L${libdir} -liw-syslog
 Cflags: -I${includedir}

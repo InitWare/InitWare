@@ -32,7 +32,7 @@
 #include "load-fragment.h"
 #include "load-dropin.h"
 #include "unit-name.h"
-#include "dbus-swap.h"
+#include "dbus/dbus-swap.h"
 #include "special.h"
 #include "bus-errors.h"
 #include "exit-status.h"

@@ -23,7 +23,7 @@
 #include <unistd.h>
 
 #include "dbus-common.h"
-#include "dbus-path.h"
+#include "dbus/dbus-path.h"
 #include "def.h"
 #include "macro.h"
 #include "mkdir.h"

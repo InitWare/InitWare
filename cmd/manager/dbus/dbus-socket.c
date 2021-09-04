@@ -21,12 +21,12 @@
 
 #include <errno.h>
 
-#include "dbus-cgroup.h"
+#include "dbus/dbus-cgroup.h"
 #include "dbus-common.h"
-#include "dbus-execute.h"
-#include "dbus-kill.h"
-#include "dbus-socket.h"
-#include "dbus-unit.h"
+#include "dbus/dbus-execute.h"
+#include "dbus/dbus-kill.h"
+#include "dbus/dbus-socket.h"
+#include "dbus/dbus-unit.h"
 #include "selinux-access.h"
 
 

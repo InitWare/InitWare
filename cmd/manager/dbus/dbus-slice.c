@@ -21,9 +21,9 @@
 
 #include <errno.h>
 
-#include "dbus-cgroup.h"
+#include "dbus/dbus-cgroup.h"
 #include "dbus-common.h"
-#include "dbus-unit.h"
+#include "dbus/dbus-unit.h"
 #include "selinux-access.h"
 
 

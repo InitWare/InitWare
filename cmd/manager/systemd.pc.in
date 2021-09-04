@@ -5,22 +5,27 @@
 #  the Free Software Foundation; either version 2.1 of the License, or
 #  (at your option) any later version.
 
-prefix=@prefix@
-exec_prefix=@exec_prefix@
-systemdutildir=@rootlibexecdir@
-systemdsystemunitdir=@systemunitdir@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=@CMAKE_INSTALL_PREFIX@
+
+systemdutildir=@INSTALL_PKGLIBEXEC_DIR@
+
+systemdsystemunitdir=@SYSTEM_DATA_UNIT_PATH@
 systemdsystempresetdir=@systempresetdir@
-systemduserunitdir=@userunitdir@
+systemduserunitdir=@USER_DATA_UNIT_PATH@
 systemduserpresetdir=@userpresetdir@
-systemdsystemconfdir=@pkgsysconfdir@/system
-systemduserconfdir=@pkgsysconfdir@/user
+systemdsystemconfdir=@SYSTEM_CONFIG_UNIT_PATH@
+systemduserconfdir=@USER_CONFIG_UNIT_PATH@
+
 systemdsystemunitpath=${systemdsystemconfdir}:/etc/systemd/system:/run/systemd/system:/usr/local/lib/systemd/system:${systemdsystemunitdir}:/usr/lib/systemd/system:/lib/systemd/system
 systemduserunitpath=${systemduserconfdir}:/etc/systemd/user:/run/systemd/user:/usr/local/lib/systemd/user:/usr/local/share/systemd/user:${systemduserunitdir}:/usr/lib/systemd/user:/usr/share/systemd/user
+
 systemdsystemgeneratordir=@systemgeneratordir@
 systemdusergeneratordir=@usergeneratordir@
+
 catalogdir=@catalogdir@
 
-Name: systemd
-Description: systemd System and Service Manager
+Name: InitWare-systemd
+Description: Systemd compatibility for InitWare
 URL: @PACKAGE_URL@
-Version: @PACKAGE_VERSION@
+Version: @SYSTEMD_VERSION@

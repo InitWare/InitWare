@@ -45,7 +45,7 @@ have been included with this software
 #include "load-fragment.h"
 #include "load-dropin.h"
 #include "log.h"
-#include "dbus-job.h"
+#include "dbus/dbus-job.h"
 #include "special.h"
 #include "async.h"
 #include "virt.h"

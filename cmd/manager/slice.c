@@ -23,7 +23,7 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "dbus-slice.h"
+#include "dbus/dbus-slice.h"
 #include "def.h"
 #include "load-fragment.h"
 #include "log.h"
