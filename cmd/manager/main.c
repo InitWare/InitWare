@@ -1400,7 +1400,6 @@ int main(int argc, char *argv[]) {
 		umask(0);
 
 	if (arg_running_as == SYSTEMD_SYSTEM && detect_container(NULL) <= 0) {
-#ifdef FEATURE_init
 		/* Running outside of a container as system manager */
 		assert(arg_running_as == SYSTEMD_SYSTEM);
 		//make_null_stdio();
@@ -1411,22 +1410,26 @@ int main(int argc, char *argv[]) {
 			initrd_timestamp = userspace_timestamp;
 
 		if (!skip_setup) {
-#ifdef Sys_Plat_Linux
+#ifdef FEATURE_init
 			mount_setup_early();
 			if (selinux_setup(&loaded_policy) < 0)
 				goto finish;
-#endif
 			if (ima_setup() < 0)
 				goto finish;
 			if (smack_setup() < 0)
 				goto finish;
+
+#else
+			log_error("Build doesn't support running as PID 1");
+			goto finish;
+#endif
 		}
 
 		if (label_init(NULL) < 0)
 			goto finish;
-
+	
+#ifdef FEATURE_init
 		if (!skip_setup) {
-#ifdef Sys_Plat_Linux
 			if (hwclock_is_localtime() > 0) {
 				int min;
 
@@ -1455,9 +1458,8 @@ int main(int argc, char *argv[]) {
 					log_error("Failed to set the kernel's timezone, ignoring: %s",
 					    strerror(-r));
 			}
-#else
-#endif
 		}
+#endif
 
 		/* Set the default for later on, but don't actually
                  * open the logs like this for now. Note that if we
@@ -1466,10 +1468,6 @@ int main(int argc, char *argv[]) {
                  * opening that before we parsed /proc/cmdline which
                  * might redirect output elsewhere. */
 		log_set_target(LOG_TARGET_JOURNAL_OR_KMSG);
-#else
-	log_error("Build doesn't support running as PID 1");
-	goto finish;
-#endif
 
 	} else if (arg_running_as == SYSTEMD_SYSTEM) {
 		/* Running inside a container, as PID 1 */

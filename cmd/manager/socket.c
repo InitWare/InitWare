@@ -1865,24 +1865,24 @@ static int socket_stop(Unit *u) {
         return 0;
 }
 
-static int socket_serialize(Unit *u, FILE *f, FDSet *fds) {
+static int socket_serialize(Unit *u, cJSON *obj, FDSet *fds) {
         Socket *s = SOCKET(u);
         SocketPort *p;
         int r;
 
         assert(u);
-        assert(f);
+        assert(obj);
         assert(fds);
 
-        unit_serialize_item(u, f, "state", socket_state_to_string(s->state));
-        unit_serialize_item(u, f, "result", socket_result_to_string(s->result));
-        unit_serialize_item_format(u, f, "n-accepted", "%u", s->n_accepted);
+        unit_serialize_item(u, obj, "state", socket_state_to_string(s->state));
+        unit_serialize_item(u, obj, "result", socket_result_to_string(s->result));
+        unit_serialize_item_format(u, obj, "n-accepted", "%u", s->n_accepted);
 
         if (s->control_pid > 0)
-                unit_serialize_item_format(u, f, "control-pid", "%lu", (unsigned long) s->control_pid);
+                unit_serialize_item_format(u, obj, "control-pid", "%lu", (unsigned long) s->control_pid);
 
         if (s->control_command_id >= 0)
-                unit_serialize_item(u, f, "control-command", socket_exec_command_to_string(s->control_command_id));
+                unit_serialize_item(u, obj, "control-command", socket_exec_command_to_string(s->control_command_id));
 
         IWLIST_FOREACH(port, p, s->ports) {
                 int copy;
@@ -1902,22 +1902,22 @@ static int socket_serialize(Unit *u, FILE *f, FDSet *fds) {
 
 #ifdef Have_linux_netlink_h
                         if (socket_address_family(&p->address) == AF_NETLINK)
-                                unit_serialize_item_format(u, f, "netlink", "%i %s", copy, t);
+                                unit_serialize_item_format(u, obj, "netlink", "%i %s", copy, t);
                         else
 #endif
-                                unit_serialize_item_format(u, f, "socket", "%i %i %s", copy, p->address.type, t);
+                                unit_serialize_item_format(u, obj, "socket", "%i %i %s", copy, p->address.type, t);
                         free(t);
                 } else if (p->type == SOCKET_SPECIAL)
-                        unit_serialize_item_format(u, f, "special", "%i %s", copy, p->path);
+                        unit_serialize_item_format(u, obj, "special", "%i %s", copy, p->path);
                 else if (p->type == SOCKET_MQUEUE)
-                        unit_serialize_item_format(u, f, "mqueue", "%i %s", copy, p->path);
+                        unit_serialize_item_format(u, obj, "mqueue", "%i %s", copy, p->path);
                 else {
                         assert(p->type == SOCKET_FIFO);
-                        unit_serialize_item_format(u, f, "fifo", "%i %s", copy, p->path);
+                        unit_serialize_item_format(u, obj, "fifo", "%i %s", copy, p->path);
                 }
         }
 
-        exec_context_serialize(&s->exec_context, UNIT(s), f);
+        exec_context_serialize(&s->exec_context, UNIT(s), obj);
 
         return 0;
 }

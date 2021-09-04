@@ -230,14 +230,14 @@ static int slice_kill(Unit *u, KillWho who, int signo, DBusError *error) {
         return unit_kill_common(u, who, signo, -1, -1, error);
 }
 
-static int slice_serialize(Unit *u, FILE *f, FDSet *fds) {
+static int slice_serialize(Unit *u, cJSON *obj, FDSet *fds) {
         Slice *s = SLICE(u);
 
         assert(s);
-        assert(f);
+        assert(obj);
         assert(fds);
 
-        unit_serialize_item(u, f, "state", slice_state_to_string(s->state));
+        unit_serialize_item(u, obj, "state", slice_state_to_string(s->state));
         return 0;
 }
 

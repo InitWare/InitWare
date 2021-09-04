@@ -801,23 +801,23 @@ static int swap_stop(Unit *u) {
         return 0;
 }
 
-static int swap_serialize(Unit *u, FILE *f, FDSet *fds) {
+static int swap_serialize(Unit *u, cJSON *obj, FDSet *fds) {
         Swap *s = SWAP(u);
 
         assert(s);
-        assert(f);
+        assert(obj);
         assert(fds);
 
-        unit_serialize_item(u, f, "state", swap_state_to_string(s->state));
-        unit_serialize_item(u, f, "result", swap_result_to_string(s->result));
+        unit_serialize_item(u, obj, "state", swap_state_to_string(s->state));
+        unit_serialize_item(u, obj, "result", swap_result_to_string(s->result));
 
         if (s->control_pid > 0)
-                unit_serialize_item_format(u, f, "control-pid", "%lu", (unsigned long) s->control_pid);
+                unit_serialize_item_format(u, obj, "control-pid", "%lu", (unsigned long) s->control_pid);
 
         if (s->control_command_id >= 0)
-                unit_serialize_item(u, f, "control-command", swap_exec_command_to_string(s->control_command_id));
+                unit_serialize_item(u, obj, "control-command", swap_exec_command_to_string(s->control_command_id));
 
-        exec_context_serialize(&s->exec_context, UNIT(s), f);
+        exec_context_serialize(&s->exec_context, UNIT(s), obj);
 
         return 0;
 }

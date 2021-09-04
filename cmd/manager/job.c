@@ -935,23 +935,21 @@ char *job_dbus_path(Job *j) {
         return p;
 }
 
-int job_serialize(Job *j, FILE *f, FDSet *fds) {
-        fprintf(f, "job-id=%u\n", j->id);
-        fprintf(f, "job-type=%s\n", job_type_to_string(j->type));
-        fprintf(f, "job-state=%s\n", job_state_to_string(j->state));
-        fprintf(f, "job-override=%s\n", yes_no(j->override));
-        fprintf(f, "job-irreversible=%s\n", yes_no(j->irreversible));
-        fprintf(f, "job-sent-dbus-new-signal=%s\n", yes_no(j->sent_dbus_new_signal));
-        fprintf(f, "job-ignore-order=%s\n", yes_no(j->ignore_order));
+int job_serialize(Job *j, cJSON * obj, FDSet *fds) {
+        cJSON_AddIntToObject(obj, "job-id", j->id);
+        cJSON_AddStringToObject(obj, "job-type=%s\n", job_type_to_string(j->type));
+        cJSON_AddStringToObject(obj, "job-state=%s\n", job_state_to_string(j->state));
+        cJSON_AddBoolToObject(obj, "job-override=%s\n", j->override);
+        cJSON_AddBoolToObject(obj, "job-irreversible=%s\n", j->irreversible);
+        cJSON_AddBoolToObject(obj,  "job-sent-dbus-new-signal=%s\n", j->sent_dbus_new_signal);
+        cJSON_AddBoolToObject(obj, "job-ignore-order=%s\n", j->ignore_order);
         /* Cannot save bus clients. Just note the fact that we're losing
          * them. job_send_message() will fallback to broadcasting. */
-        fprintf(f, "job-forgot-bus-clients=%s\n",
-                yes_no(j->forgot_bus_clients || j->bus_client_list));
+        cJSON_AddBoolToObject(obj,  "job-forgot-bus-clients=%s\n",
+                (j->forgot_bus_clients || j->bus_client_list));
         if (j->begin_usec > 0)
-                fprintf(f, "job-begin=%llu\n", (unsigned long long) j->begin_usec);
+        	cJSON_AddIntToObject(obj, "job-begin", j->begin_usec);
 
-        /* End marker */
-        fputc('\n', f);
         return 0;
 }
 

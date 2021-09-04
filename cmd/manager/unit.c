@@ -2416,33 +2416,33 @@ bool unit_can_serialize(Unit *u) {
         return UNIT_VTABLE(u)->serialize && UNIT_VTABLE(u)->deserialize_item;
 }
 
-int unit_serialize(Unit *u, FILE *f, FDSet *fds, bool serialize_jobs) {
+int unit_serialize(Unit *u, cJSON * obj, FDSet *fds, bool serialize_jobs) {
         int r;
 
         assert(u);
-        assert(f);
+        assert(obj);
         assert(fds);
 
         if (unit_can_serialize(u)) {
-                r = UNIT_VTABLE(u)->serialize(u, f, fds);
+                r = UNIT_VTABLE(u)->serialize(u, obj, fds);
                 if (r < 0)
                         return r;
         }
 
-        dual_timestamp_serialize(f, "inactive-exit-timestamp", &u->inactive_exit_timestamp);
-        dual_timestamp_serialize(f, "active-enter-timestamp", &u->active_enter_timestamp);
-        dual_timestamp_serialize(f, "active-exit-timestamp", &u->active_exit_timestamp);
-        dual_timestamp_serialize(f, "inactive-enter-timestamp", &u->inactive_enter_timestamp);
-        dual_timestamp_serialize(f, "condition-timestamp", &u->condition_timestamp);
+        dual_timestamp_serialize(obj, "inactive-exit-timestamp", &u->inactive_exit_timestamp);
+        dual_timestamp_serialize(obj, "active-enter-timestamp", &u->active_enter_timestamp);
+        dual_timestamp_serialize(obj, "active-exit-timestamp", &u->active_exit_timestamp);
+        dual_timestamp_serialize(obj, "inactive-enter-timestamp", &u->inactive_enter_timestamp);
+        dual_timestamp_serialize(obj, "condition-timestamp", &u->condition_timestamp);
 
         if (dual_timestamp_is_set(&u->condition_timestamp))
-                unit_serialize_item(u, f, "condition-result", yes_no(u->condition_result));
+                unit_serialize_item(u, obj, "condition-result", yes_no(u->condition_result));
 
-        unit_serialize_item(u, f, "transient", yes_no(u->transient));
+        unit_serialize_item(u, obj, "transient", yes_no(u->transient));
 
 #ifdef Use_CGroups
         if (u->cgroup_path)
-                unit_serialize_item(u, f, "cgroup", u->cgroup_path);
+                unit_serialize_item(u, obj, "cgroup", u->cgroup_path);
 #endif
 	/*
 	 * PTGroups are all serialised, and re-attached to their unit on
@@ -2451,46 +2451,47 @@ int unit_serialize(Unit *u, FILE *f, FDSet *fds, bool serialize_jobs) {
 
         if (serialize_jobs) {
                 if (u->job) {
-                        fprintf(f, "job\n");
-                        job_serialize(u->job, f, fds);
+			cJSON * job = cJSON_AddObjectToObject(obj, "job");
+                        job_serialize(u->job, job, fds);
                 }
 
                 if (u->nop_job) {
-                        fprintf(f, "job\n");
-                        job_serialize(u->nop_job, f, fds);
+			cJSON * job = cJSON_AddObjectToObject(obj, "nop_job");
+                        job_serialize(u->nop_job, job, fds);
                 }
         }
 
-        /* End marker */
-        fputc('\n', f);
         return 0;
 }
 
-void unit_serialize_item_format(Unit *u, FILE *f, const char *key, const char *format, ...) {
-        va_list ap;
+void unit_serialize_item_format(Unit *u, cJSON *obj, const char *key, const char *format, ...) {
+        va_list ap, apc;
+	char *buf;
+	size_t len;
 
         assert(u);
-        assert(f);
+        assert(obj);
         assert(key);
         assert(format);
 
-        fputs(key, f);
-        fputc('=', f);
-
         va_start(ap, format);
-        vfprintf(f, format, ap);
+	va_copy(apc, ap);
+	len = vsnprintf(NULL, 0, format, apc);
+        asprintf(&buf, format, ap);
+	va_end(apc);
         va_end(ap);
 
-        fputc('\n', f);
+        cJSON_AddStringToObject(obj, key, buf); // FIXME: oom
+	free(buf);
 }
 
-void unit_serialize_item(Unit *u, FILE *f, const char *key, const char *value) {
+void unit_serialize_item(Unit *u, cJSON *obj, const char *key, const char *value) {
         assert(u);
-        assert(f);
+        assert(obj);
         assert(key);
         assert(value);
 
-        fprintf(f, "%s=%s\n", key, value);
+        cJSON_AddStringToObject(obj, key, value); // FIXME: oom
 }
 
 int unit_deserialize(Unit *u, FILE *f, FDSet *fds) {

@@ -24,6 +24,7 @@
 
 #include "util.h"
 #include "time-util.h"
+#include "cjson-util.h"
 
 usec_t now(clockid_t clock_id) {
         struct timespec ts;
@@ -360,19 +361,21 @@ char *format_timespan(char *buf, size_t l, usec_t t, usec_t accuracy) {
         return buf;
 }
 
-void dual_timestamp_serialize(FILE *f, const char *name, dual_timestamp *t) {
+int dual_timestamp_serialize(struct cJSON *obj, const char *name, dual_timestamp *t)
+{
+	char buf[255];
 
-        assert(f);
-        assert(name);
-        assert(t);
+	assert(obj);
+	assert(name);
+	assert(t);
 
-        if (!dual_timestamp_is_set(t))
-                return;
+	if (!dual_timestamp_is_set(t))
+		return -EINVAL;
 
-        fprintf(f, "%s=%llu %llu\n",
-                name,
-                (unsigned long long) t->realtime,
-                (unsigned long long) t->monotonic);
+	snprintf(buf, sizeof(buf), "%llu %llu\n", (unsigned long long) t->realtime,
+	    (unsigned long long) t->monotonic);
+
+	return cJSON_AddStringToObject(obj, name, buf) != NULL ? 0 : -ENOMEM;
 }
 
 void dual_timestamp_deserialize(const char *value, dual_timestamp *t) {

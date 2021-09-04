@@ -2064,7 +2064,7 @@ int manager_open_serialization(Manager *m, FILE **_f) {
                 return -errno;
         }
 
-        unlink(path);
+        //unlink(path);
 
         log_debug("Serializing state to %s", path);
         free(path);
@@ -2122,121 +2122,125 @@ finish:
 }
 #endif
 
-int manager_serialize(Manager *m, FILE *f, FDSet *fds, bool switching_root) {
-        /*
+int manager_serialize(Manager *m, FILE *f, FDSet *fds, bool switching_root)
+{
+	/*
          * The new approach is to just output a JSON object, but not everything
          * has adopted that yet.
          */
-        cJSON *obj;
-        char *sObj = NULL;
-        Iterator i;
-        Unit *u;
-        const char *t;
-        char **e;
-        int r;
+	cJSON *obj, *units = NULL;
+	char *sObj = NULL;
+	Iterator i;
+	Unit *u;
+	const char *t;
+	char **e;
+	int r;
 #ifdef Use_KQProc
-        int kqproc_fd;
+	int kqproc_fd;
 #endif
 
-        assert(m);
-        assert(f);
-        assert(fds);
+	assert(m);
+	assert(f);
+	assert(fds);
 
-        obj = cJSON_CreateObject();
+	obj = cJSON_CreateObject();
 
-        if (!obj)
-                return -ENOMEM;
+	if (!obj)
+		return -ENOMEM;
 
-        m->n_reloading++;
+	m->n_reloading++;
 
-        fprintf(f, "current-job-id=%i\n", m->current_job_id);
-        fprintf(f, "taint-usr=%s\n", yes_no(m->taint_usr));
-        fprintf(f, "n-installed-jobs=%u\n", m->n_installed_jobs);
-        fprintf(f, "n-failed-jobs=%u\n", m->n_failed_jobs);
+	cJSON_AddIntToObject(obj, "current_job_id", m->current_job_id);
+	cJSON_AddBoolToObject(obj, "taint_usr", m->taint_usr);
+	cJSON_AddIntToObject(obj, "n_installed_jobs", m->n_installed_jobs);
+	cJSON_AddIntToObject(obj, "n_failed_jobs", m->n_failed_jobs);
 
-        dual_timestamp_serialize(f, "firmware-timestamp", &m->firmware_timestamp);
-        dual_timestamp_serialize(f, "kernel-timestamp", &m->kernel_timestamp);
-        dual_timestamp_serialize(f, "loader-timestamp", &m->loader_timestamp);
-        dual_timestamp_serialize(f, "initrd-timestamp", &m->initrd_timestamp);
+	dual_timestamp_serialize(obj, "firmware-timestamp", &m->firmware_timestamp);
+	dual_timestamp_serialize(obj, "kernel-timestamp", &m->kernel_timestamp);
+	dual_timestamp_serialize(obj, "loader-timestamp", &m->loader_timestamp);
+	dual_timestamp_serialize(obj, "initrd-timestamp", &m->initrd_timestamp);
 
-        if (!in_initrd()) {
-                dual_timestamp_serialize(f, "userspace-timestamp", &m->userspace_timestamp);
-                dual_timestamp_serialize(f, "finish-timestamp", &m->finish_timestamp);
-        }
+	if (!in_initrd()) {
+		dual_timestamp_serialize(obj, "userspace-timestamp", &m->userspace_timestamp);
+		dual_timestamp_serialize(obj, "finish-timestamp", &m->finish_timestamp);
+	}
 
-        if (!switching_root) {
-                STRV_FOREACH (e, m->environment) {
-                        _cleanup_free_ char *ce;
+	if (!switching_root) {
+		cJSON *env = cJSON_AddArrayToObject(obj, "env");
 
-                        ce = cescape(*e);
-                        if (ce)
-                                fprintf(f, "env=%s\n", *e);
-                }
-        }
+		assert(env); // FIXME: oom
 
-        bus_serialize(m, f);
+		STRV_FOREACH (e, m->environment) {
+			cJSON_AddItemToArray(env, cJSON_CreateString(*e)); // FIXME: oom
+		}
+	}
+
+	bus_serialize(m, obj);
 
 #ifdef Use_KQProc
-        kqproc_fd = fdset_put_dup(fds, m->kqproc_io.fd);
-        if (kqproc_fd < 0) {
-                r = -errno;
-                goto finish;
-        }
+	kqproc_fd = fdset_put_dup(fds, m->kqproc_io.fd);
+	if (kqproc_fd < 0) {
+		r = -errno;
+		goto finish;
+	}
 
-        if (!cJSON_AddNumberToObject(obj, "kqproc_fd", kqproc_fd)) {
-                r = -ENOMEM;
-                goto finish;
-        }
+	if (!cJSON_AddNumberToObject(obj, "kqproc_fd", kqproc_fd)) {
+		r = -ENOMEM;
+		goto finish;
+	}
 #endif
 #ifdef Use_PTGroups
-        r = manager_serialize_ptgroups(m, f, fds, obj);
-        if (r < 0) {
-                m->n_reloading--;
-                return r;
-        }
+	r = manager_serialize_ptgroups(m, f, fds, obj);
+	if (r < 0) {
+		m->n_reloading--;
+		return r;
+	}
 #endif
 
-        fputc('\n', f);
+	HASHMAP_FOREACH_KEY (u, t, m->units, i) {
+		cJSON * unit;
 
-        sObj = cJSON_Print(obj);
-        if (!sObj) {
-                r = -ENOMEM;
-                goto finish;
-        }
+		if (!units)
+			units = cJSON_AddArrayToObject(obj, "units");
+		assert(units);
 
-        fputs(sObj, f);
+		if (u->id != t)
+			continue;
 
-        fputs("\n\n", f);
+		unit = cJSON_CreateObject();
+		assert(unit && cJSON_AddItemToArray(units, unit));
 
-        HASHMAP_FOREACH_KEY (u, t, m->units, i) {
-                if (u->id != t)
-                        continue;
+		cJSON_AddStringToObject(unit, "id", u->id);
 
-                /* Start marker */
-                fputs(u->id, f);
-                fputc('\n', f);
+		r = unit_serialize(u, unit, fds, !switching_root);
+		if (r < 0) {
+			m->n_reloading--;
+			return r;
+		}
+	}
 
-                r = unit_serialize(u, f, fds, !switching_root);
-                if (r < 0) {
-                        m->n_reloading--;
-                        return r;
-                }
-        }
+	sObj = cJSON_Print(obj);
+	if (!sObj) {
+		r = -ENOMEM;
+		goto finish;
+	}
 
-        assert(m->n_reloading > 0);
-        m->n_reloading--;
+	fputs(sObj, f);
 
-        if (ferror(f))
-                return -EIO;
+	assert(m->n_reloading > 0);
+	m->n_reloading--;
 
-        r = bus_fdset_add_all(m, fds);
-        if (r < 0)
-                return r;
+	if (ferror(f))
+		return -EIO;
+
+	r = bus_fdset_add_all(m, fds);
+	if (r < 0)
+		return r;
 
 finish:
-        cJSON_Delete(obj);
+	cJSON_Delete(obj);
 
-        return r;
+	return r;
 }
 
 /* deserialise the JSON serialisation object */
@@ -2306,7 +2310,7 @@ int manager_deserialise_object(Manager *m, cJSON *obj, FDSet *fds) {
                 if (!grp) {
                         log_error(
                                 "Failed to find PTGroup for ID %d (for unit %s)\n",
-                                oEntry->valueint,
+                                (int)oEntry->valueint,
                                 oEntry->string);
                         goto finish;
                 }
@@ -2418,9 +2422,10 @@ int manager_deserialize(Manager *m, FILE *f, FDSet *fds) {
 
                         strv_free(m->environment);
                         m->environment = e;
-                } else if (bus_deserialize_item(m, l) == 0)
-                        log_debug("Unknown serialization item '%s'", l);
+                } 
         }
+
+	//bus_deserialize_item(m, obj); FIXME:
 
         for (;;) {
                 char line[LINE_MAX], *l;

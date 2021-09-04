@@ -186,16 +186,16 @@ static bool is_terminal_output(ExecOutput o) {
                 o == EXEC_OUTPUT_JOURNAL_AND_CONSOLE;
 }
 
-void exec_context_serialize(const ExecContext *context, Unit *u, FILE *f) {
+void exec_context_serialize(const ExecContext *context, Unit *u, struct cJSON * obj) {
         assert(context);
         assert(u);
-        assert(f);
+        assert(obj);
 
         if (context->tmp_dir)
-                unit_serialize_item(u, f, "tmp-dir", context->tmp_dir);
+                unit_serialize_item(u, obj, "tmp-dir", context->tmp_dir);
 
         if (context->var_tmp_dir)
-                unit_serialize_item(u, f, "var-tmp-dir", context->var_tmp_dir);
+                unit_serialize_item(u, obj, "var-tmp-dir", context->var_tmp_dir);
 }
 
 static int open_null_as(int flags, int nfd) {

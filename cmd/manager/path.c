@@ -605,15 +605,15 @@ static int path_stop(Unit *u) {
         return 0;
 }
 
-static int path_serialize(Unit *u, FILE *f, FDSet *fds) {
+static int path_serialize(Unit *u, cJSON *obj, FDSet *fds) {
         Path *p = PATH(u);
 
         assert(u);
-        assert(f);
+        assert(obj);
         assert(fds);
 
-        unit_serialize_item(u, f, "state", path_state_to_string(p->state));
-        unit_serialize_item(u, f, "result", path_result_to_string(p->result));
+        unit_serialize_item(u, obj, "state", path_state_to_string(p->state));
+        unit_serialize_item(u, obj, "result", path_result_to_string(p->result));
 
         return 0;
 }

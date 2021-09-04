@@ -379,7 +379,7 @@ struct UnitVTable {
 
         /* Write all data that cannot be restored from other sources
          * away using unit_serialize_item() */
-        int (*serialize)(Unit *u, FILE *f, FDSet *fds);
+        int (*serialize)(Unit *u, cJSON * obj, FDSet *fds);
 
         /* Restore one item from the serialization */
         int (*deserialize_item)(Unit *u, const char *key, const char *data, FDSet *fds);
@@ -616,9 +616,9 @@ int unit_load_related_unit(Unit *u, const char *type, Unit **_found);
 int unit_get_related_unit(Unit *u, const char *type, Unit **_found);
 
 bool unit_can_serialize(Unit *u) _pure_;
-int unit_serialize(Unit *u, FILE *f, FDSet *fds, bool serialize_jobs);
-void unit_serialize_item_format(Unit *u, FILE *f, const char *key, const char *value, ...) _printf_attr_(4,5);
-void unit_serialize_item(Unit *u, FILE *f, const char *key, const char *value);
+int unit_serialize(Unit *u, cJSON * obj, FDSet *fds, bool serialize_jobs);
+void unit_serialize_item_format(Unit *u, cJSON * obj, const char *key, const char *value, ...) _printf_attr_(4,5);
+void unit_serialize_item(Unit *u, cJSON * obj, const char *key, const char *value);
 int unit_deserialize(Unit *u, FILE *f, FDSet *fds);
 
 int unit_add_node_link(Unit *u, const char *what, bool wants);

@@ -123,19 +123,19 @@ static int snapshot_stop(Unit *u) {
         return 0;
 }
 
-static int snapshot_serialize(Unit *u, FILE *f, FDSet *fds) {
+static int snapshot_serialize(Unit *u, cJSON *obj, FDSet *fds) {
         Snapshot *s = SNAPSHOT(u);
         Unit *other;
         Iterator i;
 
         assert(s);
-        assert(f);
+        assert(obj);
         assert(fds);
 
-        unit_serialize_item(u, f, "state", snapshot_state_to_string(s->state));
-        unit_serialize_item(u, f, "cleanup", yes_no(s->cleanup));
+        unit_serialize_item(u, obj, "state", snapshot_state_to_string(s->state));
+        unit_serialize_item(u, obj, "cleanup", yes_no(s->cleanup));
         SET_FOREACH(other, u->dependencies[UNIT_WANTS], i)
-                unit_serialize_item(u, f, "wants", other->id);
+                unit_serialize_item(u, obj, "wants", other->id);
 
         return 0;
 }

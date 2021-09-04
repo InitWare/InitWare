@@ -2694,34 +2694,34 @@ _pure_ static bool service_can_reload(Unit *u) {
         return !!s->exec_command[SERVICE_EXEC_RELOAD];
 }
 
-static int service_serialize(Unit *u, FILE *f, FDSet *fds) {
+static int service_serialize(Unit *u, cJSON *obj, FDSet *fds) {
         Service *s = SERVICE(u);
 
         assert(u);
-        assert(f);
+        assert(obj);
         assert(fds);
 
-        unit_serialize_item(u, f, "state", service_state_to_string(s->state));
-        unit_serialize_item(u, f, "result", service_result_to_string(s->result));
-        unit_serialize_item(u, f, "reload-result", service_result_to_string(s->reload_result));
+        unit_serialize_item(u, obj, "state", service_state_to_string(s->state));
+        unit_serialize_item(u, obj, "result", service_result_to_string(s->result));
+        unit_serialize_item(u, obj, "reload-result", service_result_to_string(s->reload_result));
 
         if (s->control_pid > 0)
-                unit_serialize_item_format(u, f, "control-pid", "%lu",
+                unit_serialize_item_format(u, obj, "control-pid", "%lu",
                                            (unsigned long) s->control_pid);
 
         if (s->main_pid_known && s->main_pid > 0)
-                unit_serialize_item_format(u, f, "main-pid", "%lu", (unsigned long) s->main_pid);
+                unit_serialize_item_format(u, obj, "main-pid", "%lu", (unsigned long) s->main_pid);
 
-        unit_serialize_item(u, f, "main-pid-known", yes_no(s->main_pid_known));
+        unit_serialize_item(u, obj, "main-pid-known", yes_no(s->main_pid_known));
 
         if (s->status_text)
-                unit_serialize_item(u, f, "status-text", s->status_text);
+                unit_serialize_item(u, obj, "status-text", s->status_text);
 
         /* FIXME: There's a minor uncleanliness here: if there are
          * multiple commands attached here, we will start from the
          * first one again */
         if (s->control_command_id >= 0)
-                unit_serialize_item(u, f, "control-command",
+                unit_serialize_item(u, obj, "control-command",
                                     service_exec_command_to_string(s->control_command_id));
 
         if (s->socket_fd >= 0) {
@@ -2730,36 +2730,36 @@ static int service_serialize(Unit *u, FILE *f, FDSet *fds) {
                 if ((copy = fdset_put_dup(fds, s->socket_fd)) < 0)
                         return copy;
 
-                unit_serialize_item_format(u, f, "socket-fd", "%i", copy);
+                unit_serialize_item_format(u, obj, "socket-fd", "%i", copy);
         }
 
         if (s->main_exec_status.pid > 0) {
-                unit_serialize_item_format(u, f, "main-exec-status-pid", "%lu",
+                unit_serialize_item_format(u, obj, "main-exec-status-pid", "%lu",
                                            (unsigned long) s->main_exec_status.pid);
-                dual_timestamp_serialize(f, "main-exec-status-start",
+                dual_timestamp_serialize(obj, "main-exec-status-start",
                                          &s->main_exec_status.start_timestamp);
-                dual_timestamp_serialize(f, "main-exec-status-exit",
+                dual_timestamp_serialize(obj, "main-exec-status-exit",
                                          &s->main_exec_status.exit_timestamp);
 
                 if (dual_timestamp_is_set(&s->main_exec_status.exit_timestamp)) {
-                        unit_serialize_item_format(u, f, "main-exec-status-code", "%i",
+                        unit_serialize_item_format(u, obj, "main-exec-status-code", "%i",
                                                    s->main_exec_status.code);
-                        unit_serialize_item_format(u, f, "main-exec-status-status", "%i",
+                        unit_serialize_item_format(u, obj, "main-exec-status-status", "%i",
                                                    s->main_exec_status.status);
                 }
         }
         if (dual_timestamp_is_set(&s->watchdog_timestamp))
-                dual_timestamp_serialize(f, "watchdog-timestamp",
+                dual_timestamp_serialize(obj, "watchdog-timestamp",
                                          &s->watchdog_timestamp);
 
         if (s->exec_context.tmp_dir)
-                unit_serialize_item(u, f, "tmp-dir", s->exec_context.tmp_dir);
+                unit_serialize_item(u, obj, "tmp-dir", s->exec_context.tmp_dir);
 
         if (s->exec_context.var_tmp_dir)
-                unit_serialize_item(u, f, "var-tmp-dir", s->exec_context.var_tmp_dir);
+                unit_serialize_item(u, obj, "var-tmp-dir", s->exec_context.var_tmp_dir);
 
         if (s->forbid_restart)
-                unit_serialize_item(u, f, "forbid-restart", yes_no(s->forbid_restart));
+                unit_serialize_item(u, obj, "forbid-restart", yes_no(s->forbid_restart));
 
         return 0;
 }

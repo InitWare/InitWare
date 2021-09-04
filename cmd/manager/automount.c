@@ -623,21 +623,21 @@ static int automount_stop(Unit *u) {
         return 0;
 }
 
-static int automount_serialize(Unit *u, FILE *f, FDSet *fds) {
+static int automount_serialize(Unit *u, cJSON *obj, FDSet *fds) {
         Automount *a = AUTOMOUNT(u);
         void *p;
         Iterator i;
 
         assert(a);
-        assert(f);
+        assert(obj);
         assert(fds);
 
-        unit_serialize_item(u, f, "state", automount_state_to_string(a->state));
-        unit_serialize_item(u, f, "result", automount_result_to_string(a->result));
-        unit_serialize_item_format(u, f, "dev-id", "%u", (unsigned) a->dev_id);
+        unit_serialize_item(u, obj, "state", automount_state_to_string(a->state));
+        unit_serialize_item(u, obj, "result", automount_result_to_string(a->result));
+        unit_serialize_item_format(u, obj, "dev-id", "%u", (unsigned) a->dev_id);
 
         SET_FOREACH(p, a->tokens, i)
-                unit_serialize_item_format(u, f, "token", "%u", PTR_TO_UINT(p));
+                unit_serialize_item_format(u, obj, "token", "%u", PTR_TO_UINT(p));
 
         if (a->pipe_fd >= 0) {
                 int copy;
@@ -646,7 +646,7 @@ static int automount_serialize(Unit *u, FILE *f, FDSet *fds) {
                 if (copy < 0)
                         return copy;
 
-                unit_serialize_item_format(u, f, "pipe-fd", "%i", copy);
+                unit_serialize_item_format(u, obj, "pipe-fd", "%i", copy);
         }
 
         return 0;
