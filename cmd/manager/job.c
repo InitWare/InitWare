@@ -953,35 +953,17 @@ int job_serialize(Job *j, cJSON * obj, FDSet *fds) {
         return 0;
 }
 
-int job_deserialize(Job *j, FILE *f, FDSet *fds) {
-        for (;;) {
-                char line[LINE_MAX], *l, *v;
-                size_t k;
+int job_deserialize(Job *j, cJSON * obj, FDSet *fds) {
+	cJSON * entry;
 
-                if (!fgets(line, sizeof(line), f)) {
-                        if (feof(f))
-                                return 0;
-                        return -errno;
-                }
-
-                char_array_0(line);
-                l = strstrip(line);
-
-                /* End marker */
-                if (l[0] == 0)
-                        return 0;
-
-                k = strcspn(l, "=");
-
-                if (l[k] == '=') {
-                        l[k] = 0;
-                        v = l+k+1;
-                } else
-                        v = l+k;
+        cJSON_ArrayForEach(entry, obj) {
+                const char * l = entry->string;
+		const char * v = entry->valuestring;
 
                 if (streq(l, "job-id")) {
-                        if (safe_atou32(v, &j->id) < 0)
-                                log_debug("Failed to parse job id value %s", v);
+			assert(cJSON_IsNumber(entry));
+                        if ((j->id = entry->valueint) < 0)
+                                log_debug("Failed to parse job id value");
                 } else if (streq(l, "job-type")) {
                         JobType t = job_type_from_string(v);
                         if (t < 0)
@@ -997,35 +979,35 @@ int job_deserialize(Job *j, FILE *f, FDSet *fds) {
                         else
                                 j->state = s;
                 } else if (streq(l, "job-override")) {
-                        int b = parse_boolean(v);
-                        if (b < 0)
-                                log_debug("Failed to parse job override flag %s", v);
+			assert(cJSON_IsBool(entry));
+                        if (entry->valueint < 0)
+                                log_debug("Failed to parse job override flag");
                         else
-                                j->override = j->override || b;
+                                j->override = j->override || entry->valueint;
                 } else if (streq(l, "job-irreversible")) {
-                        int b = parse_boolean(v);
-                        if (b < 0)
-                                log_debug("Failed to parse job irreversible flag %s", v);
+			assert(cJSON_IsBool(entry));
+                        if (entry->valueint < 0)
+                                log_debug("Failed to parse job irreversible flag");
                         else
-                                j->irreversible = j->irreversible || b;
+                                j->irreversible = j->irreversible || entry->valueint;
                 } else if (streq(l, "job-sent-dbus-new-signal")) {
-                        int b = parse_boolean(v);
-                        if (b < 0)
-                                log_debug("Failed to parse job sent_dbus_new_signal flag %s", v);
+			assert(cJSON_IsBool(entry));
+                        if (entry->valueint < 0)
+                                log_debug("Failed to parse job sent_dbus_new_signal flag");
                         else
-                                j->sent_dbus_new_signal = j->sent_dbus_new_signal || b;
+                                j->sent_dbus_new_signal = j->sent_dbus_new_signal || entry->valueint;
                 } else if (streq(l, "job-ignore-order")) {
-                        int b = parse_boolean(v);
-                        if (b < 0)
-                                log_debug("Failed to parse job ignore_order flag %s", v);
+			assert(cJSON_IsBool(entry));
+                        if (entry->valueint < 0)
+                                log_debug("Failed to parse job ignore_order flag");
                         else
-                                j->ignore_order = j->ignore_order || b;
+                                j->ignore_order = j->ignore_order || entry->valueint;
                 } else if (streq(l, "job-forgot-bus-clients")) {
-                        int b = parse_boolean(v);
-                        if (b < 0)
-                                log_debug("Failed to parse job forgot_bus_clients flag %s", v);
+			assert(cJSON_IsBool(entry));
+                        if (entry->valueint < 0)
+                                log_debug("Failed to parse job forgot_bus_clients flag");
                         else
-                                j->forgot_bus_clients = j->forgot_bus_clients || b;
+                                j->forgot_bus_clients = j->forgot_bus_clients || entry->valueint;
                 } else if (streq(l, "job-begin")) {
                         unsigned long long ull;
 
@@ -1035,6 +1017,8 @@ int job_deserialize(Job *j, FILE *f, FDSet *fds) {
                                 j->begin_usec = ull;
                 }
         }
+
+	return 0;
 }
 
 int job_coldplug(Job *j) {

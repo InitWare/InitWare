@@ -2416,212 +2416,190 @@ bool unit_can_serialize(Unit *u) {
         return UNIT_VTABLE(u)->serialize && UNIT_VTABLE(u)->deserialize_item;
 }
 
-int unit_serialize(Unit *u, cJSON * obj, FDSet *fds, bool serialize_jobs) {
-        int r;
+int unit_serialize(Unit *u, cJSON *obj, FDSet *fds, bool serialize_jobs)
+{
+	int r;
 
-        assert(u);
-        assert(obj);
-        assert(fds);
+	assert(u);
+	assert(obj);
+	assert(fds);
 
-        if (unit_can_serialize(u)) {
-                r = UNIT_VTABLE(u)->serialize(u, obj, fds);
-                if (r < 0)
-                        return r;
-        }
+	if (unit_can_serialize(u)) {
+		r = UNIT_VTABLE(u)->serialize(u, obj, fds);
+		if (r < 0)
+			return r;
+	}
 
-        dual_timestamp_serialize(obj, "inactive-exit-timestamp", &u->inactive_exit_timestamp);
-        dual_timestamp_serialize(obj, "active-enter-timestamp", &u->active_enter_timestamp);
-        dual_timestamp_serialize(obj, "active-exit-timestamp", &u->active_exit_timestamp);
-        dual_timestamp_serialize(obj, "inactive-enter-timestamp", &u->inactive_enter_timestamp);
-        dual_timestamp_serialize(obj, "condition-timestamp", &u->condition_timestamp);
+	dual_timestamp_serialize(obj, "inactive-exit-timestamp", &u->inactive_exit_timestamp);
+	dual_timestamp_serialize(obj, "active-enter-timestamp", &u->active_enter_timestamp);
+	dual_timestamp_serialize(obj, "active-exit-timestamp", &u->active_exit_timestamp);
+	dual_timestamp_serialize(obj, "inactive-enter-timestamp", &u->inactive_enter_timestamp);
+	dual_timestamp_serialize(obj, "condition-timestamp", &u->condition_timestamp);
 
-        if (dual_timestamp_is_set(&u->condition_timestamp))
-                unit_serialize_item(u, obj, "condition-result", yes_no(u->condition_result));
+	if (dual_timestamp_is_set(&u->condition_timestamp))
+		unit_serialize_item(u, obj, "condition-result", yes_no(u->condition_result));
 
-        unit_serialize_item(u, obj, "transient", yes_no(u->transient));
+	unit_serialize_item(u, obj, "transient", yes_no(u->transient));
 
 #ifdef Use_CGroups
-        if (u->cgroup_path)
-                unit_serialize_item(u, obj, "cgroup", u->cgroup_path);
+	if (u->cgroup_path)
+		unit_serialize_item(u, obj, "cgroup", u->cgroup_path);
 #endif
 	/*
 	 * PTGroups are all serialised, and re-attached to their unit on
 	 * deserialisation.
 	 */
 
-        if (serialize_jobs) {
-                if (u->job) {
-			cJSON * job = cJSON_AddObjectToObject(obj, "job");
-                        job_serialize(u->job, job, fds);
-                }
+	if (serialize_jobs) {
+		if (u->job) {
+			cJSON *job = cJSON_AddObjectToObject(obj, "job");
+			job_serialize(u->job, job, fds);
+		}
 
-                if (u->nop_job) {
-			cJSON * job = cJSON_AddObjectToObject(obj, "nop_job");
-                        job_serialize(u->nop_job, job, fds);
-                }
-        }
+		if (u->nop_job) {
+			cJSON *job = cJSON_AddObjectToObject(obj, "nop_job");
+			job_serialize(u->nop_job, job, fds);
+		}
+	}
 
-        return 0;
+	return 0;
 }
 
-void unit_serialize_item_format(Unit *u, cJSON *obj, const char *key, const char *format, ...) {
-        va_list ap, apc;
+void unit_serialize_item_format(Unit *u, cJSON *obj, const char *key, const char *format, ...)
+{
+	va_list ap, apc;
 	char *buf;
 	size_t len;
 
-        assert(u);
-        assert(obj);
-        assert(key);
-        assert(format);
+	assert(u);
+	assert(obj);
+	assert(key);
+	assert(format);
 
-        va_start(ap, format);
-	va_copy(apc, ap);
-	len = vsnprintf(NULL, 0, format, apc);
-        asprintf(&buf, format, ap);
-	va_end(apc);
-        va_end(ap);
+	va_start(ap, format);
+	vasprintf(&buf, format, ap);
+	assert(buf != NULL);
+	va_end(ap);
 
-        cJSON_AddStringToObject(obj, key, buf); // FIXME: oom
+	cJSON_AddStringToObject(obj, key, buf); // FIXME: oom
 	free(buf);
 }
 
-void unit_serialize_item(Unit *u, cJSON *obj, const char *key, const char *value) {
-        assert(u);
-        assert(obj);
-        assert(key);
-        assert(value);
+void unit_serialize_item(Unit *u, cJSON *obj, const char *key, const char *value)
+{
+	assert(u);
+	assert(obj);
+	assert(key);
+	assert(value);
 
-        cJSON_AddStringToObject(obj, key, value); // FIXME: oom
+	cJSON_AddStringToObject(obj, key, value); // FIXME: oom
 }
 
-int unit_deserialize(Unit *u, FILE *f, FDSet *fds) {
-        int r;
+int unit_deserialize(Unit *u, cJSON *obj, FDSet *fds)
+{
+	int r;
+	cJSON *entry;
 
-        assert(u);
-        assert(f);
-        assert(fds);
+	assert(u);
+	assert(obj);
+	assert(fds);
 
-        for (;;) {
-                char line[LINE_MAX], *l, *v;
-                size_t k;
+	cJSON_ArrayForEach(entry, obj)
+	{
+		if (streq(entry->string, "id"))
+			continue;
+		else if (streq(entry->string, "job") || streq(entry->string, "job_nop")) {
+			/* new-style serialized job */
+			Job *j = job_new_raw(u);
+			if (!j)
+				return -ENOMEM;
 
-                if (!fgets(line, sizeof(line), f)) {
-                        if (feof(f))
-                                return 0;
-                        return -errno;
-                }
+			r = job_deserialize(j, obj, fds);
+			if (r < 0) {
+				job_free(j);
+				return r;
+			}
 
-                char_array_0(line);
-                l = strstrip(line);
+			r = hashmap_put(u->manager->jobs, UINT32_TO_PTR(j->id), j);
+			if (r < 0) {
+				job_free(j);
+				return r;
+			}
 
-                /* End marker */
-                if (l[0] == 0)
-                        return 0;
+			r = job_install_deserialized(j);
+			if (r < 0) {
+				hashmap_remove(u->manager->jobs, UINT32_TO_PTR(j->id));
+				job_free(j);
+				return r;
+			}
 
-                k = strcspn(l, "=");
+			if (j->state == JOB_RUNNING)
+				u->manager->n_running_jobs++;
 
-                if (l[k] == '=') {
-                        l[k] = 0;
-                        v = l+k+1;
-                } else
-                        v = l+k;
+			continue;
+		} else if (streq(entry->string, "inactive-exit-timestamp")) {
+			dual_timestamp_deserialize(entry->valuestring, &u->inactive_exit_timestamp);
+			continue;
+		} else if (streq(entry->string, "active-enter-timestamp")) {
+			dual_timestamp_deserialize(entry->valuestring, &u->active_enter_timestamp);
+			continue;
+		} else if (streq(entry->string, "active-exit-timestamp")) {
+			dual_timestamp_deserialize(entry->valuestring, &u->active_exit_timestamp);
+			continue;
+		} else if (streq(entry->string, "inactive-enter-timestamp")) {
+			dual_timestamp_deserialize(entry->valuestring, &u->inactive_enter_timestamp);
+			continue;
+		} else if (streq(entry->string, "condition-timestamp")) {
+			dual_timestamp_deserialize(entry->valuestring, &u->condition_timestamp);
+			continue;
+		} else if (streq(entry->string, "condition-result")) {
+			int b;
 
-                if (streq(l, "job")) {
-                        if (v[0] == '\0') {
-                                /* new-style serialized job */
-                                Job *j = job_new_raw(u);
-                                if (!j)
-                                        return -ENOMEM;
+			b = parse_boolean(entry->valuestring);
+			if (b < 0)
+				log_debug("Failed to parse condition result value %s",
+				    entry->valuestring);
+			else
+				u->condition_result = b;
 
-                                r = job_deserialize(j, f, fds);
-                                if (r < 0) {
-                                        job_free(j);
-                                        return r;
-                                }
+			continue;
 
-                                r = hashmap_put(u->manager->jobs, UINT32_TO_PTR(j->id), j);
-                                if (r < 0) {
-                                        job_free(j);
-                                        return r;
-                                }
+		} else if (streq(entry->string, "transient")) {
+			int b;
 
-                                r = job_install_deserialized(j);
-                                if (r < 0) {
-                                        hashmap_remove(u->manager->jobs, UINT32_TO_PTR(j->id));
-                                        job_free(j);
-                                        return r;
-                                }
+			b = parse_boolean(entry->valuestring);
+			if (b < 0)
+				log_debug("Failed to parse transient bool %s", entry->valuestring);
+			else
+				u->transient = b;
 
-                                if (j->state == JOB_RUNNING)
-                                        u->manager->n_running_jobs++;
-                        } else {
-                                /* legacy */
-                                JobType type = job_type_from_string(v);
-                                if (type < 0)
-                                        log_debug("Failed to parse job type value %s", v);
-                                else
-                                        u->deserialized_job = type;
-                        }
-                        continue;
-                } else if (streq(l, "inactive-exit-timestamp")) {
-                        dual_timestamp_deserialize(v, &u->inactive_exit_timestamp);
-                        continue;
-                } else if (streq(l, "active-enter-timestamp")) {
-                        dual_timestamp_deserialize(v, &u->active_enter_timestamp);
-                        continue;
-                } else if (streq(l, "active-exit-timestamp")) {
-                        dual_timestamp_deserialize(v, &u->active_exit_timestamp);
-                        continue;
-                } else if (streq(l, "inactive-enter-timestamp")) {
-                        dual_timestamp_deserialize(v, &u->inactive_enter_timestamp);
-                        continue;
-                } else if (streq(l, "condition-timestamp")) {
-                        dual_timestamp_deserialize(v, &u->condition_timestamp);
-                        continue;
-                } else if (streq(l, "condition-result")) {
-                        int b;
-
-                        b = parse_boolean(v);
-                        if (b < 0)
-                                log_debug("Failed to parse condition result value %s", v);
-                        else
-                                u->condition_result = b;
-
-                        continue;
-
-                } else if (streq(l, "transient")) {
-                        int b;
-
-                        b = parse_boolean(v);
-                        if (b < 0)
-                                log_debug("Failed to parse transient bool %s", v);
-                        else
-                                u->transient = b;
-
-                        continue;
+			continue;
 		}
 #ifdef Use_CGroups
-                else if (streq(l, "cgroup")) {
-                        char *s;
+		else if (streq(entry->string, "cgroup")) {
+			char *s;
 
-                        s = strdup(v);
-                        if (!s)
-                                return -ENOMEM;
+			s = strdup(entry->valuestring);
+			if (!s)
+				return -ENOMEM;
 
-                        free(u->cgroup_path);
-                        u->cgroup_path = s;
+			free(u->cgroup_path);
+			u->cgroup_path = s;
 
-                        assert(hashmap_put(u->manager->cgroup_unit, s, u) == 1);
-                        continue;
+			assert(hashmap_put(u->manager->cgroup_unit, s, u) == 1);
+			continue;
 		}
 #endif
 
-                if (unit_can_serialize(u)) {
-                        r = UNIT_VTABLE(u)->deserialize_item(u, l, v, fds);
-                        if (r < 0)
-                                return r;
-                }
-        }
+		if (unit_can_serialize(u)) {
+			r = UNIT_VTABLE(u)->deserialize_item(u, entry->string, entry->valuestring,
+			    fds);
+			if (r < 0)
+				return r;
+		}
+	}
+
+	return 0;
 }
 
 int unit_add_node_link(Unit *u, const char *what, bool wants) {

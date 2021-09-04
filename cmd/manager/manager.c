@@ -2043,82 +2043,85 @@ void manager_dispatch_bus_query_pid_done(
         UNIT_VTABLE(u)->bus_query_pid_done(u, name, pid);
 }
 
-int manager_open_serialization(Manager *m, FILE **_f) {
-        char *path = NULL;
-        int fd;
-        FILE *f;
+int manager_open_serialization(Manager *m, FILE **_f)
+{
+	char *path = NULL;
+	int fd;
+	FILE *f;
 
-        assert(_f);
+	assert(_f);
 
-        asprintf(&path, "%s/dump-%lu-XXXXXX", m->iw_state_dir, (unsigned long) getpid());
+	asprintf(&path, "%s/dump-%lu-XXXXXX", m->iw_state_dir, (unsigned long) getpid());
 
-        if (!path)
-                return -ENOMEM;
+	if (!path)
+		return -ENOMEM;
 
-        RUN_WITH_UMASK(0077) {
-                fd = mkostemp(path, O_CLOEXEC);
-        }
+	RUN_WITH_UMASK(0077)
+	{
+		fd = mkostemp(path, O_CLOEXEC);
+	}
 
-        if (fd < 0) {
-                free(path);
-                return -errno;
-        }
+	if (fd < 0) {
+		free(path);
+		return -errno;
+	}
 
-        //unlink(path);
+	unlink(path);
 
-        log_debug("Serializing state to %s", path);
-        free(path);
+	log_debug("Serializing state to %s", path);
+	free(path);
 
-        f = fdopen(fd, "w+");
-        if (!f)
-                return -errno;
+	f = fdopen(fd, "w+");
+	if (!f)
+		return -errno;
 
-        *_f = f;
+	*_f = f;
 
-        return 0;
+	return 0;
 }
 
 #ifdef Use_PTGroups
-static int manager_serialize_ptgroups(Manager *m, FILE *f, FDSet *fds, cJSON *out) {
-        cJSON *oPtm = NULL, *oPtg_unit = NULL;
-        Iterator i;
-        PTGroup *key;
-        Unit *val;
-        int r;
+static int manager_serialize_ptgroups(Manager *m, FILE *f, FDSet *fds, cJSON *out)
+{
+	cJSON *oPtm = NULL, *oPtg_unit = NULL;
+	Iterator i;
+	PTGroup *key;
+	Unit *val;
+	int r;
 
-        oPtg_unit = cJSON_CreateObject();
+	oPtg_unit = cJSON_CreateObject();
 
-        r = ptmanager_to_json(m->pt_manager, &oPtm);
-        if (r < 0)
-                goto finish;
+	r = ptmanager_to_json(m->pt_manager, &oPtm);
+	if (r < 0)
+		goto finish;
 
-        HASHMAP_FOREACH_KEY (val, key, m->ptgroup_unit, i) {
-                if (!cJSON_AddNumberToObject(oPtg_unit, val->id, key->id)) {
-                        r = -ENOMEM;
-                        break;
-                }
-        }
+	HASHMAP_FOREACH_KEY (val, key, m->ptgroup_unit, i) {
+		if (!cJSON_AddNumberToObject(oPtg_unit, val->id, key->id)) {
+			r = -ENOMEM;
+			break;
+		}
+	}
 
-        if (!cJSON_AddItemToObject(out, "pt_manager", oPtm)) {
-                r = -ENOMEM;
-                goto finish;
-        }
+	if (!cJSON_AddItemToObject(out, "pt_manager", oPtm)) {
+		r = -ENOMEM;
+		goto finish;
+	}
 
-        oPtm = NULL;
+	oPtm = NULL;
 
-        if (!cJSON_AddItemToObject(out, "ptgroup_unit", oPtg_unit)) {
-                r = -ENOMEM;
-                goto finish;
-        }
+	if (!cJSON_AddItemToObject(out, "ptgroup_unit", oPtg_unit)) {
+		r = -ENOMEM;
+		goto finish;
+	}
 
-        oPtg_unit = NULL;
+	oPtg_unit = NULL;
 
 
 finish:
-        cJSON_Delete(oPtm);
-        cJSON_Delete(oPtg_unit);
+	cJSON_Delete(oPtm);
+	cJSON_Delete(oPtg_unit);
 
-        return r;
+	return r;
 }
 #endif
 
@@ -2198,7 +2201,7 @@ int manager_serialize(Manager *m, FILE *f, FDSet *fds, bool switching_root)
 #endif
 
 	HASHMAP_FOREACH_KEY (u, t, m->units, i) {
-		cJSON * unit;
+		cJSON *unit;
 
 		if (!units)
 			units = cJSON_AddArrayToObject(obj, "units");
@@ -2244,147 +2247,52 @@ finish:
 }
 
 /* deserialise the JSON serialisation object */
-int manager_deserialise_object(Manager *m, cJSON *obj, FDSet *fds) {
-        int r = 0;
+int manager_deserialise_object(Manager *m, cJSON *obj, FDSet *fds)
+{
+	int r = 0;
+	cJSON *curjobid, *ninstjobs, *nfailjobs, *fwts, *ldts, *kts, *its, *uts, *fts, *env;
+	cJSON *entry;
 #ifdef Use_KQProc
-        cJSON *oKqproc_fd;
+	cJSON *oKqproc_fd;
 #endif
 #ifdef Use_PTGroups
-        cJSON *oPtm;
-        cJSON *oPtg_unit;
+	cJSON *oPtm;
+	cJSON *oPtg_unit;
 
-        cJSON *oEntry; /* hashmap entry */
+	cJSON *oEntry; /* hashmap entry */
 #endif
 
-#ifdef Use_KQProc
-        oKqproc_fd = cJSON_GetObjectItem(obj, "kqproc_fd");
-        if (!oKqproc_fd) {
-                log_error("Failed to deserialise PROC Kernel Queue FD\n");
-                r = -EINVAL;
-                goto finish;
-        } else {
-                int fd;
+	log_debug("Deserialising");
 
-                assert(cJSON_IsNumber(oKqproc_fd));
+	if ((entry = cJSON_GetObjectItem(obj, "current_job_id"))) {
+		assert(cJSON_IsNumber(entry));
+		m->current_job_id = MAX(m->current_job_id, entry->valueint);
+	} else if ((entry = cJSON_GetObjectItem(obj, "n_installed_jobs"))) {
+		assert(cJSON_IsNumber(entry));
+		m->n_installed_jobs += entry->valueint;
+	} else if ((entry = cJSON_GetObjectItem(obj, "n_failed_jobs"))) {
+		assert(cJSON_IsNumber(entry));
+		m->current_job_id = MAX(m->current_job_id, entry->valueint);
+	} else if ((entry = cJSON_GetObjectItem(obj, "env"))) {
+		cJSON *env;
+		assert(cJSON_IsArray(entry));
+		cJSON_ArrayForEach(env, entry)
+		{
+			char **e;
+			assert(cJSON_IsString(env));
 
-                fd = cJSON_GetNumberValue(oKqproc_fd);
-                fd = fdset_remove(fds, fd);
+			e = strv_env_set(m->environment, env->valuestring);
+			if (!e) {
+				r = -ENOMEM;
+				goto finish;
+			}
 
-                assert(fd > 0);
+			strv_free(m->environment);
+			m->environment = e;
+		}
+	}
 
-                r = manager_setup_kqproc_watch(m, fd);
-                if (r < 0)
-                        goto finish;
-        }
-#endif
-#ifdef Use_PTGroups
-        oPtm = cJSON_GetObjectItem(obj, "pt_manager");
-        oPtg_unit = cJSON_GetObjectItem(obj, "ptgroup_unit");
-
-        if (!oPtm || !oPtg_unit) {
-                log_error("Failed to deserialise PTGroups information\n");
-                r = -EINVAL;
-                goto finish;
-        }
-
-        m->pt_manager = ptmanager_new_from_json(m, oPtm);
-        if (!m->pt_manager) {
-                log_error("Failed to deserialise PTGroups\n");
-                r = -ENOMEM;
-                goto finish;
-        }
-
-        cJSON_ArrayForEach(oEntry, oPtg_unit) {
-                Unit *u;
-                PTGroup *grp;
-
-                r = manager_load_unit(m, oEntry->string, NULL, NULL, &u);
-
-                if (r < 0) {
-                        log_error("Failed to do initial load of unit %s\n", oEntry->string);
-                        goto finish;
-                }
-
-                grp = ptmanager_find_ptg_by_id(m->pt_manager, oEntry->valueint);
-
-                if (!grp) {
-                        log_error(
-                                "Failed to find PTGroup for ID %d (for unit %s)\n",
-                                (int)oEntry->valueint,
-                                oEntry->string);
-                        goto finish;
-                }
-
-                r = hashmap_put(m->ptgroup_unit, grp, u);
-                if (r < 0) {
-                        log_error(
-                                "Failed to insert PTGroup for unit %s into hashmap: %s\n",
-                                u->id,
-                                strerror(-r));
-                        goto finish;
-                }
-
-                u->cgroup_realized = 1;
-                u->ptgroup = grp;
-        }
-
-
-#endif
-
-finish:
-        return r;
-}
-
-int manager_deserialize(Manager *m, FILE *f, FDSet *fds) {
-        int r = 0;
-        char **jsonv = NULL;
-        char *json = NULL;
-        cJSON *obj = NULL;
-
-        assert(m);
-        assert(f);
-
-        m->n_reloading++;
-
-        for (;;) {
-                char line[LINE_MAX], *l;
-
-                if (!fgets(line, sizeof(line), f)) {
-                        if (feof(f))
-                                r = 0;
-                        else
-                                r = -errno;
-
-                        goto finish;
-                }
-
-                char_array_0(line);
-                l = strstrip(line);
-
-                if (l[0] == 0)
-                        break;
-
-                if (startswith(l, "current-job-id=")) {
-                        uint32_t id;
-
-                        if (safe_atou32(l + 15, &id) < 0)
-                                log_debug("Failed to parse current job id value %s", l + 15);
-                        else
-                                m->current_job_id = MAX(m->current_job_id, id);
-                } else if (startswith(l, "n-installed-jobs=")) {
-                        uint32_t n;
-
-                        if (safe_atou32(l + 17, &n) < 0)
-                                log_debug("Failed to parse installed jobs counter %s", l + 17);
-                        else
-                                m->n_installed_jobs += n;
-                } else if (startswith(l, "n-failed-jobs=")) {
-                        uint32_t n;
-
-                        if (safe_atou32(l + 14, &n) < 0)
-                                log_debug("Failed to parse failed jobs counter %s", l + 14);
-                        else
-                                m->n_failed_jobs += n;
+#if 0 // FIXME: convert
                 } else if (startswith(l, "taint-usr=")) {
                         int b;
 
@@ -2404,110 +2312,152 @@ int manager_deserialize(Manager *m, FILE *f, FDSet *fds) {
                         dual_timestamp_deserialize(l + 20, &m->userspace_timestamp);
                 else if (startswith(l, "finish-timestamp="))
                         dual_timestamp_deserialize(l + 17, &m->finish_timestamp);
-                else if (startswith(l, "env=")) {
-                        _cleanup_free_ char *uce = NULL;
-                        char **e;
+#endif
 
-                        uce = cunescape(l + 4);
-                        if (!uce) {
-                                r = -ENOMEM;
-                                goto finish;
-                        }
+#ifdef Use_KQProc
+	oKqproc_fd = cJSON_GetObjectItem(obj, "kqproc_fd");
+	if (!oKqproc_fd) {
+		log_error("Failed to deserialise PROC Kernel Queue FD\n");
+		r = -EINVAL;
+		goto finish;
+	} else {
+		int fd;
 
-                        e = strv_env_set(m->environment, uce);
-                        if (!e) {
-                                r = -ENOMEM;
-                                goto finish;
-                        }
+		assert(cJSON_IsNumber(oKqproc_fd));
 
-                        strv_free(m->environment);
-                        m->environment = e;
-                } 
-        }
+		fd = cJSON_GetNumberValue(oKqproc_fd);
+		fd = fdset_remove(fds, fd);
 
-	//bus_deserialize_item(m, obj); FIXME:
+		assert(fd > 0);
 
-        for (;;) {
-                char line[LINE_MAX], *l;
+		r = manager_setup_kqproc_watch(m, fd);
+		if (r < 0)
+			goto finish;
+	}
+#endif
+#ifdef Use_PTGroups
+	oPtm = cJSON_GetObjectItem(obj, "pt_manager");
+	oPtg_unit = cJSON_GetObjectItem(obj, "ptgroup_unit");
 
-                if (!fgets(line, sizeof(line), f)) {
-                        if (feof(f))
-                                r = 0;
-                        else
-                                r = -errno;
+	if (!oPtm || !oPtg_unit) {
+		log_error("Failed to deserialise PTGroups information\n");
+		r = -EINVAL;
+		goto finish;
+	}
 
-                        goto finish;
-                }
+	m->pt_manager = ptmanager_new_from_json(m, oPtm);
+	if (!m->pt_manager) {
+		log_error("Failed to deserialise PTGroups\n");
+		r = -ENOMEM;
+		goto finish;
+	}
 
-                char_array_0(line);
-                l = strstrip(line);
+	cJSON_ArrayForEach(oEntry, oPtg_unit)
+	{
+		Unit *u;
+		PTGroup *grp;
 
-                if (l[0] == 0)
-                        break;
+		r = manager_load_unit(m, oEntry->string, NULL, NULL, &u);
 
-                if (!jsonv)
-                        jsonv = strv_new(l, NULL);
-                else if (strv_extend(&jsonv, l) < 0) {
-                        r = log_oom();
-                        goto finish;
-                }
-        }
+		if (r < 0) {
+			log_error("Failed to do initial load of unit %s\n", oEntry->string);
+			goto finish;
+		}
 
-        json = strv_join(jsonv, "\n");
-        strv_free(jsonv);
-        jsonv = NULL;
+		grp = ptmanager_find_ptg_by_id(m->pt_manager, oEntry->valueint);
 
-        obj = cJSON_Parse(json);
-        if (!obj) {
-                log_error("Failed to parse serialised JSON.\n");
-                r = -EINVAL;
-                goto finish;
-        }
+		if (!grp) {
+			log_error("Failed to find PTGroup for ID %d (for unit %s)\n",
+			    (int) oEntry->valueint, oEntry->string);
+			goto finish;
+		}
 
-        free(json);
-        json = NULL;
+		r = hashmap_put(m->ptgroup_unit, grp, u);
+		if (r < 0) {
+			log_error("Failed to insert PTGroup for unit %s into hashmap: %s\n", u->id,
+			    strerror(-r));
+			goto finish;
+		}
 
-        r = manager_deserialise_object(m, obj, fds);
-        if (!r)
-                goto finish;
+		u->cgroup_realized = 1;
+		u->ptgroup = grp;
+	}
 
-        for (;;) {
-                Unit *u;
-                char name[UNIT_NAME_MAX + 2];
 
-                /* Start marker */
-                if (!fgets(name, sizeof(name), f)) {
-                        if (feof(f))
-                                r = 0;
-                        else
-                                r = -errno;
+#endif
+	bus_deserialize_item(m, obj);
 
-                        goto finish;
-                }
+	if ((entry = cJSON_GetObjectItem(obj, "units")) != NULL) {
+		cJSON *unit;
 
-                char_array_0(name);
+		assert(cJSON_IsArray(entry));
 
-                r = manager_load_unit(m, strstrip(name), NULL, NULL, &u);
-                if (r < 0)
-                        goto finish;
+		cJSON_ArrayForEach(unit, entry)
+		{
+			cJSON *name = cJSON_GetObjectItem(unit, "id");
+			Unit *u;
 
-                r = unit_deserialize(u, f, fds);
-                if (r < 0)
-                        goto finish;
-        }
+			assert(name && cJSON_IsString(name));
+
+			r = manager_load_unit(m, name->valuestring, NULL, NULL, &u);
+			if (r < 0)
+				goto finish;
+
+			r = unit_deserialize(u, unit, fds);
+			if (r < 0)
+				goto finish;
+		}
+	}
 
 finish:
-        if (ferror(f))
-                r = -EIO;
+	return r;
+}
 
-        assert(m->n_reloading > 0);
-        m->n_reloading--;
+int manager_deserialize(Manager *m, FILE *f, FDSet *fds)
+{
+	int r = 0;
+	size_t fsize;
+	char *json = NULL;
+	cJSON *obj = NULL;
 
-        free(json);
-        strv_free(jsonv);
-        cJSON_Delete(obj);
+	assert(m);
+	assert(f);
 
-        return r;
+	m->n_reloading++;
+
+	fseek(f, 0, SEEK_END);
+	fsize = ftell(f);
+	fseek(f, 0, SEEK_SET);
+
+	json = malloc(fsize + 1);
+	fread(json, 1, fsize, f);
+	fclose(f);
+
+	obj = cJSON_Parse(json);
+	if (!obj) {
+		log_error("Failed to parse serialised JSON.\n");
+		r = -EINVAL;
+		goto finish;
+	}
+
+	free(json);
+	json = NULL;
+
+	r = manager_deserialise_object(m, obj, fds);
+	if (!r)
+		goto finish;
+
+finish:
+	if (ferror(f))
+		r = -EIO;
+
+	assert(m->n_reloading > 0);
+	m->n_reloading--;
+
+	free(json);
+	cJSON_Delete(obj);
+
+	return r;
 }
 
 int manager_distribute_fds(Manager *m, FDSet *fds) {
