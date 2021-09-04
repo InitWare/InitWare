@@ -147,15 +147,15 @@ static int target_stop(Unit *u)
 	return 0;
 }
 
-static int target_serialize(Unit *u, FILE *f, FDSet *fds)
+static int target_serialize(Unit *u, cJSON *obj, FDSet *fds)
 {
 	Target *s = TARGET(u);
 
 	assert(s);
-	assert(f);
+	assert(obj);
 	assert(fds);
 
-	unit_serialize_item(u, f, "state", target_state_to_string(s->state));
+	unit_serialize_item(u, obj, "state", target_state_to_string(s->state));
 	return 0;
 }
 

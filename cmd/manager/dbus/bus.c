@@ -1350,46 +1350,50 @@ Set *bus_acquire_subscribed(Manager *m, DBusConnection *c) {
         return s;
 }
 
-void bus_serialize(Manager *m, FILE *f) {
-        char *client;
-        Iterator i;
-        Set *s;
+void bus_serialize(Manager *m, cJSON *obj)
+{
+	char *client;
+	Iterator i;
+	Set *s;
+	cJSON *arr = NULL;
 
-        assert(m);
-        assert(f);
+	assert(m);
+	assert(obj);
 
-        if (!m->api_bus)
-                return;
+	if (!m->api_bus)
+		return;
 
-        s = BUS_CONNECTION_SUBSCRIBED(m, m->api_bus);
-        SET_FOREACH(client, s, i)
-                fprintf(f, "subscribed=%s\n", client);
+	s = BUS_CONNECTION_SUBSCRIBED(m, m->api_bus);
+	SET_FOREACH (client, s, i) {
+		if (!arr)
+			arr = cJSON_AddArrayToObject(obj, "subscribed");
+		assert(arr);
+		cJSON_AddItemToArray(arr, cJSON_CreateString(client));
+	}
 }
 
-int bus_deserialize_item(Manager *m, const char *line) {
-        const char *e;
-        char *b;
-        Set *s;
+int bus_deserialize_item(Manager *m, cJSON *obj)
+{
+	Set *s;
+	cJSON *arr;
+	cJSON * subscriber;
 
-        assert(m);
-        assert(line);
+	assert(m);
+	assert(obj);
 
-        if (!m->api_bus)
-                return 0;
+	if (!m->api_bus)
+		return 0;
 
-        e = startswith(line, "subscribed=");
-        if (!e)
-                return 0;
+	arr = cJSON_GetObjectItem(obj, "subscribed");
+	if (arr == NULL)
+		return 0;
 
-        s = bus_acquire_subscribed(m, m->api_bus);
-        if (!s)
-                return -ENOMEM;
+	s = bus_acquire_subscribed(m, m->api_bus);
+	if (!s)
+		return -ENOMEM;
 
-        b = strdup(e);
-        if (!b)
-                return -ENOMEM;
+	cJSON_ArrayForEach(subscriber, arr)
+		set_consume(s, cJSON_GetStringValue(subscriber));
 
-        set_consume(s, b);
-
-        return 1;
+	return 1;
 }

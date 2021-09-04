@@ -430,15 +430,15 @@ static int timer_stop(Unit *u) {
         return 0;
 }
 
-static int timer_serialize(Unit *u, FILE *f, FDSet *fds) {
+static int timer_serialize(Unit *u, cJSON *obj, FDSet *fds) {
         Timer *t = TIMER(u);
 
         assert(u);
-        assert(f);
+        assert(obj);
         assert(fds);
 
-        unit_serialize_item(u, f, "state", timer_state_to_string(t->state));
-        unit_serialize_item(u, f, "result", timer_result_to_string(t->result));
+        unit_serialize_item(u, obj, "state", timer_state_to_string(t->state));
+        unit_serialize_item(u, obj, "result", timer_result_to_string(t->result));
 
         return 0;
 }

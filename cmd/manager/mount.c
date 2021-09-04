@@ -1100,20 +1100,20 @@ static int mount_serialize(Unit *u, FILE *f, FDSet *fds) {
         Mount *m = MOUNT(u);
 
         assert(m);
-        assert(f);
+        assert(obj);
         assert(fds);
 
-        unit_serialize_item(u, f, "state", mount_state_to_string(m->state));
-        unit_serialize_item(u, f, "result", mount_result_to_string(m->result));
-        unit_serialize_item(u, f, "reload-result", mount_result_to_string(m->reload_result));
+        unit_serialize_item(u, obj, "state", mount_state_to_string(m->state));
+        unit_serialize_item(u, obj, "result", mount_result_to_string(m->result));
+        unit_serialize_item(u, obj, "reload-result", mount_result_to_string(m->reload_result));
 
         if (m->control_pid > 0)
-                unit_serialize_item_format(u, f, "control-pid", "%lu", (unsigned long) m->control_pid);
+                unit_serialize_item_format(u, obj, "control-pid", "%lu", (unsigned long) m->control_pid);
 
         if (m->control_command_id >= 0)
-                unit_serialize_item(u, f, "control-command", mount_exec_command_to_string(m->control_command_id));
+                unit_serialize_item(u, obj, "control-command", mount_exec_command_to_string(m->control_command_id));
 
-        exec_context_serialize(&m->exec_context, UNIT(m), f);
+        exec_context_serialize(&m->exec_context, UNIT(m), obj);
 
         return 0;
 }

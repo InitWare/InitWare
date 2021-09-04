@@ -24,6 +24,7 @@
 
 #include "def.h"
 #include "manager.h"
+#include "cjson-util.h"
 
 int bus_init(Manager *m, bool try_bus_connect);
 void bus_done(Manager *m);
@@ -45,8 +46,8 @@ void bus_broadcast_reloading(Manager *m, bool active);
 
 Set *bus_acquire_subscribed(Manager *m, DBusConnection *c);
 
-void bus_serialize(Manager *m, FILE *f);
-int bus_deserialize_item(Manager *m, const char *line);
+void bus_serialize(Manager *m, cJSON * obj);
+int bus_deserialize_item(Manager *m, cJSON * obj);
 
 #define BUS_CONNECTION_SUBSCRIBED(m, c) dbus_connection_get_data((c), (m)->subscribed_data_slot)
 #define BUS_PENDING_CALL_NAME(m, p) dbus_pending_call_get_data((p), (m)->name_data_slot)

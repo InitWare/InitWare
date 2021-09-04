@@ -365,14 +365,14 @@ static int scope_get_timeout(Unit *u, usec_t *timeout)
         return 1;
 }
 
-static int scope_serialize(Unit *u, FILE *f, FDSet *fds) {
+static int scope_serialize(Unit *u, cJSON *obj, FDSet *fds) {
         Scope *s = SCOPE(u);
 
         assert(s);
-        assert(f);
+        assert(obj);
         assert(fds);
 
-        unit_serialize_item(u, f, "state", scope_state_to_string(s->state));
+        unit_serialize_item(u, obj, "state", scope_state_to_string(s->state));
         return 0;
 }
 

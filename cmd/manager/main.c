@@ -1281,25 +1281,26 @@ static int make_pidfile()
 }
 
 
-int main(int argc, char *argv[]) {
-        Manager *m = NULL;
-        int r, retval = EXIT_FAILURE;
-        usec_t before_startup, after_startup;
-        char timespan[FORMAT_TIMESPAN_MAX];
-        FDSet *fds = NULL;
-        bool reexecute = false;
-        const char *shutdown_verb = NULL;
-        dual_timestamp initrd_timestamp = { 0ULL, 0ULL };
-        dual_timestamp userspace_timestamp = { 0ULL, 0ULL };
-        dual_timestamp kernel_timestamp = { 0ULL, 0ULL };
-        static char systemd[] = "systemd";
-        bool skip_setup = false;
-        int j;
-        bool loaded_policy = false;
-        bool arm_reboot_watchdog = false;
-        bool queue_default_job = false;
-        char *switch_root_dir = NULL, *switch_root_init = NULL;
-        static struct rlimit saved_rlimit_nofile = { 0, 0 };
+int main(int argc, char *argv[])
+{
+	Manager *m = NULL;
+	int r, retval = EXIT_FAILURE;
+	usec_t before_startup, after_startup;
+	char timespan[FORMAT_TIMESPAN_MAX];
+	FDSet *fds = NULL;
+	bool reexecute = false;
+	const char *shutdown_verb = NULL;
+	dual_timestamp initrd_timestamp = { 0ULL, 0ULL };
+	dual_timestamp userspace_timestamp = { 0ULL, 0ULL };
+	dual_timestamp kernel_timestamp = { 0ULL, 0ULL };
+	static char systemd[] = "systemd";
+	bool skip_setup = false;
+	int j;
+	bool loaded_policy = false;
+	bool arm_reboot_watchdog = false;
+	bool queue_default_job = false;
+	char *switch_root_dir = NULL, *switch_root_init = NULL;
+	static struct rlimit saved_rlimit_nofile = { 0, 0 };
 	bool is_pid1 = false;
 #ifdef Sys_Plat_BSD
 	struct pidfh *pfh = NULL;
@@ -1318,8 +1319,8 @@ int main(int argc, char *argv[]) {
 	}
 #endif
 
-        dual_timestamp_from_monotonic(&kernel_timestamp, 0);
-        dual_timestamp_get(&userspace_timestamp);
+	dual_timestamp_from_monotonic(&kernel_timestamp, 0);
+	dual_timestamp_get(&userspace_timestamp);
 
 #ifdef Sys_Plat_BSD
 	if (strv_find(argv + 1, "--daemonise")) {
@@ -1362,15 +1363,13 @@ int main(int argc, char *argv[]) {
 		arg_auxiliary = true;
 		if (is_pid1) {
 			log_error("Cannot be both PID 1 and auxiliary.\n");
-				retval = EXIT_FAILURE;
-				goto finish;
+			retval = EXIT_FAILURE;
+			goto finish;
+		} else if (arg_running_as != SYSTEMD_SYSTEM) {
+			log_error("Only system instances can be auxiliary.\n");
+			retval = EXIT_FAILURE;
+			goto finish;
 		}
-                else if (arg_running_as != SYSTEMD_SYSTEM)
-                {
-                        log_error("Only system instances can be auxiliary.\n");
-				retval = EXIT_FAILURE;
-				goto finish;
-                }
 	}
 
 	/* If we have switched root, do all the special setup
@@ -1400,7 +1399,6 @@ int main(int argc, char *argv[]) {
 		umask(0);
 
 	if (arg_running_as == SYSTEMD_SYSTEM && detect_container(NULL) <= 0) {
-#ifdef FEATURE_init
 		/* Running outside of a container as system manager */
 		assert(arg_running_as == SYSTEMD_SYSTEM);
 		//make_null_stdio();
@@ -1411,22 +1409,26 @@ int main(int argc, char *argv[]) {
 			initrd_timestamp = userspace_timestamp;
 
 		if (!skip_setup) {
-#ifdef Sys_Plat_Linux
+#ifdef FEATURE_init
 			mount_setup_early();
 			if (selinux_setup(&loaded_policy) < 0)
 				goto finish;
-#endif
 			if (ima_setup() < 0)
 				goto finish;
 			if (smack_setup() < 0)
 				goto finish;
+
+#else
+			log_error("Build doesn't support running as PID 1");
+			goto finish;
+#endif
 		}
 
 		if (label_init(NULL) < 0)
 			goto finish;
 
+#ifdef FEATURE_init
 		if (!skip_setup) {
-#ifdef Sys_Plat_Linux
 			if (hwclock_is_localtime() > 0) {
 				int min;
 
@@ -1455,9 +1457,8 @@ int main(int argc, char *argv[]) {
 					log_error("Failed to set the kernel's timezone, ignoring: %s",
 					    strerror(-r));
 			}
-#else
-#endif
 		}
+#endif
 
 		/* Set the default for later on, but don't actually
                  * open the logs like this for now. Note that if we
@@ -1466,10 +1467,6 @@ int main(int argc, char *argv[]) {
                  * opening that before we parsed /proc/cmdline which
                  * might redirect output elsewhere. */
 		log_set_target(LOG_TARGET_JOURNAL_OR_KMSG);
-#else
-	log_error("Build doesn't support running as PID 1");
-	goto finish;
-#endif
 
 	} else if (arg_running_as == SYSTEMD_SYSTEM) {
 		/* Running inside a container, as PID 1 */
@@ -1512,10 +1509,10 @@ int main(int argc, char *argv[]) {
          * /proc/$PID/fd is available. */
 	if (is_pid1) {
 #ifdef Sys_Plat_Linux
-                r = mount_setup(loaded_policy);
+		r = mount_setup(loaded_policy);
 #endif
-                if (r < 0)
-                        goto finish;
+		if (r < 0)
+			goto finish;
 	}
 #endif
 
@@ -1524,527 +1521,532 @@ int main(int argc, char *argv[]) {
 
 	ignore_signals(SIGNALS_IGNORE, -1);
 
-        if (parse_config_file() < 0)
-                goto finish;
+	if (parse_config_file() < 0)
+		goto finish;
 
-        if (arg_running_as == SYSTEMD_SYSTEM)
-                if (parse_proc_cmdline() < 0)
-                        goto finish;
+	if (arg_running_as == SYSTEMD_SYSTEM)
+		if (parse_proc_cmdline() < 0)
+			goto finish;
 
-        log_parse_environment();
+	log_parse_environment();
 
-        if (parse_argv(argc, argv) < 0)
-                goto finish;
+	if (parse_argv(argc, argv) < 0)
+		goto finish;
 
-        if (arg_action == ACTION_TEST &&
-            geteuid() == 0) {
-                log_error("Don't run test mode as root.");
-                goto finish;
-        }
+	if (arg_action == ACTION_TEST && geteuid() == 0) {
+		log_error("Don't run test mode as root.");
+		goto finish;
+	}
 
-        if (arg_running_as == SYSTEMD_USER &&
-            arg_action == ACTION_RUN &&
-            sd_booted() <= 0) {
-                log_warning("Trying to run as user instance, but the system has not been booted with systemd.");
-        }
+	if (arg_running_as == SYSTEMD_USER && arg_action == ACTION_RUN && sd_booted() <= 0) {
+		log_warning(
+		    "Trying to run as user instance, but the system has not been booted with systemd.");
+	}
 
-        if (arg_running_as == SYSTEMD_SYSTEM &&
-            arg_action == ACTION_RUN &&
-            running_in_chroot() > 0) {
-                log_error("Cannot be run in a chroot() environment.");
-                goto finish;
-        }
+	if (arg_running_as == SYSTEMD_SYSTEM && arg_action == ACTION_RUN && running_in_chroot() > 0) {
+		log_error("Cannot be run in a chroot() environment.");
+		goto finish;
+	}
 
-        if (arg_action == ACTION_HELP) {
-                retval = help();
-                goto finish;
-        } else if (arg_action == ACTION_VERSION) {
-                retval = version();
-                goto finish;
-        } else if (arg_action == ACTION_DUMP_CONFIGURATION_ITEMS) {
-                unit_dump_config_items(stdout);
-                retval = EXIT_SUCCESS;
-                goto finish;
-        } else if (arg_action == ACTION_DONE) {
-                retval = EXIT_SUCCESS;
-                goto finish;
-        }
+	if (arg_action == ACTION_HELP) {
+		retval = help();
+		goto finish;
+	} else if (arg_action == ACTION_VERSION) {
+		retval = version();
+		goto finish;
+	} else if (arg_action == ACTION_DUMP_CONFIGURATION_ITEMS) {
+		unit_dump_config_items(stdout);
+		retval = EXIT_SUCCESS;
+		goto finish;
+	} else if (arg_action == ACTION_DONE) {
+		retval = EXIT_SUCCESS;
+		goto finish;
+	}
 
-        assert_se(arg_action == ACTION_RUN || arg_action == ACTION_TEST);
+	assert_se(arg_action == ACTION_RUN || arg_action == ACTION_TEST);
 
-        /* Close logging fds, in order not to confuse fdset below */
-        log_close();
+	/* Close logging fds, in order not to confuse fdset below */
+	log_close();
 
-        /* Remember open file descriptors for later deserialization */
-        r = fdset_new_fill(&fds);
-        if (r < 0) {
-                log_warning("Failed to fill fd set: %s", strerror(-r));
-        } else
-                fdset_cloexec(fds, true);
+	/* Remember open file descriptors for later deserialization */
+	r = fdset_new_fill(&fds);
+	if (r < 0) {
+		log_warning("Failed to fill fd set: %s", strerror(-r));
+	} else
+		fdset_cloexec(fds, true);
 
-        if (serialization)
-                assert_se(fdset_remove(fds, fileno(serialization)) >= 0);
+	if (serialization)
+		assert_se(fdset_remove(fds, fileno(serialization)) >= 0);
 
-        if (arg_running_as == SYSTEMD_SYSTEM)
-                /* Become a session leader if we aren't one yet. */
-                setsid();
+	if (arg_running_as == SYSTEMD_SYSTEM)
+		/* Become a session leader if we aren't one yet. */
+		setsid();
 
-        /* Move out of the way, so that we won't block unmounts */
-        assert_se(chdir("/")  == 0);
+	/* Move out of the way, so that we won't block unmounts */
+	assert_se(chdir("/") == 0);
 
-        /* Make sure D-Bus doesn't fiddle with the SIGPIPE handlers */
-        dbus_connection_set_change_sigpipe(FALSE);
+	/* Make sure D-Bus doesn't fiddle with the SIGPIPE handlers */
+	dbus_connection_set_change_sigpipe(FALSE);
 
-        /* Reset the console, but only if this is really init and we
+	/* Reset the console, but only if this is really init and we
          * are freshly booted */
-        if (arg_running_as == SYSTEMD_SYSTEM && arg_action == ACTION_RUN)
+	if (arg_running_as == SYSTEMD_SYSTEM && arg_action == ACTION_RUN)
 		console_setup(is_pid1 && !skip_setup);
 
 	/* Open the logging devices, if possible and necessary */
-        log_open();
+	log_open();
 
-        /* Make sure we leave a core dump without panicing the
+	/* Make sure we leave a core dump without panicing the
          * kernel. */
 #ifdef FEATURE_init
 	if (is_pid1) {
 		install_crash_handler();
 
 #ifdef Sys_Plat_Linux
-                r = mount_cgroup_controllers(arg_join_controllers);
+		r = mount_cgroup_controllers(arg_join_controllers);
 #endif
-                if (r < 0)
-                        goto finish;
+		if (r < 0)
+			goto finish;
 	}
 #endif
 
 	if (arg_running_as == SYSTEMD_SYSTEM) {
-                const char *virtualization = NULL;
+		const char *virtualization = NULL;
 
-                log_info(PACKAGE_STRING " running in system mode. (" SYSTEMD_FEATURES ")");
+		log_info(PACKAGE_STRING " running in system mode. (" SYSTEMD_FEATURES ")");
 
-                detect_virtualization(&virtualization);
-                if (virtualization)
-                        log_info("Detected virtualization '%s'.", virtualization);
+		detect_virtualization(&virtualization);
+		if (virtualization)
+			log_info("Detected virtualization '%s'.", virtualization);
 
-                if (in_initrd())
-                        log_info("Running in initial RAM disk.");
+		if (in_initrd())
+			log_info("Running in initial RAM disk.");
 
-        } else
-                log_info(PACKAGE_STRING " running in user mode. (" SYSTEMD_FEATURES ")");
+	} else
+		log_info(PACKAGE_STRING " running in user mode. (" SYSTEMD_FEATURES ")");
 
-        if (arg_show_status || plymouth_running())
-                        status_welcome();
+	if (arg_show_status || plymouth_running())
+		status_welcome();
 
-        if (arg_running_as == SYSTEMD_SYSTEM && !skip_setup) {
+	if (arg_running_as == SYSTEMD_SYSTEM && !skip_setup) {
 #ifdef FEATURE_init
 #ifdef HAVE_KMOD
-                kmod_setup();
+		kmod_setup();
 #endif
-                hostname_setup();
-                machine_id_setup();
+		hostname_setup();
+		machine_id_setup();
 
 #ifdef Sys_Plat_Linux
-                loopback_setup();
+		loopback_setup();
 
-                test_mtab();
-                test_cgroups();
+		test_mtab();
+		test_cgroups();
 
 #endif
 
-                test_usr();
+		test_usr();
 #endif
-        }
+	}
 
 #ifdef Sys_Plat_Linux
-        if (arg_running_as == SYSTEMD_SYSTEM && arg_runtime_watchdog > 0)
-                watchdog_set_timeout(&arg_runtime_watchdog);
+	if (arg_running_as == SYSTEMD_SYSTEM && arg_runtime_watchdog > 0)
+		watchdog_set_timeout(&arg_runtime_watchdog);
 
-        if (arg_timer_slack_nsec != (nsec_t) -1)
-                if (prctl(PR_SET_TIMERSLACK, arg_timer_slack_nsec) < 0)
-                        log_error("Failed to adjust timer slack: %m");
+	if (arg_timer_slack_nsec != (nsec_t) -1)
+		if (prctl(PR_SET_TIMERSLACK, arg_timer_slack_nsec) < 0)
+			log_error("Failed to adjust timer slack: %m");
 #endif
 #ifdef Use_Libcap
-        if (arg_capability_bounding_set_drop) {
-                r = capability_bounding_set_drop_usermode(arg_capability_bounding_set_drop);
-                if (r < 0) {
-                        log_error("Failed to drop capability bounding set of usermode helpers: %s", strerror(-r));
-                        goto finish;
-                }
-                r = capability_bounding_set_drop(arg_capability_bounding_set_drop, true);
-                if (r < 0) {
-                        log_error("Failed to drop capability bounding set: %s", strerror(-r));
-                        goto finish;
-                }
-        }
+	if (arg_capability_bounding_set_drop) {
+		r = capability_bounding_set_drop_usermode(arg_capability_bounding_set_drop);
+		if (r < 0) {
+			log_error("Failed to drop capability bounding set of usermode helpers: %s",
+			    strerror(-r));
+			goto finish;
+		}
+		r = capability_bounding_set_drop(arg_capability_bounding_set_drop, true);
+		if (r < 0) {
+			log_error("Failed to drop capability bounding set: %s", strerror(-r));
+			goto finish;
+		}
+	}
 #endif
 
-        if (getpid() != 1) {
-                /* Become reaper of our children */
-                if (
+	if (getpid() != 1) {
+		/* Become reaper of our children */
+		if (
 #if defined(Have_sys_prctl_h)
-                        prctl(PR_SET_CHILD_SUBREAPER, 1)
+		    prctl(PR_SET_CHILD_SUBREAPER, 1)
 #elif defined(Have_sys_procctl_h)
-                procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, 0)
+		    procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, 0)
 #else
-        0
+		    0
 #endif
-                        < 0) {
-                        log_warning("Failed to make us a subreaper: %m");
-                        if (errno == EINVAL)
-                                log_info("Perhaps the kernel version is too old (< 3.4?)");
-                }
-        }
+		    < 0) {
+			log_warning("Failed to make us a subreaper: %m");
+			if (errno == EINVAL)
+				log_info("Perhaps the kernel version is too old (< 3.4?)");
+		}
+	}
 
-        if (arg_running_as == SYSTEMD_SYSTEM)
-                bump_rlimit_nofile(&saved_rlimit_nofile);
+	if (arg_running_as == SYSTEMD_SYSTEM)
+		bump_rlimit_nofile(&saved_rlimit_nofile);
 
-        r = manager_new(arg_running_as, !!serialization, &m);
-        if (r < 0) {
-                log_error("Failed to allocate manager object: %s", strerror(-r));
-                goto finish;
-        }
+	r = manager_new(arg_running_as, !!serialization, &m);
+	if (r < 0) {
+		log_error("Failed to allocate manager object: %s", strerror(-r));
+		goto finish;
+	}
 
 	if (is_pid1)
 		m->system_flags |= SYSTEMD_PID1;
-        if (arg_auxiliary)
-                m->system_flags |= SYSTEMD_AUXILIARY;
-        if(detect_container(NULL))
-                m->system_flags |= SYSTEMD_CONTAINER;
+	if (arg_auxiliary)
+		m->system_flags |= SYSTEMD_AUXILIARY;
+	if (detect_container(NULL))
+		m->system_flags |= SYSTEMD_CONTAINER;
 
 	m->confirm_spawn = arg_confirm_spawn;
 	m->default_std_output = arg_default_std_output;
-        m->default_std_error = arg_default_std_error;
-        m->default_restart_usec = arg_default_restart_usec;
-        m->default_timeout_start_usec = arg_default_timeout_start_usec;
-        m->default_timeout_stop_usec = arg_default_timeout_stop_usec;
-        m->default_start_limit_interval = arg_default_start_limit_interval;
-        m->default_start_limit_burst = arg_default_start_limit_burst;
-        m->runtime_watchdog = arg_runtime_watchdog;
-        m->shutdown_watchdog = arg_shutdown_watchdog;
-        m->userspace_timestamp = userspace_timestamp;
-        m->kernel_timestamp = kernel_timestamp;
-        m->initrd_timestamp = initrd_timestamp;
+	m->default_std_error = arg_default_std_error;
+	m->default_restart_usec = arg_default_restart_usec;
+	m->default_timeout_start_usec = arg_default_timeout_start_usec;
+	m->default_timeout_stop_usec = arg_default_timeout_stop_usec;
+	m->default_start_limit_interval = arg_default_start_limit_interval;
+	m->default_start_limit_burst = arg_default_start_limit_burst;
+	m->runtime_watchdog = arg_runtime_watchdog;
+	m->shutdown_watchdog = arg_shutdown_watchdog;
+	m->userspace_timestamp = userspace_timestamp;
+	m->kernel_timestamp = kernel_timestamp;
+	m->initrd_timestamp = initrd_timestamp;
 
-        manager_set_default_rlimits(m, arg_default_rlimit);
+	manager_set_default_rlimits(m, arg_default_rlimit);
 
-        if (arg_default_environment)
-                manager_environment_add(m, arg_default_environment);
+	if (arg_default_environment)
+		manager_environment_add(m, arg_default_environment);
 
-        manager_set_show_status(m, arg_show_status);
+	manager_set_show_status(m, arg_show_status);
 
-        /* Remember whether we should queue the default job */
-        queue_default_job = !serialization || arg_switched_root;
+	/* Remember whether we should queue the default job */
+	queue_default_job = !serialization || arg_switched_root;
 
-        before_startup = now(CLOCK_MONOTONIC);
+	before_startup = now(CLOCK_MONOTONIC);
 
-        r = manager_startup(m, serialization, fds);
-        if (r < 0)
-                log_error("Failed to fully start up daemon: %s", strerror(-r));
+	r = manager_startup(m, serialization, fds);
+	if (r < 0)
+		log_error("Failed to fully start up daemon: %s", strerror(-r));
 
-        /* This will close all file descriptors that were opened, but
+	/* This will close all file descriptors that were opened, but
          * not claimed by any unit. */
-        fdset_free(fds);
-        fds = NULL;
+	fdset_free(fds);
+	fds = NULL;
 
-        if (serialization) {
-                fclose(serialization);
-                serialization = NULL;
-        }
+	if (serialization) {
+		fclose(serialization);
+		serialization = NULL;
+	}
 
-        if (queue_default_job) {
-                DBusError error;
-                Unit *target = NULL;
-                Job *default_unit_job;
+	if (queue_default_job) {
+		DBusError error;
+		Unit *target = NULL;
+		Job *default_unit_job;
 
-                dbus_error_init(&error);
+		dbus_error_init(&error);
 
-                log_debug("Activating default unit: %s", arg_default_unit);
+		log_debug("Activating default unit: %s", arg_default_unit);
 
-                r = manager_load_unit(m, arg_default_unit, NULL, &error, &target);
-                if (r < 0) {
-                        log_error("Failed to load default target: %s", bus_error(&error, r));
-                        dbus_error_free(&error);
-                } else if (target->load_state == UNIT_ERROR || target->load_state == UNIT_NOT_FOUND)
-                        log_error("Failed to load default target: %s", strerror(-target->load_error));
-                else if (target->load_state == UNIT_MASKED)
-                        log_error("Default target masked.");
+		r = manager_load_unit(m, arg_default_unit, NULL, &error, &target);
+		if (r < 0) {
+			log_error("Failed to load default target: %s", bus_error(&error, r));
+			dbus_error_free(&error);
+		} else if (target->load_state == UNIT_ERROR || target->load_state == UNIT_NOT_FOUND)
+			log_error("Failed to load default target: %s",
+			    strerror(-target->load_error));
+		else if (target->load_state == UNIT_MASKED)
+			log_error("Default target masked.");
 
-                if (!target || target->load_state != UNIT_LOADED) {
-                        log_info("Trying to load rescue target...");
+		if (!target || target->load_state != UNIT_LOADED) {
+			log_info("Trying to load rescue target...");
 
-                        r = manager_load_unit(m, SPECIAL_RESCUE_TARGET, NULL, &error, &target);
-                        if (r < 0) {
-                                log_error("Failed to load rescue target: %s", bus_error(&error, r));
-                                dbus_error_free(&error);
-                                goto finish;
-                        } else if (target->load_state == UNIT_ERROR || target->load_state == UNIT_NOT_FOUND) {
-                                log_error("Failed to load rescue target: %s", strerror(-target->load_error));
-                                goto finish;
-                        } else if (target->load_state == UNIT_MASKED) {
-                                log_error("Rescue target masked.");
-                                goto finish;
-                        }
-                }
+			r = manager_load_unit(m, SPECIAL_RESCUE_TARGET, NULL, &error, &target);
+			if (r < 0) {
+				log_error("Failed to load rescue target: %s", bus_error(&error, r));
+				dbus_error_free(&error);
+				goto finish;
+			} else if (target->load_state == UNIT_ERROR ||
+			    target->load_state == UNIT_NOT_FOUND) {
+				log_error("Failed to load rescue target: %s",
+				    strerror(-target->load_error));
+				goto finish;
+			} else if (target->load_state == UNIT_MASKED) {
+				log_error("Rescue target masked.");
+				goto finish;
+			}
+		}
 
-                assert(target->load_state == UNIT_LOADED);
+		assert(target->load_state == UNIT_LOADED);
 
-                if (arg_action == ACTION_TEST) {
-                        printf("-> By units:\n");
-                        manager_dump_units(m, stdout, "\t");
-                }
+		if (arg_action == ACTION_TEST) {
+			printf("-> By units:\n");
+			manager_dump_units(m, stdout, "\t");
+		}
 
-                r = manager_add_job(m, JOB_START, target, JOB_ISOLATE, false, &error, &default_unit_job);
-                if (r == -EPERM) {
-                        log_debug("Default target could not be isolated, starting instead: %s", bus_error(&error, r));
-                        dbus_error_free(&error);
+		r = manager_add_job(m, JOB_START, target, JOB_ISOLATE, false, &error,
+		    &default_unit_job);
+		if (r == -EPERM) {
+			log_debug("Default target could not be isolated, starting instead: %s",
+			    bus_error(&error, r));
+			dbus_error_free(&error);
 
-                        r = manager_add_job(m, JOB_START, target, JOB_REPLACE, false, &error, &default_unit_job);
-                        if (r < 0) {
-                                log_error("Failed to start default target: %s", bus_error(&error, r));
-                                dbus_error_free(&error);
-                                goto finish;
-                        }
-                } else if (r < 0) {
-                        log_error("Failed to isolate default target: %s", bus_error(&error, r));
-                        dbus_error_free(&error);
-                        goto finish;
-                }
+			r = manager_add_job(m, JOB_START, target, JOB_REPLACE, false, &error,
+			    &default_unit_job);
+			if (r < 0) {
+				log_error("Failed to start default target: %s",
+				    bus_error(&error, r));
+				dbus_error_free(&error);
+				goto finish;
+			}
+		} else if (r < 0) {
+			log_error("Failed to isolate default target: %s", bus_error(&error, r));
+			dbus_error_free(&error);
+			goto finish;
+		}
 
-                m->default_unit_job_id = default_unit_job->id;
+		m->default_unit_job_id = default_unit_job->id;
 
-                after_startup = now(CLOCK_MONOTONIC);
-                log_full(arg_action == ACTION_TEST ? LOG_INFO : LOG_DEBUG,
-                         "Loaded units and determined initial transaction in %s.",
-                         format_timespan(timespan, sizeof(timespan), after_startup - before_startup, 0));
+		after_startup = now(CLOCK_MONOTONIC);
+		log_full(arg_action == ACTION_TEST ? LOG_INFO : LOG_DEBUG,
+		    "Loaded units and determined initial transaction in %s.",
+		    format_timespan(timespan, sizeof(timespan), after_startup - before_startup, 0));
 
-                if (arg_action == ACTION_TEST) {
-                        printf("-> By jobs:\n");
-                        manager_dump_jobs(m, stdout, "\t");
-                        retval = EXIT_SUCCESS;
-                        goto finish;
-                }
-        }
+		if (arg_action == ACTION_TEST) {
+			printf("-> By jobs:\n");
+			manager_dump_jobs(m, stdout, "\t");
+			retval = EXIT_SUCCESS;
+			goto finish;
+		}
+	}
 
-        for (;;) {
-                r = manager_loop(m);
-                if (r < 0) {
-                        log_error("Failed to run mainloop: %s", strerror(-r));
-                        goto finish;
-                }
+	for (;;) {
+		r = manager_loop(m);
+		if (r < 0) {
+			log_error("Failed to run mainloop: %s", strerror(-r));
+			goto finish;
+		}
 
-                switch (m->exit_code) {
+		switch (m->exit_code) {
 
-                case MANAGER_EXIT:
-                        retval = EXIT_SUCCESS;
-                        log_debug("Exit.");
-                        goto finish;
+		case MANAGER_EXIT:
+			retval = EXIT_SUCCESS;
+			log_debug("Exit.");
+			goto finish;
 
-                case MANAGER_RELOAD:
-                        log_info("Reloading.");
-                        r = manager_reload(m);
-                        if (r < 0)
-                                log_error("Failed to reload: %s", strerror(-r));
-                        break;
+		case MANAGER_RELOAD:
+			log_info("Reloading.");
+			r = manager_reload(m);
+			if (r < 0)
+				log_error("Failed to reload: %s", strerror(-r));
+			break;
 
-                case MANAGER_REEXECUTE:
+		case MANAGER_REEXECUTE:
 
-                        if (prepare_reexecute(m, &serialization, &fds, false) < 0)
-                                goto finish;
+			if (prepare_reexecute(m, &serialization, &fds, false) < 0)
+				goto finish;
 
-                        reexecute = true;
-                        log_notice("Reexecuting.");
-                        goto finish;
+			reexecute = true;
+			log_notice("Reexecuting.");
+			goto finish;
 
 #ifdef FEATURE_init
-                case MANAGER_SWITCH_ROOT:
-                        /* Steal the switch root parameters */
-                        switch_root_dir = m->switch_root;
-                        switch_root_init = m->switch_root_init;
-                        m->switch_root = m->switch_root_init = NULL;
+		case MANAGER_SWITCH_ROOT:
+			/* Steal the switch root parameters */
+			switch_root_dir = m->switch_root;
+			switch_root_init = m->switch_root_init;
+			m->switch_root = m->switch_root_init = NULL;
 
-                        if (!switch_root_init)
-                                if (prepare_reexecute(m, &serialization, &fds, true) < 0)
-                                        goto finish;
+			if (!switch_root_init)
+				if (prepare_reexecute(m, &serialization, &fds, true) < 0)
+					goto finish;
 
-                        reexecute = true;
-                        log_notice("Switching root.");
-                        goto finish;
+			reexecute = true;
+			log_notice("Switching root.");
+			goto finish;
 #endif
 
-                case MANAGER_REBOOT:
-                case MANAGER_POWEROFF:
-                case MANAGER_HALT:
-                case MANAGER_KEXEC: {
-                        static const char * const table[_MANAGER_EXIT_CODE_MAX] = {
-                                [MANAGER_REBOOT] = "reboot",
-                                [MANAGER_POWEROFF] = "poweroff",
-                                [MANAGER_HALT] = "halt",
-                                [MANAGER_KEXEC] = "kexec"
-                        };
+		case MANAGER_REBOOT:
+		case MANAGER_POWEROFF:
+		case MANAGER_HALT:
+		case MANAGER_KEXEC: {
+			static const char *const table[_MANAGER_EXIT_CODE_MAX] = {
+				[MANAGER_REBOOT] = "reboot",
+				[MANAGER_POWEROFF] = "poweroff",
+				[MANAGER_HALT] = "halt",
+				[MANAGER_KEXEC] = "kexec"
+			};
 
-                        assert_se(shutdown_verb = table[m->exit_code]);
-                        arm_reboot_watchdog = m->exit_code == MANAGER_REBOOT;
+			assert_se(shutdown_verb = table[m->exit_code]);
+			arm_reboot_watchdog = m->exit_code == MANAGER_REBOOT;
 
-                        log_notice("Shutting down.");
-                        goto finish;
-                }
+			log_notice("Shutting down.");
+			goto finish;
+		}
 
-                default:
-                        assert_not_reached("Unknown exit code.");
-                }
-        }
+		default:
+			assert_not_reached("Unknown exit code.");
+		}
+	}
 
 finish:
-        if (m)
-                manager_free(m);
+	if (m)
+		manager_free(m);
 
-        for (j = 0; j < RLIM_NLIMITS; j++)
-                free(arg_default_rlimit[j]);
+	for (j = 0; j < RLIM_NLIMITS; j++)
+		free(arg_default_rlimit[j]);
 
-        free(arg_default_unit);
-        free_join_controllers();
+	free(arg_default_unit);
+	free_join_controllers();
 
-        dbus_shutdown();
-        label_finish();
+	dbus_shutdown();
+	label_finish();
 
-        if (reexecute) {
-                const char **args;
-                unsigned i, args_size;
-                sigset_t ss;
+	if (reexecute) {
+		const char **args;
+		unsigned i, args_size;
+		sigset_t ss;
 
-                /* Close and disarm the watchdog, so that the new
+		/* Close and disarm the watchdog, so that the new
                  * instance can reinitialize it, but doesn't get
                  * rebooted while we do that */
 #ifdef Sys_Plat_Linux
-                watchdog_close(true);
+		watchdog_close(true);
 #endif
 
-                /* Reset the RLIMIT_NOFILE to the kernel default, so
+		/* Reset the RLIMIT_NOFILE to the kernel default, so
                  * that the new systemd can pass the kernel default to
                  * its child processes */
-                if (saved_rlimit_nofile.rlim_cur > 0)
-                        setrlimit(RLIMIT_NOFILE, &saved_rlimit_nofile);
+		if (saved_rlimit_nofile.rlim_cur > 0)
+			setrlimit(RLIMIT_NOFILE, &saved_rlimit_nofile);
 
 #ifdef FEATURE_init
-                if (switch_root_dir) {
-                        /* Kill all remaining processes from the
+		if (switch_root_dir) {
+			/* Kill all remaining processes from the
                          * initrd, but don't wait for them, so that we
                          * can handle the SIGCHLD for them after
                          * deserializing. */
-                        broadcast_signal(SIGTERM, false);
+			broadcast_signal(SIGTERM, false);
 
 #ifdef Sys_Plat_Linux
-                        /* And switch root */
-                        r = switch_root(switch_root_dir);
-                        if (r < 0)
+			/* And switch root */
+			r = switch_root(switch_root_dir);
+			if (r < 0)
 #endif
-                                log_error("Failed to switch root, ignoring: %s", strerror(-r));
-                }
+				log_error("Failed to switch root, ignoring: %s", strerror(-r));
+		}
 #endif
 
-                args_size = MAX(6, argc+1);
-                args = newa(const char*, args_size);
+		args_size = MAX(9, argc + 1);
+		args = newa(const char *, args_size);
 
-                if (!switch_root_init) {
-                        char sfd[16];
+		if (!switch_root_init) {
+			char sfd[16];
 
-                        /* First try to spawn ourselves with the right
+			/* First try to spawn ourselves with the right
                          * path, and with full serialization. We do
                          * this only if the user didn't specify an
                          * explicit init to spawn. */
 
-                        assert(serialization);
-                        assert(fds);
+			assert(serialization);
+			assert(fds);
 
-                        snprintf(sfd, sizeof(sfd), "%i", fileno(serialization));
-                        char_array_0(sfd);
+			snprintf(sfd, sizeof(sfd), "%i", fileno(serialization));
+			char_array_0(sfd);
 
-                        i = 0;
-                        args[i++] = SYSTEMD_BINARY_PATH;
-                        if (switch_root_dir)
-                                args[i++] = "--switched-root";
-                        args[i++] = arg_running_as == SYSTEMD_SYSTEM ? "--system" : "--user";
-                        if (m->system_flags & SYSTEMD_AUXILIARY)
-                        args[i++] = "--auxiliary";
-                        args[i++] = "--deserialize";
-                        args[i++] = sfd;
-                        args[i++] = NULL;
+			i = 0;
+			args[i++] = SYSTEMD_BINARY_PATH;
+			if (switch_root_dir)
+				args[i++] = "--switched-root";
+			args[i++] = arg_running_as == SYSTEMD_SYSTEM ? "--system" : "--user";
+			if (m->system_flags & SYSTEMD_AUXILIARY)
+				args[i++] = "--auxiliary";
+			args[i++] = "--log-level=debug";
+			args[i++] = "--deserialize";
+			args[i++] = sfd;
+			args[i++] = NULL;
 
 #ifdef Sys_Plat_Linux
-                        /* do not pass along the environment we inherit from the kernel or initrd */
-                        if (switch_root_dir)
-                                clearenv();
+			/* do not pass along the environment we inherit from the kernel or initrd */
+			if (switch_root_dir)
+				clearenv();
 #endif
 
-                        assert(i <= args_size);
-                        execv(args[0], (char* const*) args);
-                }
+			assert(i <= args_size);
+			execv(args[0], (char *const *) args);
+		}
 
-                /* Try the fallback, if there is any, without any
+		/* Try the fallback, if there is any, without any
                  * serialization. We pass the original argv[] and
                  * envp[]. (Well, modulo the ordering changes due to
                  * getopt() in argv[], and some cleanups in envp[],
                  * but let's hope that doesn't matter.) */
 
-                if (serialization) {
-                        fclose(serialization);
-                        serialization = NULL;
-                }
+		if (serialization) {
+			fclose(serialization);
+			serialization = NULL;
+		}
 
-                if (fds) {
-                        fdset_free(fds);
-                        fds = NULL;
-                }
+		if (fds) {
+			fdset_free(fds);
+			fds = NULL;
+		}
 
-                if (arg_running_as == SYSTEMD_SYSTEM)
-                        /* Reopen the console */
-                        make_console_stdio();
+		if (arg_running_as == SYSTEMD_SYSTEM)
+			/* Reopen the console */
+			make_console_stdio();
 
-                for (j = 1, i = 1; j < argc; j++)
-                        args[i++] = argv[j];
-                args[i++] = NULL;
-                assert(i <= args_size);
+		for (j = 1, i = 1; j < argc; j++)
+			args[i++] = argv[j];
+		args[i++] = NULL;
+		assert(i <= args_size);
 
-                /* reenable any blocked signals, especially important
+		/* reenable any blocked signals, especially important
                  * if we switch from initial ramdisk to init=... */
-                reset_all_signal_handlers();
+		reset_all_signal_handlers();
 
-                assert_se(sigemptyset(&ss) == 0);
-                assert_se(sigprocmask(SIG_SETMASK, &ss, NULL) == 0);
+		assert_se(sigemptyset(&ss) == 0);
+		assert_se(sigprocmask(SIG_SETMASK, &ss, NULL) == 0);
 
-                if (switch_root_init) {
-                        args[0] = switch_root_init;
-                        execv(args[0], (char* const*) args);
-                        log_warning("Failed to execute configured init, trying fallback: %m");
-                }
+		if (switch_root_init) {
+			args[0] = switch_root_init;
+			execv(args[0], (char *const *) args);
+			log_warning("Failed to execute configured init, trying fallback: %m");
+		}
 
-                args[0] = SYSTEMD_BINARY_PATH;
-                execv(args[0], (char* const*) args);
+		args[0] = SYSTEMD_BINARY_PATH;
+		execv(args[0], (char *const *) args);
 
-                if (errno == ENOENT) {
-                        log_warning("No " SYSTEMD_BINARY_PATH ", trying fallback");
+		if (errno == ENOENT) {
+			log_warning("No " SYSTEMD_BINARY_PATH ", trying fallback");
 
-                        args[0] = "/bin/sh";
-                        args[1] = NULL;
-                        execv(args[0], (char* const*) args);
-                        log_error("Failed to execute /bin/sh, giving up: %m");
-                } else
-                        log_warning("Failed to execute " SYSTEMD_BINARY_PATH ", giving up: %m");
-        }
+			args[0] = "/bin/sh";
+			args[1] = NULL;
+			execv(args[0], (char *const *) args);
+			log_error("Failed to execute /bin/sh, giving up: %m");
+		} else
+			log_warning("Failed to execute " SYSTEMD_BINARY_PATH ", giving up: %m");
+	}
 
-        if (serialization)
-                fclose(serialization);
+	if (serialization)
+		fclose(serialization);
 
-        if (fds)
-                fdset_free(fds);
+	if (fds)
+		fdset_free(fds);
 
 #ifdef HAVE_VALGRIND_VALGRIND_H
-        /* If we are PID 1 and running under valgrind, then let's exit
+	/* If we are PID 1 and running under valgrind, then let's exit
          * here explicitly. valgrind will only generate nice output on
          * exit(), not on exec(), hence let's do the former not the
          * latter here. */
-        if (getpid() == 1 && RUNNING_ON_VALGRIND)
-                return 0;
+	if (getpid() == 1 && RUNNING_ON_VALGRIND)
+		return 0;
 #endif
 
 #ifdef Sys_Plat_Linux // FIXME: #15
@@ -2073,8 +2075,8 @@ finish:
 		}
 
 		/* Avoid the creation of new processes forked by the
-                 * kernel; at this point, we will not listen to the
-                 * signals anyway */
+		 * kernel; at this point, we will not listen to the
+		 * signals anyway */
 		if (detect_container(NULL) <= 0)
 			cg_uninstall_release_agent(SYSTEMD_CGROUP_CONTROLLER);
 
@@ -2086,8 +2088,8 @@ finish:
 #endif
 
 #ifdef Sys_Plat_BSD
-        if (arg_running_as == SYSTEMD_SYSTEM)
-                unlink(pidfile_path);
+	if (arg_running_as == SYSTEMD_SYSTEM)
+		unlink(pidfile_path);
 #endif
 
 	if (getpid() == 1)

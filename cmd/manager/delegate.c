@@ -18,7 +18,7 @@
 
 /* clang-format off */
 static const UnitActiveState state_translation_table[_DELEGATE_STATE_MAX] = {
-	[DEVICE_DEAD] = UNIT_INACTIVE,
+	[DELEGATE_DEAD] = UNIT_INACTIVE,
 	[DELEGATE_OFFLINE] = UNIT_INACTIVE,
 	[DELEGATE_ONLINE] = UNIT_ACTIVE
 };
