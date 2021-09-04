@@ -2096,7 +2096,7 @@ static int manager_serialize_ptgroups(Manager *m, FILE *f, FDSet *fds, cJSON *ou
 		goto finish;
 
 	HASHMAP_FOREACH_KEY (val, key, m->ptgroup_unit, i) {
-		if (!cJSON_AddNumberToObject(oPtg_unit, val->id, key->id)) {
+		if (!cJSON_AddStringToObject(oPtg_unit, val->id, key->full_name)) {
 			r = -ENOMEM;
 			break;
 		}
@@ -2364,17 +2364,17 @@ int manager_deserialise_object(Manager *m, cJSON *obj, FDSet *fds)
 			goto finish;
 		}
 
-		grp = ptmanager_find_ptg_by_id(m->pt_manager, oEntry->valueint);
+		grp = ptmanager_find_ptg_by_full_name(m->pt_manager, oEntry->valuestring);
 
 		if (!grp) {
-			log_error("Failed to find PTGroup for ID %d (for unit %s)\n",
-			    (int) oEntry->valueint, oEntry->string);
+			log_error("Failed to find PTGroup for ID %s (for unit %s)\n",
+			    oEntry->valuestring, oEntry->string);
 			goto finish;
 		}
 
 		r = hashmap_put(m->ptgroup_unit, grp, u);
 		if (r < 0) {
-			log_error("Failed to insert PTGroup for unit %s into hashmap: %s\n", u->id,
+			log_error("Failed to insert PTGroup %s for unit %s into hashmap: %s\n", grp->full_name, u->id,
 			    strerror(-r));
 			goto finish;
 		}

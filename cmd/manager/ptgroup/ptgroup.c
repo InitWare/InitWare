@@ -64,7 +64,6 @@ static int ptgroup_init(PTGroup *grp, PTGroup *parent, const char *name)
 	grp->full_name = ptgroup_full_name(grp);
 	if (!grp->full_name)
 		goto fail;
-	grp->id = rand();
 	grp->groups = set_new(trivial_hash_func, trivial_compare_func);
 	if (!grp->groups)
 		goto fail;
@@ -92,7 +91,6 @@ static int ptgroup_init_from_json(PTGroup *grp, PTGroup *parent, cJSON *obj)
 		grp->manager = parent->manager;
 	grp->parent = parent;
 	grp->full_name = xcJSON_steal_valuestring(cJSON_GetObjectItem(obj, "full_name"));
-	grp->id = cJSON_GetNumberValue(cJSON_GetObjectItem(obj, "id"));
 
 	grp->groups = set_new(trivial_hash_func, trivial_compare_func);
 	if (!grp->groups)
@@ -181,8 +179,9 @@ static int ptgroup_exit(PTManager *ptm, PTGroup *grp, pid_t pid)
 		if (PTR_TO_PID(pp) == pid) {
 			if (!set_remove(grp->processes, pp))
 				log_error("ptgroup %s: Failed to remove PID %lu\n", grp->full_name,
-					(unsigned long) pid);
-			log_debug("ptgroup %s: removed PID %lu\n", grp->full_name, (unsigned long) pid);
+				    (unsigned long) pid);
+			log_debug("ptgroup %s: removed PID %lu\n", grp->full_name,
+			    (unsigned long) pid);
 			if (ptg_is_empty_recursive(grp))
 				manager_notify_ptgroup_empty(grp->manager, grp);
 			return 1;
@@ -211,11 +210,11 @@ static int ptgroup_fork(PTGroup *grp, pid_t ppid, pid_t pid)
 		if (PTR_TO_PID(pp) == ppid) {
 			r = set_put(grp->processes, PID_TO_PTR(pid));
 			if (!r)
-				log_error("ptgroup %s: Failed to add PID %lu: %s\n", grp->full_name,
-					(unsigned long) pid, strerror(-r));
+				log_error("ptgroup %s: Failed to add PID %lu: %s\n",
+				    grp->full_name, (unsigned long) pid, strerror(-r));
 			else
 				log_debug("ptgroup %s: added PID %lu\n", grp->full_name,
-					(unsigned long) pid);
+				    (unsigned long) pid);
 			return 1;
 		}
 
@@ -228,17 +227,17 @@ static int ptgroup_fork(PTGroup *grp, pid_t ppid, pid_t pid)
 	return 0;
 }
 
-static PTGroup *ptgroup_find_by_id(PTGroup *grp, int id)
+static PTGroup *ptgroup_find_by_full_name(PTGroup *grp, const char *id)
 {
 	PTGroup *r;
 	PTGroup *cld;
 	Iterator i;
 
-	if (grp->id == id)
+	if (streq(grp->full_name, id))
 		return grp;
 
 	SET_FOREACH (cld, grp->groups, i) {
-		r = ptgroup_find_by_id(cld, id);
+		r = ptgroup_find_by_full_name(cld, id);
 		if (r != NULL)
 			return r;
 	}
@@ -290,10 +289,11 @@ int _ptgroup_move_or_add(PTGroup *grp, PTManager *ptm, pid_t pid)
 		return 0; /* already have it in the desired group */
 	else if (prev) {
 		if (!set_remove(prev->processes, PID_TO_PTR(pid)))
-			log_error("ptgroup %s: failed to remove PID %lu from group\n", prev->full_name,
-				(unsigned long) pid);
+			log_error("ptgroup %s: failed to remove PID %lu from group\n",
+			    prev->full_name, (unsigned long) pid);
 		else
-			log_debug("ptgroup %s: removed PID %lu\n", prev->full_name, (unsigned long) pid);
+			log_debug("ptgroup %s: removed PID %lu\n", prev->full_name,
+			    (unsigned long) pid);
 	}
 
 	log_debug("ptgroup %s: Adding PID %lu\n", grp->full_name, (unsigned long) pid);
@@ -306,8 +306,6 @@ int _ptgroup_move_or_add(PTGroup *grp, PTManager *ptm, pid_t pid)
 /* JSONise into an empty object already created */
 static int ptgroup_to_json_into(PTGroup *grp, cJSON *oGrp)
 {
-	if (!cJSON_AddNumberToObject(oGrp, "id", grp->id))
-		return -ENOMEM;
 	if (!cJSON_AddStringToObject(oGrp, "name", grp->name))
 		return -ENOMEM;
 	if (!cJSON_AddStringToObject(oGrp, "full_name", grp->full_name))
@@ -546,8 +544,8 @@ int cg_kill(const char *unused, const PTGroup *grp, int sig, bool sigcont, bool 
 	return ret;
 }
 
-int cg_kill_recursive(const char *unused1, const PTGroup *grp, int sig, bool sigcont, bool ignore_self,
-	bool rem, Set *s)
+int cg_kill_recursive(const char *unused1, const PTGroup *grp, int sig, bool sigcont,
+    bool ignore_self, bool rem, Set *s)
 {
 	PTGroup *cld;
 	_cleanup_set_free_ Set *allocated_set = NULL;
@@ -590,7 +588,8 @@ int ptg_migrate(PTGroup *from, PTGroup *to)
 		goto fail;
 
 fail:
-	log_error("ptgroup %s: Failed to migrate subprocesses to %s\n", from->full_name, to->full_name);
+	log_error("ptgroup %s: Failed to migrate subprocesses to %s\n", from->full_name,
+	    to->full_name);
 	return r;
 }
 
@@ -610,7 +609,7 @@ int ptg_migrate_recursive(PTGroup *from, PTGroup *to, bool rem)
 			return r;
 		if (rem)
 			set_remove(from->groups,
-				cld); /* TODO: is it legal to modify while iterating a set? */
+			    cld); /* TODO: is it legal to modify while iterating a set? */
 	}
 
 	if (rem)
@@ -669,9 +668,9 @@ PTManager *ptmanager_new_from_json(Manager *manager, cJSON *obj)
 	return ptm;
 }
 
-PTGroup *ptmanager_find_ptg_by_id(PTManager *ptm, int id)
+PTGroup *ptmanager_find_ptg_by_full_name(PTManager *ptm, const char *id)
 {
-	return ptgroup_find_by_id(&ptm->group, id);
+	return ptgroup_find_by_full_name(&ptm->group, id);
 }
 
 /** Notify a PTManager of an exit event. @returns -errno on failure. */
@@ -681,7 +680,7 @@ int ptmanager_exit(PTManager *ptm, pid_t pid)
 	if (!r)
 		log_debug("Exited PID %lu was not in any of our groups", (unsigned long) pid);
 	if (!hashmap_contains(ptm->group.manager->watch_pids1, PID_TO_PTR(pid)) &&
-		!hashmap_contains(ptm->group.manager->watch_pids2, PID_TO_PTR(pid)))
+	    !hashmap_contains(ptm->group.manager->watch_pids2, PID_TO_PTR(pid)))
 		log_debug("Should probably not delete in this case!"); /* TODO: ! */
 	/* TODO: Should we generate a SIGCHLD event if the process is not a
 	 * direct child of ours? */
@@ -700,7 +699,7 @@ int ptmanager_fork(PTManager *ptm, pid_t ppid, pid_t pid)
 	r = ptgroup_fork(&ptm->group, ppid, pid);
 	if (!r)
 		log_debug("Newly forked PID %lu's parent %lu was not in any of our groups",
-			(unsigned long) ppid, (unsigned long) pid);
+		    (unsigned long) ppid, (unsigned long) pid);
 	return r;
 }
 
@@ -763,7 +762,8 @@ static int unit_create_ptgroups(Unit *u)
 	r = hashmap_put(u->manager->ptgroup_unit, grp, u);
 
 	if (r < 0) {
-		log_error("Failed to add PTGroup hashmap entry for unit %s: %s", u->id, strerror(-r));
+		log_error("Failed to add PTGroup hashmap entry for unit %s: %s", u->id,
+		    strerror(-r));
 		return r;
 	}
 

@@ -55,9 +55,6 @@ struct PTGroup {
 	/* associated manager */
 	Manager *manager;
 
-	/* unique identifier */
-	unsigned int id;
-
 	/* name of this group */
 	char *name;
 
@@ -134,15 +131,15 @@ bool ptg_is_empty_recursive(PTGroup *grp);
  *	excluded from being killed.
  */
 int cg_kill(const char *unused, const PTGroup *grp, int sig, bool sigcont, bool ignore_self,
-	Set *ignore_set);
+    Set *ignore_set);
 
 /**
  * As cg_kill, but then also carries out the same for each subgroup.
  *
  * @param rem Whether to delete this PTGroup after killing its members.
  */
-int cg_kill_recursive(const char *unused, const PTGroup *grp, int sig, bool sigcont, bool ignore_self,
-	bool rem, Set *ignore_set);
+int cg_kill_recursive(const char *unused, const PTGroup *grp, int sig, bool sigcont,
+    bool ignore_self, bool rem, Set *ignore_set);
 
 /**
  * Migrate the processes of this group to another group.
@@ -186,8 +183,8 @@ PTManager *ptmanager_new(Manager *manager, char *name);
  */
 PTManager *ptmanager_new_from_json(Manager *manager, cJSON *obj);
 
-/** Find a PTGroup by its unique ID. */
-PTGroup *ptmanager_find_ptg_by_id(PTManager *ptm, int id);
+/** Find a PTGroup by its full name. */
+PTGroup *ptmanager_find_ptg_by_full_name(PTManager *ptm, const char *id);
 
 /** Notify a PTManager of a fork event. @returns -errno on failure. */
 int ptmanager_fork(PTManager *ptm, pid_t ppid, pid_t pid);
@@ -210,4 +207,4 @@ Unit *manager_get_unit_by_pid(Manager *m, pid_t pid);
 /** Create the PTGroup for a unit, if it doesn't yet exist. */
 int unit_realize_ptgroup(Unit *u);
 
-#endif
+#endif /* PTGROUP_H_ */
