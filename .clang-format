@@ -28,9 +28,12 @@ AccessModifierOffset: -4
 AlignAfterOpenBracket: DontAlign
 AlignEscapedNewlines: Left
 AlignOperands:   false
+AllowAllParametersOfDeclarationOnNextLine: false
 AllowAllArgumentsOnNextLine:	false
 AllowShortEnumsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: None
+AlwaysBreakAfterDefinitionReturnType: All
+AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: true
 AlwaysBreakTemplateDeclarations: Yes
 BinPackArguments: true
@@ -44,7 +47,7 @@ BreakBeforeBraces: Linux
 BreakInheritanceList: BeforeComma
 BreakBeforeTernaryOperators: false
 BreakStringLiterals: false
-ColumnLimit:     99
+ColumnLimit:     80
 CompactNamespaces: true
 ConstructorInitializerAllOnOneLineOrOnePerLine: true
 ConstructorInitializerIndentWidth: 8
@@ -134,7 +137,7 @@ IncludeCategories:
 SortIncludes: true
 IndentPPDirectives: None
 IndentWidth:     8
-IndentWrappedFunctionNames: true
+IndentWrappedFunctionNames: false
 MaxEmptyLinesToKeep: 2
 PenaltyBreakAssignment: 65
 # don't do it
@@ -142,7 +145,7 @@ PenaltyBreakBeforeFirstCallParameter: 2000
 PenaltyBreakComment: 320
 PenaltyBreakFirstLessLess: 50
 PenaltyBreakString: 0
-PenaltyExcessCharacter: 10
+PenaltyExcessCharacter: 80
 PenaltyReturnTypeOnItsOwnLine: 16
 SpaceAfterCStyleCast: true
 #SpaceBeforeParens: ControlStatementsExceptForEachMacros

@@ -1,5 +1,5 @@
 set(shared_src mkdir-label.c acpi-fpdt.c MurmurHash3.c
-    ask-password-api.c pager.c boot-timestamps.c
+    ask-password-api.c pager.c boot-timestamps.c bus-label.c
     path-util.c calendarspec.c prioq.c
     ptyfwd.c ratelimit.c conf-files.c replace-var.c conf-parser.c
     set.c sleep-config.c device-nodes.c

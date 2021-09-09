@@ -140,6 +140,12 @@ _noreturn_ void log_assert_failed(
                 int line,
                 const char *func);
 
+_noreturn_ void log_assert_failed_return(
+                const char *text,
+                const char *file,
+                int line,
+                const char *func);
+
 _noreturn_ void log_assert_failed_unreachable(
                 const char *text,
                 const char *file,

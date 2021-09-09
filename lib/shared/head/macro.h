@@ -145,6 +145,14 @@ static inline size_t ALIGN_TO(size_t l, size_t ali) {
                         log_assert_failed(#expr, __FILE__, __LINE__, __PRETTY_FUNCTION__); \
         } while (false)                                                 \
 
+#define assert_return(expr, retval)                                                 \
+        do {                                                            \
+                if (_unlikely_(!(expr))) {                               \
+                        log_assert_failed_return(#expr, __FILE__, __LINE__, __PRETTY_FUNCTION__); \
+			return (retval); \
+		} \
+        } while (false)
+
 /* We override the glibc assert() here. */
 #undef assert
 #ifdef NDEBUG

@@ -1,0 +1,493 @@
+/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
+
+/***
+  This file is part of systemd.
+
+  Copyright 2013 Lennart Poettering
+
+  systemd is free software; you can redistribute it and/or modify it
+  under the terms of the GNU Lesser General Public License as published by
+  the Free Software Foundation; either version 2.1 of the License, or
+  (at your option) any later version.
+
+  systemd is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  Lesser General Public License for more details.
+
+  You should have received a copy of the GNU Lesser General Public License
+  along with systemd; If not, see <http://www.gnu.org/licenses/>.
+***/
+
+#ifdef HAVE_VALGRIND_MEMCHECK_H
+#include <valgrind/memcheck.h>
+#endif
+
+#include <stddef.h>
+#include <errno.h>
+
+#include "strv.h"
+#include "sd-bus.h"
+#include "bus-internal.h"
+#include "bus-message.h"
+#include "bus-control.h"
+#include "bus-util.h"
+#include "cgroup-util.h"
+
+_public_ int sd_bus_get_unique_name(sd_bus *bus, const char **unique) {
+        int r;
+
+        assert_return(bus, -EINVAL);
+        assert_return(unique, -EINVAL);
+        assert_return(!bus_pid_changed(bus), -ECHILD);
+
+        r = bus_ensure_running(bus);
+        if (r < 0)
+                return r;
+
+        *unique = bus->unique_name;
+        return 0;
+}
+
+static int bus_request_name_dbus1(sd_bus *bus, const char *name, uint64_t flags) {
+        _cleanup_bus_message_unref_ sd_bus_message *reply = NULL;
+        uint32_t ret, param = 0;
+        int r;
+
+        assert(bus);
+        assert(name);
+
+        if (flags & SD_BUS_NAME_ALLOW_REPLACEMENT)
+                param |= BUS_NAME_ALLOW_REPLACEMENT;
+        if (flags & SD_BUS_NAME_REPLACE_EXISTING)
+                param |= BUS_NAME_REPLACE_EXISTING;
+        if (!(flags & SD_BUS_NAME_QUEUE))
+                param |= BUS_NAME_DO_NOT_QUEUE;
+
+        r = sd_bus_call_method(
+                        bus,
+                        "org.freedesktop.DBus",
+                        "/org/freedesktop/DBus",
+                        "org.freedesktop.DBus",
+                        "RequestName",
+                        NULL,
+                        &reply,
+                        "su",
+                        name,
+                        param);
+        if (r < 0)
+                return r;
+
+        r = sd_bus_message_read(reply, "u", &ret);
+        if (r < 0)
+                return r;
+
+        if (ret == BUS_NAME_ALREADY_OWNER)
+                return -EALREADY;
+        else if (ret == BUS_NAME_EXISTS)
+                return -EEXIST;
+        else if (ret == BUS_NAME_IN_QUEUE)
+                return 0;
+        else if (ret == BUS_NAME_PRIMARY_OWNER)
+                return 1;
+
+        return -EIO;
+}
+
+_public_ int sd_bus_request_name(sd_bus *bus, const char *name, uint64_t flags) {
+        assert_return(bus, -EINVAL);
+        assert_return(name, -EINVAL);
+        assert_return(bus->bus_client, -EINVAL);
+        assert_return(!bus_pid_changed(bus), -ECHILD);
+        assert_return(!(flags & ~(SD_BUS_NAME_ALLOW_REPLACEMENT|SD_BUS_NAME_REPLACE_EXISTING|SD_BUS_NAME_QUEUE)), -EINVAL);
+        assert_return(service_name_is_valid(name), -EINVAL);
+        assert_return(name[0] != ':', -EINVAL);
+
+        if (!BUS_IS_OPEN(bus->state))
+                return -ENOTCONN;
+
+        return bus_request_name_dbus1(bus, name, flags);
+}
+
+static int bus_release_name_dbus1(sd_bus *bus, const char *name) {
+        _cleanup_bus_message_unref_ sd_bus_message *reply = NULL;
+        uint32_t ret;
+        int r;
+
+        assert(bus);
+        assert(name);
+
+        r = sd_bus_call_method(
+                        bus,
+                        "org.freedesktop.DBus",
+                        "/org/freedesktop/DBus",
+                        "org.freedesktop.DBus",
+                        "ReleaseName",
+                        NULL,
+                        &reply,
+                        "s",
+                        name);
+        if (r < 0)
+                return r;
+
+        r = sd_bus_message_read(reply, "u", &ret);
+        if (r < 0)
+                return r;
+        if (ret == BUS_NAME_NON_EXISTENT)
+                return -ESRCH;
+        if (ret == BUS_NAME_NOT_OWNER)
+                return -EADDRINUSE;
+        if (ret == BUS_NAME_RELEASED)
+                return 0;
+
+        return -EINVAL;
+}
+
+_public_ int sd_bus_release_name(sd_bus *bus, const char *name) {
+        assert_return(bus, -EINVAL);
+        assert_return(name, -EINVAL);
+        assert_return(bus->bus_client, -EINVAL);
+        assert_return(!bus_pid_changed(bus), -ECHILD);
+        assert_return(service_name_is_valid(name), -EINVAL);
+        assert_return(name[0] != ':', -EINVAL);
+
+        if (!BUS_IS_OPEN(bus->state))
+                return -ENOTCONN;
+
+        return bus_release_name_dbus1(bus, name);
+}
+
+static int bus_list_names_dbus1(sd_bus *bus, char ***acquired, char ***activatable) {
+        _cleanup_bus_message_unref_ sd_bus_message *reply = NULL;
+        _cleanup_strv_free_ char **x = NULL, **y = NULL;
+        int r;
+
+        if (acquired) {
+                r = sd_bus_call_method(
+                                bus,
+                                "org.freedesktop.DBus",
+                                "/org/freedesktop/DBus",
+                                "org.freedesktop.DBus",
+                                "ListNames",
+                                NULL,
+                                &reply,
+                                NULL);
+                if (r < 0)
+                        return r;
+
+                r = sd_bus_message_read_strv(reply, &x);
+                if (r < 0)
+                        return r;
+
+                reply = sd_bus_message_unref(reply);
+        }
+
+        if (activatable) {
+                r = sd_bus_call_method(
+                                bus,
+                                "org.freedesktop.DBus",
+                                "/org/freedesktop/DBus",
+                                "org.freedesktop.DBus",
+                                "ListActivatableNames",
+                                NULL,
+                                &reply,
+                                NULL);
+                if (r < 0)
+                        return r;
+
+                r = sd_bus_message_read_strv(reply, &y);
+                if (r < 0)
+                        return r;
+
+                *activatable = y;
+                y = NULL;
+        }
+
+        if (acquired) {
+                *acquired = x;
+                x = NULL;
+        }
+
+        return 0;
+}
+
+_public_ int sd_bus_list_names(sd_bus *bus, char ***acquired, char ***activatable) {
+        assert_return(bus, -EINVAL);
+        assert_return(acquired || activatable, -EINVAL);
+        assert_return(!bus_pid_changed(bus), -ECHILD);
+
+        if (!BUS_IS_OPEN(bus->state))
+                return -ENOTCONN;
+
+        return bus_list_names_dbus1(bus, acquired, activatable);
+}
+
+static int bus_get_owner_dbus1(
+                sd_bus *bus,
+                const char *name,
+                uint64_t mask,
+                sd_bus_creds **creds) {
+
+        _cleanup_bus_message_unref_ sd_bus_message *reply_unique = NULL, *reply = NULL;
+        _cleanup_bus_creds_unref_ sd_bus_creds *c = NULL;
+        const char *unique = NULL;
+        pid_t pid = 0;
+        int r;
+
+        /* Only query the owner if the caller wants to know it or if
+         * the caller just wants to check whether a name exists */
+        if ((mask & SD_BUS_CREDS_UNIQUE_NAME) || mask == 0) {
+                r = sd_bus_call_method(
+                                bus,
+                                "org.freedesktop.DBus",
+                                "/org/freedesktop/DBus",
+                                "org.freedesktop.DBus",
+                                "GetNameOwner",
+                                NULL,
+                                &reply_unique,
+                                "s",
+                                name);
+                if (r < 0)
+                        return r;
+
+                r = sd_bus_message_read(reply_unique, "s", &unique);
+                if (r < 0)
+                        return r;
+        }
+
+        if (mask != 0) {
+                c = bus_creds_new();
+                if (!c)
+                        return -ENOMEM;
+
+                if ((mask & SD_BUS_CREDS_UNIQUE_NAME) && unique) {
+                        c->unique_name = strdup(unique);
+                        if (!c->unique_name)
+                                return -ENOMEM;
+
+                        c->mask |= SD_BUS_CREDS_UNIQUE_NAME;
+                }
+
+                if (mask & (SD_BUS_CREDS_PID|SD_BUS_CREDS_PID_STARTTIME|SD_BUS_CREDS_GID|
+                            SD_BUS_CREDS_COMM|SD_BUS_CREDS_EXE|SD_BUS_CREDS_CMDLINE|
+                            SD_BUS_CREDS_CGROUP|SD_BUS_CREDS_UNIT|SD_BUS_CREDS_USER_UNIT|SD_BUS_CREDS_SLICE|SD_BUS_CREDS_SESSION|SD_BUS_CREDS_OWNER_UID|
+                            SD_BUS_CREDS_EFFECTIVE_CAPS|SD_BUS_CREDS_PERMITTED_CAPS|SD_BUS_CREDS_INHERITABLE_CAPS|SD_BUS_CREDS_BOUNDING_CAPS|
+                            SD_BUS_CREDS_AUDIT_SESSION_ID|SD_BUS_CREDS_AUDIT_LOGIN_UID)) {
+                        uint32_t u;
+
+                        r = sd_bus_call_method(
+                                        bus,
+                                        "org.freedesktop.DBus",
+                                        "/org/freedesktop/DBus",
+                                        "org.freedesktop.DBus",
+                                        "GetConnectionUnixProcessID",
+                                        NULL,
+                                        &reply,
+                                        "s",
+                                        unique ? unique : name);
+                        if (r < 0)
+                                return r;
+
+                        r = sd_bus_message_read(reply, "u", &u);
+                        if (r < 0)
+                                return r;
+
+                        pid = u;
+                        if (mask & SD_BUS_CREDS_PID) {
+                                c->pid = u;
+                                c->mask |= SD_BUS_CREDS_PID;
+                        }
+
+                        reply = sd_bus_message_unref(reply);
+                }
+
+                if (mask & SD_BUS_CREDS_UID) {
+                        uint32_t u;
+
+                        r = sd_bus_call_method(
+                                        bus,
+                                        "org.freedesktop.DBus",
+                                        "/org/freedesktop/DBus",
+                                        "org.freedesktop.DBus",
+                                        "GetConnectionUnixUser",
+                                        NULL,
+                                        &reply,
+                                        "s",
+                                        unique ? unique : name);
+                        if (r < 0)
+                                return r;
+
+                        r = sd_bus_message_read(reply, "u", &u);
+                        if (r < 0)
+                                return r;
+
+                        c->uid = u;
+                        c->mask |= SD_BUS_CREDS_UID;
+
+                        reply = sd_bus_message_unref(reply);
+                }
+
+                if (mask & SD_BUS_CREDS_SELINUX_CONTEXT) {
+                        const void *p = NULL;
+                        size_t sz = 0;
+
+                        r = sd_bus_call_method(
+                                        bus,
+                                        "org.freedesktop.DBus",
+                                        "/org/freedesktop/DBus",
+                                        "org.freedesktop.DBus",
+                                        "GetConnectionSELinuxSecurityContext",
+                                        NULL,
+                                        &reply,
+                                        "s",
+                                        unique ? unique : name);
+                        if (r < 0)
+                                return r;
+
+                        r = sd_bus_message_read_array(reply, 'y', &p, &sz);
+                        if (r < 0)
+                                return r;
+
+                        c->label = strndup(p, sz);
+                        if (!c->label)
+                                return -ENOMEM;
+
+                        c->mask |= SD_BUS_CREDS_SELINUX_CONTEXT;
+                }
+
+                r = bus_creds_add_more(c, mask, pid, 0);
+                if (r < 0)
+                        return r;
+        }
+
+        if (creds) {
+                *creds = c;
+                c = NULL;
+        }
+
+        return 0;
+}
+
+_public_ int sd_bus_get_owner(
+                sd_bus *bus,
+                const char *name,
+                uint64_t mask,
+                sd_bus_creds **creds) {
+
+        assert_return(bus, -EINVAL);
+        assert_return(name, -EINVAL);
+        assert_return(mask <= _SD_BUS_CREDS_ALL, -ENOTSUP);
+        assert_return(mask == 0 || creds, -EINVAL);
+        assert_return(!bus_pid_changed(bus), -ECHILD);
+        assert_return(service_name_is_valid(name), -EINVAL);
+        assert_return(bus->bus_client, -ENODATA);
+
+        if (!BUS_IS_OPEN(bus->state))
+                return -ENOTCONN;
+
+        return bus_get_owner_dbus1(bus, name, mask, creds);
+}
+
+static int bus_add_match_internal_dbus1(
+                sd_bus *bus,
+                const char *match) {
+
+        assert(bus);
+        assert(match);
+
+        return sd_bus_call_method(
+                        bus,
+                        "org.freedesktop.DBus",
+                        "/org/freedesktop/DBus",
+                        "org.freedesktop.DBus",
+                        "AddMatch",
+                        NULL,
+                        NULL,
+                        "s",
+                        match);
+}
+
+int bus_add_match_internal(
+                sd_bus *bus,
+                const char *match,
+                struct bus_match_component *components,
+                unsigned n_components,
+                uint64_t cookie) {
+
+        assert(bus);
+        assert(match);
+
+        return bus_add_match_internal_dbus1(bus, match);
+}
+
+static int bus_remove_match_internal_dbus1(
+                sd_bus *bus,
+                const char *match) {
+
+        assert(bus);
+        assert(match);
+
+        return sd_bus_call_method(
+                        bus,
+                        "org.freedesktop.DBus",
+                        "/org/freedesktop/DBus",
+                        "org.freedesktop.DBus",
+                        "RemoveMatch",
+                        NULL,
+                        NULL,
+                        "s",
+                        match);
+}
+
+int bus_remove_match_internal(
+                sd_bus *bus,
+                const char *match,
+                uint64_t cookie) {
+
+        assert(bus);
+        assert(match);
+
+        return bus_remove_match_internal_dbus1(bus, match);
+}
+
+_public_ int sd_bus_get_owner_machine_id(sd_bus *bus, const char *name, sd_id128_t *machine) {
+        _cleanup_bus_message_unref_ sd_bus_message *reply = NULL, *m = NULL;
+        const char *mid;
+        int r;
+
+        assert_return(bus, -EINVAL);
+        assert_return(name, -EINVAL);
+        assert_return(machine, -EINVAL);
+        assert_return(!bus_pid_changed(bus), -ECHILD);
+        assert_return(service_name_is_valid(name), -EINVAL);
+
+        if (!BUS_IS_OPEN(bus->state))
+                return -ENOTCONN;
+
+        if (streq_ptr(name, bus->unique_name))
+                return sd_id128_get_machine(machine);
+
+        r = sd_bus_message_new_method_call(
+                        bus,
+                        &m,
+                        name,
+                        "/",
+                        "org.freedesktop.DBus.Peer",
+                        "GetMachineId");
+        if (r < 0)
+                return r;
+
+        r = sd_bus_message_set_auto_start(m, false);
+        if (r < 0)
+                return r;
+
+        r = sd_bus_call(bus, m, 0, NULL, &reply);
+        if (r < 0)
+                return r;
+
+        r = sd_bus_message_read(reply, "s", &mid);
+        if (r < 0)
+                return r;
+
+        return sd_id128_from_string(mid, machine);
+}
