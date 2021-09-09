@@ -38,7 +38,7 @@
 #include "kdbus.h"
 #include "sd-bus.h"
 
-#define sd_event_add_io(...) 0
+/*#define sd_event_add_io(...) 0
 #define sd_event_source_set_io_events(...) 0
 #define sd_event_source_set_time(...) 0
 #define sd_event_source_set_enabled(...) 0
@@ -56,7 +56,7 @@
 #define sd_event_add_monotonic(...) 0
 #define sd_event_add_exit(...) 0
 #define sd_event_get_tid(...) 0
-#define sd_event_unref(...) 0
+#define sd_event_unref(...) 0*/
 
 #define strv_from_stdarg_alloca(first)                          \
 	({                                                      \
@@ -287,11 +287,11 @@ struct sd_bus {
 
 	uint64_t match_cookie;
 
-	sd_event_source *input_io_event_source;
-	sd_event_source *output_io_event_source;
-	sd_event_source *time_event_source;
-	sd_event_source *quit_event_source;
-	sd_event *event;
+	ev_io input_io_event_source;
+	ev_io output_io_event_source;
+	ev_timer time_event_source;
+	//sd_event_source *quit_event_source;
+	struct ev_loop *evloop;
 	int event_priority;
 
 	sd_bus_message *current;

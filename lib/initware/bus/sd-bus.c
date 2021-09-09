@@ -31,6 +31,7 @@
 #include "bus-label.h"
 #include "cgroup-util.h"
 #include "def.h"
+#include "log.h"
 #include "macro.h"
 #include "missing.h"
 #include "set.h"
@@ -2025,19 +2026,19 @@ sd_bus_get_events(sd_bus *bus)
 		return -ENOTCONN;
 
 	if (bus->state == BUS_OPENING)
-		flags |= POLLOUT;
+		flags |= EV_WRITE;
 	else if (bus->state == BUS_AUTHENTICATING) {
 
 		if (bus_socket_auth_needs_write(bus))
-			flags |= POLLOUT;
+			flags |= EV_WRITE;
 
-		flags |= POLLIN;
+		flags |= EV_READ;
 
 	} else if (bus->state == BUS_RUNNING || bus->state == BUS_HELLO) {
 		if (bus->rqueue_size <= 0)
-			flags |= POLLIN;
+			flags |= EV_READ;
 		if (bus->wqueue_size > 0)
-			flags |= POLLOUT;
+			flags |= EV_WRITE;
 	}
 
 	return flags;
@@ -2830,59 +2831,56 @@ bus_pid_changed(sd_bus *bus)
 	return bus->original_pid != getpid();
 }
 
-static int
-io_callback(sd_event_source *s, int fd, uint32_t revents, void *userdata)
+
+static void
+io_callback(struct ev_loop *evloop, ev_io *ev, int revents)
 {
-	sd_bus *bus = userdata;
+	int r;
+	sd_bus *bus = ev->data;
+
+	r = sd_bus_process(bus, NULL);
+	if (r < 0)
+		return (void)log_error_errno(-r, "Failed to process bus: %m\n");
+}
+
+static void
+time_callback(struct ev_loop *evloop, ev_timer *ev, int revents)
+{
+	sd_bus *bus = ev->data;
 	int r;
 
 	assert(bus);
 
 	r = sd_bus_process(bus, NULL);
 	if (r < 0)
-		return r;
-
-	return 1;
+		return (void)log_error_errno(-r, "Failed to process bus: %m\n");
 }
 
 static int
-time_callback(sd_event_source *s, uint64_t usec, void *userdata)
-{
-	sd_bus *bus = userdata;
-	int r;
-
-	assert(bus);
-
-	r = sd_bus_process(bus, NULL);
-	if (r < 0)
-		return r;
-
-	return 1;
-}
-
-static int
-prepare_callback(sd_event_source *s, void *userdata)
+prepare_callback(void *unused, void *userdata)
 {
 	sd_bus *bus = userdata;
 	int r, e;
 	usec_t until;
 
-	assert(s);
 	assert(bus);
 
 	e = sd_bus_get_events(bus);
 	if (e < 0)
 		return e;
 
+#if 0
 	if (bus->output_fd != bus->input_fd) {
 
+		if (ev_eactive)
+
 		r = sd_event_source_set_io_events(bus->input_io_event_source,
-		    e & POLLIN);
+		    e & EV_READ);
 		if (r < 0)
 			return r;
 
 		r = sd_event_source_set_io_events(bus->output_io_event_source,
-		    e & POLLOUT);
+		    e & EV_WRITE);
 		if (r < 0)
 			return r;
 	} else {
@@ -2891,25 +2889,28 @@ prepare_callback(sd_event_source *s, void *userdata)
 		if (r < 0)
 			return r;
 	}
+#endif
 
 	r = sd_bus_get_timeout(bus, &until);
 	if (r < 0)
 		return r;
+	else if (!r) {
+		if (bus->time_event_source.active)
+			ev_timer_stop(bus->evloop, &bus->time_event_source);
+	}
 	if (r > 0) {
 		int j;
 
-		j = sd_event_source_set_time(bus->time_event_source, until);
+		ev_timer_set(&bus->time_event_source, until, 0);
+		j = ev_timer_again(bus->evloop, &bus->time_event_source);
 		if (j < 0)
 			return j;
 	}
 
-	r = sd_event_source_set_enabled(bus->time_event_source, r > 0);
-	if (r < 0)
-		return r;
-
 	return 1;
 }
 
+#if 0
 static int
 quit_callback(sd_event_source *event, void *userdata)
 {
@@ -2921,6 +2922,7 @@ quit_callback(sd_event_source *event, void *userdata)
 
 	return 1;
 }
+#endif
 
 static int
 attach_io_events(sd_bus *bus)
@@ -2932,47 +2934,36 @@ attach_io_events(sd_bus *bus)
 	if (bus->input_fd < 0)
 		return 0;
 
-	if (!bus->event)
+	if (!bus->evloop)
 		return 0;
 
-	if (!bus->input_io_event_source) {
-		r = sd_event_add_io(bus->event, &bus->input_io_event_source,
-		    bus->input_fd, 0, io_callback, bus);
+	if (!bus->input_io_event_source.active) {
+		ev_io_init(&bus->input_io_event_source, io_callback,
+		    bus->input_fd, EV_READ | EV_WRITE);
+		bus->input_io_event_source.data = bus;
+
+		r = ev_io_start(bus->evloop, &bus->input_io_event_source);
 		if (r < 0)
 			return r;
 
-		r = sd_event_source_set_prepare(bus->input_io_event_source,
-		    prepare_callback);
-		if (r < 0)
-			return r;
-
-		r = sd_event_source_set_priority(bus->input_io_event_source,
-		    bus->event_priority);
 	} else
-		r = sd_event_source_set_io_fd(bus->input_io_event_source,
-		    bus->input_fd);
+		log_assert_failed("API misuse");
 
-	if (r < 0)
-		return r;
 
 	if (bus->output_fd != bus->input_fd) {
 		assert(bus->output_fd >= 0);
 
-		if (!bus->output_io_event_source) {
-			r = sd_event_add_io(bus->event,
-			    &bus->output_io_event_source, bus->output_fd, 0,
-			    io_callback, bus);
+		if (!bus->output_io_event_source.active) {
+			ev_io_init(&bus->output_io_event_source, io_callback,
+			    bus->output_fd, EV_READ | EV_WRITE);
+			bus->output_io_event_source.data = bus;
+
+			r = ev_io_start(bus->evloop,
+			    &bus->output_io_event_source);
 			if (r < 0)
 				return r;
-
-			r = sd_event_source_set_priority(bus->output_io_event_source,
-			    bus->event_priority);
 		} else
-			r = sd_event_source_set_io_fd(bus->output_io_event_source,
-			    bus->output_fd);
-
-		if (r < 0)
-			return r;
+			log_assert_failed("API misuse");
 	}
 
 	return 0;
@@ -2983,56 +2974,46 @@ detach_io_events(sd_bus *bus)
 {
 	assert(bus);
 
-	if (bus->input_io_event_source) {
-		sd_event_source_set_enabled(bus->input_io_event_source,
-		    SD_EVENT_OFF);
-		bus->input_io_event_source = sd_event_source_unref(
-		    bus->input_io_event_source);
+	if (bus->input_io_event_source.active) {
+		ev_io_stop(bus->evloop, &bus->input_io_event_source);
 	}
 
-	if (bus->output_io_event_source) {
-		sd_event_source_set_enabled(bus->output_io_event_source,
-		    SD_EVENT_OFF);
-		bus->output_io_event_source = sd_event_source_unref(
-		    bus->output_io_event_source);
+	if (bus->output_io_event_source.active) {
+		ev_io_stop(bus->evloop, &bus->output_io_event_source);
 	}
 }
 
 _public_ int
-sd_bus_attach_event(sd_bus *bus, sd_event *event, int priority)
+sd_bus_attach_event(sd_bus *bus, struct ev_loop *evloop, int priority)
 {
 	int r;
 
 	assert_return(bus, -EINVAL);
-	assert_return(!bus->event, -EBUSY);
+	assert_return(!bus->evloop, -EBUSY);
 
-	assert(!bus->input_io_event_source);
-	assert(!bus->output_io_event_source);
-	assert(!bus->time_event_source);
+	assert(!bus->input_io_event_source.active);
+	assert(!bus->output_io_event_source.active);
+	assert(!bus->time_event_source.active);
 
-	if (event)
-		bus->event = sd_event_ref(event);
+	if (evloop)
+		bus->evloop = evloop;
 	else {
-		r = sd_event_default(&bus->event);
-		if (r < 0)
-			return r;
+		bus->evloop = ev_default_loop(0);
+		if (!bus->evloop)
+			return -ENOMEM;
 	}
 
 	bus->event_priority = priority;
 
-	r = sd_event_add_monotonic(bus->event, &bus->time_event_source, 0, 0,
-	    time_callback, bus);
-	if (r < 0)
-		goto fail;
+	ev_timer_init(&bus->time_event_source, time_callback, 0, 0);
+	bus->time_event_source.data = bus;
 
-	r = sd_event_source_set_priority(bus->time_event_source, priority);
-	if (r < 0)
-		goto fail;
-
+#if 0
 	r = sd_event_add_exit(bus->event, &bus->quit_event_source,
 	    quit_callback, bus);
 	if (r < 0)
 		goto fail;
+#endif
 
 	r = attach_io_events(bus);
 	if (r < 0)
@@ -3050,37 +3031,36 @@ sd_bus_detach_event(sd_bus *bus)
 {
 	assert_return(bus, -EINVAL);
 
-	if (!bus->event)
+	if (!bus->evloop)
 		return 0;
 
 	detach_io_events(bus);
 
-	if (bus->time_event_source) {
-		sd_event_source_set_enabled(bus->time_event_source,
-		    SD_EVENT_OFF);
-		bus->time_event_source = sd_event_source_unref(
-		    bus->time_event_source);
+	if (bus->time_event_source.active) {
+		ev_timer_stop(bus->evloop, &bus->time_event_source);
 	}
 
+#if 0
 	if (bus->quit_event_source) {
 		sd_event_source_set_enabled(bus->quit_event_source,
 		    SD_EVENT_OFF);
 		bus->quit_event_source = sd_event_source_unref(
 		    bus->quit_event_source);
 	}
+#endif
 
-	if (bus->event)
-		bus->event = sd_event_unref(bus->event);
+	if (bus->evloop)
+		bus->evloop = NULL;
 
 	return 1;
 }
 
-_public_ sd_event *
+_public_ struct ev_loop *
 sd_bus_get_event(sd_bus *bus)
 {
 	assert_return(bus, NULL);
 
-	return bus->event;
+	return bus->evloop;
 }
 
 _public_ sd_bus_message *
@@ -3191,8 +3171,10 @@ sd_bus_get_tid(sd_bus *b, pid_t *tid)
 		return 0;
 	}
 
-	if (b->event)
+#if 0
+	if (b->evloop)
 		return sd_event_get_tid(b->event, tid);
+#endif
 
 	return -ENXIO;
 }

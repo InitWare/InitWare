@@ -23,7 +23,7 @@
 
 #include "hashmap.h"
 #include "sd-bus.h"
-#include "sd-event.h"
+#include "ev-util.h"
 #include "time-util.h"
 #include "util.h"
 
@@ -51,12 +51,16 @@ int bus_map_id128(sd_bus *bus, const char *member, sd_bus_message *m,
 int bus_map_all_properties(sd_bus *bus, const char *destination,
     const char *path, const struct bus_properties_map *map, void *userdata);
 
+#if 0
 int bus_async_unregister_and_exit(sd_event *e, sd_bus *bus, const char *name);
+#endif
 
 typedef bool (*check_idle_t)(void *userdata);
 
+#if 0
 int bus_event_loop_with_idle(sd_event *e, sd_bus *bus, const char *name,
     usec_t timeout, check_idle_t check_idle, void *userdata);
+#endif
 
 int bus_name_has_owner(sd_bus *c, const char *name, sd_bus_error *error);
 

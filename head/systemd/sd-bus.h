@@ -27,8 +27,8 @@
 #include <sys/uio.h>
 
 #include "sd-id128.h"
-#include "sd-event.h"
 #include "_sd-common.h"
+#include "ev.h"
 
 _SD_BEGIN_DECLARATIONS;
 
@@ -151,9 +151,9 @@ int sd_bus_wait(sd_bus *bus, uint64_t timeout_usec);
 int sd_bus_flush(sd_bus *bus);
 sd_bus_message* sd_bus_get_current(sd_bus *bus);
 
-int sd_bus_attach_event(sd_bus *bus, sd_event *e, int priority);
+int sd_bus_attach_event(sd_bus *bus, struct ev_loop *evloop, int priority);
 int sd_bus_detach_event(sd_bus *bus);
-sd_event *sd_bus_get_event(sd_bus *bus);
+struct ev_loop *sd_bus_get_event(sd_bus *bus);
 
 int sd_bus_add_filter(sd_bus *bus, sd_bus_message_handler_t callback, void *userdata);
 int sd_bus_remove_filter(sd_bus *bus, sd_bus_message_handler_t callback, void *userdata);

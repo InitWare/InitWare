@@ -32,8 +32,9 @@
 #include "bus-message.h"
 #include "bus-util.h"
 #include "sd-bus.h"
-#include "sd-event.h"
+#include "ev-util.h"
 
+#if 0
 static int
 name_owner_change_callback(sd_bus *bus, sd_bus_message *m, void *userdata,
     sd_bus_error *ret_error)
@@ -136,6 +137,7 @@ bus_event_loop_with_idle(sd_event *e, sd_bus *bus, const char *name,
 
 	return code;
 }
+#endif
 
 int
 bus_name_has_owner(sd_bus *c, const char *name, sd_bus_error *error)
