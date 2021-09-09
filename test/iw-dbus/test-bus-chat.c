@@ -138,6 +138,7 @@ static int server(sd_bus *bus) {
                 _cleanup_bus_message_unref_ sd_bus_message *m = NULL;
                 pid_t pid = 0;
                 const char *label = NULL;
+		sd_bus_creds * creds;
 
                 r = sd_bus_process(bus, &m);
                 if (r < 0) {
@@ -158,8 +159,13 @@ static int server(sd_bus *bus) {
                 if (!m)
                         continue;
 
-                sd_bus_creds_get_pid(sd_bus_message_get_creds(m), &pid);
-                sd_bus_creds_get_selinux_context(sd_bus_message_get_creds(m), &label);
+		sd_bus_query_sender_creds(m, SD_BUS_CREDS_PID, &creds);
+                sd_bus_creds_get_pid(creds, &pid);
+#ifdef Use_SELinux
+                sd_bus_creds_get_selinux_context(creds, &label);
+#else
+		label = "none";
+#endif
                 log_info("Got message! member=%s pid=%lu label=%s",
                          strna(sd_bus_message_get_member(m)),
                          (unsigned long) pid,

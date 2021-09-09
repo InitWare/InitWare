@@ -22,14 +22,16 @@ add_custom_command(
 	> bus-error-mapping.c
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/bus/bus-error-mapping.gperf)
 
+add_library(iw-bus-internal INTERFACE)
+target_include_directories(iw-bus-internal INTERFACE bus)
+target_link_libraries(iw-bus-internal INTERFACE internal iw-shared iw-id128)
 add_library(iw-bus bus/bus-control.c bus/bus-convenience.c bus/bus-creds.c
     bus/bus-dump.c bus/bus-error.c bus/bus-gvariant.c bus/bus-internal.c
     bus/bus-introspect.c bus/bus-match.c bus/bus-message.c bus/bus-objects.c
     bus/bus-signature.c bus/bus-socket.c bus/bus-type.c bus/bus-util.c
     bus/bus-kernel.c
     bus/sd-bus.c ${CMAKE_CURRENT_BINARY_DIR}/bus-error-mapping.c)
-target_link_libraries(iw-bus internal iw-shared iw-id128 ${EPoll_Compat_Libs})
-target_include_directories(iw-bus PRIVATE bus)
+target_link_libraries(iw-bus iw-bus-internal ${EPoll_Compat_Libs})
 
 add_executable(svcbusctl bus/busctl.c)
 target_link_libraries(svcbusctl iw-bus)

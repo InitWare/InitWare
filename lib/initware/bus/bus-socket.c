@@ -607,7 +607,9 @@ void bus_socket_setup(sd_bus *b) {
 
         assert(b);
 
-	if (b->bus_client)
+#if 0 // ???
+	if (!b->bus_client)
+#endif
 		socket_passcred(b->input_fd);
         /* Enable SO_PASSCRED + SO_PASSEC. We try this on any
          * socket, just in case. */
@@ -627,6 +629,8 @@ void bus_socket_setup(sd_bus *b) {
 
 static void bus_get_peercred(sd_bus *b) {
         assert(b);
+
+	printf("Bas get peercred %d\n", socket_getpeercred(b->input_fd, &b->ucred));
 
         /* Get the peer for socketpair() sockets */
         b->ucred_valid = socket_getpeercred(b->input_fd, &b->ucred) == 0;

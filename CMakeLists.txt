@@ -338,6 +338,8 @@ add_subdirectory(cmd)
 
 configure_file(lib/compat/head/config.h.in lib/compat/head/config.h)
 
+add_subdirectory(test)
+
 # -------------------------------------------------------------------------------
 # display enabled options
 # -------------------------------------------------------------------------------
