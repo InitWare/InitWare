@@ -19,7 +19,6 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <endian.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -137,6 +136,7 @@ bool bus_socket_auth_needs_write(sd_bus *b) {
 }
 
 static int bus_socket_write_auth(sd_bus *b) {
+
         ssize_t k;
 
         assert(b);
@@ -145,11 +145,27 @@ static int bus_socket_write_auth(sd_bus *b) {
         if (!bus_socket_auth_needs_write(b))
                 return 0;
 
-        if (b->prefer_writev)
-                k = writev(b->output_fd, b->auth_iovec + b->auth_index, ELEMENTSOF(b->auth_iovec) - b->auth_index);
-        else {
+        //if (b->prefer_writev)
+        //        k = writev(b->output_fd, b->auth_iovec + b->auth_index, ELEMENTSOF(b->auth_iovec) - b->auth_index);
+        //else {
                 struct msghdr mh;
+		#if defined(__FreeBSD__) || defined(__DragonFly__)
+		struct cmsghdr * cmsg;
+		#endif
+
                 zero(mh);
+
+#if defined(__FreeBSD__) || defined(__DragonFly)
+		mh.msg_controllen = CMSG_SPACE(sizeof(struct cmsgcred));
+
+		mh.msg_control = alloca(mh.msg_controllen);
+
+		cmsg = CMSG_FIRSTHDR(&mh);
+		/* SCM_CREDS must be explicitly attached. */
+		cmsg->cmsg_level = SOL_SOCKET;
+		cmsg->cmsg_type = SCM_CREDS;
+		cmsg->cmsg_len = CMSG_LEN(sizeof(struct cmsgcred));
+#endif
 
                 mh.msg_iov = b->auth_iovec + b->auth_index;
                 mh.msg_iovlen = ELEMENTSOF(b->auth_iovec) - b->auth_index;
@@ -159,7 +175,7 @@ static int bus_socket_write_auth(sd_bus *b) {
                         b->prefer_writev = true;
                         k = writev(b->output_fd, b->auth_iovec + b->auth_index, ELEMENTSOF(b->auth_iovec) - b->auth_index);
                 }
-        }
+        //}
 
         if (k < 0)
                 return errno == EAGAIN ? 0 : -errno;
@@ -630,8 +646,6 @@ void bus_socket_setup(sd_bus *b) {
 static void bus_get_peercred(sd_bus *b) {
         assert(b);
 
-	printf("Bas get peercred %d\n", socket_getpeercred(b->input_fd, &b->ucred));
-
         /* Get the peer for socketpair() sockets */
         b->ucred_valid = socket_getpeercred(b->input_fd, &b->ucred) == 0;
 }
@@ -788,64 +802,64 @@ int bus_socket_take_fd(sd_bus *b) {
         return bus_socket_start_auth(b);
 }
 
-int bus_socket_write_message(sd_bus *bus, sd_bus_message *m, size_t *idx) {
-        struct iovec *iov;
-        ssize_t k;
-        size_t n;
-        unsigned j;
-        int r;
+int
+bus_socket_write_message(sd_bus *bus, sd_bus_message *m, size_t *idx)
+{
+	struct iovec *iov;
+	ssize_t k;
+	size_t n;
+	unsigned j;
+	int r;
 
-        assert(bus);
-        assert(m);
-        assert(idx);
-        assert(bus->state == BUS_RUNNING || bus->state == BUS_HELLO);
+	assert(bus);
+	assert(m);
+	assert(idx);
+	assert(bus->state == BUS_RUNNING || bus->state == BUS_HELLO);
 
-        if (*idx >= BUS_MESSAGE_SIZE(m))
-                return 0;
+	if (*idx >= BUS_MESSAGE_SIZE(m))
+		return 0;
 
-        r = bus_message_setup_iovec(m);
-        if (r < 0)
-                return r;
+	r = bus_message_setup_iovec(m);
+	if (r < 0)
+		return r;
 
-        n = m->n_iovec * sizeof(struct iovec);
-        iov = alloca(n);
-        memcpy(iov, m->iovec, n);
+	n = m->n_iovec * sizeof(struct iovec);
+	iov = alloca(n);
+	memcpy(iov, m->iovec, n);
 
-        j = 0;
-        iovec_advance(iov, &j, *idx);
+	j = 0;
+	iovec_advance(iov, &j, *idx);
 
-        if (bus->prefer_writev)
-                k = writev(bus->output_fd, iov, m->n_iovec);
-        else {
-                struct msghdr mh;
-                zero(mh);
 
-                if (m->n_fds > 0) {
-                        struct cmsghdr *control;
-                        control = alloca(CMSG_SPACE(sizeof(int) * m->n_fds));
+	struct msghdr mh;
+	zero(mh);
 
-                        mh.msg_control = control;
-                        control->cmsg_level = SOL_SOCKET;
-                        control->cmsg_type = SCM_RIGHTS;
-                        mh.msg_controllen = control->cmsg_len = CMSG_LEN(sizeof(int) * m->n_fds);
-                        memcpy(CMSG_DATA(control), m->fds, sizeof(int) * m->n_fds);
-                }
+	if (m->n_fds > 0) {
+		struct cmsghdr *control;
+		control = alloca(CMSG_SPACE(sizeof(int) * m->n_fds));
 
-                mh.msg_iov = iov;
-                mh.msg_iovlen = m->n_iovec;
+		mh.msg_control = control;
+		control->cmsg_level = SOL_SOCKET;
+		control->cmsg_type = SCM_RIGHTS;
+		mh.msg_controllen = control->cmsg_len = CMSG_LEN(
+		    sizeof(int) * m->n_fds);
+		memcpy(CMSG_DATA(control), m->fds, sizeof(int) * m->n_fds);
+	}
 
-                k = sendmsg(bus->output_fd, &mh, MSG_DONTWAIT|MSG_NOSIGNAL);
-                if (k < 0 && errno == ENOTSOCK) {
-                        bus->prefer_writev = true;
-                        k = writev(bus->output_fd, iov, m->n_iovec);
-                }
-        }
+	mh.msg_iov = iov;
+	mh.msg_iovlen = m->n_iovec;
 
-        if (k < 0)
-                return errno == EAGAIN ? 0 : -errno;
+	k = sendmsg(bus->output_fd, &mh, MSG_DONTWAIT | MSG_NOSIGNAL);
+	if (k < 0 && errno == ENOTSOCK) {
+		bus->prefer_writev = true;
+		k = writev(bus->output_fd, iov, m->n_iovec);
+	}
 
-        *idx += (size_t) k;
-        return 1;
+	if (k < 0)
+		return errno == EAGAIN ? 0 : -errno;
+
+	*idx += (size_t) k;
+	return 1;
 }
 
 static int bus_socket_read_message_need(sd_bus *bus, size_t *need) {

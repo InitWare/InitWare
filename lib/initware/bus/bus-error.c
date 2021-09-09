@@ -89,7 +89,9 @@ static sd_bus_error errno_to_bus_error_const(int error) {
                 return SD_BUS_ERROR_MAKE_CONST(SD_BUS_ERROR_FILE_EXISTS, "File exists");
 
         case ETIMEDOUT:
+#ifdef Have_ETIME
         case ETIME:
+#endif
                 return SD_BUS_ERROR_MAKE_CONST(SD_BUS_ERROR_TIMEOUT, "Timed out");
 
         case EIO:

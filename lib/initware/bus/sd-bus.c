@@ -19,7 +19,6 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <endian.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -2453,7 +2452,10 @@ static int bus_poll(sd_bus *bus, bool need_more, uint64_t timeout_usec) {
                 n = 2;
         }
 
-        r = pollts(p, n, m == (uint64_t) -1 ? NULL : timespec_store(&ts, m), NULL);
+#ifdef Sys_Plat_NetBSD
+#define ppoll pollts
+#endif
+        r = ppoll(p, n, m == (uint64_t) -1 ? NULL : timespec_store(&ts, m), NULL);
         if (r < 0)
                 return -errno;
 
