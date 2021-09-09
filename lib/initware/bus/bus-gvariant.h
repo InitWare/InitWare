@@ -21,8 +21,8 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "sd-bus.h"
 #include "macro.h"
+#include "sd-bus.h"
 
 int bus_gvariant_get_size(const char *signature) _pure_;
 int bus_gvariant_get_alignment(const char *signature) _pure_;

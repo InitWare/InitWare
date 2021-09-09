@@ -19,359 +19,413 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "util.h"
+#include "audit.h"
 #include "capability.h"
 #include "strv.h"
-#include "audit.h"
+#include "util.h"
 
-#include "bus-message.h"
-#include "bus-internal.h"
-#include "bus-type.h"
 #include "bus-dump.h"
+#include "bus-internal.h"
+#include "bus-message.h"
+#include "bus-type.h"
 
-static char *indent(unsigned level) {
-        char *p;
+static char *
+indent(unsigned level)
+{
+	char *p;
 
-        p = new(char, 2 + level + 1);
-        if (!p)
-                return NULL;
+	p = new (char, 2 + level + 1);
+	if (!p)
+		return NULL;
 
-        p[0] = p[1] = ' ';
-        memset(p + 2, '\t', level);
-        p[2 + level] = 0;
+	p[0] = p[1] = ' ';
+	memset(p + 2, '\t', level);
+	p[2 + level] = 0;
 
-        return p;
+	return p;
 }
 
-int bus_message_dump(sd_bus_message *m, FILE *f, bool with_header) {
-        unsigned level = 1;
-        int r;
+int
+bus_message_dump(sd_bus_message *m, FILE *f, bool with_header)
+{
+	unsigned level = 1;
+	int r;
 
-        assert(m);
+	assert(m);
 
-        if (!f)
-                f = stdout;
+	if (!f)
+		f = stdout;
 
-        if (with_header) {
-                fprintf(f,
-                        "%s%s%sType=%s%s%s  Endian=%c  Flags=%u  Version=%u  Priority=%lli",
-                        m->header->type == SD_BUS_MESSAGE_METHOD_ERROR ? ansi_highlight_red() :
-                        m->header->type == SD_BUS_MESSAGE_METHOD_RETURN ? ansi_highlight_green() :
-                        m->header->type != SD_BUS_MESSAGE_SIGNAL ? ansi_highlight() : "", draw_special_char(DRAW_TRIANGULAR_BULLET), ansi_highlight_off(),
-                        ansi_highlight(), bus_message_type_to_string(m->header->type), ansi_highlight_off(),
-                        m->header->endian,
-                        m->header->flags,
-                        m->header->version,
-                        (long long) m->priority);
+	if (with_header) {
+		fprintf(f,
+		    "%s%s%sType=%s%s%s  Endian=%c  Flags=%u  Version=%u  Priority=%lli",
+		    m->header->type == SD_BUS_MESSAGE_METHOD_ERROR ?
+			      ansi_highlight_red() :
+			m->header->type == SD_BUS_MESSAGE_METHOD_RETURN ?
+			      ansi_highlight_green() :
+			m->header->type != SD_BUS_MESSAGE_SIGNAL ?
+			      ansi_highlight() :
+			      "",
+		    draw_special_char(DRAW_TRIANGULAR_BULLET),
+		    ansi_highlight_off(), ansi_highlight(),
+		    bus_message_type_to_string(m->header->type),
+		    ansi_highlight_off(), m->header->endian, m->header->flags,
+		    m->header->version, (long long) m->priority);
 
-                /* Display synthetic message serial number in a more readable
+		/* Display synthetic message serial number in a more readable
                  * format than (uint32_t) -1 */
-                if (BUS_MESSAGE_COOKIE(m) == 0xFFFFFFFFULL)
-                        fprintf(f, " Cookie=-1");
-                else
-                        fprintf(f, " Cookie=%" PRIu64, BUS_MESSAGE_COOKIE(m));
+		if (BUS_MESSAGE_COOKIE(m) == 0xFFFFFFFFULL)
+			fprintf(f, " Cookie=-1");
+		else
+			fprintf(f, " Cookie=%" PRIu64, BUS_MESSAGE_COOKIE(m));
 
-                if (m->reply_cookie != 0)
-                        fprintf(f, "  ReplyCookie=%" PRIu64, m->reply_cookie);
+		if (m->reply_cookie != 0)
+			fprintf(f, "  ReplyCookie=%" PRIu64, m->reply_cookie);
 
-                fputs("\n", f);
+		fputs("\n", f);
 
-                if (m->sender)
-                        fprintf(f, "  Sender=%s%s%s", ansi_highlight(), m->sender, ansi_highlight_off());
-                if (m->destination)
-                        fprintf(f, "  Destination=%s%s%s", ansi_highlight(), m->destination, ansi_highlight_off());
-                if (m->path)
-                        fprintf(f, "  Path=%s%s%s", ansi_highlight(), m->path, ansi_highlight_off());
-                if (m->interface)
-                        fprintf(f, "  Interface=%s%s%s", ansi_highlight(), m->interface, ansi_highlight_off());
-                if (m->member)
-                        fprintf(f, "  Member=%s%s%s", ansi_highlight(), m->member, ansi_highlight_off());
+		if (m->sender)
+			fprintf(f, "  Sender=%s%s%s", ansi_highlight(),
+			    m->sender, ansi_highlight_off());
+		if (m->destination)
+			fprintf(f, "  Destination=%s%s%s", ansi_highlight(),
+			    m->destination, ansi_highlight_off());
+		if (m->path)
+			fprintf(f, "  Path=%s%s%s", ansi_highlight(), m->path,
+			    ansi_highlight_off());
+		if (m->interface)
+			fprintf(f, "  Interface=%s%s%s", ansi_highlight(),
+			    m->interface, ansi_highlight_off());
+		if (m->member)
+			fprintf(f, "  Member=%s%s%s", ansi_highlight(),
+			    m->member, ansi_highlight_off());
 
-                if (m->sender || m->destination || m->path || m->interface || m->member)
-                        fputs("\n", f);
+		if (m->sender || m->destination || m->path || m->interface ||
+		    m->member)
+			fputs("\n", f);
 
-                if (sd_bus_error_is_set(&m->error))
-                        fprintf(f,
-                                "  ErrorName=%s%s%s"
-                                "  ErrorMessage=%s\"%s\"%s\n",
-                                ansi_highlight_red(), strna(m->error.name), ansi_highlight_off(),
-                                ansi_highlight_red(), strna(m->error.message), ansi_highlight_off());
+		if (sd_bus_error_is_set(&m->error))
+			fprintf(f,
+			    "  ErrorName=%s%s%s"
+			    "  ErrorMessage=%s\"%s\"%s\n",
+			    ansi_highlight_red(), strna(m->error.name),
+			    ansi_highlight_off(), ansi_highlight_red(),
+			    strna(m->error.message), ansi_highlight_off());
 
-                if (m->monotonic != 0)
-                        fprintf(f, "  Monotonic=%llu", (unsigned long long) m->monotonic);
-                if (m->realtime != 0)
-                        fprintf(f, "  Realtime=%llu", (unsigned long long) m->realtime);
-                if (m->seqnum != 0)
-                        fprintf(f, "  SequenceNumber=%llu", (unsigned long long) m->seqnum);
+		if (m->monotonic != 0)
+			fprintf(f, "  Monotonic=%llu",
+			    (unsigned long long) m->monotonic);
+		if (m->realtime != 0)
+			fprintf(f, "  Realtime=%llu",
+			    (unsigned long long) m->realtime);
+		if (m->seqnum != 0)
+			fprintf(f, "  SequenceNumber=%llu",
+			    (unsigned long long) m->seqnum);
 
-                if (m->monotonic != 0 || m->realtime != 0 || m->seqnum != 0)
-                        fputs("\n", f);
+		if (m->monotonic != 0 || m->realtime != 0 || m->seqnum != 0)
+			fputs("\n", f);
 
-                bus_creds_dump(&m->creds, f);
-        }
+		bus_creds_dump(&m->creds, f);
+	}
 
-        r = sd_bus_message_rewind(m, true);
-        if (r < 0) {
-                log_error("Failed to rewind: %s", strerror(-r));
-                return r;
-        }
+	r = sd_bus_message_rewind(m, true);
+	if (r < 0) {
+		log_error("Failed to rewind: %s", strerror(-r));
+		return r;
+	}
 
-        fprintf(f, "  MESSAGE \"%s\" {\n", strempty(m->root_container.signature));
+	fprintf(f, "  MESSAGE \"%s\" {\n",
+	    strempty(m->root_container.signature));
 
-        for (;;) {
-                _cleanup_free_ char *prefix = NULL;
-                const char *contents = NULL;
-                char type;
-                union {
-                        uint8_t u8;
-                        uint16_t u16;
-                        int16_t s16;
-                        uint32_t u32;
-                        int32_t s32;
-                        uint64_t u64;
-                        int64_t s64;
-                        double d64;
-                        const char *string;
-                        int i;
-                } basic;
+	for (;;) {
+		_cleanup_free_ char *prefix = NULL;
+		const char *contents = NULL;
+		char type;
+		union {
+			uint8_t u8;
+			uint16_t u16;
+			int16_t s16;
+			uint32_t u32;
+			int32_t s32;
+			uint64_t u64;
+			int64_t s64;
+			double d64;
+			const char *string;
+			int i;
+		} basic;
 
-                r = sd_bus_message_peek_type(m, &type, &contents);
-                if (r < 0) {
-                        log_error("Failed to peek type: %s", strerror(-r));
-                        return r;
-                }
+		r = sd_bus_message_peek_type(m, &type, &contents);
+		if (r < 0) {
+			log_error("Failed to peek type: %s", strerror(-r));
+			return r;
+		}
 
-                if (r == 0) {
-                        if (level <= 1)
-                                break;
+		if (r == 0) {
+			if (level <= 1)
+				break;
 
-                        r = sd_bus_message_exit_container(m);
-                        if (r < 0) {
-                                log_error("Failed to exit container: %s", strerror(-r));
-                                return r;
-                        }
+			r = sd_bus_message_exit_container(m);
+			if (r < 0) {
+				log_error("Failed to exit container: %s",
+				    strerror(-r));
+				return r;
+			}
 
-                        level--;
+			level--;
 
-                        prefix = indent(level);
-                        if (!prefix)
-                                return log_oom();
+			prefix = indent(level);
+			if (!prefix)
+				return log_oom();
 
-                        fprintf(f, "%s};\n", prefix);
-                        continue;
-                }
+			fprintf(f, "%s};\n", prefix);
+			continue;
+		}
 
-                prefix = indent(level);
-                if (!prefix)
-                        return log_oom();
+		prefix = indent(level);
+		if (!prefix)
+			return log_oom();
 
-                if (bus_type_is_container(type) > 0) {
-                        r = sd_bus_message_enter_container(m, type, contents);
-                        if (r < 0) {
-                                log_error("Failed to enter container: %s", strerror(-r));
-                                return r;
-                        }
+		if (bus_type_is_container(type) > 0) {
+			r = sd_bus_message_enter_container(m, type, contents);
+			if (r < 0) {
+				log_error("Failed to enter container: %s",
+				    strerror(-r));
+				return r;
+			}
 
-                        if (type == SD_BUS_TYPE_ARRAY)
-                                fprintf(f, "%sARRAY \"%s\" {\n", prefix, contents);
-                        else if (type == SD_BUS_TYPE_VARIANT)
-                                fprintf(f, "%sVARIANT \"%s\" {\n", prefix, contents);
-                        else if (type == SD_BUS_TYPE_STRUCT)
-                                fprintf(f, "%sSTRUCT \"%s\" {\n", prefix, contents);
-                        else if (type == SD_BUS_TYPE_DICT_ENTRY)
-                                fprintf(f, "%sDICT_ENTRY \"%s\" {\n", prefix, contents);
+			if (type == SD_BUS_TYPE_ARRAY)
+				fprintf(f, "%sARRAY \"%s\" {\n", prefix,
+				    contents);
+			else if (type == SD_BUS_TYPE_VARIANT)
+				fprintf(f, "%sVARIANT \"%s\" {\n", prefix,
+				    contents);
+			else if (type == SD_BUS_TYPE_STRUCT)
+				fprintf(f, "%sSTRUCT \"%s\" {\n", prefix,
+				    contents);
+			else if (type == SD_BUS_TYPE_DICT_ENTRY)
+				fprintf(f, "%sDICT_ENTRY \"%s\" {\n", prefix,
+				    contents);
 
-                        level ++;
+			level++;
 
-                        continue;
-                }
+			continue;
+		}
 
-                r = sd_bus_message_read_basic(m, type, &basic);
-                if (r < 0) {
-                        log_error("Failed to get basic: %s", strerror(-r));
-                        return r;
-                }
+		r = sd_bus_message_read_basic(m, type, &basic);
+		if (r < 0) {
+			log_error("Failed to get basic: %s", strerror(-r));
+			return r;
+		}
 
-                assert(r > 0);
+		assert(r > 0);
 
-                switch (type) {
+		switch (type) {
 
-                case SD_BUS_TYPE_BYTE:
-                        fprintf(f, "%sBYTE %s%u%s;\n", prefix, ansi_highlight(), basic.u8, ansi_highlight_off());
-                        break;
+		case SD_BUS_TYPE_BYTE:
+			fprintf(f, "%sBYTE %s%u%s;\n", prefix, ansi_highlight(),
+			    basic.u8, ansi_highlight_off());
+			break;
 
-                case SD_BUS_TYPE_BOOLEAN:
-                        fprintf(f, "%sBOOLEAN %s%s%s;\n", prefix, ansi_highlight(), true_false(basic.i), ansi_highlight_off());
-                        break;
+		case SD_BUS_TYPE_BOOLEAN:
+			fprintf(f, "%sBOOLEAN %s%s%s;\n", prefix,
+			    ansi_highlight(), true_false(basic.i),
+			    ansi_highlight_off());
+			break;
 
-                case SD_BUS_TYPE_INT16:
-                        fprintf(f, "%sINT16 %s%i%s;\n", prefix, ansi_highlight(), basic.s16, ansi_highlight_off());
-                        break;
+		case SD_BUS_TYPE_INT16:
+			fprintf(f, "%sINT16 %s%i%s;\n", prefix,
+			    ansi_highlight(), basic.s16, ansi_highlight_off());
+			break;
 
-                case SD_BUS_TYPE_UINT16:
-                        fprintf(f, "%sUINT16 %s%u%s;\n", prefix, ansi_highlight(), basic.u16, ansi_highlight_off());
-                        break;
+		case SD_BUS_TYPE_UINT16:
+			fprintf(f, "%sUINT16 %s%u%s;\n", prefix,
+			    ansi_highlight(), basic.u16, ansi_highlight_off());
+			break;
 
-                case SD_BUS_TYPE_INT32:
-                        fprintf(f, "%sINT32 %s%i%s;\n", prefix, ansi_highlight(), basic.s32, ansi_highlight_off());
-                        break;
+		case SD_BUS_TYPE_INT32:
+			fprintf(f, "%sINT32 %s%i%s;\n", prefix,
+			    ansi_highlight(), basic.s32, ansi_highlight_off());
+			break;
 
-                case SD_BUS_TYPE_UINT32:
-                        fprintf(f, "%sUINT32 %s%u%s;\n", prefix, ansi_highlight(), basic.u32, ansi_highlight_off());
-                        break;
+		case SD_BUS_TYPE_UINT32:
+			fprintf(f, "%sUINT32 %s%u%s;\n", prefix,
+			    ansi_highlight(), basic.u32, ansi_highlight_off());
+			break;
 
-                case SD_BUS_TYPE_INT64:
-                        fprintf(f, "%sINT64 %s%lli%s;\n", prefix, ansi_highlight(), (long long) basic.s64, ansi_highlight_off());
-                        break;
+		case SD_BUS_TYPE_INT64:
+			fprintf(f, "%sINT64 %s%lli%s;\n", prefix,
+			    ansi_highlight(), (long long) basic.s64,
+			    ansi_highlight_off());
+			break;
 
-                case SD_BUS_TYPE_UINT64:
-                        fprintf(f, "%sUINT64 %s%llu%s;\n", prefix, ansi_highlight(), (unsigned long long) basic.u64, ansi_highlight_off());
-                        break;
+		case SD_BUS_TYPE_UINT64:
+			fprintf(f, "%sUINT64 %s%llu%s;\n", prefix,
+			    ansi_highlight(), (unsigned long long) basic.u64,
+			    ansi_highlight_off());
+			break;
 
-                case SD_BUS_TYPE_DOUBLE:
-                        fprintf(f, "%sDOUBLE %s%g%s;\n", prefix, ansi_highlight(), basic.d64, ansi_highlight_off());
-                        break;
+		case SD_BUS_TYPE_DOUBLE:
+			fprintf(f, "%sDOUBLE %s%g%s;\n", prefix,
+			    ansi_highlight(), basic.d64, ansi_highlight_off());
+			break;
 
-                case SD_BUS_TYPE_STRING:
-                        fprintf(f, "%sSTRING \"%s%s%s\";\n", prefix, ansi_highlight(), basic.string, ansi_highlight_off());
-                        break;
+		case SD_BUS_TYPE_STRING:
+			fprintf(f, "%sSTRING \"%s%s%s\";\n", prefix,
+			    ansi_highlight(), basic.string,
+			    ansi_highlight_off());
+			break;
 
-                case SD_BUS_TYPE_OBJECT_PATH:
-                        fprintf(f, "%sOBJECT_PATH \"%s%s%s\";\n", prefix, ansi_highlight(), basic.string, ansi_highlight_off());
-                        break;
+		case SD_BUS_TYPE_OBJECT_PATH:
+			fprintf(f, "%sOBJECT_PATH \"%s%s%s\";\n", prefix,
+			    ansi_highlight(), basic.string,
+			    ansi_highlight_off());
+			break;
 
-                case SD_BUS_TYPE_SIGNATURE:
-                        fprintf(f, "%sSIGNATURE \"%s%s%s\";\n", prefix, ansi_highlight(), basic.string, ansi_highlight_off());
-                        break;
+		case SD_BUS_TYPE_SIGNATURE:
+			fprintf(f, "%sSIGNATURE \"%s%s%s\";\n", prefix,
+			    ansi_highlight(), basic.string,
+			    ansi_highlight_off());
+			break;
 
-                case SD_BUS_TYPE_UNIX_FD:
-                        fprintf(f, "%sUNIX_FD %s%i%s;\n", prefix, ansi_highlight(), basic.i, ansi_highlight_off());
-                        break;
+		case SD_BUS_TYPE_UNIX_FD:
+			fprintf(f, "%sUNIX_FD %s%i%s;\n", prefix,
+			    ansi_highlight(), basic.i, ansi_highlight_off());
+			break;
 
-                default:
-                        assert_not_reached("Unknown basic type.");
-                }
-        }
+		default:
+			assert_not_reached("Unknown basic type.");
+		}
+	}
 
-        fprintf(f, "  };\n\n");
-        return 0;
+	fprintf(f, "  };\n\n");
+	return 0;
 }
 
-int bus_creds_dump(sd_bus_creds *c, FILE *f) {
-        bool audit_sessionid_is_set = false, audit_loginuid_is_set = false;
-        const char *u = NULL, *uu = NULL, *s = NULL, *sl = NULL;
-        uid_t owner, audit_loginuid;
-        uint32_t audit_sessionid;
-        char **cmdline = NULL, **well_known = NULL;
-        int r;
+int
+bus_creds_dump(sd_bus_creds *c, FILE *f)
+{
+	bool audit_sessionid_is_set = false, audit_loginuid_is_set = false;
+	const char *u = NULL, *uu = NULL, *s = NULL, *sl = NULL;
+	uid_t owner, audit_loginuid;
+	uint32_t audit_sessionid;
+	char **cmdline = NULL, **well_known = NULL;
+	int r;
 
-        assert(c);
+	assert(c);
 
-        if (!f)
-                f = stdout;
+	if (!f)
+		f = stdout;
 
-        if (c->mask & SD_BUS_CREDS_PID)
-                fprintf(f, "  PID=%lu", (unsigned long) c->pid);
-        if (c->mask & SD_BUS_CREDS_PID_STARTTIME)
-                fprintf(f, "  PIDStartTime=%llu", (unsigned long long) c->pid_starttime);
-        if (c->mask & SD_BUS_CREDS_TID)
-                fprintf(f, "  TID=%lu", (unsigned long) c->tid);
-        if (c->mask & SD_BUS_CREDS_UID)
-                fprintf(f, "  UID=%lu", (unsigned long) c->uid);
-        r = sd_bus_creds_get_owner_uid(c, &owner);
-        if (r >= 0)
-                fprintf(f, "  OwnerUID=%lu", (unsigned long) owner);
-        if (c->mask & SD_BUS_CREDS_GID)
-                fprintf(f, "  GID=%lu", (unsigned long) c->gid);
+	if (c->mask & SD_BUS_CREDS_PID)
+		fprintf(f, "  PID=%lu", (unsigned long) c->pid);
+	if (c->mask & SD_BUS_CREDS_PID_STARTTIME)
+		fprintf(f, "  PIDStartTime=%llu",
+		    (unsigned long long) c->pid_starttime);
+	if (c->mask & SD_BUS_CREDS_TID)
+		fprintf(f, "  TID=%lu", (unsigned long) c->tid);
+	if (c->mask & SD_BUS_CREDS_UID)
+		fprintf(f, "  UID=%lu", (unsigned long) c->uid);
+	r = sd_bus_creds_get_owner_uid(c, &owner);
+	if (r >= 0)
+		fprintf(f, "  OwnerUID=%lu", (unsigned long) owner);
+	if (c->mask & SD_BUS_CREDS_GID)
+		fprintf(f, "  GID=%lu", (unsigned long) c->gid);
 
-        if ((c->mask & (SD_BUS_CREDS_PID|SD_BUS_CREDS_PID_STARTTIME|SD_BUS_CREDS_TID|SD_BUS_CREDS_UID|SD_BUS_CREDS_GID)) || r >= 0)
-                fputs("\n", f);
+	if ((c->mask &
+		(SD_BUS_CREDS_PID | SD_BUS_CREDS_PID_STARTTIME |
+		    SD_BUS_CREDS_TID | SD_BUS_CREDS_UID | SD_BUS_CREDS_GID)) ||
+	    r >= 0)
+		fputs("\n", f);
 
-        if (c->mask & SD_BUS_CREDS_EXE)
-                fprintf(f, "  Exe=%s", c->exe);
-        if (c->mask & SD_BUS_CREDS_COMM)
-                fprintf(f, "  Comm=%s", c->comm);
-        if (c->mask & SD_BUS_CREDS_TID_COMM)
-                fprintf(f, "  TIDComm=%s", c->tid_comm);
+	if (c->mask & SD_BUS_CREDS_EXE)
+		fprintf(f, "  Exe=%s", c->exe);
+	if (c->mask & SD_BUS_CREDS_COMM)
+		fprintf(f, "  Comm=%s", c->comm);
+	if (c->mask & SD_BUS_CREDS_TID_COMM)
+		fprintf(f, "  TIDComm=%s", c->tid_comm);
 
-        if (c->mask & (SD_BUS_CREDS_EXE|SD_BUS_CREDS_COMM|SD_BUS_CREDS_TID_COMM))
-                fputs("\n", f);
+	if (c->mask &
+	    (SD_BUS_CREDS_EXE | SD_BUS_CREDS_COMM | SD_BUS_CREDS_TID_COMM))
+		fputs("\n", f);
 
-        if (c->mask & SD_BUS_CREDS_SELINUX_CONTEXT)
-                fprintf(f, "  Label=%s", c->label);
-        if (c->mask & SD_BUS_CREDS_CONNECTION_NAME)
-                fprintf(f, "  ConnectionName=%s", c->conn_name);
+	if (c->mask & SD_BUS_CREDS_SELINUX_CONTEXT)
+		fprintf(f, "  Label=%s", c->label);
+	if (c->mask & SD_BUS_CREDS_CONNECTION_NAME)
+		fprintf(f, "  ConnectionName=%s", c->conn_name);
 
-        if (c->mask & (SD_BUS_CREDS_SELINUX_CONTEXT|SD_BUS_CREDS_CONNECTION_NAME))
-                fputs("\n", f);
+	if (c->mask &
+	    (SD_BUS_CREDS_SELINUX_CONTEXT | SD_BUS_CREDS_CONNECTION_NAME))
+		fputs("\n", f);
 
-        if (sd_bus_creds_get_cmdline(c, &cmdline) >= 0) {
-                char **i;
+	if (sd_bus_creds_get_cmdline(c, &cmdline) >= 0) {
+		char **i;
 
-                fputs("  CommandLine={", f);
-                STRV_FOREACH(i, cmdline) {
-                        if (i != cmdline)
-                                fputc(' ', f);
+		fputs("  CommandLine={", f);
+		STRV_FOREACH (i, cmdline) {
+			if (i != cmdline)
+				fputc(' ', f);
 
-                        fputs(*i, f);
-                }
+			fputs(*i, f);
+		}
 
-                fputs("}\n", f);
-        }
+		fputs("}\n", f);
+	}
 
-        if (c->mask & SD_BUS_CREDS_CGROUP)
-                fprintf(f, "  CGroup=%s", c->cgroup);
-        sd_bus_creds_get_unit(c, &u);
-        if (u)
-                fprintf(f, "  Unit=%s", u);
-        sd_bus_creds_get_user_unit(c, &uu);
-        if (uu)
-                fprintf(f, "  UserUnit=%s", uu);
-        sd_bus_creds_get_slice(c, &sl);
-        if (sl)
-                fprintf(f, "  Slice=%s", sl);
-        sd_bus_creds_get_session(c, &s);
-        if (s)
-                fprintf(f, "  Session=%s", s);
+	if (c->mask & SD_BUS_CREDS_CGROUP)
+		fprintf(f, "  CGroup=%s", c->cgroup);
+	sd_bus_creds_get_unit(c, &u);
+	if (u)
+		fprintf(f, "  Unit=%s", u);
+	sd_bus_creds_get_user_unit(c, &uu);
+	if (uu)
+		fprintf(f, "  UserUnit=%s", uu);
+	sd_bus_creds_get_slice(c, &sl);
+	if (sl)
+		fprintf(f, "  Slice=%s", sl);
+	sd_bus_creds_get_session(c, &s);
+	if (s)
+		fprintf(f, "  Session=%s", s);
 
 #ifdef Use_CGroups
-        if ((c->mask & SD_BUS_CREDS_CGROUP) || u || uu || sl || s)
-                fputs("\n", f);
+	if ((c->mask & SD_BUS_CREDS_CGROUP) || u || uu || sl || s)
+		fputs("\n", f);
 #endif
 
 #ifdef Use_Audit
-        if (sd_bus_creds_get_audit_login_uid(c, &audit_loginuid) >= 0) {
-                audit_loginuid_is_set = true;
-                fprintf(f, "  AuditLoginUID=%lu", (unsigned long) audit_loginuid);
-        }
-        if (sd_bus_creds_get_audit_session_id(c, &audit_sessionid) >= 0) {
-                audit_sessionid_is_set = true;
-                fprintf(f, "  AuditSessionID=%lu", (unsigned long) audit_sessionid);
-        }
+	if (sd_bus_creds_get_audit_login_uid(c, &audit_loginuid) >= 0) {
+		audit_loginuid_is_set = true;
+		fprintf(f, "  AuditLoginUID=%lu",
+		    (unsigned long) audit_loginuid);
+	}
+	if (sd_bus_creds_get_audit_session_id(c, &audit_sessionid) >= 0) {
+		audit_sessionid_is_set = true;
+		fprintf(f, "  AuditSessionID=%lu",
+		    (unsigned long) audit_sessionid);
+	}
 #endif
 
-        if (audit_loginuid_is_set || audit_sessionid_is_set)
-                fputs("\n", f);
+	if (audit_loginuid_is_set || audit_sessionid_is_set)
+		fputs("\n", f);
 
-        if (c->mask & SD_BUS_CREDS_UNIQUE_NAME)
-                fprintf(f, "  UniqueName=%s", c->unique_name);
+	if (c->mask & SD_BUS_CREDS_UNIQUE_NAME)
+		fprintf(f, "  UniqueName=%s", c->unique_name);
 
-        if (sd_bus_creds_get_well_known_names(c, &well_known) >= 0) {
-                char **i;
+	if (sd_bus_creds_get_well_known_names(c, &well_known) >= 0) {
+		char **i;
 
-                fputs("  WellKnownNames={", f);
-                STRV_FOREACH(i, well_known) {
-                        if (i != well_known)
-                                fputc(' ', f);
+		fputs("  WellKnownNames={", f);
+		STRV_FOREACH (i, well_known) {
+			if (i != well_known)
+				fputc(' ', f);
 
-                        fputs(*i, f);
-                }
+			fputs(*i, f);
+		}
 
-                fputc('}', f);
-        }
+		fputc('}', f);
+	}
 
-        if (c->mask & SD_BUS_CREDS_UNIQUE_NAME || well_known)
-                fputc('\n', f);
+	if (c->mask & SD_BUS_CREDS_UNIQUE_NAME || well_known)
+		fputc('\n', f);
 
-        return 0;
+	return 0;
 }
