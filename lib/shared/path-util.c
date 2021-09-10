@@ -723,7 +723,7 @@ path_is_mount_point(const char *t, bool allow_symlink)
 	if (fd < 0)
 		return -errno;
 
-	return fd_is_mount_point(fd, basename(t), flags);
+	return fd_is_mount_point(fd, lsb_basename(t), flags);
 #else
 	log_error("Unimplemented");
 	return true;

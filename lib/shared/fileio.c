@@ -886,10 +886,10 @@ read_line(FILE *f, size_t limit, char **ret)
 				return -ENOBUFS;
 
 			errno = 0;
-			c = fgetc_unlocked(f);
+			c = fgetc(f);
 			if (c == EOF) {
 				/* if we read an error, and have no data to return, then propagate the error */
-				if (ferror_unlocked(f) && n == 0)
+				if (ferror(f) && n == 0)
 					return errno > 0 ? -errno : -EIO;
 
 				break;

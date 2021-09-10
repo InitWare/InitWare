@@ -488,7 +488,7 @@ initrd_jump:
 			need_loop_detach ? " loop devices," : "",
 			need_dm_detach ? " DM devices," : "");
 
-	/* The kernel will automatically flush ATA disks and suchlike on reboot(), but the file systems need to be
+	/* The kernel will automatically flush ATA disks and suchlike on bsd_reboot(), but the file systems need to be
          * sync'ed explicitly in advance. So let's do this here, but not needlessly slow down containers. Note that we
          * sync'ed things already once above, but we did some more work since then which might have caused IO, hence
          * let's do it once more. Do not remove this sync, data corruption will result. */
@@ -552,7 +552,7 @@ initrd_jump:
 		assert_not_reached("Unknown magic");
 	}
 
-	reboot(cmd);
+	bsd_reboot(cmd);
 	if (errno == EPERM && in_container) {
 		/* If we are in a container, and we lacked
                  * CAP_SYS_BOOT just exit, this will kill our
@@ -561,7 +561,7 @@ initrd_jump:
 		exit(0);
 	}
 
-	log_error_errno(errno, "Failed to invoke reboot(): %m");
+	log_error_errno(errno, "Failed to invoke bsd_reboot(): %m");
 	r = -errno;
 
 error:

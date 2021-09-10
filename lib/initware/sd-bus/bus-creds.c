@@ -800,65 +800,6 @@ bus_creds_add_more(sd_bus_creds *c, uint64_t mask, pid_t pid, pid_t tid)
 						continue;
 					}
 				}
-
-				if (missing & SD_BUS_CREDS_EFFECTIVE_CAPS) {
-					p = startswith(line, "CapEff:");
-					if (p) {
-						r = parse_caps(c,
-							CAP_OFFSET_EFFECTIVE,
-							p);
-						if (r < 0)
-							return r;
-
-						c->mask |=
-							SD_BUS_CREDS_EFFECTIVE_CAPS;
-						continue;
-					}
-				}
-
-				if (missing & SD_BUS_CREDS_PERMITTED_CAPS) {
-					p = startswith(line, "CapPrm:");
-					if (p) {
-						r = parse_caps(c,
-							CAP_OFFSET_PERMITTED,
-							p);
-						if (r < 0)
-							return r;
-
-						c->mask |=
-							SD_BUS_CREDS_PERMITTED_CAPS;
-						continue;
-					}
-				}
-
-				if (missing & SD_BUS_CREDS_INHERITABLE_CAPS) {
-					p = startswith(line, "CapInh:");
-					if (p) {
-						r = parse_caps(c,
-							CAP_OFFSET_INHERITABLE,
-							p);
-						if (r < 0)
-							return r;
-
-						c->mask |=
-							SD_BUS_CREDS_INHERITABLE_CAPS;
-						continue;
-					}
-				}
-
-				if (missing & SD_BUS_CREDS_BOUNDING_CAPS) {
-					p = startswith(line, "CapBnd:");
-					if (p) {
-						r = parse_caps(c,
-							CAP_OFFSET_BOUNDING, p);
-						if (r < 0)
-							return r;
-
-						c->mask |=
-							SD_BUS_CREDS_BOUNDING_CAPS;
-						continue;
-					}
-				}
 			}
 		}
 	}

@@ -20,8 +20,6 @@
 ***/
 
 #include <sys/inotify.h>
-#include <sys/vfs.h>
-#include <linux/magic.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -42,6 +40,13 @@
 #include "replace-var.h"
 #include "sd-journal.h"
 #include "strv.h"
+
+#define CATALOG_DATABASE "!!FIXME!!"
+
+#ifdef SVC_PLATFORM_Linux
+#include <sys/vfs.h>
+#include <linux/magic.h>
+#endif
 
 #define JOURNAL_FILES_MAX 7168
 
@@ -1259,6 +1264,7 @@ sd_journal_seek_tail(sd_journal *j)
 static void
 check_network(sd_journal *j, int fd)
 {
+#ifdef SVC_PLATFORM_Linux
 	struct statfs sfs;
 
 	assert(j);
@@ -1274,6 +1280,9 @@ check_network(sd_journal *j, int fd)
 		F_TYPE_EQUAL(sfs.f_type, NCP_SUPER_MAGIC) ||
 		F_TYPE_EQUAL(sfs.f_type, NFS_SUPER_MAGIC) ||
 		F_TYPE_EQUAL(sfs.f_type, SMB_SUPER_MAGIC);
+#else
+	unimplemented();
+#endif
 }
 
 static bool
@@ -1317,6 +1326,10 @@ file_type_wanted(int flags, const char *filename)
 	return false;
 }
 
+#ifndef EBADFD
+#define EBADFD EBADF
+#endif
+
 static int
 add_any_file(sd_journal *j, const char *path)
 {
@@ -1350,6 +1363,7 @@ add_any_file(sd_journal *j, const char *path)
                          * really the same. Mark this file as seen in this generation. This is used to GC old files in
                          * process_q_overflow() to detect journal files that are still and discern them from those who are
                          * gone. */
+
 			f->last_seen_generation = j->generation;
 			return 0;
 		}

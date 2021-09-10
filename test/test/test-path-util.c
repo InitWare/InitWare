@@ -70,10 +70,10 @@ test_path(void)
 	assert_se(is_path("a/b"));
 	assert_se(!is_path("."));
 
-	assert_se(streq(basename("./aa/bb/../file.da."), "file.da."));
-	assert_se(streq(basename("/aa///.file"), ".file"));
-	assert_se(streq(basename("/aa///file..."), "file..."));
-	assert_se(streq(basename("file.../"), ""));
+	assert_se(streq(lsb_basename("./aa/bb/../file.da."), "file.da."));
+	assert_se(streq(lsb_basename("/aa///.file"), ".file"));
+	assert_se(streq(lsb_basename("/aa///file..."), "file..."));
+	assert_se(streq(lsb_basename("file.../"), ""));
 
 #define test_parent(x, y)                                                      \
 	{                                                                      \

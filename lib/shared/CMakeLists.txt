@@ -1,4 +1,4 @@
-add_library(initware-shared acpi-fpdt.c condition.c conf-files.c conf-parser.c
+add_library(initware-shared acpi-fpdt.c bus-label.c condition.c conf-files.c conf-parser.c
     copy.c device-nodes.c dropin.c efivars.c env-util.c exit-status.c fdset.c
     fileio-label.c fileio.c fstab-util.c generator.c gunicode.c
     hashmap.c ima-util.c import-util.c in-addr-util.c install-printf.c install.c

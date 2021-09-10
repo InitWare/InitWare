@@ -53,7 +53,7 @@ seat_new(Manager *m, const char *id)
 		return NULL;
 	}
 
-	s->id = basename(s->state_file);
+	s->id = lsb_basename(s->state_file);
 	s->manager = m;
 
 	if (hashmap_put(m->seats, s->id, s) < 0) {

@@ -33,7 +33,7 @@
 #include <unistd.h>
 
 /* When we include libgen.h because we need dirname() we immediately
- * undefine basename() since libgen.h defines it as a macro to the XDG
+ * undefine lsb_basename() since libgen.h defines it as a macro to the XDG
  * version which is really broken. */
 #include <libgen.h>
 #undef basename
@@ -1082,11 +1082,11 @@ copy_files(int argc, char *argv[], void *userdata)
 	}
 
 	t = strdupa(host_path);
-	host_basename = basename(t);
+	host_basename = lsb_basename(t);
 	host_dirname = dirname(host_path);
 
 	t = strdupa(container_path);
-	container_basename = basename(t);
+	container_basename = lsb_basename(t);
 	container_dirname = dirname(container_path);
 
 	r = machine_get_leader(bus, argv[1], &leader);
@@ -1309,7 +1309,7 @@ bind_mount(int argc, char *argv[], void *userdata)
 
 		/* Fifth, move the mount to the right place inside */
 		mount_inside = strjoina("/run/systemd/nspawn/incoming/",
-			basename(mount_outside));
+			lsb_basename(mount_outside));
 		if (mount(mount_inside, dest, NULL, MS_MOVE, NULL) < 0) {
 			log_error_errno(errno, "Failed to mount: %m");
 			_exit(EXIT_FAILURE);

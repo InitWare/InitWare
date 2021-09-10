@@ -883,6 +883,7 @@ parse_nsec(const char *t, nsec_t *nsec)
 bool
 ntp_synced(void)
 {
+#ifdef SVC_PLATFORM_Linux
 	struct timex txc = {};
 
 	if (adjtimex(&txc) < 0)
@@ -892,6 +893,10 @@ ntp_synced(void)
 		return false;
 
 	return true;
+#else
+	unimplemented();
+	return false;
+#endif
 }
 
 int

@@ -47,7 +47,7 @@ inhibitor_new(Manager *m, const char *id)
 		return NULL;
 	}
 
-	i->id = basename(i->state_file);
+	i->id = lsb_basename(i->state_file);
 
 	if (hashmap_put(m->inhibitors, i->id, i) < 0) {
 		free(i->state_file);

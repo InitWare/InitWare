@@ -928,7 +928,7 @@ add_matches(sd_journal *j, char **args)
 					0) {
 					_cleanup_free_ char *comm;
 
-					comm = strndup(basename(path), 15);
+					comm = strndup(lsb_basename(path), 15);
 					if (!comm)
 						return log_oom();
 

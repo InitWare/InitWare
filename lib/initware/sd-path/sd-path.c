@@ -20,9 +20,12 @@
 #include "sd-path.h"
 #include "architecture.h"
 #include "missing.h"
+#include "bsdglibc.h"
 #include "path-util.h"
 #include "strv.h"
 #include "util.h"
+
+#define LIBDIR "/lib" // FIXME:
 
 static int
 from_environment(const char *envname, const char *fallback, const char **ret)

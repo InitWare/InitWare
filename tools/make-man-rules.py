@@ -69,7 +69,7 @@ def man(page, number):
     return 'man/{}.{}'.format(page, number)
 
 def xml(file):
-    return 'man/{}'.format(os.path.basename(file))
+    return 'man/{}'.format(os.path.lsb_basename(file))
 
 def add_rules(rules, name):
     xml = xml_parse(name)

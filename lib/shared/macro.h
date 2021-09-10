@@ -28,7 +28,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
-#include "svc-config.h"
+#include "bsdglibc.h"
 
 #ifdef HAVE_sys_sysmacros_h
 #include <sys/sysmacros.h>

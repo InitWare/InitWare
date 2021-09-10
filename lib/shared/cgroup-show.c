@@ -177,7 +177,7 @@ show_cgroup_by_path(const char *path, const char *prefix, unsigned n_columns,
 		if (last) {
 			printf("%s%s%s\n", prefix,
 				draw_special_char(DRAW_TREE_BRANCH),
-				basename(last));
+				lsb_basename(last));
 
 			if (!p1) {
 				p1 = strappend(prefix,
@@ -204,7 +204,7 @@ show_cgroup_by_path(const char *path, const char *prefix, unsigned n_columns,
 
 	if (last) {
 		printf("%s%s%s\n", prefix, draw_special_char(DRAW_TREE_RIGHT),
-			basename(last));
+			lsb_basename(last));
 
 		if (!p2) {
 			p2 = strappend(prefix, "  ");

@@ -240,7 +240,7 @@ utmp_put_init_process(const char *id, pid_t pid, pid_t sid, const char *line)
 	strncpy(store.ut_id, sanitize_id(id), sizeof(store.ut_id));
 
 	if (line)
-		strncpy(store.ut_line, basename(line), sizeof(store.ut_line));
+		strncpy(store.ut_line, lsb_basename(line), sizeof(store.ut_line));
 
 	return write_entry_both(&store);
 }

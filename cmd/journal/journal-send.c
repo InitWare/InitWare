@@ -23,12 +23,12 @@
 #include <sys/un.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <printf.h>
 #include <stddef.h>
 #include <unistd.h>
 
 #define SD_JOURNAL_SUPPRESS_LOCATION
 
+#include "bsdprintf.h"
 #include "memfd-util.h"
 #include "sd-journal.h"
 #include "socket-util.h"

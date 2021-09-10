@@ -96,7 +96,7 @@ emergency_action(Manager *m, EmergencyAction action, const char *reboot_arg,
 		}
 
 		log_info("Rebooting.");
-		reboot(RB_AUTOBOOT);
+		bsd_reboot(RB_AUTOBOOT);
 		break;
 
 	case EMERGENCY_ACTION_POWEROFF: {
@@ -125,7 +125,7 @@ emergency_action(Manager *m, EmergencyAction action, const char *reboot_arg,
 		sync();
 
 		log_info("Powering off.");
-		reboot(RB_POWER_OFF);
+		bsd_reboot(RB_POWER_OFF);
 		break;
 
 	default:

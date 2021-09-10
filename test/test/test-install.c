@@ -64,7 +64,7 @@ main(int argc, char *argv[])
 		UnitFileState s = _UNIT_FILE_STATE_INVALID;
 
 		r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL,
-			basename(p->path), &s);
+			lsb_basename(p->path), &s);
 
 		assert_se((r < 0 && p->state == UNIT_FILE_BAD) ||
 			(p->state == s));
@@ -208,7 +208,7 @@ main(int argc, char *argv[])
 	dump_changes(changes, n_changes);
 	unit_file_changes_free(changes, n_changes);
 
-	r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL, basename(files2[0]),
+	r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL, lsb_basename(files2[0]),
 		&state);
 	assert_se(r >= 0);
 	assert_se(state == UNIT_FILE_ENABLED);
@@ -218,13 +218,13 @@ main(int argc, char *argv[])
 	n_changes = 0;
 
 	r = unit_file_disable(UNIT_FILE_SYSTEM, 0, NULL,
-		STRV_MAKE(basename(files2[0])), &changes, &n_changes);
+		STRV_MAKE(lsb_basename(files2[0])), &changes, &n_changes);
 	assert_se(r >= 0);
 
 	dump_changes(changes, n_changes);
 	unit_file_changes_free(changes, n_changes);
 
-	r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL, basename(files2[0]),
+	r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL, lsb_basename(files2[0]),
 		&state);
 	assert_se(r < 0);
 
@@ -239,7 +239,7 @@ main(int argc, char *argv[])
 	dump_changes(changes, n_changes);
 	unit_file_changes_free(changes, n_changes);
 
-	r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL, basename(files2[0]),
+	r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL, lsb_basename(files2[0]),
 		&state);
 	assert_se(r >= 0);
 	assert_se(state == UNIT_FILE_LINKED);
@@ -249,13 +249,13 @@ main(int argc, char *argv[])
 	n_changes = 0;
 
 	r = unit_file_disable(UNIT_FILE_SYSTEM, 0, NULL,
-		STRV_MAKE(basename(files2[0])), &changes, &n_changes);
+		STRV_MAKE(lsb_basename(files2[0])), &changes, &n_changes);
 	assert_se(r >= 0);
 
 	dump_changes(changes, n_changes);
 	unit_file_changes_free(changes, n_changes);
 
-	r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL, basename(files2[0]),
+	r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL, lsb_basename(files2[0]),
 		&state);
 	assert_se(r < 0);
 
@@ -270,7 +270,7 @@ main(int argc, char *argv[])
 	dump_changes(changes, n_changes);
 	unit_file_changes_free(changes, n_changes);
 
-	r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL, basename(files2[0]),
+	r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL, lsb_basename(files2[0]),
 		&state);
 	assert_se(r >= 0);
 	assert_se(state == UNIT_FILE_LINKED);
@@ -286,7 +286,7 @@ main(int argc, char *argv[])
 	dump_changes(changes, n_changes);
 	unit_file_changes_free(changes, n_changes);
 
-	r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL, basename(files2[0]),
+	r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL, lsb_basename(files2[0]),
 		&state);
 	assert_se(r >= 0);
 	assert_se(state == UNIT_FILE_ENABLED);
@@ -296,13 +296,13 @@ main(int argc, char *argv[])
 	n_changes = 0;
 
 	r = unit_file_disable(UNIT_FILE_SYSTEM, 0, NULL,
-		STRV_MAKE(basename(files2[0])), &changes, &n_changes);
+		STRV_MAKE(lsb_basename(files2[0])), &changes, &n_changes);
 	assert_se(r >= 0);
 
 	dump_changes(changes, n_changes);
 	unit_file_changes_free(changes, n_changes);
 
-	r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL, basename(files2[0]),
+	r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL, lsb_basename(files2[0]),
 		&state);
 	assert_se(r < 0);
 	log_error("preset files");
@@ -316,7 +316,7 @@ main(int argc, char *argv[])
 	dump_changes(changes, n_changes);
 	unit_file_changes_free(changes, n_changes);
 
-	r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL, basename(files[0]),
+	r = unit_file_get_state(UNIT_FILE_SYSTEM, NULL, lsb_basename(files[0]),
 		&state);
 	assert_se(r >= 0);
 	assert_se(state == UNIT_FILE_ENABLED);

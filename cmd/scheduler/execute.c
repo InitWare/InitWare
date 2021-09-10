@@ -977,7 +977,7 @@ rename_process_from_path(const char *path)
 	/* This resulting string must fit in 10 chars (i.e. the length
          * of "/sbin/init") to look pretty in /bin/ps */
 
-	p = basename(path);
+	p = lsb_basename(path);
 	if (isempty(p)) {
 		rename_process("(...)");
 		return;
@@ -1468,7 +1468,7 @@ exec_child(ExecCommand *command, const ExecContext *context,
 	}
 
 	r = setup_output(context, STDOUT_FILENO, socket_fd,
-		basename(command->path), params->unit_id,
+		lsb_basename(command->path), params->unit_id,
 		params->apply_tty_stdin, uid, gid);
 	if (r < 0) {
 		*exit_status = EXIT_STDOUT;
@@ -1476,7 +1476,7 @@ exec_child(ExecCommand *command, const ExecContext *context,
 	}
 
 	r = setup_output(context, STDERR_FILENO, socket_fd,
-		basename(command->path), params->unit_id,
+		lsb_basename(command->path), params->unit_id,
 		params->apply_tty_stdin, uid, gid);
 	if (r < 0) {
 		*exit_status = EXIT_STDERR;

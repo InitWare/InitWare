@@ -2587,7 +2587,7 @@ resolve_template(Unit *u, const char *name, const char *path, char **p)
 	assert(p);
 
 	if (!name)
-		name = basename(path);
+		name = lsb_basename(path);
 
 	if (!unit_name_is_template(name)) {
 		*p = NULL;
@@ -3512,7 +3512,7 @@ unit_get_unit_file_state(Unit *u)
 					SYSTEMD_SYSTEM ?
 				      UNIT_FILE_SYSTEM :
 				      UNIT_FILE_USER,
-			NULL, basename(u->fragment_path), &u->unit_file_state);
+			NULL, lsb_basename(u->fragment_path), &u->unit_file_state);
 		if (r < 0)
 			u->unit_file_state = UNIT_FILE_BAD;
 	}
@@ -3530,7 +3530,7 @@ unit_get_unit_file_preset(Unit *u)
 			u->manager->running_as == SYSTEMD_SYSTEM ?
 				      UNIT_FILE_SYSTEM :
 				      UNIT_FILE_USER,
-			NULL, basename(u->fragment_path));
+			NULL, lsb_basename(u->fragment_path));
 
 	return u->unit_file_preset;
 }

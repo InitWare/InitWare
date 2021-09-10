@@ -436,7 +436,7 @@ remove_marked_symlinks_fd(Set *remove_symlinks_to, int fd, const char *path,
 
 			found = set_contains(remove_symlinks_to, dest) ||
 				set_contains(remove_symlinks_to,
-					basename(dest)) ||
+					lsb_basename(dest)) ||
 				set_contains(remove_symlinks_to, de->d_name);
 
 			if (!found)
@@ -615,7 +615,7 @@ find_symlinks_fd(const char *root_dir, const char *name, int fd,
 			if (path_is_absolute(name))
 				found_dest = path_equal(dest, name);
 			else
-				found_dest = streq(basename(dest), name);
+				found_dest = streq(lsb_basename(dest), name);
 
 			if (found_path && found_dest) {
 				_cleanup_free_ char *t = NULL;
@@ -775,7 +775,7 @@ install_info_add(InstallContext *c, const char *name, const char *path,
 	assert(name || path);
 
 	if (!name)
-		name = basename(path);
+		name = lsb_basename(path);
 
 	if (!unit_name_is_valid(name, UNIT_NAME_ANY))
 		return -EINVAL;
@@ -1033,7 +1033,7 @@ unit_file_load_or_readlink(InstallContext *c, InstallInfo *info,
 		const char *bn;
 		UnitType a, b;
 
-		bn = basename(np);
+		bn = lsb_basename(np);
 
 		if (unit_name_is_valid(info->name, UNIT_NAME_PLAIN)) {
 			if (!unit_name_is_valid(bn, UNIT_NAME_PLAIN))
@@ -1154,7 +1154,7 @@ install_info_follow(InstallContext *c, InstallInfo *i, const char *root_dir,
 	/* If the basename doesn't match, the caller should add a
          * complete new entry for this. */
 
-	if (!streq(basename(i->symlink_target), i->name))
+	if (!streq(lsb_basename(i->symlink_target), i->name))
 		return -EXDEV;
 
 	free(i->path);
@@ -1205,7 +1205,7 @@ install_info_traverse(UnitFileScope scope, InstallContext *c,
                          * install info object for that, and continue
                          * with that. */
 
-			bn = basename(i->symlink_target);
+			bn = lsb_basename(i->symlink_target);
 
 			if (unit_name_is_valid(i->name, UNIT_NAME_INSTANCE) &&
 				unit_name_is_valid(bn, UNIT_NAME_TEMPLATE)) {
@@ -1667,7 +1667,7 @@ unit_file_link(UnitFileScope scope, UnitFileFlags flags, const char *root_dir,
 		if (!path_is_absolute(*i))
 			return -EINVAL;
 
-		fn = basename(*i);
+		fn = lsb_basename(*i);
 		if (!unit_name_is_valid(fn, UNIT_NAME_ANY))
 			return -EINVAL;
 
@@ -1706,7 +1706,7 @@ unit_file_link(UnitFileScope scope, UnitFileFlags flags, const char *root_dir,
 	STRV_FOREACH (i, todo) {
 		_cleanup_free_ char *path = NULL;
 
-		path = path_make_absolute(basename(*i), config_path);
+		path = path_make_absolute(lsb_basename(*i), config_path);
 		if (!path)
 			return -ENOMEM;
 
@@ -1901,7 +1901,7 @@ unit_file_reenable(UnitFileScope scope, UnitFileFlags flags,
 	l = strv_length(files);
 	n = newa(char *, l + 1);
 	for (i = 0; i < l; i++)
-		n[i] = basename(files[i]);
+		n[i] = lsb_basename(files[i]);
 	n[i] = NULL;
 
 	r = unit_file_disable(scope, flags, root_dir, n, changes, n_changes);
@@ -2479,11 +2479,11 @@ unit_file_get_list(UnitFileScope scope, const char *root_dir, Hashmap *h)
 				return -ENOMEM;
 
 			r = unit_file_lookup_state(scope, root_dir, &paths,
-				basename(f->path), &f->state);
+				lsb_basename(f->path), &f->state);
 			if (r < 0)
 				f->state = UNIT_FILE_BAD;
 
-			r = hashmap_put(h, basename(f->path), f);
+			r = hashmap_put(h, lsb_basename(f->path), f);
 			if (r < 0)
 				return r;
 

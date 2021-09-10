@@ -481,7 +481,7 @@ bus_check_peercred(sd_bus *c)
 	if (fd < 0)
 		return fd;
 
-	if (socket_getpeercred(fd, &ucred) < 0)
+	if (getpeercred(fd, &ucred) < 0)
 		return -errno;
 
 	if (ucred.uid != 0 && ucred.uid != geteuid())

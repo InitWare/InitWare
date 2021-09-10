@@ -2005,9 +2005,9 @@ CHANGES WITH 209:
           listing of installed timer units with the times they elapse
           next.
 
-        * Alternative reboot() parameters may now be specified on the
+        * Alternative bsd_reboot() parameters may now be specified on the
           "systemctl reboot" command line and are passed to the
-          reboot() system call.
+          bsd_reboot() system call.
 
         * systemctl gained a new --job-mode= switch to configure the
           mode to queue a job with. This is a more generic version of
@@ -3794,10 +3794,10 @@ CHANGES WITH 190:
 
         * We dropped all explicit sync() invocations in the shutdown
           code. The kernel does this implicitly anyway in the kernel
-          reboot() syscall. halt(8)'s -n option is now a compatibility
+          bsd_reboot() syscall. halt(8)'s -n option is now a compatibility
           no-op.
 
-        * We now support virtualized reboot() in containers, as
+        * We now support virtualized bsd_reboot() in containers, as
           supported by newer kernels. We will fall back to exit() if
           CAP_SYS_REBOOT is not available to the container. Also,
           nspawn makes use of this now and will actually reboot the

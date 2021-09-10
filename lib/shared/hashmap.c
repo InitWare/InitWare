@@ -330,8 +330,7 @@ uint64_compare_func(const void *_a, const void *_b)
 const struct hash_ops uint64_hash_ops = { .hash = uint64_hash_func,
 	.compare = uint64_compare_func };
 
-#if 0
-#if SIZEOF_DEV_T != 8
+#if SVC_SIZEOF_DEV_T != 8
 unsigned long
 devt_hash_func(const void *p, const uint8_t hash_key[HASH_KEY_SIZE])
 {
@@ -351,7 +350,6 @@ devt_compare_func(const void *_a, const void *_b)
 
 const struct hash_ops devt_hash_ops = { .hash = devt_hash_func,
 	.compare = devt_compare_func };
-#endif
 #endif
 
 static unsigned

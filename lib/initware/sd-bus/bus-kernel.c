@@ -24,12 +24,11 @@
 #endif
 
 #include <sys/mman.h>
-#include <sys/prctl.h>
 #include <fcntl.h>
 #include <malloc.h>
 
 /* When we include libgen.h because we need dirname() we immediately
- * undefine basename() since libgen.h defines it as a macro to the XDG
+ * undefine lsb_basename() since libgen.h defines it as a macro to the XDG
  * version which is really broken. */
 #include <libgen.h>
 #undef basename
@@ -41,29 +40,11 @@
 #include "strv.h"
 #include "util.h"
 
-#include "bus-bloom.h"
 #include "bus-internal.h"
 #include "bus-kernel.h"
 #include "bus-label.h"
 #include "bus-message.h"
 #include "bus-util.h"
-
-uint64_t
-request_name_flags_to_kdbus(uint64_t flags)
-{
-	uint64_t f = 0;
-
-	if (flags & SD_BUS_NAME_ALLOW_REPLACEMENT)
-		f |= KDBUS_NAME_ALLOW_REPLACEMENT;
-
-	if (flags & SD_BUS_NAME_REPLACE_EXISTING)
-		f |= KDBUS_NAME_REPLACE_EXISTING;
-
-	if (flags & SD_BUS_NAME_QUEUE)
-		f |= KDBUS_NAME_QUEUE;
-
-	return f;
-}
 
 uint64_t
 attach_flags_to_kdbus(uint64_t mask)

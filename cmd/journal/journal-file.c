@@ -22,13 +22,11 @@
 #include <sys/mman.h>
 #include <sys/statvfs.h>
 #include <sys/uio.h>
-#include <linux/fs.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
 #include <unistd.h>
 
-#include "btrfs-util.h"
 #include "compress.h"
 #include "fsprg.h"
 #include "journal-authenticate.h"
@@ -156,8 +154,10 @@ journal_file_close(JournalFile *f)
                  * reenable all the good bits COW usually provides
                  * (such as data checksumming). */
 
+#if 0
 		(void)chattr_fd(f->fd, false, FS_NOCOW_FL);
 		(void)btrfs_defrag_fd(f->fd);
+#endif
 	}
 
 	safe_close(f->fd);
@@ -2546,6 +2546,7 @@ journal_file_print_header(JournalFile *f)
 				(off_t)st.st_blocks * 512ULL));
 }
 
+#if 0
 static int
 journal_file_warn_btrfs(JournalFile *f)
 {
@@ -2587,6 +2588,7 @@ journal_file_warn_btrfs(JournalFile *f)
 
 	return 1;
 }
+#endif
 
 int
 journal_file_open(const char *fname, int flags, mode_t mode, bool compress,
@@ -2658,7 +2660,9 @@ journal_file_open(const char *fname, int flags, mode_t mode, bool compress,
 		goto fail;
 
 	if (f->last_stat.st_size == 0 && f->writable) {
+#if 0
 		(void)journal_file_warn_btrfs(f);
+#endif
 
 		/* Let's attach the creation time to the journal file,
                  * so that the vacuuming code knows the age of this
@@ -2867,8 +2871,10 @@ journal_file_open_reliably(const char *fname, int flags, mode_t mode,
 	/* btrfs doesn't cope well with our write pattern and
          * fragments heavily. Let's defrag all files we rotate */
 
+#if 0
 	(void)chattr_path(p, false, FS_NOCOW_FL);
 	(void)btrfs_defrag(p);
+#endif
 
 	log_warning(
 		"File %s corrupted or uncleanly shut down, renaming and replacing.",

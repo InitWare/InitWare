@@ -300,7 +300,7 @@ nftw_cb(const char *fpath, const struct stat *sb, int tflag, struct FTW *ftwbuf)
 	if (!endswith(fpath, ".map") && !endswith(fpath, ".map.gz"))
 		return 0;
 
-	p = strdup(basename(fpath));
+	p = strdup(lsb_basename(fpath));
 	if (!p)
 		return log_oom();
 

@@ -21,12 +21,10 @@
 ***/
 
 #include <sys/ioctl.h>
-#include <sys/prctl.h>
 #include <sys/reboot.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
-#include <linux/reboot.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -38,6 +36,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "bsdglibc.h"
 #include "build.h"
 #include "bus-common-errors.h"
 #include "bus-error.h"
@@ -74,6 +73,10 @@
 #include "unit-name.h"
 #include "util.h"
 #include "utmp-wtmp.h"
+
+#ifdef SVC_PLATFORM_Linux
+#include <linux/reboot.h>
+#endif
 
 /* The init script exit status codes
    0       program is running or service is OK
@@ -313,8 +316,10 @@ avoid_bus(void)
 	if (running_in_chroot() > 0)
 		return true;
 
+#if 0
 	if (sd_booted() <= 0)
 		return true;
+#endif
 
 	if (!isempty(arg_root))
 		return true;
@@ -1292,13 +1297,13 @@ compare_unit_file_list(const void *a, const void *b)
 			return r;
 	}
 
-	return strcasecmp(basename(u->path), basename(v->path));
+	return strcasecmp(lsb_basename(u->path), lsb_basename(v->path));
 }
 
 static bool
 output_show_unit_file(const UnitFileList *u, char **patterns)
 {
-	if (!strv_fnmatch_or_empty(patterns, basename(u->path), FNM_NOESCAPE))
+	if (!strv_fnmatch_or_empty(patterns, lsb_basename(u->path), FNM_NOESCAPE))
 		return false;
 
 	if (!strv_isempty(arg_types)) {
@@ -1329,7 +1334,7 @@ output_unit_file_list(const UnitFileList *units, unsigned c)
 	state_cols = strlen("STATE");
 
 	for (u = units; u < units + c; u++) {
-		max_id_len = MAX(max_id_len, strlen(basename(u->path)));
+		max_id_len = MAX(max_id_len, strlen(lsb_basename(u->path)));
 		state_cols = MAX(state_cols,
 			strlen(unit_file_state_to_string(u->state)));
 	}
@@ -1366,7 +1371,7 @@ output_unit_file_list(const UnitFileList *units, unsigned c)
 		} else
 			on = off = "";
 
-		id = basename(u->path);
+		id = lsb_basename(u->path);
 
 		e = arg_full ? NULL : ellipsize(id, id_cols, 33);
 
@@ -3401,7 +3406,7 @@ print_status_info(UnitStatusInfo *i, bool *ellipsized)
 			last = !(*(dropin + 1) &&
 				startswith(*(dropin + 1), dir));
 
-			printf("%s%s", basename(*dropin), last ? "\n" : ", ");
+			printf("%s%s", lsb_basename(*dropin), last ? "\n" : ", ");
 		}
 	}
 
@@ -5440,7 +5445,7 @@ enable_sysv_units(const char *verb, char **args)
 		if (!isempty(arg_root))
 			argv[c++] = q = strappend("--root=", arg_root);
 
-		argv[c++] = basename(p);
+		argv[c++] = lsb_basename(p);
 		argv[c++] = streq(verb, "enable") ? "on" :
 			streq(verb, "disable")	  ? "off" :
 							  "--level=5";
@@ -5540,7 +5545,7 @@ normalize_names(char **names, bool warn_if_path)
 		if (!is_path(*u))
 			continue;
 
-		r = free_and_strdup(u, basename(*u));
+		r = free_and_strdup(u, lsb_basename(*u));
 		if (r < 0)
 			return log_error_errno(r,
 				"Failed to normalize unit file path: %m");
@@ -5747,7 +5752,7 @@ enable_unit(sd_bus *bus, char **args)
 				(char *)(streq(args[0], "enable") ? "start" :
 									  "stop");
 			for (i = 0; i < len; i++)
-				new_args[i + 1] = basename(names[i]);
+				new_args[i + 1] = lsb_basename(names[i]);
 			new_args[i + 1] = NULL;
 
 			r = start_unit(bus, new_args);
@@ -7750,37 +7755,51 @@ static int
 halt_now(enum action a)
 {
 	/* The kernel will automaticall flush ATA disks and suchlike
-         * on reboot(), but the file systems need to be synce'd
+         * on bsd_reboot(), but the file systems need to be synce'd
          * explicitly in advance. */
 	sync();
 
+#ifdef RB_ENABLE_CAD
 	/* Make sure C-A-D is handled by the kernel from this point
          * on... */
-	reboot(RB_ENABLE_CAD);
+	bsd_reboot(RB_ENABLE_CAD);
+#endif
 
 	switch (a) {
 	case ACTION_HALT:
 		log_info("Halting.");
-		reboot(RB_HALT_SYSTEM);
+#ifdef RB_HALT_SYSTEM
+		bsd_reboot(RB_HALT_SYSTEM);
+#else
+		unimplemented();
+		errno = ENOTSUP;
+#endif
 		return -errno;
 
 	case ACTION_POWEROFF:
 		log_info("Powering off.");
-		reboot(RB_POWER_OFF);
+#ifdef RB_POWER_OFF
+		bsd_reboot(RB_POWER_OFF);
+#else
+		unimplemented();
+		errno = ENOTSUP;
+#endif
 		return -errno;
 
 	case ACTION_REBOOT: {
 		_cleanup_free_ char *param = NULL;
 
+#ifdef SVC_PLATFORM_Linux
 		if (read_one_line_file(REBOOT_PARAM_FILE, &param) >= 0) {
 			log_info("Rebooting with argument '%s'.", param);
 			syscall(SYS_reboot, LINUX_REBOOT_MAGIC1,
 				LINUX_REBOOT_MAGIC2, LINUX_REBOOT_CMD_RESTART2,
 				param);
 		}
+#endif
 
 		log_info("Rebooting.");
-		reboot(RB_AUTOBOOT);
+		bsd_reboot(RB_AUTOBOOT);
 		return -errno;
 	}
 

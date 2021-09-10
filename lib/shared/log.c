@@ -606,6 +606,22 @@ log_dispatch(int level, int error, const char *file, int line, const char *func,
 	return -error;
 }
 
+/* Expand %m. fmtout must be a char [LINE_MAX]. */
+static int expand_percentm(int errno_num, const char *fmtin, char *fmtout)
+{
+	char *fmtout_end = &fmtout[LINE_MAX];
+
+	while (*fmtin != '\0' && fmtout < fmtout_end)
+		if (*fmtin == '%' && fmtin[1] == 'm') {
+			fmtin += 2;
+			fmtout += snprintf(fmtout, fmtout_end - fmtout, "%s", strerror(errno_num));
+		} else
+			*fmtout++ = *fmtin++;
+	*fmtout = '\0';
+
+	return 0;
+}
+
 int
 log_dump_internal(int level, int error, const char *file, int line,
 	const char *func, char *buffer)
@@ -628,7 +644,7 @@ log_internalv(int level, int error, const char *file, int line,
 	const char *func, const char *format, va_list ap)
 {
 	PROTECT_ERRNO;
-	char buffer[LINE_MAX];
+	char buffer[LINE_MAX], fmtcpy[LINE_MAX];
 
 	if (error < 0)
 		error = -error;
@@ -640,7 +656,9 @@ log_internalv(int level, int error, const char *file, int line,
 	if (error != 0)
 		errno = error;
 
-	vsnprintf(buffer, sizeof(buffer), format, ap);
+	expand_percentm(_saved_errno_, format, fmtcpy);
+
+	vsnprintf(buffer, sizeof(buffer), fmtcpy, ap);
 
 	return log_dispatch(level, error, file, line, func, NULL, NULL, buffer);
 }
@@ -665,7 +683,7 @@ log_object_internalv(int level, int error, const char *file, int line,
 	const char *format, va_list ap)
 {
 	PROTECT_ERRNO;
-	char buffer[LINE_MAX];
+	char buffer[LINE_MAX], fmtcpy;
 
 	if (error < 0)
 		error = -error;
@@ -677,7 +695,9 @@ log_object_internalv(int level, int error, const char *file, int line,
 	if (error != 0)
 		errno = error;
 
-	vsnprintf(buffer, sizeof(buffer), format, ap);
+	expand_percentm(_saved_errno_, format, fmtcpy);
+
+	vsnprintf(buffer, sizeof(buffer), fmtcpy, ap);
 
 	return log_dispatch(level, error, file, line, func, object_field,
 		object, buffer);

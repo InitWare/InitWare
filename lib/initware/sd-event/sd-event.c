@@ -24,6 +24,7 @@
 #include <sys/wait.h>
 #include <pthread.h>
 
+#include "bsdglibc.h"
 #include "hashmap.h"
 #include "list.h"
 #include "macro.h"
@@ -42,8 +43,8 @@
 typedef enum EventSourceType {
 	SOURCE_IO,
 	SOURCE_TIME_REALTIME,
-	SOURCE_TIME_BOOTTIME,
 	SOURCE_TIME_MONOTONIC,
+	SOURCE_TIME_BOOTTIME,
 	SOURCE_TIME_REALTIME_ALARM,
 	SOURCE_TIME_BOOTTIME_ALARM,
 	SOURCE_SIGNAL,
@@ -574,17 +575,19 @@ clock_to_event_source_type(clockid_t clock)
 	case CLOCK_REALTIME:
 		return SOURCE_TIME_REALTIME;
 
-	case CLOCK_BOOTTIME:
-		return SOURCE_TIME_BOOTTIME;
-
 	case CLOCK_MONOTONIC:
 		return SOURCE_TIME_MONOTONIC;
+
+#ifdef HAVE_CLOCK_BOOTTIME
+	case CLOCK_BOOTTIME:
+		return SOURCE_TIME_BOOTTIME;
 
 	case CLOCK_REALTIME_ALARM:
 		return SOURCE_TIME_REALTIME_ALARM;
 
 	case CLOCK_BOOTTIME_ALARM:
 		return SOURCE_TIME_BOOTTIME_ALARM;
+#endif
 
 	default:
 		return _SOURCE_EVENT_SOURCE_TYPE_INVALID;
@@ -2727,7 +2730,9 @@ sd_event_now(sd_event *e, clockid_t clock, uint64_t *usec)
 
 	switch (clock) {
 	case CLOCK_REALTIME:
+#ifdef HAVE_CLOCK_BOOTTIME
 	case CLOCK_REALTIME_ALARM:
+#endif
 		*usec = e->timestamp.realtime;
 		break;
 
@@ -2735,9 +2740,11 @@ sd_event_now(sd_event *e, clockid_t clock, uint64_t *usec)
 		*usec = e->timestamp.monotonic;
 		break;
 
+#ifdef HAVE_CLOCK_BOOTTIME
 	case CLOCK_BOOTTIME:
 	case CLOCK_BOOTTIME_ALARM:
 		*usec = e->timestamp_boottime;
+#endif
 		break;
 	}
 

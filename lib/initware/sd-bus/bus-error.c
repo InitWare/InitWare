@@ -33,6 +33,9 @@
 #include "bus-error.h"
 #include "sd-bus.h"
 
+#define errno_from_name(x) EBADF
+#define errno_to_name(x) "EBadError"
+
 BUS_ERROR_MAP_ELF_REGISTER const sd_bus_error_map bus_standard_errors[] = {
 	SD_BUS_ERROR_MAP("org.freedesktop.DBus.Error.Failed", EACCES),
 	SD_BUS_ERROR_MAP("org.freedesktop.DBus.Error.NoMemory", ENOMEM),

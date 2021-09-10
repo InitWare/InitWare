@@ -76,7 +76,7 @@ files_add(Hashmap *h, const char *root, const char *path, const char *suffix)
 		if (!p)
 			return -ENOMEM;
 
-		r = hashmap_put(h, basename(p), p);
+		r = hashmap_put(h, lsb_basename(p), p);
 		if (r == -EEXIST) {
 			log_debug("Skipping overridden file: %s.", p);
 			free(p);
@@ -99,7 +99,7 @@ base_cmp(const void *a, const void *b)
 
 	s1 = *(char *const *)a;
 	s2 = *(char *const *)b;
-	return strcmp(basename(s1), basename(s2));
+	return strcmp(lsb_basename(s1), lsb_basename(s2));
 }
 
 static int

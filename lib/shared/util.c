@@ -56,7 +56,7 @@
 #include <unistd.h>
 
 /* When we include libgen.h because we need dirname() we immediately
- * undefine basename() since libgen.h defines it as a macro to the XDG
+ * undefine lsb_basename() since libgen.h defines it as a macro to the XDG
  * version which is really broken. */
 #include <libgen.h>
 #undef basename
@@ -1166,7 +1166,7 @@ readlink_value(const char *p, char **ret)
 	if (r < 0)
 		return r;
 
-	value = basename(link);
+	value = lsb_basename(link);
 	if (!value)
 		return -ENOENT;
 
@@ -4958,7 +4958,7 @@ execute_directories(const char *const *directories, usec_t timeout,
 
 	assert(!strv_isempty(dirs));
 
-	name = basename(dirs[0]);
+	name = lsb_basename(dirs[0]);
 	assert(!isempty(name));
 
 	/* Executes all binaries in the directories in parallel and waits
@@ -8287,7 +8287,7 @@ tempfn_xxxxxx(const char *p, char **ret)
          *         /foo/bar/.#waldoXXXXXX
          */
 
-	fn = basename(p);
+	fn = lsb_basename(p);
 	if (!filename_is_valid(fn))
 		return -EINVAL;
 
@@ -8320,7 +8320,7 @@ tempfn_random(const char *p, char **ret)
          *         /foo/bar/.#waldobaa2a261115984a9
          */
 
-	fn = basename(p);
+	fn = lsb_basename(p);
 	if (!filename_is_valid(fn))
 		return -EINVAL;
 
@@ -9197,7 +9197,7 @@ make_lock_file_for(const char *p, int operation, LockFile *ret)
 	assert(p);
 	assert(ret);
 
-	fn = basename(p);
+	fn = lsb_basename(p);
 	if (!filename_is_valid(fn))
 		return -EINVAL;
 
@@ -9855,6 +9855,7 @@ acquire_data_fd(const void *data, size_t size, unsigned flags)
 		return r;
 	}
 
+#ifdef SVC_PLATFORM_Linux
 	if ((flags & ACQUIRE_NO_MEMFD) == 0) {
 		fd = memfd_new("data-fd");
 		if (fd < 0)
@@ -9879,6 +9880,7 @@ acquire_data_fd(const void *data, size_t size, unsigned flags)
 
 		return r;
 	}
+#endif
 
 try_pipe:
 	if ((flags & ACQUIRE_NO_PIPE) == 0) {

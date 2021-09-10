@@ -3879,7 +3879,7 @@ determine_names(void)
 			arg_machine = gethostname_malloc();
 		else
 			arg_machine =
-				strdup(basename(arg_image ?: arg_directory));
+				strdup(lsb_basename(arg_image ?: arg_directory));
 
 		if (!arg_machine)
 			return log_oom();

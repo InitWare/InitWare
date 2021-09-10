@@ -1041,9 +1041,11 @@ bus_start_address(sd_bus *b)
 
 		if (b->exec_path)
 			r = bus_socket_exec(b);
+#if 0
 		else if ((b->nspid > 0 || b->machine) &&
 			b->sockaddr.sa.sa_family != AF_UNSPEC)
 			r = bus_container_connect_socket(b);
+#endif
 		else if (b->sockaddr.sa.sa_family != AF_UNSPEC)
 			r = bus_socket_connect(b);
 		else

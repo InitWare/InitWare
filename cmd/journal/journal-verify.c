@@ -928,6 +928,10 @@ journal_file_verify(JournalFile *f, const char *key, usec_t *first_contained,
 #endif
 	assert(f);
 
+#ifndef ENOKEY
+#define ENOKEY ENOTSUP
+#endif
+
 	if (key) {
 #ifdef HAVE_GCRYPT
 		r = journal_file_parse_verification_key(f, key);

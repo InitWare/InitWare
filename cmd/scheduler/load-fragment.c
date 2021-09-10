@@ -3449,7 +3449,7 @@ open_follow(char **filename, FILE **_f, Set *names, char **_final)
 		/* Add the file name we are currently looking at to
                  * the names of this unit, but only if it is a valid
                  * unit name. */
-		name = basename(*filename);
+		name = lsb_basename(*filename);
 
 		if (unit_name_is_valid(name, UNIT_NAME_ANY)) {
 			id = set_get(names, name);

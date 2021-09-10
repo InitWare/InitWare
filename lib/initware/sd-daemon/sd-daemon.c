@@ -326,6 +326,7 @@ sd_is_socket_unix(int fd, int type, int listening, const char *path,
 	return 1;
 }
 
+#ifdef SVC_HAVE_MQueue
 _public_ int
 sd_is_mq(int fd, const char *path)
 {
@@ -357,6 +358,7 @@ sd_is_mq(int fd, const char *path)
 
 	return 1;
 }
+#endif
 
 _public_ int
 sd_pid_notify_with_fds(pid_t pid, int unset_environment, const char *state,
@@ -443,6 +445,7 @@ sd_pid_notify_with_fds(pid_t pid, int unset_environment, const char *state,
 				assert_se(cmsg = CMSG_NXTHDR(&msghdr, cmsg));
 		}
 
+#ifdef SCM_CREDENTIALS // FIXME:
 		if (send_ucred) {
 			struct ucred *ucred;
 
@@ -455,6 +458,7 @@ sd_pid_notify_with_fds(pid_t pid, int unset_environment, const char *state,
 			ucred->uid = getuid();
 			ucred->gid = getgid();
 		}
+#endif
 	}
 
 	/* First try with fake ucred data, as requested */
@@ -463,6 +467,7 @@ sd_pid_notify_with_fds(pid_t pid, int unset_environment, const char *state,
 		goto finish;
 	}
 
+#ifdef SCM_CREDENTIALS // FIXME:
 	/* If that failed, try with our own ucred instead */
 	if (send_ucred) {
 		msghdr.msg_controllen -= CMSG_SPACE(sizeof(struct ucred));
@@ -474,6 +479,7 @@ sd_pid_notify_with_fds(pid_t pid, int unset_environment, const char *state,
 			goto finish;
 		}
 	}
+#endif
 
 	r = -errno;
 

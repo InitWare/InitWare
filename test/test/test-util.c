@@ -1586,7 +1586,7 @@ test_search_and_fopen(void)
 	assert_se(fd >= 0);
 	close(fd);
 
-	r = search_and_fopen(basename(name), "r", NULL, dirs, &f);
+	r = search_and_fopen(lsb_basename(name), "r", NULL, dirs, &f);
 	assert_se(r >= 0);
 	fclose(f);
 
@@ -1594,7 +1594,7 @@ test_search_and_fopen(void)
 	assert_se(r >= 0);
 	fclose(f);
 
-	r = search_and_fopen(basename(name), "r", "/", dirs, &f);
+	r = search_and_fopen(lsb_basename(name), "r", "/", dirs, &f);
 	assert_se(r >= 0);
 	fclose(f);
 
@@ -1608,7 +1608,7 @@ test_search_and_fopen(void)
 	r = unlink(name);
 	assert_se(r == 0);
 
-	r = search_and_fopen(basename(name), "r", NULL, dirs, &f);
+	r = search_and_fopen(lsb_basename(name), "r", NULL, dirs, &f);
 	assert_se(r < 0);
 }
 
@@ -1625,7 +1625,7 @@ test_search_and_fopen_nulstr(void)
 	assert_se(fd >= 0);
 	close(fd);
 
-	r = search_and_fopen_nulstr(basename(name), "r", NULL, dirs, &f);
+	r = search_and_fopen_nulstr(lsb_basename(name), "r", NULL, dirs, &f);
 	assert_se(r >= 0);
 	fclose(f);
 
@@ -1643,7 +1643,7 @@ test_search_and_fopen_nulstr(void)
 	r = unlink(name);
 	assert_se(r == 0);
 
-	r = search_and_fopen_nulstr(basename(name), "r", NULL, dirs, &f);
+	r = search_and_fopen_nulstr(lsb_basename(name), "r", NULL, dirs, &f);
 	assert_se(r < 0);
 }
 

@@ -4,6 +4,7 @@
 #include <sys/types.h>
 
 #include <stdint.h>
+#include <libgen.h>
 
 #include "svc-config.h"
 
@@ -49,6 +50,8 @@ typedef int (*__compar_fn_t)(const void *, const void *);
 
 #ifndef CLOCK_BOOTTIME
 #define CLOCK_BOOTTIME CLOCK_MONOTONIC
+#define CLOCK_BOOTTIME_ALARM CLOCK_MONOTONIC
+#define CLOCK_REALTIME_ALARM CLOCK_REALTIME
 #endif
 
 #ifndef HOST_NAME_MAX
@@ -77,6 +80,26 @@ void *mempcpy(void *dest, const void *src, size_t n);
 
 #ifndef SVC_HAVE_gettid
 #define gettid getpid
+#endif
+
+#ifndef SVC_HAVE_environ
+extern char** environ;
+#endif
+
+#ifdef SVC_PLATFORM_NetBSD
+#define bsd_reboot(how) reboot(how, "")
+#define setresgid(r, e, s) setgid(r)
+#define setresuid(r, e, s) setuid(r)
+#endif
+
+#ifndef SVC_HAVE_lsb_basename
+#define lsb_basename(path) basename((char*)path)
+#else
+#define lsb_basename(path) basename(path)
+#endif
+
+#ifndef SVC_HAVE_getrandom
+int getrandom(void * buf, size_t buflen, unsigned int flags);
 #endif
 
 #endif /* BSDGLIBC_H_ */

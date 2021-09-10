@@ -297,9 +297,9 @@ enumerate_dir_d(Hashmap *top, Hashmap *bottom, Hashmap *drops,
 			return -ENOMEM;
 
 		log_debug("Adding to drops: %s %s %s %s %s", unit,
-			draw_special_char(DRAW_ARROW), basename(p),
+			draw_special_char(DRAW_ARROW), lsb_basename(p),
 			draw_special_char(DRAW_ARROW), p);
-		k = hashmap_put(h, basename(p), p);
+		k = hashmap_put(h, lsb_basename(p), p);
 		if (k < 0) {
 			free(p);
 			if (k != -EEXIST)
@@ -354,9 +354,9 @@ enumerate_dir(Hashmap *top, Hashmap *bottom, Hashmap *drops, const char *path,
 		if (!p)
 			return -ENOMEM;
 
-		log_debug("Adding at top: %s %s %s", basename(p),
+		log_debug("Adding at top: %s %s %s", lsb_basename(p),
 			draw_special_char(DRAW_ARROW), p);
-		k = hashmap_put(top, basename(p), p);
+		k = hashmap_put(top, lsb_basename(p), p);
 		if (k >= 0) {
 			p = strdup(p);
 			if (!p)
@@ -366,10 +366,10 @@ enumerate_dir(Hashmap *top, Hashmap *bottom, Hashmap *drops, const char *path,
 			return k;
 		}
 
-		log_debug("Adding at bottom: %s %s %s", basename(p),
+		log_debug("Adding at bottom: %s %s %s", lsb_basename(p),
 			draw_special_char(DRAW_ARROW), p);
-		free(hashmap_remove(bottom, basename(p)));
-		k = hashmap_put(bottom, basename(p), p);
+		free(hashmap_remove(bottom, lsb_basename(p)));
+		k = hashmap_put(bottom, lsb_basename(p), p);
 		if (k < 0) {
 			free(p);
 			return k;

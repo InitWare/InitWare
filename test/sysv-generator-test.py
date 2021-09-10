@@ -95,7 +95,7 @@ class SysvGeneratorTest(unittest.TestCase):
             cp.optionxform = lambda o: o  # don't lower-case option names
             with open(service) as f:
                 cp.readfp(f)
-            results[os.path.basename(service)] = cp
+            results[os.path.lsb_basename(service)] = cp
 
         return (err, results)
 
@@ -152,7 +152,7 @@ class SysvGeneratorTest(unittest.TestCase):
             if runlevel in runlevels:
                 target = os.readlink(link)
                 self.assertTrue(os.path.exists(target))
-                self.assertEqual(os.path.basename(target), unit)
+                self.assertEqual(os.path.lsb_basename(target), unit)
             else:
                 self.assertFalse(os.path.exists(link),
                                  '%s unexpectedly exists' % link)

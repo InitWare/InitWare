@@ -133,13 +133,13 @@ stub_pid1(sd_id128_t uuid)
 
 			if (state ==
 				STATE_REBOOT) { /* dispatch a queued reboot */
-				(void)reboot(RB_AUTOBOOT);
+				(void)bsd_reboot(RB_AUTOBOOT);
 				r = log_error_errno(errno,
 					"Failed to reboot: %m");
 				goto finish;
 
 			} else if (state == STATE_POWEROFF)
-				(void)reboot(
+				(void)bsd_reboot(
 					RB_POWER_OFF); /* if this fails, fall back to normal exit. */
 
 			if (si.si_pid == pid && si.si_code == CLD_EXITED)

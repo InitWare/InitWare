@@ -90,7 +90,7 @@ sd_pid_get_owner_uid(pid_t pid, uid_t *uid)
 _public_ int
 sd_peer_get_session(int fd, char **session)
 {
-	struct ucred ucred = {};
+	struct socket_ucred ucred = {};
 	int r;
 
 	assert_return(fd >= 0, -EINVAL);
@@ -106,7 +106,7 @@ sd_peer_get_session(int fd, char **session)
 _public_ int
 sd_peer_get_owner_uid(int fd, uid_t *uid)
 {
-	struct ucred ucred;
+	struct socket_ucred ucred;
 	int r;
 
 	assert_return(fd >= 0, -EINVAL);
@@ -122,7 +122,7 @@ sd_peer_get_owner_uid(int fd, uid_t *uid)
 _public_ int
 sd_peer_get_unit(int fd, char **unit)
 {
-	struct ucred ucred;
+	struct socket_ucred ucred;
 	int r;
 
 	assert_return(fd >= 0, -EINVAL);
@@ -138,7 +138,7 @@ sd_peer_get_unit(int fd, char **unit)
 _public_ int
 sd_peer_get_user_unit(int fd, char **unit)
 {
-	struct ucred ucred;
+	struct socket_ucred ucred;
 	int r;
 
 	assert_return(fd >= 0, -EINVAL);
@@ -154,7 +154,7 @@ sd_peer_get_user_unit(int fd, char **unit)
 _public_ int
 sd_peer_get_machine_name(int fd, char **machine)
 {
-	struct ucred ucred;
+	struct socket_ucred ucred;
 	int r;
 
 	assert_return(fd >= 0, -EINVAL);
@@ -170,7 +170,7 @@ sd_peer_get_machine_name(int fd, char **machine)
 _public_ int
 sd_peer_get_slice(int fd, char **slice)
 {
-	struct ucred ucred;
+	struct socket_ucred ucred;
 	int r;
 
 	assert_return(fd >= 0, -EINVAL);

@@ -70,7 +70,7 @@ session_new(Manager *m, const char *id)
 		return NULL;
 	}
 
-	s->id = basename(s->state_file);
+	s->id = lsb_basename(s->state_file);
 
 	if (hashmap_put(m->sessions, s->id, s) < 0) {
 		hashmap_free(s->devices);

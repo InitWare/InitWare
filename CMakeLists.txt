@@ -172,4 +172,5 @@ configure_file(head/systemd/svc-config.h.in head/systemd/svc-config.h)
 # the build proper
 # ------------------------------------------------------------------------------
 
+add_subdirectory(cmd)
 add_subdirectory(lib)

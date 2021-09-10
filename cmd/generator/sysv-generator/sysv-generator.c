@@ -485,7 +485,7 @@ load_sysv(SysvStub *s)
 						return -ENOMEM;
 
 					r = sysv_translate_facility(n,
-						basename(s->path), &m);
+						lsb_basename(s->path), &m);
 					if (r < 0)
 						return r;
 					if (r == 0)
@@ -564,7 +564,7 @@ load_sysv(SysvStub *s)
 						return -ENOMEM;
 
 					r = sysv_translate_facility(n,
-						basename(s->path), &m);
+						lsb_basename(s->path), &m);
 					if (r < 0) {
 						log_unit_error(s->name,
 							"[%s:%u] Failed to translate LSB dependency %s, ignoring: %s",

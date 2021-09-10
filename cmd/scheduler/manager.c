@@ -408,7 +408,7 @@ enable_special_signals(Manager *m)
 	/* Enable that we get SIGINT on control-alt-del. In containers
          * this will fail with EPERM (older) or EINVAL (newer), so
          * ignore that. */
-	if (reboot(RB_DISABLE_CAD) < 0 && errno != EPERM && errno != EINVAL)
+	if (bsd_reboot(RB_DISABLE_CAD) < 0 && errno != EPERM && errno != EINVAL)
 		log_warning_errno(errno,
 			"Failed to enable ctrl-alt-del handling: %m");
 
@@ -1648,7 +1648,7 @@ manager_load_unit_prepare(Manager *m, const char *name, const char *path,
 			"Path %s is not absolute.", path);
 
 	if (!name)
-		name = basename(path);
+		name = lsb_basename(path);
 
 	t = unit_name_to_type(name);
 

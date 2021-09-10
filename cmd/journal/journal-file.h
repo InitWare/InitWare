@@ -119,8 +119,9 @@ typedef struct JournalFile {
 	void *fsprg_seed;
 	size_t fsprg_seed_size;
 
-	unsigned last_seen_generation;
 #endif
+
+	unsigned last_seen_generation;
 } JournalFile;
 
 int journal_file_open(const char *fname, int flags, mode_t mode, bool compress,

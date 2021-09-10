@@ -943,7 +943,7 @@ test_preset_and_list(const char *root)
 
 	HASHMAP_FOREACH (fl, h, j) {
 		assert_se(unit_file_get_state(UNIT_FILE_SYSTEM, root,
-				  basename(fl->path), &state) >= 0);
+				  lsb_basename(fl->path), &state) >= 0);
 		assert_se(fl->state == state);
 
 		if (streq(fl->path, p)) {
