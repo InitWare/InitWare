@@ -22,37 +22,43 @@
 #include <sys/socket.h>
 #include <string.h>
 
-#include "util.h"
 #include "af-list.h"
+#include "util.h"
 
-static const struct af_name* lookup_af(register const char *str, register GPERF_LEN_TYPE len);
+static const struct af_name *lookup_af(register const char *str,
+	register GPERF_LEN_TYPE len);
 
-#include "af-to-name.h"
 #include "af-from-name.h"
+#include "af-to-name.h"
 
-const char *af_to_name(int id) {
+const char *
+af_to_name(int id)
+{
+	if (id <= 0)
+		return NULL;
 
-        if (id <= 0)
-                return NULL;
+	if (id >= (int)ELEMENTSOF(af_names))
+		return NULL;
 
-        if (id >= (int) ELEMENTSOF(af_names))
-                return NULL;
-
-        return af_names[id];
+	return af_names[id];
 }
 
-int af_from_name(const char *name) {
-        const struct af_name *sc;
+int
+af_from_name(const char *name)
+{
+	const struct af_name *sc;
 
-        assert(name);
+	assert(name);
 
-        sc = lookup_af(name, strlen(name));
-        if (!sc)
-                return AF_UNSPEC;
+	sc = lookup_af(name, strlen(name));
+	if (!sc)
+		return AF_UNSPEC;
 
-        return sc->id;
+	return sc->id;
 }
 
-int af_max(void) {
-        return ELEMENTSOF(af_names);
+int
+af_max(void)
+{
+	return ELEMENTSOF(af_names);
 }

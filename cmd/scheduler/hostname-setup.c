@@ -19,72 +19,78 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <unistd.h>
-#include <stdio.h>
 #include <errno.h>
-#include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
+#include "fileio.h"
 #include "hostname-setup.h"
+#include "log.h"
 #include "macro.h"
 #include "util.h"
-#include "log.h"
-#include "fileio.h"
 
-static int read_and_strip_hostname(const char *path, char **hn) {
-        char *s;
-        int r;
+static int
+read_and_strip_hostname(const char *path, char **hn)
+{
+	char *s;
+	int r;
 
-        assert(path);
-        assert(hn);
+	assert(path);
+	assert(hn);
 
-        r = read_one_line_file(path, &s);
-        if (r < 0)
-                return r;
+	r = read_one_line_file(path, &s);
+	if (r < 0)
+		return r;
 
-        hostname_cleanup(s, false);
+	hostname_cleanup(s, false);
 
-        if (isempty(s)) {
-                free(s);
-                return -ENOENT;
-        }
+	if (isempty(s)) {
+		free(s);
+		return -ENOENT;
+	}
 
-        *hn = s;
-        return 0;
+	*hn = s;
+	return 0;
 }
 
-int hostname_setup(void) {
-        int r;
-        _cleanup_free_ char *b = NULL;
-        const char *hn;
-        bool enoent = false;
+int
+hostname_setup(void)
+{
+	int r;
+	_cleanup_free_ char *b = NULL;
+	const char *hn;
+	bool enoent = false;
 
-        r = read_and_strip_hostname("/etc/hostname", &b);
-        if (r < 0) {
-                if (r == -ENOENT)
-                        enoent = true;
-                else
-                        log_warning_errno(r, "Failed to read configured hostname: %m");
+	r = read_and_strip_hostname("/etc/hostname", &b);
+	if (r < 0) {
+		if (r == -ENOENT)
+			enoent = true;
+		else
+			log_warning_errno(r,
+				"Failed to read configured hostname: %m");
 
-                hn = NULL;
-        } else
-                hn = b;
+		hn = NULL;
+	} else
+		hn = b;
 
-        if (isempty(hn)) {
-                /* Don't override the hostname if it is already set
+	if (isempty(hn)) {
+		/* Don't override the hostname if it is already set
                  * and not explicitly configured */
-                if (hostname_is_set())
-                        return 0;
+		if (hostname_is_set())
+			return 0;
 
-                if (enoent)
-                        log_info("No hostname configured.");
+		if (enoent)
+			log_info("No hostname configured.");
 
-                hn = "localhost";
-        }
+		hn = "localhost";
+	}
 
-        if (sethostname_idempotent(hn) < 0)
-                return log_warning_errno(errno, "Failed to set hostname to <%s>: %m", hn);
+	if (sethostname_idempotent(hn) < 0)
+		return log_warning_errno(errno,
+			"Failed to set hostname to <%s>: %m", hn);
 
-        log_info("Set hostname to <%s>.", hn);
-        return 0;
+	log_info("Set hostname to <%s>.", hn);
+	return 0;
 }

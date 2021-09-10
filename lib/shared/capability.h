@@ -21,13 +21,13 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/capability.h>
 #include <inttypes.h>
 #include <stdbool.h>
-#include <sys/capability.h>
 
 #include "util.h"
 
-#define CAP_ALL (uint64_t) -1
+#define CAP_ALL (uint64_t) - 1
 
 unsigned long cap_last_cap(void);
 int have_effective_cap(int value);
@@ -44,14 +44,18 @@ int drop_capability(cap_value_t cv);
 DEFINE_TRIVIAL_CLEANUP_FUNC(cap_t, cap_free);
 #define _cleanup_cap_free_ _cleanup_(cap_freep)
 
-static inline void cap_free_charpp(char **p) {
-        if (*p)
-                cap_free(*p);
+static inline void
+cap_free_charpp(char **p)
+{
+	if (*p)
+		cap_free(*p);
 }
 #define _cleanup_cap_free_charp_ _cleanup_(cap_free_charpp)
 
-static inline bool cap_test_all(uint64_t caps) {
-        uint64_t m;
-        m = (UINT64_C(1) << (cap_last_cap() + 1)) - 1;
-        return (caps & m) == m;
+static inline bool
+cap_test_all(uint64_t caps)
+{
+	uint64_t m;
+	m = (UINT64_C(1) << (cap_last_cap() + 1)) - 1;
+	return (caps & m) == m;
 }

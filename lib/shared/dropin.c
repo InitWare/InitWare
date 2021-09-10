@@ -20,223 +20,220 @@
 ***/
 
 #include "dropin.h"
-#include "util.h"
-#include "strv.h"
-#include "mkdir.h"
-#include "fileio-label.h"
 #include "conf-files.h"
+#include "fileio-label.h"
+#include "mkdir.h"
+#include "strv.h"
+#include "util.h"
 
-int drop_in_file(const char *dir, const char *unit, unsigned level,
-                 const char *name, char **_p, char **_q) {
+int
+drop_in_file(const char *dir, const char *unit, unsigned level,
+	const char *name, char **_p, char **_q)
+{
+	_cleanup_free_ char *b = NULL;
+	char *p, *q;
 
-        _cleanup_free_ char *b = NULL;
-        char *p, *q;
+	char prefix[DECIMAL_STR_MAX(unsigned)];
 
-        char prefix[DECIMAL_STR_MAX(unsigned)];
+	assert(unit);
+	assert(name);
+	assert(_p);
+	assert(_q);
 
-        assert(unit);
-        assert(name);
-        assert(_p);
-        assert(_q);
+	sprintf(prefix, "%u", level);
 
-        sprintf(prefix, "%u", level);
+	b = xescape(name, "/.");
+	if (!b)
+		return -ENOMEM;
 
-        b = xescape(name, "/.");
-        if (!b)
-                return -ENOMEM;
+	if (!filename_is_valid(b))
+		return -EINVAL;
 
-        if (!filename_is_valid(b))
-                return -EINVAL;
+	p = strjoin(dir, "/", unit, ".d", NULL);
+	if (!p)
+		return -ENOMEM;
 
-        p = strjoin(dir, "/", unit, ".d", NULL);
-        if (!p)
-                return -ENOMEM;
+	q = strjoin(p, "/", prefix, "-", b, ".conf", NULL);
+	if (!q) {
+		free(p);
+		return -ENOMEM;
+	}
 
-        q = strjoin(p, "/", prefix, "-", b, ".conf", NULL);
-        if (!q) {
-                free(p);
-                return -ENOMEM;
-        }
-
-        *_p = p;
-        *_q = q;
-        return 0;
+	*_p = p;
+	*_q = q;
+	return 0;
 }
 
-int write_drop_in(const char *dir, const char *unit, unsigned level,
-                  const char *name, const char *data) {
+int
+write_drop_in(const char *dir, const char *unit, unsigned level,
+	const char *name, const char *data)
+{
+	_cleanup_free_ char *p = NULL, *q = NULL;
+	int r;
 
-        _cleanup_free_ char *p = NULL, *q = NULL;
-        int r;
+	assert(dir);
+	assert(unit);
+	assert(name);
+	assert(data);
 
-        assert(dir);
-        assert(unit);
-        assert(name);
-        assert(data);
+	r = drop_in_file(dir, unit, level, name, &p, &q);
+	if (r < 0)
+		return r;
 
-        r = drop_in_file(dir, unit, level, name, &p, &q);
-        if (r < 0)
-                return r;
-
-        mkdir_p(p, 0755);
-        return write_string_file_atomic_label(q, data);
+	mkdir_p(p, 0755);
+	return write_string_file_atomic_label(q, data);
 }
 
-int write_drop_in_format(const char *dir, const char *unit, unsigned level,
-                         const char *name, const char *format, ...) {
-        _cleanup_free_ char *p = NULL;
-        va_list ap;
-        int r;
+int
+write_drop_in_format(const char *dir, const char *unit, unsigned level,
+	const char *name, const char *format, ...)
+{
+	_cleanup_free_ char *p = NULL;
+	va_list ap;
+	int r;
 
-        assert(dir);
-        assert(unit);
-        assert(name);
-        assert(format);
+	assert(dir);
+	assert(unit);
+	assert(name);
+	assert(format);
 
-        va_start(ap, format);
-        r = vasprintf(&p, format, ap);
-        va_end(ap);
+	va_start(ap, format);
+	r = vasprintf(&p, format, ap);
+	va_end(ap);
 
-        if (r < 0)
-                return -ENOMEM;
+	if (r < 0)
+		return -ENOMEM;
 
-        return write_drop_in(dir, unit, level, name, p);
+	return write_drop_in(dir, unit, level, name, p);
 }
 
-static int iterate_dir(
-                const char *path,
-                UnitDependency dependency,
-                dependency_consumer_t consumer,
-                void *arg,
-                char ***strv) {
+static int
+iterate_dir(const char *path, UnitDependency dependency,
+	dependency_consumer_t consumer, void *arg, char ***strv)
+{
+	_cleanup_closedir_ DIR *d = NULL;
+	int r;
 
-        _cleanup_closedir_ DIR *d = NULL;
-        int r;
+	assert(path);
 
-        assert(path);
-
-        /* The config directories are special, since the order of the
+	/* The config directories are special, since the order of the
          * drop-ins matters */
-        if (dependency < 0)  {
-                r = strv_extend(strv, path);
-                if (r < 0)
-                        return log_oom();
+	if (dependency < 0) {
+		r = strv_extend(strv, path);
+		if (r < 0)
+			return log_oom();
 
-                return 0;
-        }
+		return 0;
+	}
 
-        assert(consumer);
+	assert(consumer);
 
-        d = opendir(path);
-        if (!d) {
-                /* Ignore ENOENT, after all most units won't have a drop-in dir.
+	d = opendir(path);
+	if (!d) {
+		/* Ignore ENOENT, after all most units won't have a drop-in dir.
                  * Also ignore ENAMETOOLONG, users are not even able to create
                  * the drop-in dir in such case. This mostly happens for device units with long /sys path.
                  * */
-                if (IN_SET(errno, ENOENT, ENAMETOOLONG))
-                            return 0;
+		if (IN_SET(errno, ENOENT, ENAMETOOLONG))
+			return 0;
 
-                log_error_errno(errno, "Failed to open directory %s: %m", path);
-                return -errno;
-        }
+		log_error_errno(errno, "Failed to open directory %s: %m", path);
+		return -errno;
+	}
 
-        for (;;) {
-                struct dirent *de;
-                _cleanup_free_ char *f = NULL;
+	for (;;) {
+		struct dirent *de;
+		_cleanup_free_ char *f = NULL;
 
-                errno = 0;
-                de = readdir(d);
-                if (!de && errno != 0)
-                        return log_error_errno(errno, "Failed to read directory %s: %m", path);
+		errno = 0;
+		de = readdir(d);
+		if (!de && errno != 0)
+			return log_error_errno(errno,
+				"Failed to read directory %s: %m", path);
 
-                if (!de)
-                        break;
+		if (!de)
+			break;
 
-                if (hidden_file(de->d_name))
-                        continue;
+		if (hidden_file(de->d_name))
+			continue;
 
-                f = strjoin(path, "/", de->d_name, NULL);
-                if (!f)
-                        return log_oom();
+		f = strjoin(path, "/", de->d_name, NULL);
+		if (!f)
+			return log_oom();
 
-                r = consumer(dependency, de->d_name, f, arg);
-                if (r < 0)
-                        return r;
-        }
+		r = consumer(dependency, de->d_name, f, arg);
+		if (r < 0)
+			return r;
+	}
 
-        return 0;
+	return 0;
 }
 
-int unit_file_process_dir(
-                Set * unit_path_cache,
-                const char *unit_path,
-                const char *name,
-                const char *suffix,
-                UnitDependency dependency,
-                dependency_consumer_t consumer,
-                void *arg,
-                char ***strv) {
+int
+unit_file_process_dir(Set *unit_path_cache, const char *unit_path,
+	const char *name, const char *suffix, UnitDependency dependency,
+	dependency_consumer_t consumer, void *arg, char ***strv)
+{
+	_cleanup_free_ char *path = NULL;
 
-        _cleanup_free_ char *path = NULL;
+	assert(unit_path);
+	assert(name);
+	assert(suffix);
 
-        assert(unit_path);
-        assert(name);
-        assert(suffix);
+	path = strjoin(unit_path, "/", name, suffix, NULL);
+	if (!path)
+		return log_oom();
 
-        path = strjoin(unit_path, "/", name, suffix, NULL);
-        if (!path)
-                return log_oom();
+	if (!unit_path_cache || set_get(unit_path_cache, path))
+		iterate_dir(path, dependency, consumer, arg, strv);
 
-        if (!unit_path_cache || set_get(unit_path_cache, path))
-                iterate_dir(path, dependency, consumer, arg, strv);
+	if (unit_name_is_instance(name)) {
+		_cleanup_free_ char *template = NULL, *p = NULL;
+		/* Also try the template dir */
 
-        if (unit_name_is_instance(name)) {
-                _cleanup_free_ char *template = NULL, *p = NULL;
-                /* Also try the template dir */
+		template = unit_name_template(name);
+		if (!template)
+			return log_oom();
 
-                template = unit_name_template(name);
-                if (!template)
-                        return log_oom();
+		p = strjoin(unit_path, "/", template, suffix, NULL);
+		if (!p)
+			return log_oom();
 
-                p = strjoin(unit_path, "/", template, suffix, NULL);
-                if (!p)
-                        return log_oom();
+		if (!unit_path_cache || set_get(unit_path_cache, p))
+			iterate_dir(p, dependency, consumer, arg, strv);
+	}
 
-                if (!unit_path_cache || set_get(unit_path_cache, p))
-                        iterate_dir(p, dependency, consumer, arg, strv);
-        }
-
-        return 0;
+	return 0;
 }
 
-int unit_file_find_dropin_paths(
-                char **lookup_path,
-                Set *unit_path_cache,
-                Set *names,
-                char ***paths) {
+int
+unit_file_find_dropin_paths(char **lookup_path, Set *unit_path_cache,
+	Set *names, char ***paths)
+{
+	_cleanup_strv_free_ char **strv = NULL, **ans = NULL;
+	Iterator i;
+	char *t;
+	int r;
 
-        _cleanup_strv_free_ char **strv = NULL, **ans = NULL;
-        Iterator i;
-        char *t;
-        int r;
+	assert(paths);
 
-        assert(paths);
+	SET_FOREACH (t, names, i) {
+		char **p;
 
-        SET_FOREACH(t, names, i) {
-                char **p;
+		STRV_FOREACH (p, lookup_path)
+			unit_file_process_dir(unit_path_cache, *p, t, ".d",
+				_UNIT_DEPENDENCY_INVALID, NULL, NULL, &strv);
+	}
 
-                STRV_FOREACH(p, lookup_path)
-                        unit_file_process_dir(unit_path_cache, *p, t, ".d", _UNIT_DEPENDENCY_INVALID, NULL, NULL, &strv);
-        }
+	if (strv_isempty(strv))
+		return 0;
 
-        if (strv_isempty(strv))
-                return 0;
+	r = conf_files_list_strv(&ans, ".conf", NULL, (const char **)strv);
+	if (r < 0)
+		return log_warning_errno(r,
+			"Failed to get list of configuration files: %m");
 
-        r = conf_files_list_strv(&ans, ".conf", NULL, (const char**) strv);
-        if (r < 0)
-                return log_warning_errno(r, "Failed to get list of configuration files: %m");
-
-        *paths = ans;
-        ans = NULL;
-        return 1;
+	*paths = ans;
+	ans = NULL;
+	return 1;
 }

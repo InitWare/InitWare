@@ -21,9 +21,9 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/types.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <sys/types.h>
 
 /*
  * Our default bloom filter has the following parameters:
@@ -36,10 +36,12 @@
  *
  */
 
-#define DEFAULT_BLOOM_SIZE (512/8) /* m: filter size */
-#define DEFAULT_BLOOM_N_HASH 8     /* k: number of hash functions */
+#define DEFAULT_BLOOM_SIZE (512 / 8) /* m: filter size */
+#define DEFAULT_BLOOM_N_HASH 8 /* k: number of hash functions */
 
-void bloom_add_pair(uint64_t filter[], size_t size, unsigned n_hash, const char *a, const char *b);
-void bloom_add_prefixes(uint64_t filter[], size_t size, unsigned n_hash, const char *a, const char *b, char sep);
+void bloom_add_pair(uint64_t filter[], size_t size, unsigned n_hash,
+	const char *a, const char *b);
+void bloom_add_prefixes(uint64_t filter[], size_t size, unsigned n_hash,
+	const char *a, const char *b, char sep);
 
 bool bloom_validate_parameters(size_t size, unsigned n_hash);

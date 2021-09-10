@@ -25,30 +25,26 @@
 #include "log.h"
 #include "util.h"
 
-int main(int argc, char* argv[]) {
+int
+main(int argc, char *argv[])
+{
+	log_set_target(LOG_TARGET_CONSOLE);
+	log_open();
 
-        log_set_target(LOG_TARGET_CONSOLE);
-        log_open();
+	log_struct(LOG_INFO, "MESSAGE=Waldo PID=" PID_FMT, getpid(),
+		"SERVICE=piepapo", NULL);
 
-        log_struct(LOG_INFO,
-                   "MESSAGE=Waldo PID="PID_FMT, getpid(),
-                   "SERVICE=piepapo",
-                   NULL);
+	log_set_target(LOG_TARGET_JOURNAL);
+	log_open();
 
-        log_set_target(LOG_TARGET_JOURNAL);
-        log_open();
+	log_struct(LOG_INFO, "MESSAGE=Foobar PID=" PID_FMT, getpid(),
+		"SERVICE=foobar", NULL);
 
-        log_struct(LOG_INFO,
-                   "MESSAGE=Foobar PID="PID_FMT, getpid(),
-                   "SERVICE=foobar",
-                   NULL);
+	log_struct(LOG_INFO, "MESSAGE=Foobar PID=" PID_FMT, getpid(),
+		"FORMAT_STR_TEST=1=%i A=%c 2=%hi 3=%li 4=%lli 1=%p foo=%s 2.5=%g 3.5=%g 4.5=%Lg",
+		(int)1, 'A', (short)2, (long int)3, (long long int)4, (void *)1,
+		"foo", (float)2.5f, (double)3.5, (long double)4.5,
+		"SUFFIX=GOT IT", NULL);
 
-        log_struct(LOG_INFO,
-                   "MESSAGE=Foobar PID="PID_FMT, getpid(),
-                   "FORMAT_STR_TEST=1=%i A=%c 2=%hi 3=%li 4=%lli 1=%p foo=%s 2.5=%g 3.5=%g 4.5=%Lg",
-                   (int) 1, 'A', (short) 2, (long int) 3, (long long int) 4, (void*) 1, "foo", (float) 2.5f, (double) 3.5, (long double) 4.5,
-                   "SUFFIX=GOT IT",
-                   NULL);
-
-        return 0;
+	return 0;
 }

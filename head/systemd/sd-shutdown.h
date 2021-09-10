@@ -31,38 +31,38 @@ extern "C" {
 #endif
 
 #ifndef _sd_packed_
-#  define _sd_packed_ __attribute__((packed))
+#	define _sd_packed_ __attribute__((packed))
 #endif
 
 typedef enum sd_shutdown_mode {
-        SD_SHUTDOWN_NONE = 0,
-        SD_SHUTDOWN_REBOOT = 'r',
-        SD_SHUTDOWN_POWEROFF = 'P',
-        SD_SHUTDOWN_HALT = 'H',
-        SD_SHUTDOWN_KEXEC = 'K'
+	SD_SHUTDOWN_NONE = 0,
+	SD_SHUTDOWN_REBOOT = 'r',
+	SD_SHUTDOWN_POWEROFF = 'P',
+	SD_SHUTDOWN_HALT = 'H',
+	SD_SHUTDOWN_KEXEC = 'K'
 } sd_shutdown_mode_t;
 
 /* Calculate the size of the message as "offsetof(struct
  * sd_shutdown_command, wall_message) +
  * strlen(command.wall_message)" */
 struct sd_shutdown_command {
-        /* Microseconds after the epoch 1970 UTC */
-        uint64_t usec;
+	/* Microseconds after the epoch 1970 UTC */
+	uint64_t usec;
 
-        /* H, P, r, i.e. the switches usually passed to
+	/* H, P, r, i.e. the switches usually passed to
          * /usr/bin/shutdown to select whether to halt, power-off or
          * reboot the machine */
-        sd_shutdown_mode_t mode:8;
+	sd_shutdown_mode_t mode: 8;
 
-        /* If non-zero, don't actually shut down, just pretend */
-        unsigned dry_run:1;
+	/* If non-zero, don't actually shut down, just pretend */
+	unsigned dry_run: 1;
 
-        /* If non-zero, send our wall message */
-        unsigned warn_wall:1;
+	/* If non-zero, send our wall message */
+	unsigned warn_wall: 1;
 
-        /* The wall message to send around. Leave empty for the
+	/* The wall message to send around. Leave empty for the
          * default wall message */
-        char wall_message[];
+	char wall_message[];
 } _sd_packed_;
 
 /* The scheme is very simple:

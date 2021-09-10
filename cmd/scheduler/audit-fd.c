@@ -19,55 +19,61 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-
 #include <errno.h>
 #include "audit-fd.h"
 
 #ifdef HAVE_AUDIT
 
-#include <stdbool.h>
-#include <libaudit.h>
+#	include <libaudit.h>
+#	include <stdbool.h>
 
-#include "log.h"
-#include "util.h"
+#	include "log.h"
+#	include "util.h"
 
 static bool initialized = false;
 static int audit_fd;
 
-int get_audit_fd(void) {
+int
+get_audit_fd(void)
+{
+	if (!initialized) {
+		audit_fd = audit_open();
 
-        if (!initialized) {
-                audit_fd = audit_open();
+		if (audit_fd < 0) {
+			if (errno != EAFNOSUPPORT && errno != EPROTONOSUPPORT)
+				log_error_errno(errno,
+					"Failed to connect to audit log: %m");
 
-                if (audit_fd < 0) {
-                        if (errno != EAFNOSUPPORT && errno != EPROTONOSUPPORT)
-                                log_error_errno(errno, "Failed to connect to audit log: %m");
+			audit_fd = errno ? -errno : -EINVAL;
+		}
 
-                        audit_fd = errno ? -errno : -EINVAL;
-                }
+		initialized = true;
+	}
 
-                initialized = true;
-        }
-
-        return audit_fd;
+	return audit_fd;
 }
 
-void close_audit_fd(void) {
+void
+close_audit_fd(void)
+{
+	if (initialized && audit_fd >= 0)
+		safe_close(audit_fd);
 
-        if (initialized && audit_fd >= 0)
-                safe_close(audit_fd);
-
-        initialized = true;
-        audit_fd = -ECONNRESET;
+	initialized = true;
+	audit_fd = -ECONNRESET;
 }
 
 #else
 
-int get_audit_fd(void) {
-        return -EAFNOSUPPORT;
+int
+get_audit_fd(void)
+{
+	return -EAFNOSUPPORT;
 }
 
-void close_audit_fd(void) {
+void
+close_audit_fd(void)
+{
 }
 
 #endif

@@ -21,81 +21,81 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "sd-event.h"
-#include "sd-resolve.h"
-#include "sd-network.h"
 #include "list.h"
-#include "socket-util.h"
 #include "ratelimit.h"
+#include "sd-event.h"
+#include "sd-network.h"
+#include "sd-resolve.h"
+#include "socket-util.h"
 
 typedef struct Manager Manager;
 
 #include "timesyncd-server.h"
 
 struct Manager {
-        sd_event *event;
-        sd_resolve *resolve;
+	sd_event *event;
+	sd_resolve *resolve;
 
-        IWLIST_HEAD(ServerName, system_servers);
-        IWLIST_HEAD(ServerName, link_servers);
-        IWLIST_HEAD(ServerName, fallback_servers);
+	IWLIST_HEAD(ServerName, system_servers);
+	IWLIST_HEAD(ServerName, link_servers);
+	IWLIST_HEAD(ServerName, fallback_servers);
 
-        RateLimit ratelimit;
-        bool exhausted_servers;
+	RateLimit ratelimit;
+	bool exhausted_servers;
 
-        /* network */
-        sd_event_source *network_event_source;
-        sd_network_monitor *network_monitor;
+	/* network */
+	sd_event_source *network_event_source;
+	sd_network_monitor *network_monitor;
 
-        /* peer */
-        sd_resolve_query *resolve_query;
-        sd_event_source *event_receive;
-        ServerName *current_server_name;
-        ServerAddress *current_server_address;
-        int server_socket;
-        int missed_replies;
-        uint64_t packet_count;
-        sd_event_source *event_timeout;
+	/* peer */
+	sd_resolve_query *resolve_query;
+	sd_event_source *event_receive;
+	ServerName *current_server_name;
+	ServerAddress *current_server_address;
+	int server_socket;
+	int missed_replies;
+	uint64_t packet_count;
+	sd_event_source *event_timeout;
 
-        /* last sent packet */
-        struct timespec trans_time_mon;
-        struct timespec trans_time;
-        usec_t retry_interval;
-        bool pending;
+	/* last sent packet */
+	struct timespec trans_time_mon;
+	struct timespec trans_time;
+	usec_t retry_interval;
+	bool pending;
 
-        /* poll timer */
-        sd_event_source *event_timer;
-        usec_t poll_interval_usec;
-        bool poll_resync;
+	/* poll timer */
+	sd_event_source *event_timer;
+	usec_t poll_interval_usec;
+	bool poll_resync;
 
-        /* history data */
-        struct {
-                double offset;
-                double delay;
-        } samples[8];
-        unsigned int samples_idx;
-        double samples_jitter;
+	/* history data */
+	struct {
+		double offset;
+		double delay;
+	} samples[8];
+	unsigned int samples_idx;
+	double samples_jitter;
 
-        /* last change */
-        bool jumped;
-        bool sync;
-        int drift_ppm;
+	/* last change */
+	bool jumped;
+	bool sync;
+	int drift_ppm;
 
-        /* watch for time changes */
-        sd_event_source *event_clock_watch;
-        int clock_watch_fd;
+	/* watch for time changes */
+	sd_event_source *event_clock_watch;
+	int clock_watch_fd;
 
-        /* Retry connections */
-        sd_event_source *event_retry;
+	/* Retry connections */
+	sd_event_source *event_retry;
 
-        /* RTC runs in local time, leave it alone */
-        bool rtc_local_time;
+	/* RTC runs in local time, leave it alone */
+	bool rtc_local_time;
 };
 
 int manager_new(Manager **ret);
 void manager_free(Manager *m);
 
-DEFINE_TRIVIAL_CLEANUP_FUNC(Manager*, manager_free);
+DEFINE_TRIVIAL_CLEANUP_FUNC(Manager *, manager_free);
 
 void manager_set_server_name(Manager *m, ServerName *n);
 void manager_set_server_address(Manager *m, ServerAddress *a);

@@ -23,70 +23,70 @@
 
 typedef struct Timer Timer;
 
-#include "unit.h"
 #include "calendarspec.h"
+#include "unit.h"
 
 typedef enum TimerState {
-        TIMER_DEAD,
-        TIMER_WAITING,
-        TIMER_RUNNING,
-        TIMER_ELAPSED,
-        TIMER_FAILED,
-        _TIMER_STATE_MAX,
-        _TIMER_STATE_INVALID = -1
+	TIMER_DEAD,
+	TIMER_WAITING,
+	TIMER_RUNNING,
+	TIMER_ELAPSED,
+	TIMER_FAILED,
+	_TIMER_STATE_MAX,
+	_TIMER_STATE_INVALID = -1
 } TimerState;
 
 typedef enum TimerBase {
-        TIMER_ACTIVE,
-        TIMER_BOOT,
-        TIMER_STARTUP,
-        TIMER_UNIT_ACTIVE,
-        TIMER_UNIT_INACTIVE,
-        TIMER_CALENDAR,
-        _TIMER_BASE_MAX,
-        _TIMER_BASE_INVALID = -1
+	TIMER_ACTIVE,
+	TIMER_BOOT,
+	TIMER_STARTUP,
+	TIMER_UNIT_ACTIVE,
+	TIMER_UNIT_INACTIVE,
+	TIMER_CALENDAR,
+	_TIMER_BASE_MAX,
+	_TIMER_BASE_INVALID = -1
 } TimerBase;
 
 typedef struct TimerValue {
-        TimerBase base;
-        bool disabled;
+	TimerBase base;
+	bool disabled;
 
-        usec_t value; /* only for monotonic events */
-        CalendarSpec *calendar_spec; /* only for calendar events */
-        usec_t next_elapse;
+	usec_t value; /* only for monotonic events */
+	CalendarSpec *calendar_spec; /* only for calendar events */
+	usec_t next_elapse;
 
-        IWLIST_FIELDS(struct TimerValue, value);
+	IWLIST_FIELDS(struct TimerValue, value);
 } TimerValue;
 
 typedef enum TimerResult {
-        TIMER_SUCCESS,
-        TIMER_FAILURE_RESOURCES,
-        _TIMER_RESULT_MAX,
-        _TIMER_RESULT_INVALID = -1
+	TIMER_SUCCESS,
+	TIMER_FAILURE_RESOURCES,
+	_TIMER_RESULT_MAX,
+	_TIMER_RESULT_INVALID = -1
 } TimerResult;
 
 struct Timer {
-        Unit meta;
+	Unit meta;
 
-        usec_t accuracy_usec;
-        usec_t random_usec;
+	usec_t accuracy_usec;
+	usec_t random_usec;
 
-        IWLIST_HEAD(TimerValue, values);
-        usec_t next_elapse_realtime;
-        usec_t next_elapse_monotonic_or_boottime;
-        dual_timestamp last_trigger;
+	IWLIST_HEAD(TimerValue, values);
+	usec_t next_elapse_realtime;
+	usec_t next_elapse_monotonic_or_boottime;
+	dual_timestamp last_trigger;
 
-        TimerState state, deserialized_state;
+	TimerState state, deserialized_state;
 
-        sd_event_source *monotonic_event_source;
-        sd_event_source *realtime_event_source;
+	sd_event_source *monotonic_event_source;
+	sd_event_source *realtime_event_source;
 
-        TimerResult result;
+	TimerResult result;
 
-        bool persistent;
-        bool wake_system;
+	bool persistent;
+	bool wake_system;
 
-        char *stamp_path;
+	char *stamp_path;
 };
 
 void timer_free_values(Timer *t);
@@ -99,5 +99,5 @@ TimerState timer_state_from_string(const char *s) _pure_;
 const char *timer_base_to_string(TimerBase i) _const_;
 TimerBase timer_base_from_string(const char *s) _pure_;
 
-const char* timer_result_to_string(TimerResult i) _const_;
+const char *timer_result_to_string(TimerResult i) _const_;
 TimerResult timer_result_from_string(const char *s) _pure_;

@@ -21,19 +21,19 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/uio.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/uio.h>
 
 typedef struct Ring Ring;
 
 struct Ring {
-        uint8_t *buf;           /* buffer or NULL */
-        size_t size;            /* actual size of @buf */
-        size_t start;           /* start position of ring */
-        size_t used;            /* number of actually used bytes */
+	uint8_t *buf; /* buffer or NULL */
+	size_t size; /* actual size of @buf */
+	size_t start; /* start position of ring */
+	size_t used; /* number of actually used bytes */
 };
 
 /* flush buffer so it is empty again */
@@ -55,7 +55,8 @@ int ring_push(Ring *r, const void *u8, size_t size);
 void ring_pull(Ring *r, size_t size);
 
 /* return size of occupied buffer in bytes */
-static inline size_t ring_get_size(Ring *r)
+static inline size_t
+ring_get_size(Ring *r)
 {
-        return r->used;
+	return r->used;
 }

@@ -29,72 +29,82 @@
 #include <string.h>
 #include "strxcpyx.h"
 
-size_t strpcpy(char **dest, size_t size, const char *src) {
-        size_t len;
+size_t
+strpcpy(char **dest, size_t size, const char *src)
+{
+	size_t len;
 
-        len = strlen(src);
-        if (len >= size) {
-                if (size > 1)
-                        *dest = mempcpy(*dest, src, size-1);
-                size = 0;
-        } else {
-                if (len > 0) {
-                        *dest = mempcpy(*dest, src, len);
-                        size -= len;
-                }
-        }
-        *dest[0] = '\0';
-        return size;
+	len = strlen(src);
+	if (len >= size) {
+		if (size > 1)
+			*dest = mempcpy(*dest, src, size - 1);
+		size = 0;
+	} else {
+		if (len > 0) {
+			*dest = mempcpy(*dest, src, len);
+			size -= len;
+		}
+	}
+	*dest[0] = '\0';
+	return size;
 }
 
-size_t strpcpyf(char **dest, size_t size, const char *src, ...) {
-        va_list va;
-        int i;
+size_t
+strpcpyf(char **dest, size_t size, const char *src, ...)
+{
+	va_list va;
+	int i;
 
-        va_start(va, src);
-        i = vsnprintf(*dest, size, src, va);
-        if (i < (int)size) {
-                *dest += i;
-                size -= i;
-        } else {
-                *dest += size;
-                size = 0;
-        }
-        va_end(va);
-        *dest[0] = '\0';
-        return size;
+	va_start(va, src);
+	i = vsnprintf(*dest, size, src, va);
+	if (i < (int)size) {
+		*dest += i;
+		size -= i;
+	} else {
+		*dest += size;
+		size = 0;
+	}
+	va_end(va);
+	*dest[0] = '\0';
+	return size;
 }
 
-size_t strpcpyl(char **dest, size_t size, const char *src, ...) {
-        va_list va;
+size_t
+strpcpyl(char **dest, size_t size, const char *src, ...)
+{
+	va_list va;
 
-        va_start(va, src);
-        do {
-                size = strpcpy(dest, size, src);
-                src = va_arg(va, char *);
-        } while (src != NULL);
-        va_end(va);
-        return size;
+	va_start(va, src);
+	do {
+		size = strpcpy(dest, size, src);
+		src = va_arg(va, char *);
+	} while (src != NULL);
+	va_end(va);
+	return size;
 }
 
-size_t strscpy(char *dest, size_t size, const char *src) {
-        char *s;
+size_t
+strscpy(char *dest, size_t size, const char *src)
+{
+	char *s;
 
-        s = dest;
-        return strpcpy(&s, size, src);
+	s = dest;
+	return strpcpy(&s, size, src);
 }
 
-size_t strscpyl(char *dest, size_t size, const char *src, ...) {
-        va_list va;
-        char *s;
+size_t
+strscpyl(char *dest, size_t size, const char *src, ...)
+{
+	va_list va;
+	char *s;
 
-        va_start(va, src);
-        s = dest;
-        do {
-                size = strpcpy(&s, size, src);
-                src = va_arg(va, char *);
-        } while (src != NULL);
-        va_end(va);
+	va_start(va, src);
+	s = dest;
+	do {
+		size = strpcpy(&s, size, src);
+		src = va_arg(va, char *);
+	} while (src != NULL);
+	va_end(va);
 
-        return size;
+	return size;
 }

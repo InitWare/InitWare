@@ -21,13 +21,13 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <lzma.h>
-#include <zlib.h>
 #include <bzlib.h>
 #include <gcrypt.h>
+#include <lzma.h>
+#include <zlib.h>
 
-#include "macro.h"
 #include "curl-util.h"
+#include "macro.h"
 
 typedef struct ImportJob ImportJob;
 
@@ -37,83 +37,85 @@ typedef int (*ImportJobHeader)(ImportJob *job, const char *header, size_t sz);
 typedef void (*ImportJobProgress)(ImportJob *job);
 
 typedef enum ImportJobState {
-        IMPORT_JOB_INIT,
-        IMPORT_JOB_ANALYZING, /* Still reading into ->payload, to figure out what we have */
-        IMPORT_JOB_RUNNING,  /* Writing to destination */
-        IMPORT_JOB_DONE,
-        IMPORT_JOB_FAILED,
-        _IMPORT_JOB_STATE_MAX,
-        _IMPORT_JOB_STATE_INVALID = -1,
+	IMPORT_JOB_INIT,
+	IMPORT_JOB_ANALYZING, /* Still reading into ->payload, to figure out what we have */
+	IMPORT_JOB_RUNNING, /* Writing to destination */
+	IMPORT_JOB_DONE,
+	IMPORT_JOB_FAILED,
+	_IMPORT_JOB_STATE_MAX,
+	_IMPORT_JOB_STATE_INVALID = -1,
 } ImportJobState;
 
-#define IMPORT_JOB_STATE_IS_COMPLETE(j) (IN_SET((j)->state, IMPORT_JOB_DONE, IMPORT_JOB_FAILED))
+#define IMPORT_JOB_STATE_IS_COMPLETE(j)                                        \
+	(IN_SET((j)->state, IMPORT_JOB_DONE, IMPORT_JOB_FAILED))
 
 typedef enum ImportJobCompression {
-        IMPORT_JOB_UNCOMPRESSED,
-        IMPORT_JOB_XZ,
-        IMPORT_JOB_GZIP,
-        IMPORT_JOB_BZIP2,
-        _IMPORT_JOB_COMPRESSION_MAX,
-        _IMPORT_JOB_COMPRESSION_INVALID = -1,
+	IMPORT_JOB_UNCOMPRESSED,
+	IMPORT_JOB_XZ,
+	IMPORT_JOB_GZIP,
+	IMPORT_JOB_BZIP2,
+	_IMPORT_JOB_COMPRESSION_MAX,
+	_IMPORT_JOB_COMPRESSION_INVALID = -1,
 } ImportJobCompression;
 
 struct ImportJob {
-        ImportJobState state;
-        int error;
+	ImportJobState state;
+	int error;
 
-        char *url;
+	char *url;
 
-        void *userdata;
-        ImportJobFinished on_finished;
-        ImportJobOpenDisk on_open_disk;
-        ImportJobHeader on_header;
-        ImportJobProgress on_progress;
+	void *userdata;
+	ImportJobFinished on_finished;
+	ImportJobOpenDisk on_open_disk;
+	ImportJobHeader on_header;
+	ImportJobProgress on_progress;
 
-        CurlGlue *glue;
-        CURL *curl;
-        struct curl_slist *request_header;
+	CurlGlue *glue;
+	CURL *curl;
+	struct curl_slist *request_header;
 
-        char *etag;
-        char **old_etags;
-        bool etag_exists;
+	char *etag;
+	char **old_etags;
+	bool etag_exists;
 
-        uint64_t content_length;
-        uint64_t written_compressed;
-        uint64_t written_uncompressed;
+	uint64_t content_length;
+	uint64_t written_compressed;
+	uint64_t written_uncompressed;
 
-        uint64_t uncompressed_max;
-        uint64_t compressed_max;
+	uint64_t uncompressed_max;
+	uint64_t compressed_max;
 
-        uint8_t *payload;
-        size_t payload_size;
-        size_t payload_allocated;
+	uint8_t *payload;
+	size_t payload_size;
+	size_t payload_allocated;
 
-        int disk_fd;
+	int disk_fd;
 
-        usec_t mtime;
+	usec_t mtime;
 
-        ImportJobCompression compressed;
-        lzma_stream xz;
-        z_stream gzip;
-        bz_stream bzip2;
+	ImportJobCompression compressed;
+	lzma_stream xz;
+	z_stream gzip;
+	bz_stream bzip2;
 
-        unsigned progress_percent;
-        usec_t start_usec;
-        usec_t last_status_usec;
+	unsigned progress_percent;
+	usec_t start_usec;
+	usec_t last_status_usec;
 
-        bool allow_sparse;
+	bool allow_sparse;
 
-        bool calc_checksum;
-        gcry_md_hd_t checksum_context;
+	bool calc_checksum;
+	gcry_md_hd_t checksum_context;
 
-        char *checksum;
+	char *checksum;
 };
 
-int import_job_new(ImportJob **job, const char *url, CurlGlue *glue, void *userdata);
-ImportJob* import_job_unref(ImportJob *job);
+int import_job_new(ImportJob **job, const char *url, CurlGlue *glue,
+	void *userdata);
+ImportJob *import_job_unref(ImportJob *job);
 
 int import_job_begin(ImportJob *j);
 
 void import_job_curl_on_finished(CurlGlue *g, CURL *curl, CURLcode result);
 
-DEFINE_TRIVIAL_CLEANUP_FUNC(ImportJob*, import_job_unref);
+DEFINE_TRIVIAL_CLEANUP_FUNC(ImportJob *, import_job_unref);

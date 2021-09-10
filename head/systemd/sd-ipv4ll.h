@@ -22,16 +22,16 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdbool.h>
-#include <netinet/in.h>
 #include <net/ethernet.h>
+#include <netinet/in.h>
+#include <stdbool.h>
 
 #include "sd-event.h"
 
 enum {
-        IPV4LL_EVENT_STOP           = 0,
-        IPV4LL_EVENT_BIND           = 1,
-        IPV4LL_EVENT_CONFLICT       = 2,
+	IPV4LL_EVENT_STOP = 0,
+	IPV4LL_EVENT_BIND = 1,
+	IPV4LL_EVENT_CONFLICT = 2,
 };
 
 typedef struct sd_ipv4ll sd_ipv4ll;
@@ -49,6 +49,6 @@ int sd_ipv4ll_start(sd_ipv4ll *ll);
 int sd_ipv4ll_stop(sd_ipv4ll *ll);
 sd_ipv4ll *sd_ipv4ll_ref(sd_ipv4ll *ll);
 sd_ipv4ll *sd_ipv4ll_unref(sd_ipv4ll *ll);
-int sd_ipv4ll_new (sd_ipv4ll **ret);
+int sd_ipv4ll_new(sd_ipv4ll **ret);
 
 #endif

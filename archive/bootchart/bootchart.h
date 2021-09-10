@@ -28,80 +28,80 @@
 #include <stdbool.h>
 #include "list.h"
 
-#define MAXCPUS        16
-#define MAXPIDS     65535
+#define MAXCPUS 16
+#define MAXPIDS 65535
 
 struct block_stat_struct {
-        /* /proc/vmstat pgpgin & pgpgout */
-        int bi;
-        int bo;
+	/* /proc/vmstat pgpgin & pgpgout */
+	int bi;
+	int bo;
 };
 
 struct cpu_stat_sample_struct {
-        /* /proc/schedstat fields 10 & 11 (after name) */
-        double runtime;
-        double waittime;
+	/* /proc/schedstat fields 10 & 11 (after name) */
+	double runtime;
+	double waittime;
 };
 
 /* per process, per sample data we will log */
 struct ps_sched_struct {
-        /* /proc/<n>/schedstat fields 1 & 2 */
-        double runtime;
-        double waittime;
-        int pss;
-        struct list_sample_data *sampledata;
-        struct ps_sched_struct *next;
-        struct ps_sched_struct *prev;
-        struct ps_sched_struct *cross; /* cross pointer */
-        struct ps_struct *ps_new;
+	/* /proc/<n>/schedstat fields 1 & 2 */
+	double runtime;
+	double waittime;
+	int pss;
+	struct list_sample_data *sampledata;
+	struct ps_sched_struct *next;
+	struct ps_sched_struct *prev;
+	struct ps_sched_struct *cross; /* cross pointer */
+	struct ps_struct *ps_new;
 };
 
 struct list_sample_data {
-        double runtime[MAXCPUS];
-        double waittime[MAXCPUS];
-        double sampletime;
-        int entropy_avail;
-        struct block_stat_struct blockstat;
-        IWLIST_FIELDS(struct list_sample_data, link); /* DLL */
-        int counter;
+	double runtime[MAXCPUS];
+	double waittime[MAXCPUS];
+	double sampletime;
+	int entropy_avail;
+	struct block_stat_struct blockstat;
+	IWLIST_FIELDS(struct list_sample_data, link); /* DLL */
+	int counter;
 };
 
 /* process info */
 struct ps_struct {
-        struct ps_struct *next_ps;    /* SLL pointer */
-        struct ps_struct *parent;     /* ppid ref */
-        struct ps_struct *children;   /* children */
-        struct ps_struct *next;       /* siblings */
+	struct ps_struct *next_ps; /* SLL pointer */
+	struct ps_struct *parent; /* ppid ref */
+	struct ps_struct *children; /* children */
+	struct ps_struct *next; /* siblings */
 
-        /* must match - otherwise it's a new process with same PID */
-        char name[256];
-        int pid;
-        int ppid;
-        char *cgroup;
+	/* must match - otherwise it's a new process with same PID */
+	char name[256];
+	int pid;
+	int ppid;
+	char *cgroup;
 
-        /* cache fd's */
-        int sched;
-        int schedstat;
-        FILE *smaps;
+	/* cache fd's */
+	int sched;
+	int schedstat;
+	FILE *smaps;
 
-        /* pointers to first/last seen timestamps */
-        struct ps_sched_struct *first;
-        struct ps_sched_struct *last;
+	/* pointers to first/last seen timestamps */
+	struct ps_sched_struct *first;
+	struct ps_sched_struct *last;
 
-        /* records actual start time, may be way before bootchart runs */
-        double starttime;
+	/* records actual start time, may be way before bootchart runs */
+	double starttime;
 
-        /* record human readable total cpu time */
-        double total;
+	/* record human readable total cpu time */
+	double total;
 
-        /* largest PSS size found */
-        int pss_max;
+	/* largest PSS size found */
+	int pss_max;
 
-        /* for drawing connection lines later */
-        double pos_x;
-        double pos_y;
+	/* for drawing connection lines later */
+	double pos_x;
+	double pos_y;
 
-        struct ps_sched_struct *sample;
+	struct ps_sched_struct *sample;
 };
 
 extern int entropy_avail[];

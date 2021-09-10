@@ -24,4 +24,7 @@
 #include <net/ethernet.h>
 
 #define ETHER_ADDR_FORMAT_STR "%02X%02X%02X%02X%02X%02X"
-#define ETHER_ADDR_FORMAT_VAL(x) (x).ether_addr_octet[0], (x).ether_addr_octet[1], (x).ether_addr_octet[2], (x).ether_addr_octet[3], (x).ether_addr_octet[4], (x).ether_addr_octet[5]
+#define ETHER_ADDR_FORMAT_VAL(x)                                               \
+	(x).ether_addr_octet[0], (x).ether_addr_octet[1],                      \
+		(x).ether_addr_octet[2], (x).ether_addr_octet[3],              \
+		(x).ether_addr_octet[4], (x).ether_addr_octet[5]

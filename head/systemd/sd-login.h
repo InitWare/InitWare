@@ -170,7 +170,8 @@ int sd_seat_get_active(const char *seat, char **session, uid_t *uid);
 
 /* Return sessions and users on seat. Returns number of sessions.
  * If sessions is NULL, this returns only the number of sessions. */
-int sd_seat_get_sessions(const char *seat, char ***sessions, uid_t **uid, unsigned *n_uids);
+int sd_seat_get_sessions(const char *seat, char ***sessions, uid_t **uid,
+	unsigned *n_uids);
 
 /* Return whether the seat is multi-session capable */
 int sd_seat_can_multi_session(const char *seat);
@@ -208,10 +209,10 @@ typedef struct sd_login_monitor sd_login_monitor;
 /* Create a new monitor. Category must be NULL, "seat", "session",
  * "uid", or "machine" to get monitor events for the specific category
  * (or all). */
-int sd_login_monitor_new(const char *category, sd_login_monitor** ret);
+int sd_login_monitor_new(const char *category, sd_login_monitor **ret);
 
 /* Destroys the passed monitor. Returns NULL. */
-sd_login_monitor* sd_login_monitor_unref(sd_login_monitor *m);
+sd_login_monitor *sd_login_monitor_unref(sd_login_monitor *m);
 
 /* Flushes the monitor */
 int sd_login_monitor_flush(sd_login_monitor *m);

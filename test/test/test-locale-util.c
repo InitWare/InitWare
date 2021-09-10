@@ -20,40 +20,46 @@
 #include <unistd.h>
 
 #include "locale-util.h"
-#include "strv.h"
 #include "macro.h"
+#include "strv.h"
 
-static void test_get_locales(void) {
-        _cleanup_strv_free_ char **locales = NULL;
-        char **p;
-        int r;
+static void
+test_get_locales(void)
+{
+	_cleanup_strv_free_ char **locales = NULL;
+	char **p;
+	int r;
 
-        r = get_locales(&locales);
-        assert_se(r >= 0);
-        assert_se(locales);
+	r = get_locales(&locales);
+	assert_se(r >= 0);
+	assert_se(locales);
 
-        STRV_FOREACH(p, locales) {
-                puts(*p);
-                assert_se(locale_is_valid(*p));
-        }
+	STRV_FOREACH (p, locales) {
+		puts(*p);
+		assert_se(locale_is_valid(*p));
+	}
 }
 
-static void test_locale_is_valid(void) {
-        assert_se(locale_is_valid("en_EN.utf8"));
-        assert_se(locale_is_valid("fr_FR.utf8"));
-        assert_se(locale_is_valid("fr_FR@euro"));
-        assert_se(locale_is_valid("fi_FI"));
-        assert_se(locale_is_valid("POSIX"));
-        assert_se(locale_is_valid("C"));
+static void
+test_locale_is_valid(void)
+{
+	assert_se(locale_is_valid("en_EN.utf8"));
+	assert_se(locale_is_valid("fr_FR.utf8"));
+	assert_se(locale_is_valid("fr_FR@euro"));
+	assert_se(locale_is_valid("fi_FI"));
+	assert_se(locale_is_valid("POSIX"));
+	assert_se(locale_is_valid("C"));
 
-        assert_se(!locale_is_valid(""));
-        assert_se(!locale_is_valid("/usr/bin/foo"));
-        assert_se(!locale_is_valid("\x01gar\x02 bage\x03"));
+	assert_se(!locale_is_valid(""));
+	assert_se(!locale_is_valid("/usr/bin/foo"));
+	assert_se(!locale_is_valid("\x01gar\x02 bage\x03"));
 }
 
-int main(int argc, char *argv[]) {
-        test_get_locales();
-        test_locale_is_valid();
+int
+main(int argc, char *argv[])
+{
+	test_get_locales();
+	test_locale_is_valid();
 
-        return 0;
+	return 0;
 }

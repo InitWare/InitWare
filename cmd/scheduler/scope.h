@@ -23,50 +23,50 @@
 
 typedef struct Scope Scope;
 
-#include "unit.h"
 #include "kill.h"
+#include "unit.h"
 
 typedef enum ScopeState {
-        SCOPE_DEAD,
-        SCOPE_RUNNING,
-        SCOPE_ABANDONED,
-        SCOPE_STOP_SIGTERM,
-        SCOPE_STOP_SIGKILL,
-        SCOPE_FAILED,
-        _SCOPE_STATE_MAX,
-        _SCOPE_STATE_INVALID = -1
+	SCOPE_DEAD,
+	SCOPE_RUNNING,
+	SCOPE_ABANDONED,
+	SCOPE_STOP_SIGTERM,
+	SCOPE_STOP_SIGKILL,
+	SCOPE_FAILED,
+	_SCOPE_STATE_MAX,
+	_SCOPE_STATE_INVALID = -1
 } ScopeState;
 
 typedef enum ScopeResult {
-        SCOPE_SUCCESS,
-        SCOPE_FAILURE_RESOURCES,
-        SCOPE_FAILURE_TIMEOUT,
-        _SCOPE_RESULT_MAX,
-        _SCOPE_RESULT_INVALID = -1
+	SCOPE_SUCCESS,
+	SCOPE_FAILURE_RESOURCES,
+	SCOPE_FAILURE_TIMEOUT,
+	_SCOPE_RESULT_MAX,
+	_SCOPE_RESULT_INVALID = -1
 } ScopeResult;
 
 struct Scope {
-        Unit meta;
+	Unit meta;
 
-        CGroupContext cgroup_context;
-        KillContext kill_context;
+	CGroupContext cgroup_context;
+	KillContext kill_context;
 
-        ScopeState state, deserialized_state;
-        ScopeResult result;
+	ScopeState state, deserialized_state;
+	ScopeResult result;
 
-        usec_t timeout_stop_usec;
+	usec_t timeout_stop_usec;
 
-        char *controller;
+	char *controller;
 
-        sd_event_source *timer_event_source;
+	sd_event_source *timer_event_source;
 };
 
 extern const UnitVTable scope_vtable;
 
 int scope_abandon(Scope *s);
 
-const char* scope_state_to_string(ScopeState i) _const_;
+const char *scope_state_to_string(ScopeState i) _const_;
 ScopeState scope_state_from_string(const char *s) _pure_;
 
-const char* scope_result_to_string(ScopeResult i) _const_;
+const char *scope_result_to_string(ScopeResult i) _const_;
 ScopeResult scope_result_from_string(const char *s) _pure_;

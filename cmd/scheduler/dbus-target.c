@@ -19,12 +19,10 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "unit.h"
-#include "target.h"
-#include "dbus-unit.h"
 #include "dbus-target.h"
+#include "dbus-unit.h"
+#include "target.h"
+#include "unit.h"
 
-const sd_bus_vtable bus_target_vtable[] = {
-        SD_BUS_VTABLE_START(0),
-        SD_BUS_VTABLE_END
-};
+const sd_bus_vtable bus_target_vtable[] = { SD_BUS_VTABLE_START(0),
+	SD_BUS_VTABLE_END };

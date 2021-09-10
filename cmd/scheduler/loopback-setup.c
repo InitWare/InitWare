@@ -20,80 +20,86 @@
 ***/
 
 #include <sys/socket.h>
-#include <net/if.h>
 #include <asm/types.h>
+#include <net/if.h>
 #include <netinet/in.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
-#include "sd-rtnl.h"
-#include "util.h"
-#include "macro.h"
-#include "socket-util.h"
-#include "rtnl-util.h"
-#include "missing.h"
 #include "loopback-setup.h"
+#include "macro.h"
+#include "missing.h"
+#include "rtnl-util.h"
+#include "sd-rtnl.h"
+#include "socket-util.h"
+#include "util.h"
 
-static int start_loopback(sd_rtnl *rtnl) {
-        _cleanup_rtnl_message_unref_ sd_rtnl_message *req = NULL;
-        int r;
+static int
+start_loopback(sd_rtnl *rtnl)
+{
+	_cleanup_rtnl_message_unref_ sd_rtnl_message *req = NULL;
+	int r;
 
-        r = sd_rtnl_message_new_link(rtnl, &req, RTM_SETLINK, LOOPBACK_IFINDEX);
-        if (r < 0)
-                return r;
+	r = sd_rtnl_message_new_link(rtnl, &req, RTM_SETLINK, LOOPBACK_IFINDEX);
+	if (r < 0)
+		return r;
 
-        r = sd_rtnl_message_link_set_flags(req, IFF_UP, IFF_UP);
-        if (r < 0)
-                return r;
+	r = sd_rtnl_message_link_set_flags(req, IFF_UP, IFF_UP);
+	if (r < 0)
+		return r;
 
-        r = sd_rtnl_call(rtnl, req, 0, NULL);
-        if (r < 0)
-                return r;
+	r = sd_rtnl_call(rtnl, req, 0, NULL);
+	if (r < 0)
+		return r;
 
-        return 0;
+	return 0;
 }
 
-static bool check_loopback(sd_rtnl *rtnl) {
-        _cleanup_rtnl_message_unref_ sd_rtnl_message *req = NULL, *reply = NULL;
-        unsigned flags;
-        int r;
+static bool
+check_loopback(sd_rtnl *rtnl)
+{
+	_cleanup_rtnl_message_unref_ sd_rtnl_message *req = NULL, *reply = NULL;
+	unsigned flags;
+	int r;
 
-        r = sd_rtnl_message_new_link(rtnl, &req, RTM_GETLINK, LOOPBACK_IFINDEX);
-        if (r < 0)
-                return false;
+	r = sd_rtnl_message_new_link(rtnl, &req, RTM_GETLINK, LOOPBACK_IFINDEX);
+	if (r < 0)
+		return false;
 
-        r = sd_rtnl_call(rtnl, req, 0, &reply);
-        if (r < 0)
-                return false;
+	r = sd_rtnl_call(rtnl, req, 0, &reply);
+	if (r < 0)
+		return false;
 
-        r = sd_rtnl_message_link_get_flags(reply, &flags);
-        if (r < 0)
-                return false;
+	r = sd_rtnl_message_link_get_flags(reply, &flags);
+	if (r < 0)
+		return false;
 
-        return flags & IFF_UP;
+	return flags & IFF_UP;
 }
 
-int loopback_setup(void) {
-        _cleanup_rtnl_unref_ sd_rtnl *rtnl = NULL;
-        int r;
+int
+loopback_setup(void)
+{
+	_cleanup_rtnl_unref_ sd_rtnl *rtnl = NULL;
+	int r;
 
-        r = sd_rtnl_open(&rtnl, 0);
-        if (r < 0)
-                return r;
+	r = sd_rtnl_open(&rtnl, 0);
+	if (r < 0)
+		return r;
 
-        r = start_loopback(rtnl);
-        if (r < 0) {
-
-                /* If we lack the permissions to configure the
+	r = start_loopback(rtnl);
+	if (r < 0) {
+		/* If we lack the permissions to configure the
                  * loopback device, but we find it to be already
                  * configured, let's exit cleanly, in order to
                  * supported unprivileged containers. */
-                if (r == -EPERM && check_loopback(rtnl))
-                        return 0;
+		if (r == -EPERM && check_loopback(rtnl))
+			return 0;
 
-                return log_warning_errno(r, "Failed to configure loopback device: %m");
-        }
+		return log_warning_errno(r,
+			"Failed to configure loopback device: %m");
+	}
 
-        return 0;
+	return 0;
 }

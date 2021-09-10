@@ -22,67 +22,71 @@
 #include <dirent.h>
 #include <errno.h>
 
-#include "unit.h"
+#include "conf-files.h"
+#include "conf-parser.h"
 #include "load-dropin.h"
+#include "load-fragment.h"
 #include "log.h"
 #include "strv.h"
 #include "unit-name.h"
-#include "conf-parser.h"
-#include "load-fragment.h"
-#include "conf-files.h"
+#include "unit.h"
 
-static int add_dependency_consumer(
-                UnitDependency dependency,
-                const char *entry,
-                const char* filepath,
-                void *arg) {
-        Unit *u = arg;
-        int r;
+static int
+add_dependency_consumer(UnitDependency dependency, const char *entry,
+	const char *filepath, void *arg)
+{
+	Unit *u = arg;
+	int r;
 
-        assert(u);
+	assert(u);
 
-        r = unit_add_dependency_by_name(u, dependency, entry, filepath, true);
-        if (r < 0)
-                log_error_errno(r, "Cannot add dependency %s to %s, ignoring: %m", entry, u->id);
+	r = unit_add_dependency_by_name(u, dependency, entry, filepath, true);
+	if (r < 0)
+		log_error_errno(r,
+			"Cannot add dependency %s to %s, ignoring: %m", entry,
+			u->id);
 
-        return 0;
+	return 0;
 }
 
-int unit_load_dropin(Unit *u) {
-        Iterator i;
-        char *t, **f;
-        int r;
+int
+unit_load_dropin(Unit *u)
+{
+	Iterator i;
+	char *t, **f;
+	int r;
 
-        assert(u);
+	assert(u);
 
-        /* Load dependencies from supplementary drop-in directories */
+	/* Load dependencies from supplementary drop-in directories */
 
-        SET_FOREACH(t, u->names, i) {
-                char **p;
+	SET_FOREACH (t, u->names, i) {
+		char **p;
 
-                STRV_FOREACH(p, u->manager->lookup_paths.unit_path) {
-                        unit_file_process_dir(u->manager->unit_path_cache, *p, t, ".wants", UNIT_WANTS,
-                                              add_dependency_consumer, u, NULL);
-                        unit_file_process_dir(u->manager->unit_path_cache, *p, t, ".requires", UNIT_REQUIRES,
-                                              add_dependency_consumer, u, NULL);
-                }
-        }
+		STRV_FOREACH (p, u->manager->lookup_paths.unit_path) {
+			unit_file_process_dir(u->manager->unit_path_cache, *p,
+				t, ".wants", UNIT_WANTS,
+				add_dependency_consumer, u, NULL);
+			unit_file_process_dir(u->manager->unit_path_cache, *p,
+				t, ".requires", UNIT_REQUIRES,
+				add_dependency_consumer, u, NULL);
+		}
+	}
 
-        strv_free(u->dropin_paths);
-        u->dropin_paths = NULL;
+	strv_free(u->dropin_paths);
+	u->dropin_paths = NULL;
 
-        r = unit_find_dropin_paths(u, &u->dropin_paths);
-        if (r <= 0)
-                return 0;
+	r = unit_find_dropin_paths(u, &u->dropin_paths);
+	if (r <= 0)
+		return 0;
 
-        STRV_FOREACH(f, u->dropin_paths) {
-                config_parse(u->id, *f, NULL,
-                             UNIT_VTABLE(u)->sections,
-                             config_item_perf_lookup, load_fragment_gperf_lookup,
-                             false, false, false, u);
-        }
+	STRV_FOREACH (f, u->dropin_paths) {
+		config_parse(u->id, *f, NULL, UNIT_VTABLE(u)->sections,
+			config_item_perf_lookup, load_fragment_gperf_lookup,
+			false, false, false, u);
+	}
 
-        u->dropin_mtime = now(CLOCK_REALTIME);
+	u->dropin_mtime = now(CLOCK_REALTIME);
 
-        return 0;
+	return 0;
 }

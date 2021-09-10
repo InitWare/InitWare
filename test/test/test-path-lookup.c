@@ -19,56 +19,64 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
-#include "path-lookup.h"
 #include "log.h"
+#include "path-lookup.h"
 #include "strv.h"
 
-static void test_paths(SystemdRunningAs running_as, bool personal) {
-        char template[] = "/tmp/test-path-lookup.XXXXXXX";
+static void
+test_paths(SystemdRunningAs running_as, bool personal)
+{
+	char template[] = "/tmp/test-path-lookup.XXXXXXX";
 
-        _cleanup_lookup_paths_free_ LookupPaths lp = {};
-        char *exists, *not;
+	_cleanup_lookup_paths_free_ LookupPaths lp = {};
+	char *exists, *not ;
 
-        assert_se(mkdtemp(template));
-        exists = strjoina(template, "/exists");
-        assert_se(mkdir(exists, 0755) == 0);
-        not = strjoina(template, "/not");
+	assert_se(mkdtemp(template));
+	exists = strjoina(template, "/exists");
+	assert_se(mkdir(exists, 0755) == 0);
+	not = strjoina(template, "/not");
 
-        assert_se(lookup_paths_init(&lp, running_as, personal, NULL, exists, not, not) == 0);
+	assert_se(lookup_paths_init(&lp, running_as, personal, NULL, exists,
+			  not, not ) == 0);
 
-        assert_se(!strv_isempty(lp.unit_path));
-        assert_se(strv_contains(lp.unit_path, exists));
-        assert_se(strv_contains(lp.unit_path, not));
+	assert_se(!strv_isempty(lp.unit_path));
+	assert_se(strv_contains(lp.unit_path, exists));
+	assert_se(strv_contains(lp.unit_path, not ));
 
-        assert_se(rm_rf_dangerous(template, false, true, false) >= 0);
+	assert_se(rm_rf_dangerous(template, false, true, false) >= 0);
 }
 
-static void print_generator_paths(SystemdRunningAs running_as) {
-        _cleanup_strv_free_ char **paths;
-        char **dir;
+static void
+print_generator_paths(SystemdRunningAs running_as)
+{
+	_cleanup_strv_free_ char **paths;
+	char **dir;
 
-        log_info("Generators dirs (%s):", running_as == SYSTEMD_SYSTEM ? "system" : "user");
+	log_info("Generators dirs (%s):",
+		running_as == SYSTEMD_SYSTEM ? "system" : "user");
 
-        paths = generator_paths(running_as);
-        STRV_FOREACH(dir, paths)
-                log_info("        %s", *dir);
+	paths = generator_paths(running_as);
+	STRV_FOREACH (dir, paths)
+		log_info("        %s", *dir);
 }
 
-int main(int argc, char **argv) {
-        log_set_max_level(LOG_DEBUG);
-        log_parse_environment();
-        log_open();
+int
+main(int argc, char **argv)
+{
+	log_set_max_level(LOG_DEBUG);
+	log_parse_environment();
+	log_open();
 
-        test_paths(SYSTEMD_SYSTEM, false);
-        test_paths(SYSTEMD_SYSTEM, true);
-        test_paths(SYSTEMD_USER, false);
-        test_paths(SYSTEMD_USER, true);
+	test_paths(SYSTEMD_SYSTEM, false);
+	test_paths(SYSTEMD_SYSTEM, true);
+	test_paths(SYSTEMD_USER, false);
+	test_paths(SYSTEMD_USER, true);
 
-        print_generator_paths(SYSTEMD_SYSTEM);
-        print_generator_paths(SYSTEMD_USER);
+	print_generator_paths(SYSTEMD_SYSTEM);
+	print_generator_paths(SYSTEMD_USER);
 
-        return EXIT_SUCCESS;
+	return EXIT_SUCCESS;
 }

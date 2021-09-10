@@ -23,113 +23,113 @@
 
 typedef struct Mount Mount;
 
-#include "unit.h"
-#include "kill.h"
-#include "execute.h"
 #include "cgroup.h"
+#include "execute.h"
+#include "kill.h"
+#include "unit.h"
 
 typedef enum MountState {
-        MOUNT_DEAD,
-        MOUNT_MOUNTING,               /* /bin/mount is running, but the mount is not done yet. */
-        MOUNT_MOUNTING_DONE,          /* /bin/mount is running, and the mount is done. */
-        MOUNT_MOUNTED,
-        MOUNT_REMOUNTING,
-        MOUNT_UNMOUNTING,
-        MOUNT_MOUNTING_SIGTERM,
-        MOUNT_MOUNTING_SIGKILL,
-        MOUNT_REMOUNTING_SIGTERM,
-        MOUNT_REMOUNTING_SIGKILL,
-        MOUNT_UNMOUNTING_SIGTERM,
-        MOUNT_UNMOUNTING_SIGKILL,
-        MOUNT_FAILED,
-        _MOUNT_STATE_MAX,
-        _MOUNT_STATE_INVALID = -1
+	MOUNT_DEAD,
+	MOUNT_MOUNTING, /* /bin/mount is running, but the mount is not done yet. */
+	MOUNT_MOUNTING_DONE, /* /bin/mount is running, and the mount is done. */
+	MOUNT_MOUNTED,
+	MOUNT_REMOUNTING,
+	MOUNT_UNMOUNTING,
+	MOUNT_MOUNTING_SIGTERM,
+	MOUNT_MOUNTING_SIGKILL,
+	MOUNT_REMOUNTING_SIGTERM,
+	MOUNT_REMOUNTING_SIGKILL,
+	MOUNT_UNMOUNTING_SIGTERM,
+	MOUNT_UNMOUNTING_SIGKILL,
+	MOUNT_FAILED,
+	_MOUNT_STATE_MAX,
+	_MOUNT_STATE_INVALID = -1
 } MountState;
 
 typedef enum MountExecCommand {
-        MOUNT_EXEC_MOUNT,
-        MOUNT_EXEC_UNMOUNT,
-        MOUNT_EXEC_REMOUNT,
-        _MOUNT_EXEC_COMMAND_MAX,
-        _MOUNT_EXEC_COMMAND_INVALID = -1
+	MOUNT_EXEC_MOUNT,
+	MOUNT_EXEC_UNMOUNT,
+	MOUNT_EXEC_REMOUNT,
+	_MOUNT_EXEC_COMMAND_MAX,
+	_MOUNT_EXEC_COMMAND_INVALID = -1
 } MountExecCommand;
 
 typedef enum MountResult {
-        MOUNT_SUCCESS,
-        MOUNT_FAILURE_RESOURCES,
-        MOUNT_FAILURE_TIMEOUT,
-        MOUNT_FAILURE_EXIT_CODE,
-        MOUNT_FAILURE_SIGNAL,
-        MOUNT_FAILURE_CORE_DUMP,
-        _MOUNT_RESULT_MAX,
-        _MOUNT_RESULT_INVALID = -1
+	MOUNT_SUCCESS,
+	MOUNT_FAILURE_RESOURCES,
+	MOUNT_FAILURE_TIMEOUT,
+	MOUNT_FAILURE_EXIT_CODE,
+	MOUNT_FAILURE_SIGNAL,
+	MOUNT_FAILURE_CORE_DUMP,
+	_MOUNT_RESULT_MAX,
+	_MOUNT_RESULT_INVALID = -1
 } MountResult;
 
 typedef struct MountParameters {
-        char *what;
-        char *options;
-        char *fstype;
+	char *what;
+	char *options;
+	char *fstype;
 } MountParameters;
 
 struct Mount {
-        Unit meta;
+	Unit meta;
 
-        char *where;
+	char *where;
 
-        MountParameters parameters_proc_self_mountinfo;
-        MountParameters parameters_fragment;
+	MountParameters parameters_proc_self_mountinfo;
+	MountParameters parameters_fragment;
 
-        bool from_proc_self_mountinfo:1;
-        bool from_fragment:1;
+	bool from_proc_self_mountinfo: 1;
+	bool from_fragment: 1;
 
-        /* Used while looking for mount points that vanished or got
+	/* Used while looking for mount points that vanished or got
          * added from/to /proc/self/mountinfo */
-        bool is_mounted:1;
-        bool just_mounted:1;
-        bool just_changed:1;
+	bool is_mounted: 1;
+	bool just_mounted: 1;
+	bool just_changed: 1;
 
-        bool sloppy_options;
+	bool sloppy_options;
 
-        bool lazy_unmount;
+	bool lazy_unmount;
 
-        MountResult result;
-        MountResult reload_result;
+	MountResult result;
+	MountResult reload_result;
 
-        mode_t directory_mode;
+	mode_t directory_mode;
 
-        usec_t timeout_usec;
+	usec_t timeout_usec;
 
-        ExecCommand exec_command[_MOUNT_EXEC_COMMAND_MAX];
+	ExecCommand exec_command[_MOUNT_EXEC_COMMAND_MAX];
 
-        ExecContext exec_context;
-        KillContext kill_context;
-        CGroupContext cgroup_context;
+	ExecContext exec_context;
+	KillContext kill_context;
+	CGroupContext cgroup_context;
 
-        ExecRuntime *exec_runtime;
+	ExecRuntime *exec_runtime;
 
-        MountState state, deserialized_state;
+	MountState state, deserialized_state;
 
-        ExecCommand* control_command;
-        MountExecCommand control_command_id;
-        pid_t control_pid;
+	ExecCommand *control_command;
+	MountExecCommand control_command_id;
+	pid_t control_pid;
 
-        sd_event_source *timer_event_source;
+	sd_event_source *timer_event_source;
 
-        unsigned n_retry_umount;
+	unsigned n_retry_umount;
 };
 
 extern const UnitVTable mount_vtable;
 
 void mount_fd_event(Manager *m, int events);
 
-const char* mount_state_to_string(MountState i) _const_;
+const char *mount_state_to_string(MountState i) _const_;
 MountState mount_state_from_string(const char *s) _pure_;
 
-const char* mount_exec_command_to_string(MountExecCommand i) _const_;
+const char *mount_exec_command_to_string(MountExecCommand i) _const_;
 MountExecCommand mount_exec_command_from_string(const char *s) _pure_;
 
-const char* mount_result_to_string(MountResult i) _const_;
+const char *mount_result_to_string(MountResult i) _const_;
 MountResult mount_result_from_string(const char *s) _pure_;
 
-void warn_if_dir_nonempty(const char *unit, const char* where);
+void warn_if_dir_nonempty(const char *unit, const char *where);
 const char *mount_get_fstype(const Mount *m);

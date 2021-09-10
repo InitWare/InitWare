@@ -21,12 +21,13 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "sd-bus.h"
 #include "job.h"
+#include "sd-bus.h"
 
 extern const sd_bus_vtable bus_job_vtable[];
 
-int bus_job_method_cancel(sd_bus *bus, sd_bus_message *message, void *job, sd_bus_error *error);
+int bus_job_method_cancel(sd_bus *bus, sd_bus_message *message, void *job,
+	sd_bus_error *error);
 
 void bus_job_send_change_signal(Job *j);
 void bus_job_send_removed_signal(Job *j);

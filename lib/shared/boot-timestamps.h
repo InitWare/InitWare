@@ -24,4 +24,5 @@
 
 #include <time-util.h>
 
-int boot_timestamps(const dual_timestamp *n, dual_timestamp *firmware, dual_timestamp *loader);
+int boot_timestamps(const dual_timestamp *n, dual_timestamp *firmware,
+	dual_timestamp *loader);

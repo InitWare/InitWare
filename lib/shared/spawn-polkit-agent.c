@@ -20,78 +20,84 @@
 ***/
 
 #include <sys/types.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 #include <sys/prctl.h>
-#include <signal.h>
-#include <fcntl.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <poll.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "log.h"
-#include "util.h"
 #include "spawn-polkit-agent.h"
+#include "util.h"
 
 #ifdef ENABLE_POLKIT
 static pid_t agent_pid = 0;
 
-int polkit_agent_open(void) {
-        int r;
-        int pipe_fd[2];
-        char notify_fd[DECIMAL_STR_MAX(int) + 1];
+int
+polkit_agent_open(void)
+{
+	int r;
+	int pipe_fd[2];
+	char notify_fd[DECIMAL_STR_MAX(int) + 1];
 
-        if (agent_pid > 0)
-                return 0;
+	if (agent_pid > 0)
+		return 0;
 
-        /* We check STDIN here, not STDOUT, since this is about input,
+	/* We check STDIN here, not STDOUT, since this is about input,
          * not output */
-        if (!isatty(STDIN_FILENO))
-                return 0;
+	if (!isatty(STDIN_FILENO))
+		return 0;
 
-        if (pipe2(pipe_fd, 0) < 0)
-                return -errno;
+	if (pipe2(pipe_fd, 0) < 0)
+		return -errno;
 
-        xsprintf(notify_fd, "%i", pipe_fd[1]);
+	xsprintf(notify_fd, "%i", pipe_fd[1]);
 
-        r = fork_agent(&agent_pid,
-                       &pipe_fd[1], 1,
-                       POLKIT_AGENT_BINARY_PATH,
-                       POLKIT_AGENT_BINARY_PATH, "--notify-fd", notify_fd, "--fallback", NULL);
+	r = fork_agent(&agent_pid, &pipe_fd[1], 1, POLKIT_AGENT_BINARY_PATH,
+		POLKIT_AGENT_BINARY_PATH, "--notify-fd", notify_fd,
+		"--fallback", NULL);
 
-        /* Close the writing side, because that's the one for the agent */
-        safe_close(pipe_fd[1]);
+	/* Close the writing side, because that's the one for the agent */
+	safe_close(pipe_fd[1]);
 
-        if (r < 0)
-                log_error_errno(r, "Failed to fork TTY ask password agent: %m");
-        else
-                /* Wait until the agent closes the fd */
-                fd_wait_for_event(pipe_fd[0], POLLHUP, USEC_INFINITY);
+	if (r < 0)
+		log_error_errno(r, "Failed to fork TTY ask password agent: %m");
+	else
+		/* Wait until the agent closes the fd */
+		fd_wait_for_event(pipe_fd[0], POLLHUP, USEC_INFINITY);
 
-        safe_close(pipe_fd[0]);
+	safe_close(pipe_fd[0]);
 
-        return r;
+	return r;
 }
 
-void polkit_agent_close(void) {
+void
+polkit_agent_close(void)
+{
+	if (agent_pid <= 0)
+		return;
 
-        if (agent_pid <= 0)
-                return;
-
-        /* Inform agent that we are done */
-        kill(agent_pid, SIGTERM);
-        kill(agent_pid, SIGCONT);
-        (void) wait_for_terminate(agent_pid, NULL);
-        agent_pid = 0;
+	/* Inform agent that we are done */
+	kill(agent_pid, SIGTERM);
+	kill(agent_pid, SIGCONT);
+	(void)wait_for_terminate(agent_pid, NULL);
+	agent_pid = 0;
 }
 
 #else
 
-int polkit_agent_open(void) {
-        return 0;
+int
+polkit_agent_open(void)
+{
+	return 0;
 }
 
-void polkit_agent_close(void) {
+void
+polkit_agent_close(void)
+{
 }
 
 #endif

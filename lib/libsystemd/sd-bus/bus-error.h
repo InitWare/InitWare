@@ -23,18 +23,22 @@
 
 #include <stdbool.h>
 
-#include "sd-bus.h"
 #include "macro.h"
+#include "sd-bus.h"
 
 bool bus_error_is_dirty(sd_bus_error *e);
 
 const char *bus_error_message(const sd_bus_error *e, int error);
 
-int bus_error_setfv(sd_bus_error *e, const char *name, const char *format, va_list ap) _printf_(3,0);
-int bus_error_set_errnofv(sd_bus_error *e, int error, const char *format, va_list ap) _printf_(3,0);
+int bus_error_setfv(sd_bus_error *e, const char *name, const char *format,
+	va_list ap) _printf_(3, 0);
+int bus_error_set_errnofv(sd_bus_error *e, int error, const char *format,
+	va_list ap) _printf_(3, 0);
 
-#define BUS_ERROR_OOM SD_BUS_ERROR_MAKE_CONST(SD_BUS_ERROR_NO_MEMORY, "Out of memory")
-#define BUS_ERROR_FAILED SD_BUS_ERROR_MAKE_CONST(SD_BUS_ERROR_FAILED, "Operation failed")
+#define BUS_ERROR_OOM                                                          \
+	SD_BUS_ERROR_MAKE_CONST(SD_BUS_ERROR_NO_MEMORY, "Out of memory")
+#define BUS_ERROR_FAILED                                                       \
+	SD_BUS_ERROR_MAKE_CONST(SD_BUS_ERROR_FAILED, "Operation failed")
 
 /*
  * There are two ways to register error maps with the error translation
@@ -49,14 +53,14 @@ int bus_error_set_errnofv(sd_bus_error *e, int error, const char *format, va_lis
  * the error map is really added to the final binary.
  */
 
-#define BUS_ERROR_MAP_ELF_REGISTER                                      \
-        __attribute__ ((__section__("BUS_ERROR_MAP")))                  \
-        __attribute__ ((__used__))                                      \
-        __attribute__ ((aligned(8)))
+#define BUS_ERROR_MAP_ELF_REGISTER                                             \
+	__attribute__((__section__("BUS_ERROR_MAP")))                          \
+	__attribute__((__used__)) __attribute__((aligned(8)))
 
-#define BUS_ERROR_MAP_ELF_USE(errors)                                   \
-        extern const sd_bus_error_map errors[];                         \
-        __attribute__ ((used)) static const sd_bus_error_map * const CONCATENATE(errors ## _copy_, __COUNTER__) = errors;
+#define BUS_ERROR_MAP_ELF_USE(errors)                                           \
+	extern const sd_bus_error_map errors[];                                 \
+	__attribute__((used)) static const sd_bus_error_map *const CONCATENATE( \
+		errors##_copy_, __COUNTER__) = errors;
 
 /* We use something exotic as end marker, to ensure people build the
  * maps using the macsd-ros. */

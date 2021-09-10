@@ -24,8 +24,8 @@
 #include <stdbool.h>
 
 #include "macro.h"
-#include "sd-bus.h"
 #include "sd-bus-protocol.h"
+#include "sd-bus.h"
 
 bool bus_type_is_valid(char c) _const_;
 bool bus_type_is_valid_in_signature(char c) _const_;

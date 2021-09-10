@@ -24,24 +24,24 @@
 typedef struct Device Device;
 
 #include "list.h"
-#include "util.h"
-#include "logind.h"
 #include "logind-seat.h"
 #include "logind-session-device.h"
+#include "logind.h"
+#include "util.h"
 
 struct Device {
-        Manager *manager;
+	Manager *manager;
 
-        char *sysfs;
-        Seat *seat;
-        bool master;
+	char *sysfs;
+	Seat *seat;
+	bool master;
 
-        dual_timestamp timestamp;
+	dual_timestamp timestamp;
 
-        IWLIST_FIELDS(struct Device, devices);
-        IWLIST_HEAD(SessionDevice, session_devices);
+	IWLIST_FIELDS(struct Device, devices);
+	IWLIST_HEAD(SessionDevice, session_devices);
 };
 
-Device* device_new(Manager *m, const char *sysfs, bool master);
+Device *device_new(Manager *m, const char *sysfs, bool master);
 void device_free(Device *d);
 void device_attach(Device *d, Seat *s);

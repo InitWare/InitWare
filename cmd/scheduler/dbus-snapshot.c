@@ -19,32 +19,34 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "selinux-access.h"
-#include "unit.h"
-#include "snapshot.h"
-#include "dbus-unit.h"
 #include "dbus-snapshot.h"
+#include "dbus-unit.h"
+#include "selinux-access.h"
+#include "snapshot.h"
+#include "unit.h"
 
-int bus_snapshot_method_remove(sd_bus *bus, sd_bus_message *message, void *userdata, sd_bus_error *error) {
-        Snapshot *s = userdata;
-        int r;
+int
+bus_snapshot_method_remove(sd_bus *bus, sd_bus_message *message, void *userdata,
+	sd_bus_error *error)
+{
+	Snapshot *s = userdata;
+	int r;
 
-        assert(bus);
-        assert(message);
-        assert(s);
+	assert(bus);
+	assert(message);
+	assert(s);
 
-        r = mac_selinux_unit_access_check(UNIT(s), message, "stop", error);
-        if (r < 0)
-                return r;
+	r = mac_selinux_unit_access_check(UNIT(s), message, "stop", error);
+	if (r < 0)
+		return r;
 
-        snapshot_remove(s);
+	snapshot_remove(s);
 
-        return sd_bus_reply_method_return(message, NULL);
+	return sd_bus_reply_method_return(message, NULL);
 }
 
-const sd_bus_vtable bus_snapshot_vtable[] = {
-        SD_BUS_VTABLE_START(0),
-        SD_BUS_METHOD("Remove", NULL, NULL, bus_snapshot_method_remove, 0),
-        SD_BUS_PROPERTY("Cleanup", "b", bus_property_get_bool, offsetof(Snapshot, cleanup), SD_BUS_VTABLE_PROPERTY_CONST),
-        SD_BUS_VTABLE_END
-};
+const sd_bus_vtable bus_snapshot_vtable[] = { SD_BUS_VTABLE_START(0),
+	SD_BUS_METHOD("Remove", NULL, NULL, bus_snapshot_method_remove, 0),
+	SD_BUS_PROPERTY("Cleanup", "b", bus_property_get_bool,
+		offsetof(Snapshot, cleanup), SD_BUS_VTABLE_PROPERTY_CONST),
+	SD_BUS_VTABLE_END };

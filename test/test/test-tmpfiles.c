@@ -22,30 +22,34 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "util.h"
 
-int main(int argc, char** argv) {
-        const char *p = argv[1] ?: "/tmp";
-        char *pattern = strjoina(p, "/systemd-test-XXXXXX");
-        _cleanup_close_ int fd, fd2;
-        _cleanup_free_ char *cmd, *cmd2;
+int
+main(int argc, char **argv)
+{
+	const char *p = argv[1] ?: "/tmp";
+	char *pattern = strjoina(p, "/systemd-test-XXXXXX");
+	_cleanup_close_ int fd, fd2;
+	_cleanup_free_ char *cmd, *cmd2;
 
-        fd = open_tmpfile(p, O_RDWR|O_CLOEXEC);
-        assert_se(fd >= 0);
+	fd = open_tmpfile(p, O_RDWR | O_CLOEXEC);
+	assert_se(fd >= 0);
 
-        assert_se(asprintf(&cmd, "ls -l /proc/"PID_FMT"/fd/%d", getpid(), fd) > 0);
-        system(cmd);
+	assert_se(asprintf(&cmd, "ls -l /proc/" PID_FMT "/fd/%d", getpid(),
+			  fd) > 0);
+	system(cmd);
 
-        fd2 = mkostemp_safe(pattern, O_RDWR|O_CLOEXEC);
-        assert_se(fd >= 0);
-        assert_se(unlink(pattern) == 0);
+	fd2 = mkostemp_safe(pattern, O_RDWR | O_CLOEXEC);
+	assert_se(fd >= 0);
+	assert_se(unlink(pattern) == 0);
 
-        assert_se(asprintf(&cmd2, "ls -l /proc/"PID_FMT"/fd/%d", getpid(), fd2) > 0);
-        system(cmd2);
+	assert_se(asprintf(&cmd2, "ls -l /proc/" PID_FMT "/fd/%d", getpid(),
+			  fd2) > 0);
+	system(cmd2);
 
-        return 0;
+	return 0;
 }

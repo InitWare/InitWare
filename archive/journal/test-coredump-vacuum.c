@@ -23,10 +23,11 @@
 
 #include "coredump-vacuum.h"
 
-int main(int argc, char *argv[]) {
+int
+main(int argc, char *argv[])
+{
+	if (coredump_vacuum(-1, (off_t)-1, 70 * 1024) < 0)
+		return EXIT_FAILURE;
 
-        if (coredump_vacuum(-1, (off_t) -1, 70 * 1024) < 0)
-                return EXIT_FAILURE;
-
-        return EXIT_SUCCESS;
+	return EXIT_SUCCESS;
 }

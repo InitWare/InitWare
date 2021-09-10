@@ -21,13 +21,13 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #include "macro.h"
 #include "util.h"
 
-#define READAHEAD_FILE_SIZE_MAX (10*1024*1024)
+#define READAHEAD_FILE_SIZE_MAX (10 * 1024 * 1024)
 
 #define READAHEAD_PACK_FILE_VERSION ";VERSION=2\n"
 
@@ -45,8 +45,8 @@ bool enough_ram(void);
 int open_inotify(void);
 
 typedef struct ReadaheadShared {
-        pid_t collect;
-        pid_t replay;
+	pid_t collect;
+	pid_t replay;
 } _packed_ ReadaheadShared;
 
 ReadaheadShared *shared_get(void);

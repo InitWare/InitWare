@@ -25,65 +25,67 @@
 ***/
 
 #ifndef _GNU_SOURCE
-#  define _GNU_SOURCE
+#	define _GNU_SOURCE
 #endif
 
-#include <unistd.h>
-#include <errno.h>
-#include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "sd-readahead.h"
 
 #if (__GNUC__ >= 4)
-#  ifdef SD_EXPORT_SYMBOLS
+#	ifdef SD_EXPORT_SYMBOLS
 /* Export symbols */
-#    define _sd_export_ __attribute__ ((visibility("default")))
-#  else
+#		define _sd_export_ __attribute__((visibility("default")))
+#	else
 /* Don't export the symbols */
-#    define _sd_export_ __attribute__ ((visibility("hidden")))
-#  endif
+#		define _sd_export_ __attribute__((visibility("hidden")))
+#	endif
 #else
-#  define _sd_export_
+#	define _sd_export_
 #endif
 
-static int touch(const char *path) {
-
+static int
+touch(const char *path)
+{
 #if !defined(DISABLE_SYSTEMD) && defined(__linux__)
-        int fd;
+	int fd;
 
-        mkdir("/run/systemd", 0755);
-        mkdir("/run/systemd/readahead", 0755);
+	mkdir("/run/systemd", 0755);
+	mkdir("/run/systemd/readahead", 0755);
 
-        fd = open(path, O_WRONLY|O_CREAT|O_CLOEXEC|O_NOCTTY, 0666);
-        if (fd < 0)
-                return -errno;
+	fd = open(path, O_WRONLY | O_CREAT | O_CLOEXEC | O_NOCTTY, 0666);
+	if (fd < 0)
+		return -errno;
 
-        for (;;) {
-                if (close(fd) >= 0)
-                        break;
+	for (;;) {
+		if (close(fd) >= 0)
+			break;
 
-                if (errno != EINTR)
-                        return -errno;
-        }
+		if (errno != EINTR)
+			return -errno;
+	}
 
 #endif
-        return 0;
+	return 0;
 }
 
-_sd_export_ int sd_readahead(const char *action) {
+_sd_export_ int
+sd_readahead(const char *action)
+{
+	if (!action)
+		return -EINVAL;
 
-        if (!action)
-                return -EINVAL;
+	if (strcmp(action, "cancel") == 0)
+		return touch("/run/systemd/readahead/cancel");
+	else if (strcmp(action, "done") == 0)
+		return touch("/run/systemd/readahead/done");
+	else if (strcmp(action, "noreplay") == 0)
+		return touch("/run/systemd/readahead/noreplay");
 
-        if (strcmp(action, "cancel") == 0)
-                return touch("/run/systemd/readahead/cancel");
-        else if (strcmp(action, "done") == 0)
-                return touch("/run/systemd/readahead/done");
-        else if (strcmp(action, "noreplay") == 0)
-                return touch("/run/systemd/readahead/noreplay");
-
-        return -EINVAL;
+	return -EINVAL;
 }

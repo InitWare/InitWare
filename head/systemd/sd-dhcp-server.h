@@ -23,8 +23,8 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdbool.h>
 #include <netinet/in.h>
+#include <stdbool.h>
 
 #include "sd-event.h"
 
@@ -35,7 +35,8 @@ sd_dhcp_server *sd_dhcp_server_unref(sd_dhcp_server *server);
 
 int sd_dhcp_server_new(sd_dhcp_server **ret, int ifindex);
 
-int sd_dhcp_server_attach_event(sd_dhcp_server *client, sd_event *event, int priority);
+int sd_dhcp_server_attach_event(sd_dhcp_server *client, sd_event *event,
+	int priority);
 int sd_dhcp_server_detach_event(sd_dhcp_server *client);
 sd_event *sd_dhcp_server_get_event(sd_dhcp_server *client);
 
@@ -44,8 +45,10 @@ bool sd_dhcp_server_is_running(sd_dhcp_server *server);
 int sd_dhcp_server_start(sd_dhcp_server *server);
 int sd_dhcp_server_stop(sd_dhcp_server *server);
 
-int sd_dhcp_server_set_address(sd_dhcp_server *server, struct in_addr *address, unsigned char prefixlen);
-int sd_dhcp_server_set_lease_pool(sd_dhcp_server *server, struct in_addr *start, size_t size);
+int sd_dhcp_server_set_address(sd_dhcp_server *server, struct in_addr *address,
+	unsigned char prefixlen);
+int sd_dhcp_server_set_lease_pool(sd_dhcp_server *server, struct in_addr *start,
+	size_t size);
 
 int sd_dhcp_server_forcerenew(sd_dhcp_server *server);
 #endif

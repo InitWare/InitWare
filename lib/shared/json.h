@@ -21,30 +21,31 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdbool.h>
 #include <inttypes.h>
+#include <stdbool.h>
 
 enum {
-        JSON_END,
-        JSON_COLON,
-        JSON_COMMA,
-        JSON_OBJECT_OPEN,
-        JSON_OBJECT_CLOSE,
-        JSON_ARRAY_OPEN,
-        JSON_ARRAY_CLOSE,
-        JSON_STRING,
-        JSON_REAL,
-        JSON_INTEGER,
-        JSON_BOOLEAN,
-        JSON_NULL,
+	JSON_END,
+	JSON_COLON,
+	JSON_COMMA,
+	JSON_OBJECT_OPEN,
+	JSON_OBJECT_CLOSE,
+	JSON_ARRAY_OPEN,
+	JSON_ARRAY_CLOSE,
+	JSON_STRING,
+	JSON_REAL,
+	JSON_INTEGER,
+	JSON_BOOLEAN,
+	JSON_NULL,
 };
 
 union json_value {
-        bool boolean;
-        double real;
-        intmax_t integer;
+	bool boolean;
+	double real;
+	intmax_t integer;
 };
 
-#define JSON_VALUE_NULL ((union json_value) {})
+#define JSON_VALUE_NULL ((union json_value){})
 
-int json_tokenize(const char **p, char **ret_string, union json_value *ret_value, void **state, unsigned *line);
+int json_tokenize(const char **p, char **ret_string,
+	union json_value *ret_value, void **state, unsigned *line);

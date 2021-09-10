@@ -21,13 +21,18 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "sd-bus.h"
 #include "bus-match.h"
+#include "sd-bus.h"
 
-int bus_add_match_internal(sd_bus *bus, const char *match, struct bus_match_component *components, unsigned n_components, uint64_t cookie);
+int bus_add_match_internal(sd_bus *bus, const char *match,
+	struct bus_match_component *components, unsigned n_components,
+	uint64_t cookie);
 int bus_remove_match_internal(sd_bus *bus, const char *match, uint64_t cookie);
 
-int bus_add_match_internal_kernel(sd_bus *bus, struct bus_match_component *components, unsigned n_components, uint64_t cookie);
+int bus_add_match_internal_kernel(sd_bus *bus,
+	struct bus_match_component *components, unsigned n_components,
+	uint64_t cookie);
 int bus_remove_match_internal_kernel(sd_bus *bus, uint64_t cookie);
 
-int bus_get_name_creds_kdbus(sd_bus *bus, const char *name, uint64_t mask, bool allow_activator, sd_bus_creds **creds);
+int bus_get_name_creds_kdbus(sd_bus *bus, const char *name, uint64_t mask,
+	bool allow_activator, sd_bus_creds **creds);

@@ -28,47 +28,44 @@
 typedef struct RemoteServer RemoteServer;
 
 struct iovec_wrapper {
-        struct iovec *iovec;
-        size_t size_bytes;
-        size_t count;
+	struct iovec *iovec;
+	size_t size_bytes;
+	size_t count;
 };
 
-int iovw_put(struct iovec_wrapper *iovw, void* data, size_t len);
+int iovw_put(struct iovec_wrapper *iovw, void *data, size_t len);
 void iovw_free_contents(struct iovec_wrapper *iovw);
 size_t iovw_size(struct iovec_wrapper *iovw);
 void iovw_rebase(struct iovec_wrapper *iovw, char *old, char *new);
 
 typedef struct Writer {
-        JournalFile *journal;
-        JournalMetrics metrics;
+	JournalFile *journal;
+	JournalMetrics metrics;
 
-        MMapCache *mmap;
-        RemoteServer *server;
-        char *hashmap_key;
+	MMapCache *mmap;
+	RemoteServer *server;
+	char *hashmap_key;
 
-        uint64_t seqnum;
+	uint64_t seqnum;
 
-        int n_ref;
+	int n_ref;
 } Writer;
 
-Writer* writer_new(RemoteServer* server);
-Writer* writer_free(Writer *w);
+Writer *writer_new(RemoteServer *server);
+Writer *writer_free(Writer *w);
 
-Writer* writer_ref(Writer *w);
-Writer* writer_unref(Writer *w);
+Writer *writer_ref(Writer *w);
+Writer *writer_unref(Writer *w);
 
-DEFINE_TRIVIAL_CLEANUP_FUNC(Writer*, writer_unref);
+DEFINE_TRIVIAL_CLEANUP_FUNC(Writer *, writer_unref);
 #define _cleanup_writer_unref_ _cleanup_(writer_unrefp)
 
-int writer_write(Writer *s,
-                 struct iovec_wrapper *iovw,
-                 dual_timestamp *ts,
-                 bool compress,
-                 bool seal);
+int writer_write(Writer *s, struct iovec_wrapper *iovw, dual_timestamp *ts,
+	bool compress, bool seal);
 
 typedef enum JournalWriteSplitMode {
-        JOURNAL_WRITE_SPLIT_NONE,
-        JOURNAL_WRITE_SPLIT_HOST,
-        _JOURNAL_WRITE_SPLIT_MAX,
-        _JOURNAL_WRITE_SPLIT_INVALID = -1
+	JOURNAL_WRITE_SPLIT_NONE,
+	JOURNAL_WRITE_SPLIT_HOST,
+	_JOURNAL_WRITE_SPLIT_MAX,
+	_JOURNAL_WRITE_SPLIT_INVALID = -1
 } JournalWriteSplitMode;

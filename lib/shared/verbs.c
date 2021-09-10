@@ -19,72 +19,69 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "util.h"
 #include "verbs.h"
+#include "util.h"
 
-int dispatch_verb(int argc, char *argv[], const Verb verbs[], void *userdata) {
-        const Verb *verb;
-        const char *name;
-        unsigned i;
-        int left;
+int
+dispatch_verb(int argc, char *argv[], const Verb verbs[], void *userdata)
+{
+	const Verb *verb;
+	const char *name;
+	unsigned i;
+	int left;
 
-        assert(verbs);
-        assert(verbs[0].dispatch);
-        assert(argc >= 0);
-        assert(argv);
-        assert(argc >= optind);
+	assert(verbs);
+	assert(verbs[0].dispatch);
+	assert(argc >= 0);
+	assert(argv);
+	assert(argc >= optind);
 
-        left = argc - optind;
-        name = argv[optind];
+	left = argc - optind;
+	name = argv[optind];
 
-        for (i = 0;; i++) {
-                bool found;
+	for (i = 0;; i++) {
+		bool found;
 
-                /* At the end of the list? */
-                if (!verbs[i].dispatch) {
-                        if (name)
-                                log_error("Unknown operation %s.", name);
-                        else
-                                log_error("Requires operation parameter.");
-                        return -EINVAL;
-                }
+		/* At the end of the list? */
+		if (!verbs[i].dispatch) {
+			if (name)
+				log_error("Unknown operation %s.", name);
+			else
+				log_error("Requires operation parameter.");
+			return -EINVAL;
+		}
 
-                if (name)
-                        found = streq(name, verbs[i].verb);
-                else
-                        found = !!(verbs[i].flags & VERB_DEFAULT);
+		if (name)
+			found = streq(name, verbs[i].verb);
+		else
+			found = !!(verbs[i].flags & VERB_DEFAULT);
 
-                if (found) {
-                        verb = &verbs[i];
-                        break;
-                }
-        }
+		if (found) {
+			verb = &verbs[i];
+			break;
+		}
+	}
 
-        assert(verb);
+	assert(verb);
 
-        if (!name)
-                left = 1;
+	if (!name)
+		left = 1;
 
-        if (verb->min_args != VERB_ANY &&
-            (unsigned) left < verb->min_args) {
-                log_error("Too few arguments.");
-                return -EINVAL;
-        }
+	if (verb->min_args != VERB_ANY && (unsigned)left < verb->min_args) {
+		log_error("Too few arguments.");
+		return -EINVAL;
+	}
 
-        if (verb->max_args != VERB_ANY &&
-            (unsigned) left > verb->max_args) {
-                log_error("Too many arguments.");
-                return -EINVAL;
-        }
+	if (verb->max_args != VERB_ANY && (unsigned)left > verb->max_args) {
+		log_error("Too many arguments.");
+		return -EINVAL;
+	}
 
-        if (name)
-                return verb->dispatch(left, argv + optind, userdata);
-        else {
-                char* fake[2] = {
-                        (char*) verb->verb,
-                        NULL
-                };
+	if (name)
+		return verb->dispatch(left, argv + optind, userdata);
+	else {
+		char *fake[2] = { (char *)verb->verb, NULL };
 
-                return verb->dispatch(1, fake, userdata);
-        }
+		return verb->dispatch(1, fake, userdata);
+	}
 }

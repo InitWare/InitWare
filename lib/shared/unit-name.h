@@ -32,86 +32,87 @@ typedef enum UnitLoadState UnitLoadState;
 typedef enum UnitDependency UnitDependency;
 
 enum UnitType {
-        UNIT_SERVICE = 0,
-        UNIT_SOCKET,
-        UNIT_BUSNAME,
-        UNIT_TARGET,
-        UNIT_SNAPSHOT,
-        UNIT_DEVICE,
-        UNIT_MOUNT,
-        UNIT_AUTOMOUNT,
-        UNIT_SWAP,
-        UNIT_TIMER,
-        UNIT_PATH,
-        UNIT_SLICE,
-        UNIT_SCOPE,
-        _UNIT_TYPE_MAX,
-        _UNIT_TYPE_INVALID = -1
+	UNIT_SERVICE = 0,
+	UNIT_SOCKET,
+	UNIT_BUSNAME,
+	UNIT_TARGET,
+	UNIT_SNAPSHOT,
+	UNIT_DEVICE,
+	UNIT_MOUNT,
+	UNIT_AUTOMOUNT,
+	UNIT_SWAP,
+	UNIT_TIMER,
+	UNIT_PATH,
+	UNIT_SLICE,
+	UNIT_SCOPE,
+	_UNIT_TYPE_MAX,
+	_UNIT_TYPE_INVALID = -1
 };
 
 enum UnitLoadState {
-        UNIT_STUB = 0,
-        UNIT_LOADED,
-        UNIT_NOT_FOUND,
-        UNIT_ERROR,
-        UNIT_MERGED,
-        UNIT_MASKED,
-        _UNIT_LOAD_STATE_MAX,
-        _UNIT_LOAD_STATE_INVALID = -1
+	UNIT_STUB = 0,
+	UNIT_LOADED,
+	UNIT_NOT_FOUND,
+	UNIT_ERROR,
+	UNIT_MERGED,
+	UNIT_MASKED,
+	_UNIT_LOAD_STATE_MAX,
+	_UNIT_LOAD_STATE_INVALID = -1
 };
 
 enum UnitDependency {
-        /* Positive dependencies */
-        UNIT_REQUIRES,
-        UNIT_REQUIRES_OVERRIDABLE,
-        UNIT_REQUISITE,
-        UNIT_REQUISITE_OVERRIDABLE,
-        UNIT_WANTS,
-        UNIT_BINDS_TO,
-        UNIT_PART_OF,
+	/* Positive dependencies */
+	UNIT_REQUIRES,
+	UNIT_REQUIRES_OVERRIDABLE,
+	UNIT_REQUISITE,
+	UNIT_REQUISITE_OVERRIDABLE,
+	UNIT_WANTS,
+	UNIT_BINDS_TO,
+	UNIT_PART_OF,
 
-        /* Inverse of the above */
-        UNIT_REQUIRED_BY,             /* inverse of 'requires' and 'requisite' is 'required_by' */
-        UNIT_REQUIRED_BY_OVERRIDABLE, /* inverse of 'requires_overridable' and 'requisite_overridable' is 'soft_required_by' */
-        UNIT_WANTED_BY,               /* inverse of 'wants' */
-        UNIT_BOUND_BY,                /* inverse of 'binds_to' */
-        UNIT_CONSISTS_OF,             /* inverse of 'part_of' */
+	/* Inverse of the above */
+	UNIT_REQUIRED_BY, /* inverse of 'requires' and 'requisite' is 'required_by' */
+	UNIT_REQUIRED_BY_OVERRIDABLE, /* inverse of 'requires_overridable' and 'requisite_overridable' is 'soft_required_by' */
+	UNIT_WANTED_BY, /* inverse of 'wants' */
+	UNIT_BOUND_BY, /* inverse of 'binds_to' */
+	UNIT_CONSISTS_OF, /* inverse of 'part_of' */
 
-        /* Negative dependencies */
-        UNIT_CONFLICTS,               /* inverse of 'conflicts' is 'conflicted_by' */
-        UNIT_CONFLICTED_BY,
+	/* Negative dependencies */
+	UNIT_CONFLICTS, /* inverse of 'conflicts' is 'conflicted_by' */
+	UNIT_CONFLICTED_BY,
 
-        /* Order */
-        UNIT_BEFORE,                  /* inverse of 'before' is 'after' and vice versa */
-        UNIT_AFTER,
+	/* Order */
+	UNIT_BEFORE, /* inverse of 'before' is 'after' and vice versa */
+	UNIT_AFTER,
 
-        /* On Failure */
-        UNIT_ON_FAILURE,
+	/* On Failure */
+	UNIT_ON_FAILURE,
 
-        /* Triggers (i.e. a socket triggers a service) */
-        UNIT_TRIGGERS,
-        UNIT_TRIGGERED_BY,
+	/* Triggers (i.e. a socket triggers a service) */
+	UNIT_TRIGGERS,
+	UNIT_TRIGGERED_BY,
 
-        /* Propagate reloads */
-        UNIT_PROPAGATES_RELOAD_TO,
-        UNIT_RELOAD_PROPAGATED_FROM,
+	/* Propagate reloads */
+	UNIT_PROPAGATES_RELOAD_TO,
+	UNIT_RELOAD_PROPAGATED_FROM,
 
-        /* Joins namespace of */
-        UNIT_JOINS_NAMESPACE_OF,
+	/* Joins namespace of */
+	UNIT_JOINS_NAMESPACE_OF,
 
-        /* Reference information for GC logic */
-        UNIT_REFERENCES,              /* Inverse of 'references' is 'referenced_by' */
-        UNIT_REFERENCED_BY,
+	/* Reference information for GC logic */
+	UNIT_REFERENCES, /* Inverse of 'references' is 'referenced_by' */
+	UNIT_REFERENCED_BY,
 
-        _UNIT_DEPENDENCY_MAX,
-        _UNIT_DEPENDENCY_INVALID = -1
+	_UNIT_DEPENDENCY_MAX,
+	_UNIT_DEPENDENCY_INVALID = -1
 };
 
 typedef enum UnitNameFlags {
-        UNIT_NAME_PLAIN = 1,      /* Allow foo.service */
-        UNIT_NAME_INSTANCE = 2,   /* Allow foo@bar.service */
-        UNIT_NAME_TEMPLATE = 4,   /* Allow foo@.service */
-        UNIT_NAME_ANY = UNIT_NAME_PLAIN|UNIT_NAME_INSTANCE|UNIT_NAME_TEMPLATE,
+	UNIT_NAME_PLAIN = 1, /* Allow foo.service */
+	UNIT_NAME_INSTANCE = 2, /* Allow foo@bar.service */
+	UNIT_NAME_TEMPLATE = 4, /* Allow foo@.service */
+	UNIT_NAME_ANY =
+		UNIT_NAME_PLAIN | UNIT_NAME_INSTANCE | UNIT_NAME_TEMPLATE,
 } UnitNameFlags;
 
 const char *unit_type_to_string(UnitType i) _const_;
@@ -121,8 +122,8 @@ const char *unit_load_state_to_string(UnitLoadState i) _const_;
 UnitLoadState unit_load_state_from_string(const char *s) _pure_;
 
 int unit_name_to_instance(const char *n, char **instance);
-char* unit_name_to_prefix(const char *n);
-char* unit_name_to_prefix_and_instance(const char *n);
+char *unit_name_to_prefix(const char *n);
+char *unit_name_to_prefix_and_instance(const char *n);
 
 bool unit_name_is_valid(const char *n, UnitNameFlags flags) _pure_;
 bool unit_prefix_is_valid(const char *p) _pure_;
@@ -132,7 +133,8 @@ UnitType unit_name_to_type(const char *n) _pure_;
 
 char *unit_name_change_suffix(const char *n, const char *suffix);
 
-char *unit_name_build(const char *prefix, const char *instance, const char *suffix);
+char *unit_name_build(const char *prefix, const char *instance,
+	const char *suffix);
 
 char *unit_name_escape(const char *f);
 char *unit_name_unescape(const char *f);
@@ -147,23 +149,27 @@ char *unit_name_replace_instance(const char *f, const char *i);
 char *unit_name_template(const char *f);
 
 char *unit_name_from_path(const char *path, const char *suffix);
-char *unit_name_from_path_instance(const char *prefix, const char *path, const char *suffix);
+char *unit_name_from_path_instance(const char *prefix, const char *path,
+	const char *suffix);
 char *unit_name_to_path(const char *name);
 
 char *unit_dbus_path_from_name(const char *name);
 int unit_name_from_dbus_path(const char *path, char **name);
 
 enum unit_name_mangle {
-        MANGLE_NOGLOB,
-        MANGLE_GLOB,
+	MANGLE_NOGLOB,
+	MANGLE_GLOB,
 };
 
-char *unit_name_mangle_with_suffix(const char *name, enum unit_name_mangle allow_globs, const char *suffix);
-static inline char *unit_name_mangle(const char *name, enum unit_name_mangle allow_globs) {
-        return unit_name_mangle_with_suffix(name, allow_globs, ".service");
+char *unit_name_mangle_with_suffix(const char *name,
+	enum unit_name_mangle allow_globs, const char *suffix);
+static inline char *
+unit_name_mangle(const char *name, enum unit_name_mangle allow_globs)
+{
+	return unit_name_mangle_with_suffix(name, allow_globs, ".service");
 }
 
-int build_subslice(const char *slice, const char*name, char **subslice);
+int build_subslice(const char *slice, const char *name, char **subslice);
 
 const char *unit_dependency_to_string(UnitDependency i) _const_;
 UnitDependency unit_dependency_from_string(const char *s) _pure_;

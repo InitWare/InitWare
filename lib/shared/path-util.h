@@ -30,28 +30,28 @@
 #define DEFAULT_PATH_SPLIT_USR DEFAULT_PATH_NORMAL ":/sbin:/bin"
 
 #ifdef HAVE_SPLIT_USR
-#  define DEFAULT_PATH DEFAULT_PATH_SPLIT_USR
+#	define DEFAULT_PATH DEFAULT_PATH_SPLIT_USR
 #else
-#  define DEFAULT_PATH DEFAULT_PATH_NORMAL
+#	define DEFAULT_PATH DEFAULT_PATH_NORMAL
 #endif
 
 bool is_path(const char *p) _pure_;
-char** path_split_and_make_absolute(const char *p);
+char **path_split_and_make_absolute(const char *p);
 int path_get_parent(const char *path, char **parent);
 bool path_is_absolute(const char *p) _pure_;
-char* path_make_absolute(const char *p, const char *prefix);
-char* path_make_absolute_cwd(const char *p);
+char *path_make_absolute(const char *p, const char *prefix);
+char *path_make_absolute_cwd(const char *p);
 int path_make_relative(const char *from_dir, const char *to_path, char **_r);
-char* path_kill_slashes(char *path);
-char* path_startswith(const char *path, const char *prefix) _pure_;
+char *path_kill_slashes(char *path);
+char *path_startswith(const char *path, const char *prefix) _pure_;
 int path_compare(const char *a, const char *b) _pure_;
 bool path_equal(const char *a, const char *b) _pure_;
 bool path_equal_or_files_same(const char *a, const char *b);
-char* path_join(const char *root, const char *path, const char *rest);
+char *path_join(const char *root, const char *path, const char *rest);
 
-char** path_strv_make_absolute_cwd(char **l);
-char** path_strv_resolve(char **l, const char *prefix);
-char** path_strv_resolve_uniq(char **l, const char *prefix);
+char **path_strv_make_absolute_cwd(char **l);
+char **path_strv_resolve(char **l, const char *prefix);
+char **path_strv_resolve_uniq(char **l, const char *prefix);
 
 int fd_is_mount_point(int fd, const char *filename, int flags);
 int path_is_mount_point(const char *path, bool allow_symlink);
@@ -60,7 +60,8 @@ int path_is_os_tree(const char *path);
 
 int find_binary(const char *name, bool local, char **filename);
 
-bool paths_check_timestamp(const char* const* paths, usec_t *paths_ts_usec, bool update);
+bool paths_check_timestamp(const char *const *paths, usec_t *paths_ts_usec,
+	bool update);
 
 int fsck_exists(const char *fstype);
 
@@ -70,35 +71,47 @@ int inotify_add_watch_fd(int fd, int what, uint32_t mask);
 
 /* Similar to prefix_root(), but returns an alloca() buffer, or
  * possibly a const pointer into the path parameter */
-#define prefix_roota(root, path)                                        \
-        ({                                                              \
-                const char* _path = (path), *_root = (root), *_ret;     \
-                char *_p, *_n;                                          \
-                size_t _l;                                              \
-                while (_path[0] == '/' && _path[1] == '/')              \
-                        _path ++;                                       \
-                if (isempty(_root) || path_equal(_root, "/"))           \
-                        _ret = _path;                                   \
-                else {                                                  \
-                        _l = strlen(_root) + 1 + strlen(_path) + 1;     \
-                        _n = alloca(_l);                                \
-                        _p = stpcpy(_n, _root);                         \
-                        while (_p > _n && _p[-1] == '/')                \
-                                _p--;                                   \
-                        if (_path[0] != '/')                            \
-                                *(_p++) = '/';                          \
-                        strcpy(_p, _path);                              \
-                        _ret = _n;                                      \
-                }                                                       \
-                _ret;                                                   \
-        })
+#define prefix_roota(root, path)                                               \
+	({                                                                     \
+		const char *_path = (path), *_root = (root), *_ret;            \
+		char *_p, *_n;                                                 \
+		size_t _l;                                                     \
+		while (_path[0] == '/' && _path[1] == '/')                     \
+			_path++;                                               \
+		if (isempty(_root) || path_equal(_root, "/"))                  \
+			_ret = _path;                                          \
+		else {                                                         \
+			_l = strlen(_root) + 1 + strlen(_path) + 1;            \
+			_n = alloca(_l);                                       \
+			_p = stpcpy(_n, _root);                                \
+			while (_p > _n && _p[-1] == '/')                       \
+				_p--;                                          \
+			if (_path[0] != '/')                                   \
+				*(_p++) = '/';                                 \
+			strcpy(_p, _path);                                     \
+			_ret = _n;                                             \
+		}                                                              \
+		_ret;                                                          \
+	})
 
 /* Iterates through the path prefixes of the specified path, going up
  * the tree, to root. Also returns "" (and not "/"!) for the root
  * directory. Excludes the specified directory itself */
-#define PATH_FOREACH_PREFIX(prefix, path) \
-        for (char *_slash = ({ path_kill_slashes(strcpy(prefix, path)); streq(prefix, "/") ? NULL : strrchr(prefix, '/'); }); _slash && ((*_slash = 0), true); _slash = strrchr((prefix), '/'))
+#define PATH_FOREACH_PREFIX(prefix, path)                                      \
+	for (char *_slash = ({                                                 \
+		     path_kill_slashes(strcpy(prefix, path));                  \
+		     streq(prefix, "/") ? NULL : strrchr(prefix, '/');         \
+	     });                                                               \
+		_slash && ((*_slash = 0), true);                               \
+		_slash = strrchr((prefix), '/'))
 
 /* Same as PATH_FOREACH_PREFIX but also includes the specified path itself */
-#define PATH_FOREACH_PREFIX_MORE(prefix, path) \
-        for (char *_slash = ({ path_kill_slashes(strcpy(prefix, path)); if (streq(prefix, "/")) prefix[0] = 0; strrchr(prefix, 0); }); _slash && ((*_slash = 0), true); _slash = strrchr((prefix), '/'))
+#define PATH_FOREACH_PREFIX_MORE(prefix, path)                                 \
+	for (char *_slash = ({                                                 \
+		     path_kill_slashes(strcpy(prefix, path));                  \
+		     if (streq(prefix, "/"))                                   \
+			     prefix[0] = 0;                                    \
+		     strrchr(prefix, 0);                                       \
+	     });                                                               \
+		_slash && ((*_slash = 0), true);                               \
+		_slash = strrchr((prefix), '/'))

@@ -19,70 +19,68 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "unit.h"
-#include "path.h"
-#include "dbus-unit.h"
 #include "dbus-path.h"
 #include "bus-util.h"
+#include "dbus-unit.h"
+#include "path.h"
+#include "unit.h"
 
-static BUS_DEFINE_PROPERTY_GET_ENUM(property_get_result, path_result, PathResult);
+static BUS_DEFINE_PROPERTY_GET_ENUM(property_get_result, path_result,
+	PathResult);
 
-static int property_get_paths(
-                sd_bus *bus,
-                const char *path,
-                const char *interface,
-                const char *property,
-                sd_bus_message *reply,
-                void *userdata,
-                sd_bus_error *error) {
+static int
+property_get_paths(sd_bus *bus, const char *path, const char *interface,
+	const char *property, sd_bus_message *reply, void *userdata,
+	sd_bus_error *error)
+{
+	Path *p = userdata;
+	PathSpec *k;
+	int r;
 
-        Path *p = userdata;
-        PathSpec *k;
-        int r;
+	assert(bus);
+	assert(reply);
+	assert(p);
 
-        assert(bus);
-        assert(reply);
-        assert(p);
+	r = sd_bus_message_open_container(reply, 'a', "(ss)");
+	if (r < 0)
+		return r;
 
-        r = sd_bus_message_open_container(reply, 'a', "(ss)");
-        if (r < 0)
-                return r;
+	IWLIST_FOREACH(spec, k, p->specs)
+	{
+		r = sd_bus_message_append(reply, "(ss)",
+			path_type_to_string(k->type), k->path);
+		if (r < 0)
+			return r;
+	}
 
-        IWLIST_FOREACH(spec, k, p->specs) {
-                r = sd_bus_message_append(reply, "(ss)", path_type_to_string(k->type), k->path);
-                if (r < 0)
-                        return r;
-        }
-
-        return sd_bus_message_close_container(reply);
+	return sd_bus_message_close_container(reply);
 }
 
-static int property_get_unit(
-                sd_bus *bus,
-                const char *path,
-                const char *interface,
-                const char *property,
-                sd_bus_message *reply,
-                void *userdata,
-                sd_bus_error *error) {
+static int
+property_get_unit(sd_bus *bus, const char *path, const char *interface,
+	const char *property, sd_bus_message *reply, void *userdata,
+	sd_bus_error *error)
+{
+	Unit *p = userdata, *trigger;
 
-        Unit *p = userdata, *trigger;
+	assert(bus);
+	assert(reply);
+	assert(p);
 
-        assert(bus);
-        assert(reply);
-        assert(p);
+	trigger = UNIT_TRIGGER(p);
 
-        trigger = UNIT_TRIGGER(p);
-
-        return sd_bus_message_append(reply, "s", trigger ? trigger->id : "");
+	return sd_bus_message_append(reply, "s", trigger ? trigger->id : "");
 }
 
-const sd_bus_vtable bus_path_vtable[] = {
-        SD_BUS_VTABLE_START(0),
-        SD_BUS_PROPERTY("Unit", "s", property_get_unit, 0, SD_BUS_VTABLE_PROPERTY_CONST),
-        SD_BUS_PROPERTY("Paths", "a(ss)", property_get_paths, 0, SD_BUS_VTABLE_PROPERTY_CONST),
-        SD_BUS_PROPERTY("MakeDirectory", "b", bus_property_get_bool, offsetof(Path, make_directory), SD_BUS_VTABLE_PROPERTY_CONST),
-        SD_BUS_PROPERTY("DirectoryMode", "u", bus_property_get_mode, offsetof(Path, directory_mode), SD_BUS_VTABLE_PROPERTY_CONST),
-        SD_BUS_PROPERTY("Result", "s", property_get_result, offsetof(Path, result), SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
-        SD_BUS_VTABLE_END
-};
+const sd_bus_vtable bus_path_vtable[] = { SD_BUS_VTABLE_START(0),
+	SD_BUS_PROPERTY("Unit", "s", property_get_unit, 0,
+		SD_BUS_VTABLE_PROPERTY_CONST),
+	SD_BUS_PROPERTY("Paths", "a(ss)", property_get_paths, 0,
+		SD_BUS_VTABLE_PROPERTY_CONST),
+	SD_BUS_PROPERTY("MakeDirectory", "b", bus_property_get_bool,
+		offsetof(Path, make_directory), SD_BUS_VTABLE_PROPERTY_CONST),
+	SD_BUS_PROPERTY("DirectoryMode", "u", bus_property_get_mode,
+		offsetof(Path, directory_mode), SD_BUS_VTABLE_PROPERTY_CONST),
+	SD_BUS_PROPERTY("Result", "s", property_get_result,
+		offsetof(Path, result), SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
+	SD_BUS_VTABLE_END };

@@ -20,542 +20,582 @@
 ***/
 
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <linux/vt.h>
 #include <fcntl.h>
 #include <pwd.h>
 #include <unistd.h>
-#include <linux/vt.h>
 
-#include "strv.h"
-#include "cgroup-util.h"
 #include "audit.h"
-#include "bus-util.h"
 #include "bus-error.h"
-#include "udev-util.h"
+#include "bus-util.h"
+#include "cgroup-util.h"
 #include "logind.h"
+#include "strv.h"
+#include "udev-util.h"
 
-int manager_add_device(Manager *m, const char *sysfs, bool master, Device **_device) {
-        Device *d;
+int
+manager_add_device(Manager *m, const char *sysfs, bool master, Device **_device)
+{
+	Device *d;
 
-        assert(m);
-        assert(sysfs);
+	assert(m);
+	assert(sysfs);
 
-        d = hashmap_get(m->devices, sysfs);
-        if (d)
-                /* we support adding master-flags, but not removing them */
-                d->master = d->master || master;
-        else {
-                d = device_new(m, sysfs, master);
-                if (!d)
-                        return -ENOMEM;
-        }
+	d = hashmap_get(m->devices, sysfs);
+	if (d)
+		/* we support adding master-flags, but not removing them */
+		d->master = d->master || master;
+	else {
+		d = device_new(m, sysfs, master);
+		if (!d)
+			return -ENOMEM;
+	}
 
-        if (_device)
-                *_device = d;
+	if (_device)
+		*_device = d;
 
-        return 0;
+	return 0;
 }
 
-int manager_add_seat(Manager *m, const char *id, Seat **_seat) {
-        Seat *s;
+int
+manager_add_seat(Manager *m, const char *id, Seat **_seat)
+{
+	Seat *s;
 
-        assert(m);
-        assert(id);
+	assert(m);
+	assert(id);
 
-        s = hashmap_get(m->seats, id);
-        if (!s) {
-                s = seat_new(m, id);
-                if (!s)
-                        return -ENOMEM;
-        }
+	s = hashmap_get(m->seats, id);
+	if (!s) {
+		s = seat_new(m, id);
+		if (!s)
+			return -ENOMEM;
+	}
 
-        if (_seat)
-                *_seat = s;
+	if (_seat)
+		*_seat = s;
 
-        return 0;
+	return 0;
 }
 
-int manager_add_session(Manager *m, const char *id, Session **_session) {
-        Session *s;
+int
+manager_add_session(Manager *m, const char *id, Session **_session)
+{
+	Session *s;
 
-        assert(m);
-        assert(id);
+	assert(m);
+	assert(id);
 
-        s = hashmap_get(m->sessions, id);
-        if (!s) {
-                s = session_new(m, id);
-                if (!s)
-                        return -ENOMEM;
-        }
+	s = hashmap_get(m->sessions, id);
+	if (!s) {
+		s = session_new(m, id);
+		if (!s)
+			return -ENOMEM;
+	}
 
-        if (_session)
-                *_session = s;
+	if (_session)
+		*_session = s;
 
-        return 0;
+	return 0;
 }
 
-int manager_add_user(Manager *m, uid_t uid, gid_t gid, const char *name, User **_user) {
-        User *u;
+int
+manager_add_user(Manager *m, uid_t uid, gid_t gid, const char *name,
+	User **_user)
+{
+	User *u;
 
-        assert(m);
-        assert(name);
+	assert(m);
+	assert(name);
 
-        u = hashmap_get(m->users, UID_TO_PTR(uid));
-        if (!u) {
-                u = user_new(m, uid, gid, name);
-                if (!u)
-                        return -ENOMEM;
-        }
+	u = hashmap_get(m->users, UID_TO_PTR(uid));
+	if (!u) {
+		u = user_new(m, uid, gid, name);
+		if (!u)
+			return -ENOMEM;
+	}
 
-        if (_user)
-                *_user = u;
+	if (_user)
+		*_user = u;
 
-        return 0;
+	return 0;
 }
 
-int manager_add_user_by_name(Manager *m, const char *name, User **_user) {
-        uid_t uid;
-        gid_t gid;
-        int r;
+int
+manager_add_user_by_name(Manager *m, const char *name, User **_user)
+{
+	uid_t uid;
+	gid_t gid;
+	int r;
 
-        assert(m);
-        assert(name);
+	assert(m);
+	assert(name);
 
-        r = get_user_creds(&name, &uid, &gid, NULL, NULL);
-        if (r < 0)
-                return r;
+	r = get_user_creds(&name, &uid, &gid, NULL, NULL);
+	if (r < 0)
+		return r;
 
-        return manager_add_user(m, uid, gid, name, _user);
+	return manager_add_user(m, uid, gid, name, _user);
 }
 
-int manager_add_user_by_uid(Manager *m, uid_t uid, User **_user) {
-        struct passwd *p;
+int
+manager_add_user_by_uid(Manager *m, uid_t uid, User **_user)
+{
+	struct passwd *p;
 
-        assert(m);
+	assert(m);
 
-        errno = 0;
-        p = getpwuid(uid);
-        if (!p)
-                return errno ? -errno : -ENOENT;
+	errno = 0;
+	p = getpwuid(uid);
+	if (!p)
+		return errno ? -errno : -ENOENT;
 
-        return manager_add_user(m, uid, p->pw_gid, p->pw_name, _user);
+	return manager_add_user(m, uid, p->pw_gid, p->pw_name, _user);
 }
 
-int manager_add_inhibitor(Manager *m, const char* id, Inhibitor **_inhibitor) {
-        Inhibitor *i;
+int
+manager_add_inhibitor(Manager *m, const char *id, Inhibitor **_inhibitor)
+{
+	Inhibitor *i;
 
-        assert(m);
-        assert(id);
+	assert(m);
+	assert(id);
 
-        i = hashmap_get(m->inhibitors, id);
-        if (i) {
-                if (_inhibitor)
-                        *_inhibitor = i;
+	i = hashmap_get(m->inhibitors, id);
+	if (i) {
+		if (_inhibitor)
+			*_inhibitor = i;
 
-                return 0;
-        }
+		return 0;
+	}
 
-        i = inhibitor_new(m, id);
-        if (!i)
-                return -ENOMEM;
+	i = inhibitor_new(m, id);
+	if (!i)
+		return -ENOMEM;
 
-        if (_inhibitor)
-                *_inhibitor = i;
+	if (_inhibitor)
+		*_inhibitor = i;
 
-        return 0;
+	return 0;
 }
 
-int manager_add_button(Manager *m, const char *name, Button **_button) {
-        Button *b;
+int
+manager_add_button(Manager *m, const char *name, Button **_button)
+{
+	Button *b;
 
-        assert(m);
-        assert(name);
+	assert(m);
+	assert(name);
 
-        b = hashmap_get(m->buttons, name);
-        if (!b) {
-                b = button_new(m, name);
-                if (!b)
-                        return -ENOMEM;
-        }
+	b = hashmap_get(m->buttons, name);
+	if (!b) {
+		b = button_new(m, name);
+		if (!b)
+			return -ENOMEM;
+	}
 
-        if (_button)
-                *_button = b;
+	if (_button)
+		*_button = b;
 
-        return 0;
+	return 0;
 }
 
-int manager_watch_busname(Manager *m, const char *name) {
-        char *n;
-        int r;
+int
+manager_watch_busname(Manager *m, const char *name)
+{
+	char *n;
+	int r;
 
-        assert(m);
-        assert(name);
+	assert(m);
+	assert(name);
 
-        if (set_get(m->busnames, (char*) name))
-                return 0;
+	if (set_get(m->busnames, (char *)name))
+		return 0;
 
-        n = strdup(name);
-        if (!n)
-                return -ENOMEM;
+	n = strdup(name);
+	if (!n)
+		return -ENOMEM;
 
-        r = set_put(m->busnames, n);
-        if (r < 0) {
-                free(n);
-                return r;
-        }
+	r = set_put(m->busnames, n);
+	if (r < 0) {
+		free(n);
+		return r;
+	}
 
-        return 0;
+	return 0;
 }
 
-void manager_drop_busname(Manager *m, const char *name) {
-        Session *session;
-        Iterator i;
+void
+manager_drop_busname(Manager *m, const char *name)
+{
+	Session *session;
+	Iterator i;
 
-        assert(m);
-        assert(name);
+	assert(m);
+	assert(name);
 
-        /* keep it if the name still owns a controller */
-        HASHMAP_FOREACH(session, m->sessions, i)
-                if (session_is_controller(session, name))
-                        return;
+	/* keep it if the name still owns a controller */
+	HASHMAP_FOREACH (session, m->sessions, i)
+		if (session_is_controller(session, name))
+			return;
 
-        free(set_remove(m->busnames, (char*) name));
+	free(set_remove(m->busnames, (char *)name));
 }
 
-int manager_process_seat_device(Manager *m, struct udev_device *d) {
-        Device *device;
-        int r;
+int
+manager_process_seat_device(Manager *m, struct udev_device *d)
+{
+	Device *device;
+	int r;
 
-        assert(m);
+	assert(m);
 
-        if (streq_ptr(udev_device_get_action(d), "remove")) {
+	if (streq_ptr(udev_device_get_action(d), "remove")) {
+		device = hashmap_get(m->devices, udev_device_get_syspath(d));
+		if (!device)
+			return 0;
 
-                device = hashmap_get(m->devices, udev_device_get_syspath(d));
-                if (!device)
-                        return 0;
+		seat_add_to_gc_queue(device->seat);
+		device_free(device);
 
-                seat_add_to_gc_queue(device->seat);
-                device_free(device);
+	} else {
+		const char *sn;
+		Seat *seat = NULL;
+		bool master;
 
-        } else {
-                const char *sn;
-                Seat *seat = NULL;
-                bool master;
+		sn = udev_device_get_property_value(d, "ID_SEAT");
+		if (isempty(sn))
+			sn = "seat0";
 
-                sn = udev_device_get_property_value(d, "ID_SEAT");
-                if (isempty(sn))
-                        sn = "seat0";
+		if (!seat_name_is_valid(sn)) {
+			log_warning(
+				"Device with invalid seat name %s found, ignoring.",
+				sn);
+			return 0;
+		}
 
-                if (!seat_name_is_valid(sn)) {
-                        log_warning("Device with invalid seat name %s found, ignoring.", sn);
-                        return 0;
-                }
+		seat = hashmap_get(m->seats, sn);
+		master = udev_device_has_tag(d, "master-of-seat");
 
-                seat = hashmap_get(m->seats, sn);
-                master = udev_device_has_tag(d, "master-of-seat");
+		/* Ignore non-master devices for unknown seats */
+		if (!master && !seat)
+			return 0;
 
-                /* Ignore non-master devices for unknown seats */
-                if (!master && !seat)
-                        return 0;
+		r = manager_add_device(m, udev_device_get_syspath(d), master,
+			&device);
+		if (r < 0)
+			return r;
 
-                r = manager_add_device(m, udev_device_get_syspath(d), master, &device);
-                if (r < 0)
-                        return r;
+		if (!seat) {
+			r = manager_add_seat(m, sn, &seat);
+			if (r < 0) {
+				if (!device->seat)
+					device_free(device);
 
-                if (!seat) {
-                        r = manager_add_seat(m, sn, &seat);
-                        if (r < 0) {
-                                if (!device->seat)
-                                        device_free(device);
+				return r;
+			}
+		}
 
-                                return r;
-                        }
-                }
+		device_attach(device, seat);
+		seat_start(seat);
+	}
 
-                device_attach(device, seat);
-                seat_start(seat);
-        }
-
-        return 0;
+	return 0;
 }
 
-int manager_process_button_device(Manager *m, struct udev_device *d) {
-        Button *b;
+int
+manager_process_button_device(Manager *m, struct udev_device *d)
+{
+	Button *b;
 
-        int r;
+	int r;
 
-        assert(m);
+	assert(m);
 
-        if (streq_ptr(udev_device_get_action(d), "remove")) {
+	if (streq_ptr(udev_device_get_action(d), "remove")) {
+		b = hashmap_get(m->buttons, udev_device_get_sysname(d));
+		if (!b)
+			return 0;
 
-                b = hashmap_get(m->buttons, udev_device_get_sysname(d));
-                if (!b)
-                        return 0;
+		button_free(b);
 
-                button_free(b);
+	} else {
+		const char *sn;
 
-        } else {
-                const char *sn;
+		r = manager_add_button(m, udev_device_get_sysname(d), &b);
+		if (r < 0)
+			return r;
 
-                r = manager_add_button(m, udev_device_get_sysname(d), &b);
-                if (r < 0)
-                        return r;
+		sn = udev_device_get_property_value(d, "ID_SEAT");
+		if (isempty(sn))
+			sn = "seat0";
 
-                sn = udev_device_get_property_value(d, "ID_SEAT");
-                if (isempty(sn))
-                        sn = "seat0";
+		button_set_seat(b, sn);
+		button_open(b);
+	}
 
-                button_set_seat(b, sn);
-                button_open(b);
-        }
-
-        return 0;
+	return 0;
 }
 
-int manager_get_session_by_pid(Manager *m, pid_t pid, Session **session) {
-        _cleanup_free_ char *unit = NULL;
-        Session *s;
-        int r;
+int
+manager_get_session_by_pid(Manager *m, pid_t pid, Session **session)
+{
+	_cleanup_free_ char *unit = NULL;
+	Session *s;
+	int r;
 
-        assert(m);
-        assert(session);
+	assert(m);
+	assert(session);
 
-        if (pid < 1)
-                return -EINVAL;
+	if (pid < 1)
+		return -EINVAL;
 
-        r = cg_pid_get_unit(pid, &unit);
-        if (r < 0)
-                return 0;
+	r = cg_pid_get_unit(pid, &unit);
+	if (r < 0)
+		return 0;
 
-        s = hashmap_get(m->session_units, unit);
-        if (!s)
-                return 0;
+	s = hashmap_get(m->session_units, unit);
+	if (!s)
+		return 0;
 
-        *session = s;
-        return 1;
+	*session = s;
+	return 1;
 }
 
-int manager_get_user_by_pid(Manager *m, pid_t pid, User **user) {
-        _cleanup_free_ char *unit = NULL;
-        User *u;
-        int r;
+int
+manager_get_user_by_pid(Manager *m, pid_t pid, User **user)
+{
+	_cleanup_free_ char *unit = NULL;
+	User *u;
+	int r;
 
-        assert(m);
-        assert(user);
+	assert(m);
+	assert(user);
 
-        if (pid < 1)
-                return -EINVAL;
+	if (pid < 1)
+		return -EINVAL;
 
-        r = cg_pid_get_slice(pid, &unit);
-        if (r < 0)
-                return 0;
+	r = cg_pid_get_slice(pid, &unit);
+	if (r < 0)
+		return 0;
 
-        u = hashmap_get(m->user_units, unit);
-        if (!u)
-                return 0;
+	u = hashmap_get(m->user_units, unit);
+	if (!u)
+		return 0;
 
-        *user = u;
-        return 1;
+	*user = u;
+	return 1;
 }
 
-int manager_get_idle_hint(Manager *m, dual_timestamp *t) {
-        Session *s;
-        bool idle_hint;
-        dual_timestamp ts = { 0, 0 };
-        Iterator i;
+int
+manager_get_idle_hint(Manager *m, dual_timestamp *t)
+{
+	Session *s;
+	bool idle_hint;
+	dual_timestamp ts = { 0, 0 };
+	Iterator i;
 
-        assert(m);
+	assert(m);
 
-        idle_hint = !manager_is_inhibited(m, INHIBIT_IDLE, INHIBIT_BLOCK, t, false, false, 0, NULL);
+	idle_hint = !manager_is_inhibited(m, INHIBIT_IDLE, INHIBIT_BLOCK, t,
+		false, false, 0, NULL);
 
-        HASHMAP_FOREACH(s, m->sessions, i) {
-                dual_timestamp k;
-                int ih;
+	HASHMAP_FOREACH (s, m->sessions, i) {
+		dual_timestamp k;
+		int ih;
 
-                ih = session_get_idle_hint(s, &k);
-                if (ih < 0)
-                        return ih;
+		ih = session_get_idle_hint(s, &k);
+		if (ih < 0)
+			return ih;
 
-                if (!ih) {
-                        if (!idle_hint) {
-                                if (k.monotonic < ts.monotonic)
-                                        ts = k;
-                        } else {
-                                idle_hint = false;
-                                ts = k;
-                        }
-                } else if (idle_hint) {
+		if (!ih) {
+			if (!idle_hint) {
+				if (k.monotonic < ts.monotonic)
+					ts = k;
+			} else {
+				idle_hint = false;
+				ts = k;
+			}
+		} else if (idle_hint) {
+			if (k.monotonic > ts.monotonic)
+				ts = k;
+		}
+	}
 
-                        if (k.monotonic > ts.monotonic)
-                                ts = k;
-                }
-        }
+	if (t)
+		*t = ts;
 
-        if (t)
-                *t = ts;
-
-        return idle_hint;
+	return idle_hint;
 }
 
-bool manager_shall_kill(Manager *m, const char *user) {
-        assert(m);
-        assert(user);
+bool
+manager_shall_kill(Manager *m, const char *user)
+{
+	assert(m);
+	assert(user);
 
-        if (!m->kill_user_processes)
-                return false;
+	if (!m->kill_user_processes)
+		return false;
 
-        if (strv_contains(m->kill_exclude_users, user))
-                return false;
+	if (strv_contains(m->kill_exclude_users, user))
+		return false;
 
-        if (strv_isempty(m->kill_only_users))
-                return true;
+	if (strv_isempty(m->kill_only_users))
+		return true;
 
-        return strv_contains(m->kill_only_users, user);
+	return strv_contains(m->kill_only_users, user);
 }
 
-static int vt_is_busy(unsigned int vtnr) {
-        struct vt_stat vt_stat;
-        int r = 0;
-        _cleanup_close_ int fd;
+static int
+vt_is_busy(unsigned int vtnr)
+{
+	struct vt_stat vt_stat;
+	int r = 0;
+	_cleanup_close_ int fd;
 
-        assert(vtnr >= 1);
+	assert(vtnr >= 1);
 
-        /* We explicitly open /dev/tty1 here instead of /dev/tty0. If
+	/* We explicitly open /dev/tty1 here instead of /dev/tty0. If
          * we'd open the latter we'd open the foreground tty which
          * hence would be unconditionally busy. By opening /dev/tty1
          * we avoid this. Since tty1 is special and needs to be an
          * explicitly loaded getty or DM this is safe. */
 
-        fd = open_terminal("/dev/tty1", O_RDWR|O_NOCTTY|O_CLOEXEC);
-        if (fd < 0)
-                return -errno;
+	fd = open_terminal("/dev/tty1", O_RDWR | O_NOCTTY | O_CLOEXEC);
+	if (fd < 0)
+		return -errno;
 
-        if (ioctl(fd, VT_GETSTATE, &vt_stat) < 0)
-                r = -errno;
-        else
-                r = !!(vt_stat.v_state & (1 << vtnr));
+	if (ioctl(fd, VT_GETSTATE, &vt_stat) < 0)
+		r = -errno;
+	else
+		r = !!(vt_stat.v_state & (1 << vtnr));
 
-        return r;
+	return r;
 }
 
-int manager_spawn_autovt(Manager *m, unsigned int vtnr) {
-        _cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
-        char name[sizeof("autovt@tty.service") + DECIMAL_STR_MAX(unsigned int)];
-        int r;
+int
+manager_spawn_autovt(Manager *m, unsigned int vtnr)
+{
+	_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
+	char name[sizeof("autovt@tty.service") + DECIMAL_STR_MAX(unsigned int)];
+	int r;
 
-        assert(m);
-        assert(vtnr >= 1);
+	assert(m);
+	assert(vtnr >= 1);
 
-        if (vtnr > m->n_autovts &&
-            vtnr != m->reserve_vt)
-                return 0;
+	if (vtnr > m->n_autovts && vtnr != m->reserve_vt)
+		return 0;
 
-        if (vtnr != m->reserve_vt) {
-                /* If this is the reserved TTY, we'll start the getty
+	if (vtnr != m->reserve_vt) {
+		/* If this is the reserved TTY, we'll start the getty
                  * on it in any case, but otherwise only if it is not
                  * busy. */
 
-                r = vt_is_busy(vtnr);
-                if (r < 0)
-                        return r;
-                else if (r > 0)
-                        return -EBUSY;
-        }
+		r = vt_is_busy(vtnr);
+		if (r < 0)
+			return r;
+		else if (r > 0)
+			return -EBUSY;
+	}
 
-        snprintf(name, sizeof(name), "autovt@tty%u.service", vtnr);
-        r = sd_bus_call_method(
-                        m->bus,
-                        "org.freedesktop.systemd1",
-                        "/org/freedesktop/systemd1",
-                        "org.freedesktop.systemd1.Manager",
-                        "StartUnit",
-                        &error,
-                        NULL,
-                        "ss", name, "fail");
-        if (r < 0)
-                log_error("Failed to start %s: %s", name, bus_error_message(&error, r));
+	snprintf(name, sizeof(name), "autovt@tty%u.service", vtnr);
+	r = sd_bus_call_method(m->bus, "org.freedesktop.systemd1",
+		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+		"StartUnit", &error, NULL, "ss", name, "fail");
+	if (r < 0)
+		log_error("Failed to start %s: %s", name,
+			bus_error_message(&error, r));
 
-        return r;
+	return r;
 }
 
-bool manager_is_docked(Manager *m) {
-        Iterator i;
-        Button *b;
+bool
+manager_is_docked(Manager *m)
+{
+	Iterator i;
+	Button *b;
 
-        HASHMAP_FOREACH(b, m->buttons, i)
-                if (b->docked)
-                        return true;
+	HASHMAP_FOREACH (b, m->buttons, i)
+		if (b->docked)
+			return true;
 
-        return false;
+	return false;
 }
 
-int manager_count_displays(Manager *m) {
-        _cleanup_udev_enumerate_unref_ struct udev_enumerate *e = NULL;
-        struct udev_list_entry *item = NULL, *first = NULL;
-        int r;
-        int n = 0;
+int
+manager_count_displays(Manager *m)
+{
+	_cleanup_udev_enumerate_unref_ struct udev_enumerate *e = NULL;
+	struct udev_list_entry *item = NULL, *first = NULL;
+	int r;
+	int n = 0;
 
-        e = udev_enumerate_new(m->udev);
-        if (!e)
-                return -ENOMEM;
+	e = udev_enumerate_new(m->udev);
+	if (!e)
+		return -ENOMEM;
 
-        r = udev_enumerate_add_match_subsystem(e, "drm");
-        if (r < 0)
-                return r;
+	r = udev_enumerate_add_match_subsystem(e, "drm");
+	if (r < 0)
+		return r;
 
-        r = udev_enumerate_scan_devices(e);
-        if (r < 0)
-                return r;
+	r = udev_enumerate_scan_devices(e);
+	if (r < 0)
+		return r;
 
-        first = udev_enumerate_get_list_entry(e);
-        udev_list_entry_foreach(item, first) {
-                _cleanup_udev_device_unref_ struct udev_device *d = NULL;
-                struct udev_device *p;
-                const char *status;
+	first = udev_enumerate_get_list_entry(e);
+	udev_list_entry_foreach(item, first)
+	{
+		_cleanup_udev_device_unref_ struct udev_device *d = NULL;
+		struct udev_device *p;
+		const char *status;
 
-                d = udev_device_new_from_syspath(m->udev, udev_list_entry_get_name(item));
-                if (!d)
-                        return -ENOMEM;
+		d = udev_device_new_from_syspath(m->udev,
+			udev_list_entry_get_name(item));
+		if (!d)
+			return -ENOMEM;
 
-                p = udev_device_get_parent(d);
-                if (!p)
-                        continue;
+		p = udev_device_get_parent(d);
+		if (!p)
+			continue;
 
-                /* If the parent shares the same subsystem as the
+		/* If the parent shares the same subsystem as the
                  * device we are looking at then it is a connector,
                  * which is what we are interested in. */
-                if (!streq_ptr(udev_device_get_subsystem(p), "drm"))
-                        continue;
+		if (!streq_ptr(udev_device_get_subsystem(p), "drm"))
+			continue;
 
-                /* We count any connector which is not explicitly
+		/* We count any connector which is not explicitly
                  * "disconnected" as connected. */
-                status = udev_device_get_sysattr_value(d, "status");
-                if (!streq_ptr(status, "disconnected"))
-                        n++;
-        }
+		status = udev_device_get_sysattr_value(d, "status");
+		if (!streq_ptr(status, "disconnected"))
+			n++;
+	}
 
-        return n;
+	return n;
 }
 
-bool manager_is_docked_or_multiple_displays(Manager *m) {
-        int n;
+bool
+manager_is_docked_or_multiple_displays(Manager *m)
+{
+	int n;
 
-        /* If we are docked don't react to lid closing */
-        if (manager_is_docked(m)) {
-                log_debug("System is docked.");
-                return true;
-        }
+	/* If we are docked don't react to lid closing */
+	if (manager_is_docked(m)) {
+		log_debug("System is docked.");
+		return true;
+	}
 
-        /* If we have more than one display connected,
+	/* If we have more than one display connected,
          * assume that we are docked. */
-        n = manager_count_displays(m);
-        if (n < 0)
-                log_warning_errno(n, "Display counting failed: %m");
-        else if (n > 1) {
-                log_debug("Multiple (%i) displays connected.", n);
-                return true;
-        }
+	n = manager_count_displays(m);
+	if (n < 0)
+		log_warning_errno(n, "Display counting failed: %m");
+	else if (n > 1) {
+		log_debug("Multiple (%i) displays connected.", n);
+		return true;
+	}
 
-        return false;
+	return false;
 }

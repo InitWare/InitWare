@@ -22,38 +22,43 @@
 #include <errno.h>
 #include <string.h>
 
-#include "util.h"
 #include "errno-list.h"
+#include "util.h"
 
-static const struct errno_name* lookup_errno(register const char *str,
-                                             register GPERF_LEN_TYPE len);
+static const struct errno_name *lookup_errno(register const char *str,
+	register GPERF_LEN_TYPE len);
 
-#include "errno-to-name.h"
 #include "errno-from-name.h"
+#include "errno-to-name.h"
 
-const char *errno_to_name(int id) {
+const char *
+errno_to_name(int id)
+{
+	if (id < 0)
+		id = -id;
 
-        if (id < 0)
-                id = -id;
+	if (id >= (int)ELEMENTSOF(errno_names))
+		return NULL;
 
-        if (id >= (int) ELEMENTSOF(errno_names))
-                return NULL;
-
-        return errno_names[id];
+	return errno_names[id];
 }
 
-int errno_from_name(const char *name) {
-        const struct errno_name *sc;
+int
+errno_from_name(const char *name)
+{
+	const struct errno_name *sc;
 
-        assert(name);
+	assert(name);
 
-        sc = lookup_errno(name, strlen(name));
-        if (!sc)
-                return 0;
+	sc = lookup_errno(name, strlen(name));
+	if (!sc)
+		return 0;
 
-        return sc->id;
+	return sc->id;
 }
 
-int errno_max(void) {
-        return ELEMENTSOF(errno_names);
+int
+errno_max(void)
+{
+	return ELEMENTSOF(errno_names);
 }

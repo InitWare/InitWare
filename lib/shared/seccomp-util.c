@@ -21,69 +21,72 @@
 
 #include <seccomp.h>
 
-#include "util.h"
 #include "seccomp-util.h"
+#include "util.h"
 
-const char* seccomp_arch_to_string(uint32_t c) {
+const char *
+seccomp_arch_to_string(uint32_t c)
+{
+	if (c == SCMP_ARCH_NATIVE)
+		return "native";
+	if (c == SCMP_ARCH_X86)
+		return "x86";
+	if (c == SCMP_ARCH_X86_64)
+		return "x86-64";
+	if (c == SCMP_ARCH_X32)
+		return "x32";
+	if (c == SCMP_ARCH_ARM)
+		return "arm";
 
-        if (c == SCMP_ARCH_NATIVE)
-                return "native";
-        if (c == SCMP_ARCH_X86)
-                return "x86";
-        if (c == SCMP_ARCH_X86_64)
-                return "x86-64";
-        if (c == SCMP_ARCH_X32)
-                return "x32";
-        if (c == SCMP_ARCH_ARM)
-                return "arm";
-
-        return NULL;
+	return NULL;
 }
 
-int seccomp_arch_from_string(const char *n, uint32_t *ret) {
-        if (!n)
-                return -EINVAL;
+int
+seccomp_arch_from_string(const char *n, uint32_t *ret)
+{
+	if (!n)
+		return -EINVAL;
 
-        assert(ret);
+	assert(ret);
 
-        if (streq(n, "native"))
-                *ret = SCMP_ARCH_NATIVE;
-        else if (streq(n, "x86"))
-                *ret = SCMP_ARCH_X86;
-        else if (streq(n, "x86-64"))
-                *ret = SCMP_ARCH_X86_64;
-        else if (streq(n, "x32"))
-                *ret = SCMP_ARCH_X32;
-        else if (streq(n, "arm"))
-                *ret = SCMP_ARCH_ARM;
-        else
-                return -EINVAL;
+	if (streq(n, "native"))
+		*ret = SCMP_ARCH_NATIVE;
+	else if (streq(n, "x86"))
+		*ret = SCMP_ARCH_X86;
+	else if (streq(n, "x86-64"))
+		*ret = SCMP_ARCH_X86_64;
+	else if (streq(n, "x32"))
+		*ret = SCMP_ARCH_X32;
+	else if (streq(n, "arm"))
+		*ret = SCMP_ARCH_ARM;
+	else
+		return -EINVAL;
 
-        return 0;
+	return 0;
 }
 
-int seccomp_add_secondary_archs(scmp_filter_ctx *c) {
-
+int
+seccomp_add_secondary_archs(scmp_filter_ctx *c)
+{
 #if defined(__i386__) || defined(__x86_64__)
-        int r;
+	int r;
 
-        /* Add in all possible secondary archs we are aware of that
+	/* Add in all possible secondary archs we are aware of that
          * this kernel might support. */
 
-        r = seccomp_arch_add(c, SCMP_ARCH_X86);
-        if (r < 0 && r != -EEXIST)
-                return r;
+	r = seccomp_arch_add(c, SCMP_ARCH_X86);
+	if (r < 0 && r != -EEXIST)
+		return r;
 
-        r = seccomp_arch_add(c, SCMP_ARCH_X86_64);
-        if (r < 0 && r != -EEXIST)
-                return r;
+	r = seccomp_arch_add(c, SCMP_ARCH_X86_64);
+	if (r < 0 && r != -EEXIST)
+		return r;
 
-        r = seccomp_arch_add(c, SCMP_ARCH_X32);
-        if (r < 0 && r != -EEXIST)
-                return r;
+	r = seccomp_arch_add(c, SCMP_ARCH_X32);
+	if (r < 0 && r != -EEXIST)
+		return r;
 
 #endif
 
-        return 0;
-
+	return 0;
 }

@@ -21,21 +21,23 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <inttypes.h>
 #include <sys/types.h>
-#include <assert.h>
 #include <sys/socket.h>
+#include <assert.h>
+#include <inttypes.h>
 
-#include "sd-rtnl.h"
 #include "in-addr-util.h"
+#include "sd-rtnl.h"
 
 struct local_address {
-        int family, ifindex;
-        unsigned char scope;
-        uint32_t metric;
-        union in_addr_union address;
+	int family, ifindex;
+	unsigned char scope;
+	uint32_t metric;
+	union in_addr_union address;
 };
 
-int local_addresses(sd_rtnl *rtnl, int ifindex, int af, struct local_address **ret);
+int local_addresses(sd_rtnl *rtnl, int ifindex, int af,
+	struct local_address **ret);
 
-int local_gateways(sd_rtnl *rtnl, int ifindex, int af, struct local_address **ret);
+int local_gateways(sd_rtnl *rtnl, int ifindex, int af,
+	struct local_address **ret);

@@ -19,218 +19,219 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <getopt.h>
 
-#include "log.h"
-#include "unit-name.h"
 #include "build.h"
+#include "log.h"
 #include "strv.h"
+#include "unit-name.h"
 
 static enum {
-        ACTION_ESCAPE,
-        ACTION_UNESCAPE,
-        ACTION_MANGLE
+	ACTION_ESCAPE,
+	ACTION_UNESCAPE,
+	ACTION_MANGLE
 } arg_action = ACTION_ESCAPE;
 static const char *arg_suffix = NULL;
 static const char *arg_template = NULL;
 static bool arg_path = false;
 
-static void help(void) {
-        printf("%s [OPTIONS...] [NAME...]\n\n"
-               "Show system and user paths.\n\n"
-               "  -h --help               Show this help\n"
-               "     --version            Show package version\n"
-               "     --suffix=SUFFIX      Unit suffix to append to escaped strings\n"
-               "     --template=TEMPLATE  Insert strings as instance into template\n"
-               "  -u --unescape           Unescape strings\n"
-               "  -m --mangle             Mangle strings\n"
-               "  -p --path               When escaping/unescaping assume the string is a path\n"
-               , program_invocation_short_name);
+static void
+help(void)
+{
+	printf("%s [OPTIONS...] [NAME...]\n\n"
+	       "Show system and user paths.\n\n"
+	       "  -h --help               Show this help\n"
+	       "     --version            Show package version\n"
+	       "     --suffix=SUFFIX      Unit suffix to append to escaped strings\n"
+	       "     --template=TEMPLATE  Insert strings as instance into template\n"
+	       "  -u --unescape           Unescape strings\n"
+	       "  -m --mangle             Mangle strings\n"
+	       "  -p --path               When escaping/unescaping assume the string is a path\n",
+		program_invocation_short_name);
 }
 
-static int parse_argv(int argc, char *argv[]) {
+static int
+parse_argv(int argc, char *argv[])
+{
+	enum { ARG_VERSION = 0x100, ARG_SUFFIX, ARG_TEMPLATE };
 
-        enum {
-                ARG_VERSION = 0x100,
-                ARG_SUFFIX,
-                ARG_TEMPLATE
-        };
+	static const struct option options[] = { { "help", no_argument, NULL,
+							 'h' },
+		{ "version", no_argument, NULL, ARG_VERSION },
+		{ "suffix", required_argument, NULL, ARG_SUFFIX },
+		{ "template", required_argument, NULL, ARG_TEMPLATE },
+		{ "unescape", no_argument, NULL, 'u' },
+		{ "mangle", no_argument, NULL, 'm' },
+		{ "path", no_argument, NULL, 'p' }, {} };
 
-        static const struct option options[] = {
-                { "help",      no_argument,       NULL, 'h'           },
-                { "version",   no_argument,       NULL, ARG_VERSION   },
-                { "suffix",    required_argument, NULL, ARG_SUFFIX    },
-                { "template",  required_argument, NULL, ARG_TEMPLATE  },
-                { "unescape",  no_argument,       NULL, 'u'           },
-                { "mangle",    no_argument,       NULL, 'm'           },
-                { "path",      no_argument,       NULL, 'p'           },
-                {}
-        };
+	int c;
 
-        int c;
+	assert(argc >= 0);
+	assert(argv);
 
-        assert(argc >= 0);
-        assert(argv);
+	while ((c = getopt_long(argc, argv, "hump", options, NULL)) >= 0)
 
-        while ((c = getopt_long(argc, argv, "hump", options, NULL)) >= 0)
+		switch (c) {
+		case 'h':
+			help();
+			return 0;
 
-                switch (c) {
+		case ARG_VERSION:
+			puts(PACKAGE_STRING);
+			puts(SYSTEMD_FEATURES);
+			return 0;
 
-                case 'h':
-                        help();
-                        return 0;
+		case ARG_SUFFIX:
 
-                case ARG_VERSION:
-                        puts(PACKAGE_STRING);
-                        puts(SYSTEMD_FEATURES);
-                        return 0;
+			if (unit_type_from_string(optarg) < 0) {
+				log_error("Invalid unit suffix type %s.",
+					optarg);
+				return -EINVAL;
+			}
 
-                case ARG_SUFFIX:
+			arg_suffix = optarg;
+			break;
 
-                        if (unit_type_from_string(optarg) < 0) {
-                                log_error("Invalid unit suffix type %s.", optarg);
-                                return -EINVAL;
-                        }
+		case ARG_TEMPLATE:
 
-                        arg_suffix = optarg;
-                        break;
+			if (!unit_name_is_valid(optarg, true) ||
+				!unit_name_is_template(optarg)) {
+				log_error("Template name %s is not valid.",
+					optarg);
+				return -EINVAL;
+			}
 
-                case ARG_TEMPLATE:
+			arg_template = optarg;
+			break;
 
-                        if (!unit_name_is_valid(optarg, true) || !unit_name_is_template(optarg)) {
-                                log_error("Template name %s is not valid.", optarg);
-                                return -EINVAL;
-                        }
+		case 'u':
+			arg_action = ACTION_UNESCAPE;
+			break;
 
-                        arg_template = optarg;
-                        break;
+		case 'm':
+			arg_action = ACTION_MANGLE;
+			break;
 
-                case 'u':
-                        arg_action = ACTION_UNESCAPE;
-                        break;
+		case 'p':
+			arg_path = true;
+			break;
 
-                case 'm':
-                        arg_action = ACTION_MANGLE;
-                        break;
+		case '?':
+			return -EINVAL;
 
-                case 'p':
-                        arg_path = true;
-                        break;
+		default:
+			assert_not_reached("Unhandled option");
+		}
 
-                case '?':
-                        return -EINVAL;
+	if (optind >= argc) {
+		log_error("Not enough arguments.");
+		return -EINVAL;
+	}
 
-                default:
-                        assert_not_reached("Unhandled option");
-                }
+	if (arg_template && arg_suffix) {
+		log_error("--suffix= and --template= may not be combined.");
+		return -EINVAL;
+	}
 
-        if (optind >= argc) {
-                log_error("Not enough arguments.");
-                return -EINVAL;
-        }
+	if ((arg_template || arg_suffix) && arg_action != ACTION_ESCAPE) {
+		log_error(
+			"--suffix= and --template= are not compatible with --unescape or --mangle.");
+		return -EINVAL;
+	}
 
-        if (arg_template && arg_suffix) {
-                log_error("--suffix= and --template= may not be combined.");
-                return -EINVAL;
-        }
+	if (arg_path && !IN_SET(arg_action, ACTION_ESCAPE, ACTION_UNESCAPE)) {
+		log_error("--path may not be combined with --mangle.");
+		return -EINVAL;
+	}
 
-        if ((arg_template || arg_suffix) && arg_action != ACTION_ESCAPE) {
-                log_error("--suffix= and --template= are not compatible with --unescape or --mangle.");
-                return -EINVAL;
-        }
-
-        if (arg_path && !IN_SET(arg_action, ACTION_ESCAPE, ACTION_UNESCAPE)) {
-                log_error("--path may not be combined with --mangle.");
-                return -EINVAL;
-        }
-
-        return 1;
+	return 1;
 }
 
-int main(int argc, char *argv[]) {
-        char **i;
-        int r;
+int
+main(int argc, char *argv[])
+{
+	char **i;
+	int r;
 
-        log_parse_environment();
-        log_open();
+	log_parse_environment();
+	log_open();
 
-        r = parse_argv(argc, argv);
-        if (r <= 0)
-                goto finish;
+	r = parse_argv(argc, argv);
+	if (r <= 0)
+		goto finish;
 
-        STRV_FOREACH(i, argv + optind) {
-                _cleanup_free_ char *e = NULL;
+	STRV_FOREACH (i, argv + optind) {
+		_cleanup_free_ char *e = NULL;
 
-                switch (arg_action) {
+		switch (arg_action) {
+		case ACTION_ESCAPE:
+			if (arg_path)
+				e = unit_name_path_escape(*i);
+			else
+				e = unit_name_escape(*i);
 
-                case ACTION_ESCAPE:
-                        if (arg_path)
-                                e = unit_name_path_escape(*i);
-                        else
-                                e = unit_name_escape(*i);
+			if (!e) {
+				r = log_oom();
+				goto finish;
+			}
 
-                        if (!e) {
-                                r = log_oom();
-                                goto finish;
-                        }
+			if (arg_template) {
+				char *x;
 
-                        if (arg_template) {
-                                char *x;
+				x = unit_name_replace_instance(arg_template, e);
+				if (!x) {
+					r = log_oom();
+					goto finish;
+				}
 
-                                x = unit_name_replace_instance(arg_template, e);
-                                if (!x) {
-                                        r = log_oom();
-                                        goto finish;
-                                }
+				free(e);
+				e = x;
+			} else if (arg_suffix) {
+				char *x;
 
-                                free(e);
-                                e = x;
-                        } else if (arg_suffix) {
-                                char *x;
+				x = strjoin(e, ".", arg_suffix, NULL);
+				if (!x) {
+					r = log_oom();
+					goto finish;
+				}
 
-                                x = strjoin(e, ".", arg_suffix, NULL);
-                                if (!x) {
-                                        r = log_oom();
-                                        goto finish;
-                                }
+				free(e);
+				e = x;
+			}
 
-                                free(e);
-                                e = x;
-                        }
+			break;
 
-                        break;
+		case ACTION_UNESCAPE:
+			if (arg_path)
+				e = unit_name_path_unescape(*i);
+			else
+				e = unit_name_unescape(*i);
 
-                case ACTION_UNESCAPE:
-                        if (arg_path)
-                                e = unit_name_path_unescape(*i);
-                        else
-                                e = unit_name_unescape(*i);
+			if (!e) {
+				r = log_oom();
+				goto finish;
+			}
+			break;
 
-                        if (!e) {
-                                r = log_oom();
-                                goto finish;
-                        }
-                        break;
+		case ACTION_MANGLE:
+			e = unit_name_mangle(*i, MANGLE_NOGLOB);
+			if (!e) {
+				r = log_oom();
+				goto finish;
+			}
+			break;
+		}
 
-                case ACTION_MANGLE:
-                        e = unit_name_mangle(*i, MANGLE_NOGLOB);
-                        if (!e) {
-                                r = log_oom();
-                                goto finish;
-                        }
-                        break;
-                }
+		if (i != argv + optind)
+			fputc(' ', stdout);
 
-                if (i != argv+optind)
-                        fputc(' ', stdout);
+		fputs(e, stdout);
+	}
 
-                fputs(e, stdout);
-        }
-
-        fputc('\n', stdout);
+	fputc('\n', stdout);
 
 finish:
-        return r < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+	return r < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

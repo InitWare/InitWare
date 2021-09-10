@@ -21,4 +21,5 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-int switch_root(const char *new_root, const char *oldroot, bool detach_oldroot, unsigned long mountflags);
+int switch_root(const char *new_root, const char *oldroot, bool detach_oldroot,
+	unsigned long mountflags);

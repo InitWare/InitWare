@@ -26,18 +26,18 @@
 typedef enum UnitFileScope UnitFileScope;
 
 typedef struct LookupPaths {
-        char **unit_path;
+	char **unit_path;
 #ifdef HAVE_SYSV_COMPAT
-        char **sysvinit_path;
-        char **sysvrcnd_path;
+	char **sysvinit_path;
+	char **sysvrcnd_path;
 #endif
 } LookupPaths;
 
 typedef enum SystemdRunningAs {
-        SYSTEMD_SYSTEM,
-        SYSTEMD_USER,
-        _SYSTEMD_RUNNING_AS_MAX,
-        _SYSTEMD_RUNNING_AS_INVALID = -1
+	SYSTEMD_SYSTEM,
+	SYSTEMD_USER,
+	_SYSTEMD_RUNNING_AS_MAX,
+	_SYSTEMD_RUNNING_AS_INVALID = -1
 } SystemdRunningAs;
 
 int user_config_home(char **config_home);
@@ -45,16 +45,11 @@ int user_runtime_dir(char **runtime_dir);
 
 char **generator_paths(SystemdRunningAs running_as);
 
-int lookup_paths_init(LookupPaths *p,
-                      SystemdRunningAs running_as,
-                      bool personal,
-                      const char *root_dir,
-                      const char *generator,
-                      const char *generator_early,
-                      const char *generator_late);
+int lookup_paths_init(LookupPaths *p, SystemdRunningAs running_as,
+	bool personal, const char *root_dir, const char *generator,
+	const char *generator_early, const char *generator_late);
 void lookup_paths_free(LookupPaths *p);
-int lookup_paths_init_from_scope(LookupPaths *paths,
-                                 UnitFileScope scope,
-                                 const char *root_dir);
+int lookup_paths_init_from_scope(LookupPaths *paths, UnitFileScope scope,
+	const char *root_dir);
 
 #define _cleanup_lookup_paths_free_ _cleanup_(lookup_paths_free)

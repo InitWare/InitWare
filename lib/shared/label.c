@@ -19,62 +19,68 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "label.h"
 #include "selinux-util.h"
 #include "smack-util.h"
 #include "util.h"
-#include "label.h"
 
-int label_fix(const char *path, bool ignore_enoent, bool ignore_erofs) {
-        int r, q;
+int
+label_fix(const char *path, bool ignore_enoent, bool ignore_erofs)
+{
+	int r, q;
 
-        r = mac_selinux_fix(path, ignore_enoent, ignore_erofs);
-        q = mac_smack_fix(path, ignore_enoent, ignore_erofs);
+	r = mac_selinux_fix(path, ignore_enoent, ignore_erofs);
+	q = mac_smack_fix(path, ignore_enoent, ignore_erofs);
 
-        if (r < 0)
-                return r;
-        if (q < 0)
-                return q;
+	if (r < 0)
+		return r;
+	if (q < 0)
+		return q;
 
-        return 0;
+	return 0;
 }
 
-int mkdir_label(const char *path, mode_t mode) {
-        int r;
+int
+mkdir_label(const char *path, mode_t mode)
+{
+	int r;
 
-        assert(path);
+	assert(path);
 
-        r = mac_selinux_create_file_prepare(path, S_IFDIR);
-        if (r < 0)
-                return r;
+	r = mac_selinux_create_file_prepare(path, S_IFDIR);
+	if (r < 0)
+		return r;
 
-        if (mkdir(path, mode) < 0)
-                r = -errno;
+	if (mkdir(path, mode) < 0)
+		r = -errno;
 
-        mac_selinux_create_file_clear();
+	mac_selinux_create_file_clear();
 
-        if (r < 0)
-                return r;
+	if (r < 0)
+		return r;
 
-        return mac_smack_fix(path, false, false);
+	return mac_smack_fix(path, false, false);
 }
 
-int symlink_label(const char *old_path, const char *new_path) {
-        int r;
+int
+symlink_label(const char *old_path, const char *new_path)
+{
+	int r;
 
-        assert(old_path);
-        assert(new_path);
+	assert(old_path);
+	assert(new_path);
 
-        r = mac_selinux_create_file_prepare(new_path, S_IFLNK);
-        if (r < 0)
-                return r;
+	r = mac_selinux_create_file_prepare(new_path, S_IFLNK);
+	if (r < 0)
+		return r;
 
-        if (symlink(old_path, new_path) < 0)
-                r = -errno;
+	if (symlink(old_path, new_path) < 0)
+		r = -errno;
 
-        mac_selinux_create_file_clear();
+	mac_selinux_create_file_clear();
 
-        if (r < 0)
-                return r;
+	if (r < 0)
+		return r;
 
-        return mac_smack_fix(new_path, false, false);
+	return mac_smack_fix(new_path, false, false);
 }

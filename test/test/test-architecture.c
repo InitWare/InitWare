@@ -19,36 +19,40 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "virt.h"
 #include "architecture.h"
-#include "util.h"
 #include "log.h"
+#include "util.h"
+#include "virt.h"
 
-int main(int argc, char *argv[]) {
-        const char *id = NULL;
-        int a, v;
+int
+main(int argc, char *argv[])
+{
+	const char *id = NULL;
+	int a, v;
 
-        v = detect_virtualization(&id);
-        if (v == -EPERM || v == -EACCES)
-                return EXIT_TEST_SKIP;
+	v = detect_virtualization(&id);
+	if (v == -EPERM || v == -EACCES)
+		return EXIT_TEST_SKIP;
 
-        assert_se(v >= 0);
+	assert_se(v >= 0);
 
-        log_info("virtualization=%s id=%s",
-                 v == VIRTUALIZATION_CONTAINER ? "container" : v == VIRTUALIZATION_VM ? "vm" : "n/a",
-                 strna(id));
+	log_info("virtualization=%s id=%s",
+		v == VIRTUALIZATION_CONTAINER  ? "container" :
+			v == VIRTUALIZATION_VM ? "vm" :
+						       "n/a",
+		strna(id));
 
-        a = uname_architecture();
-        assert_se(a >= 0);
+	a = uname_architecture();
+	assert_se(a >= 0);
 
-        log_info("uname architecture=%s", architecture_to_string(a));
+	log_info("uname architecture=%s", architecture_to_string(a));
 
-        a = native_architecture();
-        assert_se(a >= 0);
+	a = native_architecture();
+	assert_se(a >= 0);
 
-        log_info("native architecture=%s", architecture_to_string(a));
+	log_info("native architecture=%s", architecture_to_string(a));
 
-        log_info("primary library architecture=" LIB_ARCH_TUPLE);
+	log_info("primary library architecture=" LIB_ARCH_TUPLE);
 
-        return 0;
+	return 0;
 }

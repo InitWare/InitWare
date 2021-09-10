@@ -25,29 +25,29 @@ typedef enum DeviceType DeviceType;
 typedef struct SessionDevice SessionDevice;
 
 #include "list.h"
-#include "util.h"
-#include "logind.h"
 #include "logind-device.h"
 #include "logind-seat.h"
 #include "logind-session.h"
+#include "logind.h"
+#include "util.h"
 
 enum DeviceType {
-        DEVICE_TYPE_UNKNOWN,
-        DEVICE_TYPE_DRM,
-        DEVICE_TYPE_EVDEV,
+	DEVICE_TYPE_UNKNOWN,
+	DEVICE_TYPE_DRM,
+	DEVICE_TYPE_EVDEV,
 };
 
 struct SessionDevice {
-        Session *session;
-        Device *device;
+	Session *session;
+	Device *device;
 
-        dev_t dev;
-        char *node;
-        int fd;
-        bool active;
-        DeviceType type;
+	dev_t dev;
+	char *node;
+	int fd;
+	bool active;
+	DeviceType type;
 
-        IWLIST_FIELDS(struct SessionDevice, sd_by_device);
+	IWLIST_FIELDS(struct SessionDevice, sd_by_device);
 };
 
 int session_device_new(Session *s, dev_t dev, SessionDevice **out);

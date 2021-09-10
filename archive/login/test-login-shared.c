@@ -19,23 +19,27 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "macro.h"
 #include "login-shared.h"
+#include "macro.h"
 
-static void test_session_id_valid(void) {
-        assert_se(session_id_valid("c1"));
-        assert_se(session_id_valid("1234"));
+static void
+test_session_id_valid(void)
+{
+	assert_se(session_id_valid("c1"));
+	assert_se(session_id_valid("1234"));
 
-        assert_se(!session_id_valid("1-2"));
-        assert_se(!session_id_valid(""));
-        assert_se(!session_id_valid("\tid"));
+	assert_se(!session_id_valid("1-2"));
+	assert_se(!session_id_valid(""));
+	assert_se(!session_id_valid("\tid"));
 }
 
-int main(int argc, char* argv[]) {
-        log_parse_environment();
-        log_open();
+int
+main(int argc, char *argv[])
+{
+	log_parse_environment();
+	log_open();
 
-        test_session_id_valid();
+	test_session_id_valid();
 
-        return 0;
+	return 0;
 }

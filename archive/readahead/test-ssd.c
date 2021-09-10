@@ -21,21 +21,23 @@
 
 #include "readahead-common.h"
 
-int main(int argc, char *argv[]) {
-        int i;
+int
+main(int argc, char *argv[])
+{
+	int i;
 
-        for (i = 1; i < argc; i++) {
-                char *name = argv[i];
-                int r;
+	for (i = 1; i < argc; i++) {
+		char *name = argv[i];
+		int r;
 
-                r = fs_on_ssd(name);
-                if (r < 0) {
-                        log_error("%s: %s", name, strerror(-r));
-                        return EXIT_FAILURE;
-                }
+		r = fs_on_ssd(name);
+		if (r < 0) {
+			log_error("%s: %s", name, strerror(-r));
+			return EXIT_FAILURE;
+		}
 
-                log_info("%s: %s", name, r ? "SSD" : "---");
-        }
+		log_info("%s: %s", name, r ? "SSD" : "---");
+	}
 
-        return EXIT_SUCCESS;
+	return EXIT_SUCCESS;
 }

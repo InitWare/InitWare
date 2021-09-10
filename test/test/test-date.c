@@ -23,42 +23,47 @@
 
 #include "util.h"
 
-static void test_one(const char *p) {
-        usec_t t, q;
-        char buf[FORMAT_TIMESTAMP_MAX], buf_relative[FORMAT_TIMESTAMP_RELATIVE_MAX];
+static void
+test_one(const char *p)
+{
+	usec_t t, q;
+	char buf[FORMAT_TIMESTAMP_MAX],
+		buf_relative[FORMAT_TIMESTAMP_RELATIVE_MAX];
 
-        assert_se(parse_timestamp(p, &t) >= 0);
-        format_timestamp(buf, sizeof(buf), t);
-        log_info("%s", buf);
+	assert_se(parse_timestamp(p, &t) >= 0);
+	format_timestamp(buf, sizeof(buf), t);
+	log_info("%s", buf);
 
-        /* Chop off timezone */
-        *strrchr(buf, ' ') = 0;
+	/* Chop off timezone */
+	*strrchr(buf, ' ') = 0;
 
-        assert_se(parse_timestamp(buf, &q) >= 0);
-        assert_se(q == t);
+	assert_se(parse_timestamp(buf, &q) >= 0);
+	assert_se(q == t);
 
-        format_timestamp_relative(buf_relative, sizeof(buf_relative), t);
-        log_info("%s", strna(buf_relative));
-        assert_se(parse_timestamp(buf, &q) >= 0);
+	format_timestamp_relative(buf_relative, sizeof(buf_relative), t);
+	log_info("%s", strna(buf_relative));
+	assert_se(parse_timestamp(buf, &q) >= 0);
 }
 
-int main(int argc, char *argv[]) {
-        test_one("17:41");
-        test_one("18:42:44");
-        test_one("12-10-02 12:13:14");
-        test_one("12-10-2 12:13:14");
-        test_one("12-10-03 12:13");
-        test_one("2012-12-30 18:42");
-        test_one("2012-10-02");
-        test_one("Tue 2012-10-02");
-        test_one("now");
-        test_one("yesterday");
-        test_one("today");
-        test_one("tomorrow");
-        test_one("+2d");
-        test_one("+2y 4d");
-        test_one("5months ago");
-        test_one("@1395716396");
+int
+main(int argc, char *argv[])
+{
+	test_one("17:41");
+	test_one("18:42:44");
+	test_one("12-10-02 12:13:14");
+	test_one("12-10-2 12:13:14");
+	test_one("12-10-03 12:13");
+	test_one("2012-12-30 18:42");
+	test_one("2012-10-02");
+	test_one("Tue 2012-10-02");
+	test_one("now");
+	test_one("yesterday");
+	test_one("today");
+	test_one("tomorrow");
+	test_one("+2d");
+	test_one("+2y 4d");
+	test_one("5months ago");
+	test_one("@1395716396");
 
-        return 0;
+	return 0;
 }

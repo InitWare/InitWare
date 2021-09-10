@@ -19,6 +19,8 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/types.h>
+#include <sys/eventfd.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -28,8 +30,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/eventfd.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include "barrier.h"
@@ -111,26 +111,28 @@
  *
  * Returns: 0 on success, negative error code on failure.
  */
-int barrier_create(Barrier *b) {
-        _cleanup_(barrier_destroyp) Barrier *staging = b;
-        int r;
+int
+barrier_create(Barrier *b)
+{
+	_cleanup_(barrier_destroyp) Barrier *staging = b;
+	int r;
 
-        assert(b);
+	assert(b);
 
-        b->me = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
-        if (b->me < 0)
-                return -errno;
+	b->me = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+	if (b->me < 0)
+		return -errno;
 
-        b->them = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
-        if (b->them < 0)
-                return -errno;
+	b->them = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+	if (b->them < 0)
+		return -errno;
 
-        r = pipe2(b->pipe, O_CLOEXEC | O_NONBLOCK);
-        if (r < 0)
-                return -errno;
+	r = pipe2(b->pipe, O_CLOEXEC | O_NONBLOCK);
+	if (r < 0)
+		return -errno;
 
-        staging = NULL;
-        return 0;
+	staging = NULL;
+	return 0;
 }
 
 /**
@@ -145,14 +147,16 @@ int barrier_create(Barrier *b) {
  *
  * If @b is NULL, this is a no-op.
  */
-void barrier_destroy(Barrier *b) {
-        if (!b)
-                return;
+void
+barrier_destroy(Barrier *b)
+{
+	if (!b)
+		return;
 
-        b->me = safe_close(b->me);
-        b->them = safe_close(b->them);
-        safe_close_pair(b->pipe);
-        b->barriers = 0;
+	b->me = safe_close(b->me);
+	b->them = safe_close(b->them);
+	safe_close_pair(b->pipe);
+	b->barriers = 0;
 }
 
 /**
@@ -172,124 +176,129 @@ void barrier_destroy(Barrier *b) {
  * Note that barriers could be supported without fork() or clone(). However,
  * this is currently not needed so it hasn't been implemented.
  */
-void barrier_set_role(Barrier *b, unsigned int role) {
-        int fd;
+void
+barrier_set_role(Barrier *b, unsigned int role)
+{
+	int fd;
 
-        assert(b);
-        assert(role == BARRIER_PARENT || role == BARRIER_CHILD);
-        /* make sure this is only called once */
-        assert(b->pipe[0] >= 0 && b->pipe[1] >= 0);
+	assert(b);
+	assert(role == BARRIER_PARENT || role == BARRIER_CHILD);
+	/* make sure this is only called once */
+	assert(b->pipe[0] >= 0 && b->pipe[1] >= 0);
 
-        if (role == BARRIER_PARENT)
-                b->pipe[1] = safe_close(b->pipe[1]);
-        else {
-                b->pipe[0] = safe_close(b->pipe[0]);
+	if (role == BARRIER_PARENT)
+		b->pipe[1] = safe_close(b->pipe[1]);
+	else {
+		b->pipe[0] = safe_close(b->pipe[0]);
 
-                /* swap me/them for children */
-                fd = b->me;
-                b->me = b->them;
-                b->them = fd;
-        }
+		/* swap me/them for children */
+		fd = b->me;
+		b->me = b->them;
+		b->them = fd;
+	}
 }
 
 /* places barrier; returns false if we aborted, otherwise true */
-static bool barrier_write(Barrier *b, uint64_t buf) {
-        ssize_t len;
+static bool
+barrier_write(Barrier *b, uint64_t buf)
+{
+	ssize_t len;
 
-        /* prevent new sync-points if we already aborted */
-        if (barrier_i_aborted(b))
-                return false;
+	/* prevent new sync-points if we already aborted */
+	if (barrier_i_aborted(b))
+		return false;
 
-        do {
-                len = write(b->me, &buf, sizeof(buf));
-        } while (len < 0 && IN_SET(errno, EAGAIN, EINTR));
+	do {
+		len = write(b->me, &buf, sizeof(buf));
+	} while (len < 0 && IN_SET(errno, EAGAIN, EINTR));
 
-        if (len != sizeof(buf))
-                goto error;
+	if (len != sizeof(buf))
+		goto error;
 
-        /* lock if we aborted */
-        if (buf >= (uint64_t)BARRIER_ABORTION) {
-                if (barrier_they_aborted(b))
-                        b->barriers = BARRIER_WE_ABORTED;
-                else
-                        b->barriers = BARRIER_I_ABORTED;
-        } else if (!barrier_is_aborted(b))
-                b->barriers += buf;
+	/* lock if we aborted */
+	if (buf >= (uint64_t)BARRIER_ABORTION) {
+		if (barrier_they_aborted(b))
+			b->barriers = BARRIER_WE_ABORTED;
+		else
+			b->barriers = BARRIER_I_ABORTED;
+	} else if (!barrier_is_aborted(b))
+		b->barriers += buf;
 
-        return !barrier_i_aborted(b);
+	return !barrier_i_aborted(b);
 
 error:
-        /* If there is an unexpected error, we have to make this fatal. There
+	/* If there is an unexpected error, we have to make this fatal. There
          * is no way we can recover from sync-errors. Therefore, we close the
          * pipe-ends and treat this as abortion. The other end will notice the
          * pipe-close and treat it as abortion, too. */
 
-        safe_close_pair(b->pipe);
-        b->barriers = BARRIER_WE_ABORTED;
-        return false;
+	safe_close_pair(b->pipe);
+	b->barriers = BARRIER_WE_ABORTED;
+	return false;
 }
 
 /* waits for barriers; returns false if they aborted, otherwise true */
-static bool barrier_read(Barrier *b, int64_t comp) {
-        if (barrier_they_aborted(b))
-                return false;
+static bool
+barrier_read(Barrier *b, int64_t comp)
+{
+	if (barrier_they_aborted(b))
+		return false;
 
-        while (b->barriers > comp) {
-                struct pollfd pfd[2] = {
-                        { .fd = b->pipe[0] >= 0 ? b->pipe[0] : b->pipe[1],
-                          .events = POLLHUP },
-                        { .fd = b->them,
-                          .events = POLLIN }};
-                uint64_t buf;
-                int r;
+	while (b->barriers > comp) {
+		struct pollfd pfd[2] = { { .fd = b->pipe[0] >= 0 ? b->pipe[0] :
+									 b->pipe[1],
+						 .events = POLLHUP },
+			{ .fd = b->them, .events = POLLIN } };
+		uint64_t buf;
+		int r;
 
-                r = poll(pfd, 2, -1);
-                if (r < 0 && IN_SET(errno, EAGAIN, EINTR))
-                        continue;
-                else if (r < 0)
-                        goto error;
+		r = poll(pfd, 2, -1);
+		if (r < 0 && IN_SET(errno, EAGAIN, EINTR))
+			continue;
+		else if (r < 0)
+			goto error;
 
-                if (pfd[1].revents) {
-                        ssize_t len;
+		if (pfd[1].revents) {
+			ssize_t len;
 
-                        /* events on @them signal new data for us */
-                        len = read(b->them, &buf, sizeof(buf));
-                        if (len < 0 && IN_SET(errno, EAGAIN, EINTR))
-                                continue;
+			/* events on @them signal new data for us */
+			len = read(b->them, &buf, sizeof(buf));
+			if (len < 0 && IN_SET(errno, EAGAIN, EINTR))
+				continue;
 
-                        if (len != sizeof(buf))
-                                goto error;
-                } else if (pfd[0].revents & (POLLHUP | POLLERR | POLLNVAL))
-                        /* POLLHUP on the pipe tells us the other side exited.
+			if (len != sizeof(buf))
+				goto error;
+		} else if (pfd[0].revents & (POLLHUP | POLLERR | POLLNVAL))
+			/* POLLHUP on the pipe tells us the other side exited.
                          * We treat this as implicit abortion. But we only
                          * handle it if there's no event on the eventfd. This
                          * guarantees that exit-abortions do not overwrite real
                          * barriers. */
-                        buf = BARRIER_ABORTION;
-                else
-                        continue;
+			buf = BARRIER_ABORTION;
+		else
+			continue;
 
-                /* lock if they aborted */
-                if (buf >= (uint64_t)BARRIER_ABORTION) {
-                        if (barrier_i_aborted(b))
-                                b->barriers = BARRIER_WE_ABORTED;
-                        else
-                                b->barriers = BARRIER_THEY_ABORTED;
-                } else if (!barrier_is_aborted(b))
-                        b->barriers -= buf;
-        }
+		/* lock if they aborted */
+		if (buf >= (uint64_t)BARRIER_ABORTION) {
+			if (barrier_i_aborted(b))
+				b->barriers = BARRIER_WE_ABORTED;
+			else
+				b->barriers = BARRIER_THEY_ABORTED;
+		} else if (!barrier_is_aborted(b))
+			b->barriers -= buf;
+	}
 
-        return !barrier_they_aborted(b);
+	return !barrier_they_aborted(b);
 
 error:
-        /* If there is an unexpected error, we have to make this fatal. There
+	/* If there is an unexpected error, we have to make this fatal. There
          * is no way we can recover from sync-errors. Therefore, we close the
          * pipe-ends and treat this as abortion. The other end will notice the
          * pipe-close and treat it as abortion, too. */
 
-        safe_close_pair(b->pipe);
-        b->barriers = BARRIER_WE_ABORTED;
-        return false;
+	safe_close_pair(b->pipe);
+	b->barriers = BARRIER_WE_ABORTED;
+	return false;
 }
 
 /**
@@ -302,14 +311,16 @@ error:
  *
  * Returns: true if barrier was placed, false if either side aborted.
  */
-bool barrier_place(Barrier *b) {
-        assert(b);
+bool
+barrier_place(Barrier *b)
+{
+	assert(b);
 
-        if (barrier_is_aborted(b))
-                return false;
+	if (barrier_is_aborted(b))
+		return false;
 
-        barrier_write(b, BARRIER_SINGLE);
-        return true;
+	barrier_write(b, BARRIER_SINGLE);
+	return true;
 }
 
 /**
@@ -327,11 +338,13 @@ bool barrier_place(Barrier *b) {
  *
  * Returns: false if the other side already aborted, true otherwise.
  */
-bool barrier_abort(Barrier *b) {
-        assert(b);
+bool
+barrier_abort(Barrier *b)
+{
+	assert(b);
 
-        barrier_write(b, BARRIER_ABORTION);
-        return !barrier_they_aborted(b);
+	barrier_write(b, BARRIER_ABORTION);
+	return !barrier_they_aborted(b);
 }
 
 /**
@@ -345,14 +358,16 @@ bool barrier_abort(Barrier *b) {
  *
  * Returns: false if either side aborted, true otherwise.
  */
-bool barrier_wait_next(Barrier *b) {
-        assert(b);
+bool
+barrier_wait_next(Barrier *b)
+{
+	assert(b);
 
-        if (barrier_is_aborted(b))
-                return false;
+	if (barrier_is_aborted(b))
+		return false;
 
-        barrier_read(b, b->barriers - 1);
-        return !barrier_is_aborted(b);
+	barrier_read(b, b->barriers - 1);
+	return !barrier_is_aborted(b);
 }
 
 /**
@@ -366,11 +381,13 @@ bool barrier_wait_next(Barrier *b) {
  *
  * Returns: false if the local side aborted, true otherwise.
  */
-bool barrier_wait_abortion(Barrier *b) {
-        assert(b);
+bool
+barrier_wait_abortion(Barrier *b)
+{
+	assert(b);
 
-        barrier_read(b, BARRIER_THEY_ABORTED);
-        return !barrier_i_aborted(b);
+	barrier_read(b, BARRIER_THEY_ABORTED);
+	return !barrier_i_aborted(b);
 }
 
 /**
@@ -386,14 +403,16 @@ bool barrier_wait_abortion(Barrier *b) {
  *
  * Returns: false if either side aborted, true otherwise.
  */
-bool barrier_sync_next(Barrier *b) {
-        assert(b);
+bool
+barrier_sync_next(Barrier *b)
+{
+	assert(b);
 
-        if (barrier_is_aborted(b))
-                return false;
+	if (barrier_is_aborted(b))
+		return false;
 
-        barrier_read(b, MAX((int64_t)0, b->barriers - 1));
-        return !barrier_is_aborted(b);
+	barrier_read(b, MAX((int64_t)0, b->barriers - 1));
+	return !barrier_is_aborted(b);
 }
 
 /**
@@ -408,12 +427,14 @@ bool barrier_sync_next(Barrier *b) {
  *
  * Returns: false if either side aborted, true otherwise.
  */
-bool barrier_sync(Barrier *b) {
-        assert(b);
+bool
+barrier_sync(Barrier *b)
+{
+	assert(b);
 
-        if (barrier_is_aborted(b))
-                return false;
+	if (barrier_is_aborted(b))
+		return false;
 
-        barrier_read(b, 0);
-        return !barrier_is_aborted(b);
+	barrier_read(b, 0);
+	return !barrier_is_aborted(b);
 }

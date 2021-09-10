@@ -19,99 +19,101 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdio.h>
-#include <stdbool.h>
-#include <string.h>
 #include <errno.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
-#include "util.h"
 #include "fileio.h"
+#include "util.h"
 
 static bool arg_skip = false;
 static bool arg_force = false;
 
-static int parse_proc_cmdline_item(const char *key, const char *value) {
-
-        if (streq(key, "quotacheck.mode") && value) {
-
-                if (streq(value, "auto"))
-                        arg_force = arg_skip = false;
-                else if (streq(value, "force"))
-                        arg_force = true;
-                else if (streq(value, "skip"))
-                        arg_skip = true;
-                else
-                        log_warning("Invalid quotacheck.mode= parameter '%s'. Ignoring.", value);
-        }
-
+static int
+parse_proc_cmdline_item(const char *key, const char *value)
+{
+	if (streq(key, "quotacheck.mode") && value) {
+		if (streq(value, "auto"))
+			arg_force = arg_skip = false;
+		else if (streq(value, "force"))
+			arg_force = true;
+		else if (streq(value, "skip"))
+			arg_skip = true;
+		else
+			log_warning(
+				"Invalid quotacheck.mode= parameter '%s'. Ignoring.",
+				value);
+	}
 #ifdef HAVE_SYSV_COMPAT
-        else if (streq(key, "forcequotacheck") && !value) {
-                log_warning("Please use 'quotacheck.mode=force' rather than 'forcequotacheck' on the kernel command line.");
-                arg_force = true;
-        }
+	else if (streq(key, "forcequotacheck") && !value) {
+		log_warning(
+			"Please use 'quotacheck.mode=force' rather than 'forcequotacheck' on the kernel command line.");
+		arg_force = true;
+	}
 #endif
 
-        return 0;
+	return 0;
 }
 
-static void test_files(void) {
-
+static void
+test_files(void)
+{
 #ifdef HAVE_SYSV_COMPAT
-        if (access("/forcequotacheck", F_OK) >= 0) {
-                log_error("Please pass 'quotacheck.mode=force' on the kernel command line rather than creating /forcequotacheck on the root file system.");
-                arg_force = true;
-        }
+	if (access("/forcequotacheck", F_OK) >= 0) {
+		log_error(
+			"Please pass 'quotacheck.mode=force' on the kernel command line rather than creating /forcequotacheck on the root file system.");
+		arg_force = true;
+	}
 #endif
 }
 
-int main(int argc, char *argv[]) {
+int
+main(int argc, char *argv[])
+{
+	static const char *const cmdline[] = { QUOTACHECK, "-anug", NULL };
 
-        static const char * const cmdline[] = {
-                QUOTACHECK,
-                "-anug",
-                NULL
-        };
+	pid_t pid;
+	int r;
 
-        pid_t pid;
-        int r;
+	if (argc > 1) {
+		log_error("This program takes no arguments.");
+		return EXIT_FAILURE;
+	}
 
-        if (argc > 1) {
-                log_error("This program takes no arguments.");
-                return EXIT_FAILURE;
-        }
+	log_set_target(LOG_TARGET_AUTO);
+	log_parse_environment();
+	log_open();
 
-        log_set_target(LOG_TARGET_AUTO);
-        log_parse_environment();
-        log_open();
+	umask(0022);
 
-        umask(0022);
+	r = parse_proc_cmdline(parse_proc_cmdline_item);
+	if (r < 0)
+		log_warning_errno(r,
+			"Failed to parse kernel command line, ignoring: %m");
 
-        r = parse_proc_cmdline(parse_proc_cmdline_item);
-        if (r < 0)
-                log_warning_errno(r, "Failed to parse kernel command line, ignoring: %m");
+	test_files();
 
-        test_files();
+	if (!arg_force) {
+		if (arg_skip)
+			return EXIT_SUCCESS;
 
-        if (!arg_force) {
-                if (arg_skip)
-                        return EXIT_SUCCESS;
+		if (access("/run/systemd/quotacheck", F_OK) < 0)
+			return EXIT_SUCCESS;
+	}
 
-                if (access("/run/systemd/quotacheck", F_OK) < 0)
-                        return EXIT_SUCCESS;
-        }
+	pid = fork();
+	if (pid < 0) {
+		log_error_errno(errno, "fork(): %m");
+		return EXIT_FAILURE;
+	} else if (pid == 0) {
+		/* Child */
+		execv(cmdline[0], (char **)cmdline);
+		_exit(1); /* Operational error */
+	}
 
-        pid = fork();
-        if (pid < 0) {
-                log_error_errno(errno, "fork(): %m");
-                return EXIT_FAILURE;
-        } else if (pid == 0) {
-                /* Child */
-                execv(cmdline[0], (char**) cmdline);
-                _exit(1); /* Operational error */
-        }
+	r = wait_for_terminate_and_warn("quotacheck", pid, true);
 
-        r = wait_for_terminate_and_warn("quotacheck", pid, true);
-
-        return r < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+	return r < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

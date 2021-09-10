@@ -19,235 +19,253 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <limits.h>
 #include <sys/param.h>
+#include <limits.h>
 #include <unistd.h>
 
+#include "def.h"
+#include "env-util.h"
 #include "strv.h"
 #include "utf8.h"
 #include "util.h"
-#include "env-util.h"
-#include "def.h"
 
-#define VALID_CHARS_ENV_NAME                    \
-        DIGITS LETTERS                          \
-        "_"
+#define VALID_CHARS_ENV_NAME DIGITS LETTERS "_"
 
 #ifndef ARG_MAX
-#define ARG_MAX ((size_t) sysconf(_SC_ARG_MAX))
+#	define ARG_MAX ((size_t)sysconf(_SC_ARG_MAX))
 #endif
 
-static bool env_name_is_valid_n(const char *e, size_t n) {
-        const char *p;
+static bool
+env_name_is_valid_n(const char *e, size_t n)
+{
+	const char *p;
 
-        if (!e)
-                return false;
+	if (!e)
+		return false;
 
-        if (n <= 0)
-                return false;
+	if (n <= 0)
+		return false;
 
-        if (e[0] >= '0' && e[0] <= '9')
-                return false;
+	if (e[0] >= '0' && e[0] <= '9')
+		return false;
 
-        /* POSIX says the overall size of the environment block cannot
+	/* POSIX says the overall size of the environment block cannot
          * be > ARG_MAX, an individual assignment hence cannot be
          * either. Discounting the equal sign and trailing NUL this
          * hence leaves ARG_MAX-2 as longest possible variable
          * name. */
-        if (n > ARG_MAX - 2)
-                return false;
+	if (n > ARG_MAX - 2)
+		return false;
 
-        for (p = e; p < e + n; p++)
-                if (!strchr(VALID_CHARS_ENV_NAME, *p))
-                        return false;
+	for (p = e; p < e + n; p++)
+		if (!strchr(VALID_CHARS_ENV_NAME, *p))
+			return false;
 
-        return true;
+	return true;
 }
 
-bool env_name_is_valid(const char *e) {
-        if (!e)
-                return false;
+bool
+env_name_is_valid(const char *e)
+{
+	if (!e)
+		return false;
 
-        return env_name_is_valid_n(e, strlen(e));
+	return env_name_is_valid_n(e, strlen(e));
 }
 
-bool env_value_is_valid(const char *e) {
-        if (!e)
-                return false;
+bool
+env_value_is_valid(const char *e)
+{
+	if (!e)
+		return false;
 
-        if (!utf8_is_valid(e))
-                return false;
+	if (!utf8_is_valid(e))
+		return false;
 
-        /* bash allows tabs in environment variables, and so should
+	/* bash allows tabs in environment variables, and so should
          * we */
-        if (string_has_cc(e, "\t"))
-                return false;
+	if (string_has_cc(e, "\t"))
+		return false;
 
-        /* POSIX says the overall size of the environment block cannot
+	/* POSIX says the overall size of the environment block cannot
          * be > ARG_MAX, an individual assignment hence cannot be
          * either. Discounting the shortest possible variable name of
          * length 1, the equal sign and trailing NUL this hence leaves
          * ARG_MAX-3 as longest possible variable value. */
-        if (strlen(e) > ARG_MAX - 3)
-                return false;
+	if (strlen(e) > ARG_MAX - 3)
+		return false;
 
-        return true;
+	return true;
 }
 
-bool env_assignment_is_valid(const char *e) {
-        const char *eq;
+bool
+env_assignment_is_valid(const char *e)
+{
+	const char *eq;
 
-        eq = strchr(e, '=');
-        if (!eq)
-                return false;
+	eq = strchr(e, '=');
+	if (!eq)
+		return false;
 
-        if (!env_name_is_valid_n(e, eq - e))
-                return false;
+	if (!env_name_is_valid_n(e, eq - e))
+		return false;
 
-        if (!env_value_is_valid(eq + 1))
-                return false;
+	if (!env_value_is_valid(eq + 1))
+		return false;
 
-        /* POSIX says the overall size of the environment block cannot
+	/* POSIX says the overall size of the environment block cannot
          * be > ARG_MAX, hence the individual variable assignments
          * cannot be either, but let's leave room for one trailing NUL
          * byte. */
-        if (strlen(e) > ARG_MAX - 1)
-                return false;
+	if (strlen(e) > ARG_MAX - 1)
+		return false;
 
-        return true;
+	return true;
 }
 
-bool strv_env_is_valid(char **e) {
-        char **p, **q;
+bool
+strv_env_is_valid(char **e)
+{
+	char **p, **q;
 
-        STRV_FOREACH(p, e) {
-                size_t k;
+	STRV_FOREACH (p, e) {
+		size_t k;
 
-                if (!env_assignment_is_valid(*p))
-                        return false;
+		if (!env_assignment_is_valid(*p))
+			return false;
 
-                /* Check if there are duplicate assginments */
-                k = strcspn(*p, "=");
-                STRV_FOREACH(q, p + 1)
-                        if (strneq(*p, *q, k) && (*q)[k] == '=')
-                                return false;
-        }
+		/* Check if there are duplicate assginments */
+		k = strcspn(*p, "=");
+		STRV_FOREACH (q, p + 1)
+			if (strneq(*p, *q, k) && (*q)[k] == '=')
+				return false;
+	}
 
-        return true;
+	return true;
 }
 
-bool strv_env_name_is_valid(char **l) {
-        char **p, **q;
+bool
+strv_env_name_is_valid(char **l)
+{
+	char **p, **q;
 
-        STRV_FOREACH(p, l) {
-                if (!env_name_is_valid(*p))
-                        return false;
+	STRV_FOREACH (p, l) {
+		if (!env_name_is_valid(*p))
+			return false;
 
-                STRV_FOREACH(q, p + 1)
-                        if (streq(*p, *q))
-                                return false;
-        }
+		STRV_FOREACH (q, p + 1)
+			if (streq(*p, *q))
+				return false;
+	}
 
-        return true;
+	return true;
 }
 
-bool strv_env_name_or_assignment_is_valid(char **l) {
-        char **p, **q;
+bool
+strv_env_name_or_assignment_is_valid(char **l)
+{
+	char **p, **q;
 
-        STRV_FOREACH(p, l) {
-                if (!env_assignment_is_valid(*p) && !env_name_is_valid(*p))
-                        return false;
+	STRV_FOREACH (p, l) {
+		if (!env_assignment_is_valid(*p) && !env_name_is_valid(*p))
+			return false;
 
-                STRV_FOREACH(q, p + 1)
-                        if (streq(*p, *q))
-                                return false;
-        }
+		STRV_FOREACH (q, p + 1)
+			if (streq(*p, *q))
+				return false;
+	}
 
-        return true;
+	return true;
 }
 
-static int env_append(char **r, char ***k, char **a) {
-        assert(r);
-        assert(k);
+static int
+env_append(char **r, char ***k, char **a)
+{
+	assert(r);
+	assert(k);
 
-        if (!a)
-                return 0;
+	if (!a)
+		return 0;
 
-        /* Add the entries of a to *k unless they already exist in *r
+	/* Add the entries of a to *k unless they already exist in *r
          * in which case they are overridden instead. This assumes
          * there is enough space in the r array. */
 
-        for (; *a; a++) {
-                char **j;
-                size_t n;
+	for (; *a; a++) {
+		char **j;
+		size_t n;
 
-                n = strcspn(*a, "=");
+		n = strcspn(*a, "=");
 
-                if ((*a)[n] == '=')
-                        n++;
+		if ((*a)[n] == '=')
+			n++;
 
-                for (j = r; j < *k; j++)
-                        if (strneq(*j, *a, n))
-                                break;
+		for (j = r; j < *k; j++)
+			if (strneq(*j, *a, n))
+				break;
 
-                if (j >= *k)
-                        (*k)++;
-                else
-                        free(*j);
+		if (j >= *k)
+			(*k)++;
+		else
+			free(*j);
 
-                *j = strdup(*a);
-                if (!*j)
-                        return -ENOMEM;
-        }
+		*j = strdup(*a);
+		if (!*j)
+			return -ENOMEM;
+	}
 
-        return 0;
+	return 0;
 }
 
-char **strv_env_merge(unsigned n_lists, ...) {
-        size_t n = 0;
-        char **l, **k, **r;
-        va_list ap;
-        unsigned i;
+char **
+strv_env_merge(unsigned n_lists, ...)
+{
+	size_t n = 0;
+	char **l, **k, **r;
+	va_list ap;
+	unsigned i;
 
-        /* Merges an arbitrary number of environment sets */
+	/* Merges an arbitrary number of environment sets */
 
-        va_start(ap, n_lists);
-        for (i = 0; i < n_lists; i++) {
-                l = va_arg(ap, char**);
-                n += strv_length(l);
-        }
-        va_end(ap);
+	va_start(ap, n_lists);
+	for (i = 0; i < n_lists; i++) {
+		l = va_arg(ap, char **);
+		n += strv_length(l);
+	}
+	va_end(ap);
 
-        r = new(char*, n+1);
-        if (!r)
-                return NULL;
+	r = new (char *, n + 1);
+	if (!r)
+		return NULL;
 
-        k = r;
+	k = r;
 
-        va_start(ap, n_lists);
-        for (i = 0; i < n_lists; i++) {
-                l = va_arg(ap, char**);
-                if (env_append(r, &k, l) < 0)
-                        goto fail;
-        }
-        va_end(ap);
+	va_start(ap, n_lists);
+	for (i = 0; i < n_lists; i++) {
+		l = va_arg(ap, char **);
+		if (env_append(r, &k, l) < 0)
+			goto fail;
+	}
+	va_end(ap);
 
-        *k = NULL;
+	*k = NULL;
 
-        return r;
+	return r;
 
 fail:
-        va_end(ap);
-        strv_free(r);
+	va_end(ap);
+	strv_free(r);
 
-        return NULL;
+	return NULL;
 }
 
-_pure_ static bool env_match(const char *t, const char *pattern) {
-        assert(t);
-        assert(pattern);
+_pure_ static bool
+env_match(const char *t, const char *pattern)
+{
+	assert(t);
+	assert(pattern);
 
-        /* pattern a matches string a
+	/* pattern a matches string a
          *         a matches a=
          *         a matches a=b
          *         a= matches a=
@@ -257,220 +275,232 @@ _pure_ static bool env_match(const char *t, const char *pattern) {
          *         a=b does not match a
          *         a=b does not match a=c */
 
-        if (streq(t, pattern))
-                return true;
+	if (streq(t, pattern))
+		return true;
 
-        if (!strchr(pattern, '=')) {
-                size_t l = strlen(pattern);
+	if (!strchr(pattern, '=')) {
+		size_t l = strlen(pattern);
 
-                return strneq(t, pattern, l) && t[l] == '=';
-        }
+		return strneq(t, pattern, l) && t[l] == '=';
+	}
 
-        return false;
+	return false;
 }
 
-char **strv_env_delete(char **x, unsigned n_lists, ...) {
-        size_t n, i = 0;
-        char **k, **r;
-        va_list ap;
+char **
+strv_env_delete(char **x, unsigned n_lists, ...)
+{
+	size_t n, i = 0;
+	char **k, **r;
+	va_list ap;
 
-        /* Deletes every entry from x that is mentioned in the other
+	/* Deletes every entry from x that is mentioned in the other
          * string lists */
 
-        n = strv_length(x);
+	n = strv_length(x);
 
-        r = new(char*, n+1);
-        if (!r)
-                return NULL;
+	r = new (char *, n + 1);
+	if (!r)
+		return NULL;
 
-        STRV_FOREACH(k, x) {
-                unsigned v;
+	STRV_FOREACH (k, x) {
+		unsigned v;
 
-                va_start(ap, n_lists);
-                for (v = 0; v < n_lists; v++) {
-                        char **l, **j;
+		va_start(ap, n_lists);
+		for (v = 0; v < n_lists; v++) {
+			char **l, **j;
 
-                        l = va_arg(ap, char**);
-                        STRV_FOREACH(j, l)
-                                if (env_match(*k, *j))
-                                        goto skip;
-                }
-                va_end(ap);
+			l = va_arg(ap, char **);
+			STRV_FOREACH (j, l)
+				if (env_match(*k, *j))
+					goto skip;
+		}
+		va_end(ap);
 
-                r[i] = strdup(*k);
-                if (!r[i]) {
-                        strv_free(r);
-                        return NULL;
-                }
+		r[i] = strdup(*k);
+		if (!r[i]) {
+			strv_free(r);
+			return NULL;
+		}
 
-                i++;
-                continue;
+		i++;
+		continue;
 
-        skip:
-                va_end(ap);
-        }
+	skip:
+		va_end(ap);
+	}
 
-        r[i] = NULL;
+	r[i] = NULL;
 
-        assert(i <= n);
+	assert(i <= n);
 
-        return r;
+	return r;
 }
 
-char **strv_env_unset(char **l, const char *p) {
+char **
+strv_env_unset(char **l, const char *p)
+{
+	char **f, **t;
 
-        char **f, **t;
+	if (!l)
+		return NULL;
 
-        if (!l)
-                return NULL;
+	assert(p);
 
-        assert(p);
-
-        /* Drops every occurrence of the env var setting p in the
+	/* Drops every occurrence of the env var setting p in the
          * string list. Edits in-place. */
 
-        for (f = t = l; *f; f++) {
+	for (f = t = l; *f; f++) {
+		if (env_match(*f, p)) {
+			free(*f);
+			continue;
+		}
 
-                if (env_match(*f, p)) {
-                        free(*f);
-                        continue;
-                }
+		*(t++) = *f;
+	}
 
-                *(t++) = *f;
-        }
-
-        *t = NULL;
-        return l;
+	*t = NULL;
+	return l;
 }
 
-char **strv_env_unset_many(char **l, ...) {
+char **
+strv_env_unset_many(char **l, ...)
+{
+	char **f, **t;
 
-        char **f, **t;
+	if (!l)
+		return NULL;
 
-        if (!l)
-                return NULL;
+	/* Like strv_env_unset() but applies many at once. Edits in-place. */
 
-        /* Like strv_env_unset() but applies many at once. Edits in-place. */
+	for (f = t = l; *f; f++) {
+		bool found = false;
+		const char *p;
+		va_list ap;
 
-        for (f = t = l; *f; f++) {
-                bool found = false;
-                const char *p;
-                va_list ap;
+		va_start(ap, l);
 
-                va_start(ap, l);
+		while ((p = va_arg(ap, const char *))) {
+			if (env_match(*f, p)) {
+				found = true;
+				break;
+			}
+		}
 
-                while ((p = va_arg(ap, const char*))) {
-                        if (env_match(*f, p)) {
-                                found = true;
-                                break;
-                        }
-                }
+		va_end(ap);
 
-                va_end(ap);
+		if (found) {
+			free(*f);
+			continue;
+		}
 
-                if (found) {
-                        free(*f);
-                        continue;
-                }
+		*(t++) = *f;
+	}
 
-                *(t++) = *f;
-        }
-
-        *t = NULL;
-        return l;
+	*t = NULL;
+	return l;
 }
 
-char **strv_env_set(char **x, const char *p) {
+char **
+strv_env_set(char **x, const char *p)
+{
+	char **k, **r;
+	char *m[2] = { (char *)p, NULL };
 
-        char **k, **r;
-        char* m[2] = { (char*) p, NULL };
+	/* Overrides the env var setting of p, returns a new copy */
 
-        /* Overrides the env var setting of p, returns a new copy */
+	r = new (char *, strv_length(x) + 2);
+	if (!r)
+		return NULL;
 
-        r = new(char*, strv_length(x)+2);
-        if (!r)
-                return NULL;
+	k = r;
+	if (env_append(r, &k, x) < 0)
+		goto fail;
 
-        k = r;
-        if (env_append(r, &k, x) < 0)
-                goto fail;
+	if (env_append(r, &k, m) < 0)
+		goto fail;
 
-        if (env_append(r, &k, m) < 0)
-                goto fail;
+	*k = NULL;
 
-        *k = NULL;
-
-        return r;
+	return r;
 
 fail:
-        strv_free(r);
-        return NULL;
+	strv_free(r);
+	return NULL;
 }
 
-char *strv_env_get_n(char **l, const char *name, size_t k) {
-        char **i;
+char *
+strv_env_get_n(char **l, const char *name, size_t k)
+{
+	char **i;
 
-        assert(name);
+	assert(name);
 
-        if (k <= 0)
-                return NULL;
+	if (k <= 0)
+		return NULL;
 
-        STRV_FOREACH(i, l)
-                if (strneq(*i, name, k) &&
-                    (*i)[k] == '=')
-                        return *i + k + 1;
+	STRV_FOREACH (i, l)
+		if (strneq(*i, name, k) && (*i)[k] == '=')
+			return *i + k + 1;
 
-        return NULL;
+	return NULL;
 }
 
-char *strv_env_get(char **l, const char *name) {
-        assert(name);
+char *
+strv_env_get(char **l, const char *name)
+{
+	assert(name);
 
-        return strv_env_get_n(l, name, strlen(name));
+	return strv_env_get_n(l, name, strlen(name));
 }
 
-char **strv_env_clean_with_callback(char **e, void (*invalid_callback)(const char *p, void *userdata), void *userdata) {
-        char **p, **q;
-        int k = 0;
+char **
+strv_env_clean_with_callback(char **e,
+	void (*invalid_callback)(const char *p, void *userdata), void *userdata)
+{
+	char **p, **q;
+	int k = 0;
 
-        STRV_FOREACH(p, e) {
-                size_t n;
-                bool duplicate = false;
+	STRV_FOREACH (p, e) {
+		size_t n;
+		bool duplicate = false;
 
-                if (!env_assignment_is_valid(*p)) {
-                        if (invalid_callback)
-                                invalid_callback(*p, userdata);
-                        free(*p);
-                        continue;
-                }
+		if (!env_assignment_is_valid(*p)) {
+			if (invalid_callback)
+				invalid_callback(*p, userdata);
+			free(*p);
+			continue;
+		}
 
-                n = strcspn(*p, "=");
-                STRV_FOREACH(q, p + 1)
-                        if (strneq(*p, *q, n) && (*q)[n] == '=') {
-                                duplicate = true;
-                                break;
-                        }
+		n = strcspn(*p, "=");
+		STRV_FOREACH (q, p + 1)
+			if (strneq(*p, *q, n) && (*q)[n] == '=') {
+				duplicate = true;
+				break;
+			}
 
-                if (duplicate) {
-                        free(*p);
-                        continue;
-                }
+		if (duplicate) {
+			free(*p);
+			continue;
+		}
 
-                e[k++] = *p;
-        }
+		e[k++] = *p;
+	}
 
-        if (e)
-                e[k] = NULL;
+	if (e)
+		e[k] = NULL;
 
-        return e;
+	return e;
 }
 
-int getenv_bool(const char *p) {
-        const char *e;
+int
+getenv_bool(const char *p)
+{
+	const char *e;
 
-        e = getenv(p);
-        if (!e)
-                return -ENXIO;
+	e = getenv(p);
+	if (!e)
+		return -ENXIO;
 
-        return parse_boolean(e);
+	return parse_boolean(e);
 }

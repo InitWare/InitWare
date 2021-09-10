@@ -19,149 +19,149 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdlib.h>
-#include <stdbool.h>
 #include <errno.h>
-#include <string.h>
 #include <getopt.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
 
+#include "build.h"
 #include "util.h"
 #include "virt.h"
-#include "build.h"
 
 static bool arg_quiet = false;
 static enum {
-        ANY_VIRTUALIZATION,
-        ONLY_VM,
-        ONLY_CONTAINER
+	ANY_VIRTUALIZATION,
+	ONLY_VM,
+	ONLY_CONTAINER
 } arg_mode = ANY_VIRTUALIZATION;
 
-static void help(void) {
-        printf("%s [OPTIONS...]\n\n"
-               "Detect execution in a virtualized environment.\n\n"
-               "  -h --help             Show this help\n"
-               "     --version          Show package version\n"
-               "  -c --container        Only detect whether we are run in a container\n"
-               "  -v --vm               Only detect whether we are run in a VM\n"
-               "  -q --quiet            Don't output anything, just set return value\n"
-               , program_invocation_short_name);
+static void
+help(void)
+{
+	printf("%s [OPTIONS...]\n\n"
+	       "Detect execution in a virtualized environment.\n\n"
+	       "  -h --help             Show this help\n"
+	       "     --version          Show package version\n"
+	       "  -c --container        Only detect whether we are run in a container\n"
+	       "  -v --vm               Only detect whether we are run in a VM\n"
+	       "  -q --quiet            Don't output anything, just set return value\n",
+		program_invocation_short_name);
 }
 
-static int parse_argv(int argc, char *argv[]) {
+static int
+parse_argv(int argc, char *argv[])
+{
+	enum { ARG_VERSION = 0x100 };
 
-        enum {
-                ARG_VERSION = 0x100
-        };
+	static const struct option options[] = { { "help", no_argument, NULL,
+							 'h' },
+		{ "version", no_argument, NULL, ARG_VERSION },
+		{ "container", no_argument, NULL, 'c' },
+		{ "vm", optional_argument, NULL, 'v' },
+		{ "quiet", no_argument, NULL, 'q' }, {} };
 
-        static const struct option options[] = {
-                { "help",      no_argument,       NULL, 'h'           },
-                { "version",   no_argument,       NULL, ARG_VERSION   },
-                { "container", no_argument,       NULL, 'c'           },
-                { "vm",        optional_argument, NULL, 'v'           },
-                { "quiet",     no_argument,       NULL, 'q'           },
-                {}
-        };
+	int c;
 
-        int c;
+	assert(argc >= 0);
+	assert(argv);
 
-        assert(argc >= 0);
-        assert(argv);
+	while ((c = getopt_long(argc, argv, "hqcv", options, NULL)) >= 0)
 
-        while ((c = getopt_long(argc, argv, "hqcv", options, NULL)) >= 0)
+		switch (c) {
+		case 'h':
+			help();
+			return 0;
 
-                switch (c) {
+		case ARG_VERSION:
+			puts(PACKAGE_STRING);
+			puts(SYSTEMD_FEATURES);
+			return 0;
 
-                case 'h':
-                        help();
-                        return 0;
+		case 'q':
+			arg_quiet = true;
+			break;
 
-                case ARG_VERSION:
-                        puts(PACKAGE_STRING);
-                        puts(SYSTEMD_FEATURES);
-                        return 0;
+		case 'c':
+			arg_mode = ONLY_CONTAINER;
+			break;
 
-                case 'q':
-                        arg_quiet = true;
-                        break;
+		case 'v':
+			arg_mode = ONLY_VM;
+			break;
 
-                case 'c':
-                        arg_mode = ONLY_CONTAINER;
-                        break;
+		case '?':
+			return -EINVAL;
 
-                case 'v':
-                        arg_mode = ONLY_VM;
-                        break;
+		default:
+			assert_not_reached("Unhandled option");
+		}
 
-                case '?':
-                        return -EINVAL;
+	if (optind < argc) {
+		log_error("%s takes no arguments.",
+			program_invocation_short_name);
+		return -EINVAL;
+	}
 
-                default:
-                        assert_not_reached("Unhandled option");
-                }
-
-        if (optind < argc) {
-                log_error("%s takes no arguments.",
-                          program_invocation_short_name);
-                return -EINVAL;
-        }
-
-        return 1;
+	return 1;
 }
 
-int main(int argc, char *argv[]) {
-        const char *id = NULL;
-        int retval = EXIT_SUCCESS;
-        int r;
+int
+main(int argc, char *argv[])
+{
+	const char *id = NULL;
+	int retval = EXIT_SUCCESS;
+	int r;
 
-        /* This is mostly intended to be used for scripts which want
+	/* This is mostly intended to be used for scripts which want
          * to detect whether we are being run in a virtualized
          * environment or not */
 
-        log_parse_environment();
-        log_open();
+	log_parse_environment();
+	log_open();
 
-        r = parse_argv(argc, argv);
-        if (r <= 0)
-                return r < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+	r = parse_argv(argc, argv);
+	if (r <= 0)
+		return r < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 
-        switch (arg_mode) {
+	switch (arg_mode) {
+	case ANY_VIRTUALIZATION: {
+		int v;
 
-        case ANY_VIRTUALIZATION: {
-                int v;
+		v = detect_virtualization(&id);
+		if (v < 0) {
+			log_error_errno(v,
+				"Failed to check for virtualization: %m");
+			return EXIT_FAILURE;
+		}
 
-                v = detect_virtualization(&id);
-                if (v < 0) {
-                        log_error_errno(v, "Failed to check for virtualization: %m");
-                        return EXIT_FAILURE;
-                }
+		retval = v != VIRTUALIZATION_NONE ? EXIT_SUCCESS : EXIT_FAILURE;
+		break;
+	}
 
-                retval = v != VIRTUALIZATION_NONE ? EXIT_SUCCESS : EXIT_FAILURE;
-                break;
-        }
+	case ONLY_CONTAINER:
+		r = detect_container(&id);
+		if (r < 0) {
+			log_error_errno(r, "Failed to check for container: %m");
+			return EXIT_FAILURE;
+		}
 
-        case ONLY_CONTAINER:
-                r = detect_container(&id);
-                if (r < 0) {
-                        log_error_errno(r, "Failed to check for container: %m");
-                        return EXIT_FAILURE;
-                }
+		retval = r > 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+		break;
 
-                retval = r > 0 ? EXIT_SUCCESS : EXIT_FAILURE;
-                break;
+	case ONLY_VM:
+		r = detect_vm(&id);
+		if (r < 0) {
+			log_error_errno(r, "Failed to check for vm: %m");
+			return EXIT_FAILURE;
+		}
 
-        case ONLY_VM:
-                r = detect_vm(&id);
-                if (r < 0) {
-                        log_error_errno(r, "Failed to check for vm: %m");
-                        return EXIT_FAILURE;
-                }
+		retval = r > 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+		break;
+	}
 
-                retval = r > 0 ? EXIT_SUCCESS : EXIT_FAILURE;
-                break;
-        }
+	if (!arg_quiet)
+		puts(id ? id : "none");
 
-        if (!arg_quiet)
-                puts(id ? id : "none");
-
-        return retval;
+	return retval;
 }

@@ -19,77 +19,88 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdio.h>
 #include <errno.h>
+#include <stdio.h>
 
 #include "log.h"
-#include "util.h"
-#include "special.h"
 #include "mkdir.h"
+#include "special.h"
 #include "unit-name.h"
+#include "util.h"
 
 static const char *arg_dest = "/tmp";
 static char *arg_resume_dev = NULL;
 
-static int parse_proc_cmdline_item(const char *key, const char *value) {
-        if (streq(key, "resume") && value) {
-                free(arg_resume_dev);
-                arg_resume_dev = fstab_node_to_udev_node(value);
-                if (!arg_resume_dev)
-                        return log_oom();
-        }
+static int
+parse_proc_cmdline_item(const char *key, const char *value)
+{
+	if (streq(key, "resume") && value) {
+		free(arg_resume_dev);
+		arg_resume_dev = fstab_node_to_udev_node(value);
+		if (!arg_resume_dev)
+			return log_oom();
+	}
 
-        return 0;
+	return 0;
 }
 
-static int process_resume(void) {
-        _cleanup_free_ char *name = NULL, *lnk = NULL;
+static int
+process_resume(void)
+{
+	_cleanup_free_ char *name = NULL, *lnk = NULL;
 
-        if (!arg_resume_dev)
-                return 0;
+	if (!arg_resume_dev)
+		return 0;
 
-        name = unit_name_from_path_instance("systemd-hibernate-resume", arg_resume_dev, ".service");
-        if (!name)
-                return log_oom();
+	name = unit_name_from_path_instance("systemd-hibernate-resume",
+		arg_resume_dev, ".service");
+	if (!name)
+		return log_oom();
 
-        lnk = strjoin(arg_dest, "/" SPECIAL_SYSINIT_TARGET ".wants/", name, NULL);
-        if (!lnk)
-                return log_oom();
+	lnk = strjoin(arg_dest, "/" SPECIAL_SYSINIT_TARGET ".wants/", name,
+		NULL);
+	if (!lnk)
+		return log_oom();
 
-        mkdir_parents_label(lnk, 0755);
-        if (symlink(SYSTEM_DATA_UNIT_PATH "/systemd-hibernate-resume@.service", lnk) < 0)
-                return log_error_errno(errno, "Failed to create symlink %s: %m", lnk);
+	mkdir_parents_label(lnk, 0755);
+	if (symlink(SYSTEM_DATA_UNIT_PATH "/systemd-hibernate-resume@.service",
+		    lnk) < 0)
+		return log_error_errno(errno, "Failed to create symlink %s: %m",
+			lnk);
 
-        return 0;
+	return 0;
 }
 
-int main(int argc, char *argv[]) {
-        int r = 0;
+int
+main(int argc, char *argv[])
+{
+	int r = 0;
 
-        if (argc > 1 && argc != 4) {
-                log_error("This program takes three or no arguments.");
-                return EXIT_FAILURE;
-        }
+	if (argc > 1 && argc != 4) {
+		log_error("This program takes three or no arguments.");
+		return EXIT_FAILURE;
+	}
 
-        if (argc > 1)
-                arg_dest = argv[1];
+	if (argc > 1)
+		arg_dest = argv[1];
 
-        log_set_target(LOG_TARGET_SAFE);
-        log_parse_environment();
-        log_open();
+	log_set_target(LOG_TARGET_SAFE);
+	log_parse_environment();
+	log_open();
 
-        umask(0022);
+	umask(0022);
 
-        /* Don't even consider resuming outside of initramfs. */
-        if (!in_initrd())
-                return EXIT_SUCCESS;
+	/* Don't even consider resuming outside of initramfs. */
+	if (!in_initrd())
+		return EXIT_SUCCESS;
 
-        r = parse_proc_cmdline(parse_proc_cmdline_item);
-        if (r < 0)
-                log_warning_errno(r, "Failed to parse kernel command line, ignoring: %m");
+	r = parse_proc_cmdline(parse_proc_cmdline_item);
+	if (r < 0)
+		log_warning_errno(r,
+			"Failed to parse kernel command line, ignoring: %m");
 
-        r = process_resume();
-        free(arg_resume_dev);
+	r = process_resume();
+	free(arg_resume_dev);
 
-        return r < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+	return r < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

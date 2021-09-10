@@ -19,13 +19,12 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "unit.h"
-#include "device.h"
-#include "dbus-unit.h"
 #include "dbus-device.h"
+#include "dbus-unit.h"
+#include "device.h"
+#include "unit.h"
 
-const sd_bus_vtable bus_device_vtable[] = {
-        SD_BUS_VTABLE_START(0),
-        SD_BUS_PROPERTY("SysFSPath", "s", NULL, offsetof(Device, sysfs), SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
-        SD_BUS_VTABLE_END
-};
+const sd_bus_vtable bus_device_vtable[] = { SD_BUS_VTABLE_START(0),
+	SD_BUS_PROPERTY("SysFSPath", "s", NULL, offsetof(Device, sysfs),
+		SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
+	SD_BUS_VTABLE_END };

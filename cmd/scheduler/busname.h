@@ -27,59 +27,59 @@ typedef struct BusNamePolicy BusNamePolicy;
 #include "unit.h"
 
 typedef enum BusNameState {
-        BUSNAME_DEAD,
-        BUSNAME_MAKING,
-        BUSNAME_REGISTERED,
-        BUSNAME_LISTENING,
-        BUSNAME_RUNNING,
-        BUSNAME_SIGTERM,
-        BUSNAME_SIGKILL,
-        BUSNAME_FAILED,
-        _BUSNAME_STATE_MAX,
-        _BUSNAME_STATE_INVALID = -1
+	BUSNAME_DEAD,
+	BUSNAME_MAKING,
+	BUSNAME_REGISTERED,
+	BUSNAME_LISTENING,
+	BUSNAME_RUNNING,
+	BUSNAME_SIGTERM,
+	BUSNAME_SIGKILL,
+	BUSNAME_FAILED,
+	_BUSNAME_STATE_MAX,
+	_BUSNAME_STATE_INVALID = -1
 } BusNameState;
 
 typedef enum BusNameResult {
-        BUSNAME_SUCCESS,
-        BUSNAME_FAILURE_RESOURCES,
-        BUSNAME_FAILURE_TIMEOUT,
-        BUSNAME_FAILURE_EXIT_CODE,
-        BUSNAME_FAILURE_SIGNAL,
-        BUSNAME_FAILURE_CORE_DUMP,
-        BUSNAME_FAILURE_SERVICE_FAILED_PERMANENT,
-        _BUSNAME_RESULT_MAX,
-        _BUSNAME_RESULT_INVALID = -1
+	BUSNAME_SUCCESS,
+	BUSNAME_FAILURE_RESOURCES,
+	BUSNAME_FAILURE_TIMEOUT,
+	BUSNAME_FAILURE_EXIT_CODE,
+	BUSNAME_FAILURE_SIGNAL,
+	BUSNAME_FAILURE_CORE_DUMP,
+	BUSNAME_FAILURE_SERVICE_FAILED_PERMANENT,
+	_BUSNAME_RESULT_MAX,
+	_BUSNAME_RESULT_INVALID = -1
 } BusNameResult;
 
 struct BusName {
-        Unit meta;
+	Unit meta;
 
-        char *name;
-        int starter_fd;
+	char *name;
+	int starter_fd;
 
-        bool activating;
-        bool accept_fd;
+	bool activating;
+	bool accept_fd;
 
-        UnitRef service;
+	UnitRef service;
 
-        BusNameState state, deserialized_state;
-        BusNameResult result;
+	BusNameState state, deserialized_state;
+	BusNameResult result;
 
-        usec_t timeout_usec;
+	usec_t timeout_usec;
 
-        sd_event_source *starter_event_source;
-        sd_event_source *timer_event_source;
+	sd_event_source *starter_event_source;
+	sd_event_source *timer_event_source;
 
-        pid_t control_pid;
+	pid_t control_pid;
 
-        IWLIST_HEAD(BusNamePolicy, policy);
-        BusPolicyAccess policy_world;
+	IWLIST_HEAD(BusNamePolicy, policy);
+	BusPolicyAccess policy_world;
 };
 
 extern const UnitVTable busname_vtable;
 
-const char* busname_state_to_string(BusNameState i) _const_;
+const char *busname_state_to_string(BusNameState i) _const_;
 BusNameState busname_state_from_string(const char *s) _pure_;
 
-const char* busname_result_to_string(BusNameResult i) _const_;
+const char *busname_result_to_string(BusNameResult i) _const_;
 BusNameResult busname_result_from_string(const char *s) _pure_;

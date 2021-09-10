@@ -23,8 +23,10 @@
 #include "def.h"
 #include "util.h"
 
-bool session_id_valid(const char *id) {
-        assert(id);
+bool
+session_id_valid(const char *id)
+{
+	assert(id);
 
-        return id[0] && id[strspn(id, LETTERS DIGITS)] == '\0';
+	return id[0] && id[strspn(id, LETTERS DIGITS)] == '\0';
 }

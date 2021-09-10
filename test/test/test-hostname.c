@@ -20,19 +20,21 @@
 ***/
 
 #include <errno.h>
-#include <string.h>
-#include <stdio.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "hostname-setup.h"
 #include "util.h"
 
-int main(int argc, char* argv[]) {
-        int r;
+int
+main(int argc, char *argv[])
+{
+	int r;
 
-        r = hostname_setup();
-        if (r < 0)
-                log_error_errno(r, "hostname: %m");
+	r = hostname_setup();
+	if (r < 0)
+		log_error_errno(r, "hostname: %m");
 
-        return 0;
+	return 0;
 }

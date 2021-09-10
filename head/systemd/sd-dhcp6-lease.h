@@ -28,10 +28,8 @@
 typedef struct sd_dhcp6_lease sd_dhcp6_lease;
 
 void sd_dhcp6_lease_reset_address_iter(sd_dhcp6_lease *lease);
-int sd_dhcp6_lease_get_address(sd_dhcp6_lease *lease,
-                               struct in6_addr *addr,
-                               uint32_t *lifetime_preferred,
-                               uint32_t *lifetime_valid);
+int sd_dhcp6_lease_get_address(sd_dhcp6_lease *lease, struct in6_addr *addr,
+	uint32_t *lifetime_preferred, uint32_t *lifetime_valid);
 
 sd_dhcp6_lease *sd_dhcp6_lease_ref(sd_dhcp6_lease *lease);
 sd_dhcp6_lease *sd_dhcp6_lease_unref(sd_dhcp6_lease *lease);

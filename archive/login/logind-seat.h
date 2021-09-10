@@ -24,30 +24,30 @@
 typedef struct Seat Seat;
 
 #include "list.h"
-#include "util.h"
-#include "logind.h"
 #include "logind-device.h"
 #include "logind-session.h"
+#include "logind.h"
+#include "util.h"
 
 struct Seat {
-        Manager *manager;
-        char *id;
+	Manager *manager;
+	char *id;
 
-        char *state_file;
+	char *state_file;
 
-        IWLIST_HEAD(Device, devices);
+	IWLIST_HEAD(Device, devices);
 
-        Session *active;
-        Session *pending_switch;
-        IWLIST_HEAD(Session, sessions);
+	Session *active;
+	Session *pending_switch;
+	IWLIST_HEAD(Session, sessions);
 
-        Session **positions;
-        size_t position_count;
+	Session **positions;
+	size_t position_count;
 
-        bool in_gc_queue:1;
-        bool started:1;
+	bool in_gc_queue: 1;
+	bool started: 1;
 
-        IWLIST_FIELDS(Seat, gc_queue);
+	IWLIST_FIELDS(Seat, gc_queue);
 };
 
 Seat *seat_new(Manager *m, const char *id);
@@ -90,8 +90,10 @@ bool seat_name_is_valid(const char *name);
 
 extern const sd_bus_vtable seat_vtable[];
 
-int seat_node_enumerator(sd_bus *bus, const char *path, void *userdata, char ***nodes, sd_bus_error *error);
-int seat_object_find(sd_bus *bus, const char *path, const char *interface, void *userdata, void **found, sd_bus_error *error);
+int seat_node_enumerator(sd_bus *bus, const char *path, void *userdata,
+	char ***nodes, sd_bus_error *error);
+int seat_object_find(sd_bus *bus, const char *path, const char *interface,
+	void *userdata, void **found, sd_bus_error *error);
 char *seat_bus_path(Seat *s);
 
 int seat_send_signal(Seat *s, bool new_seat);

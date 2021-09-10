@@ -19,51 +19,48 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "utmp-wtmp.h"
-#include "journald-server.h"
 #include "journald-wall.h"
+#include "journald-server.h"
+#include "utmp-wtmp.h"
 
-void server_forward_wall(
-                Server *s,
-                int priority,
-                const char *identifier,
-                const char *message,
-                const struct ucred *ucred) {
+void
+server_forward_wall(Server *s, int priority, const char *identifier,
+	const char *message, const struct ucred *ucred)
+{
+	_cleanup_free_ char *ident_buf = NULL, *l_buf = NULL;
+	const char *l;
+	int r;
 
-        _cleanup_free_ char *ident_buf = NULL, *l_buf = NULL;
-        const char *l;
-        int r;
+	assert(s);
+	assert(message);
 
-        assert(s);
-        assert(message);
+	if (LOG_PRI(priority) > s->max_level_wall)
+		return;
 
-        if (LOG_PRI(priority) > s->max_level_wall)
-                return;
+	if (ucred) {
+		if (!identifier) {
+			get_process_comm(ucred->pid, &ident_buf);
+			identifier = ident_buf;
+		}
 
-        if (ucred) {
-                if (!identifier) {
-                        get_process_comm(ucred->pid, &ident_buf);
-                        identifier = ident_buf;
-                }
+		if (asprintf(&l_buf, "%s[" PID_FMT "]: %s",
+			    strempty(identifier), ucred->pid, message) < 0) {
+			log_oom();
+			return;
+		}
 
-                if (asprintf(&l_buf, "%s["PID_FMT"]: %s", strempty(identifier), ucred->pid, message) < 0) {
-                        log_oom();
-                        return;
-                }
+		l = l_buf;
 
-                l = l_buf;
+	} else if (identifier) {
+		l = l_buf = strjoin(identifier, ": ", message, NULL);
+		if (!l_buf) {
+			log_oom();
+			return;
+		}
+	} else
+		l = message;
 
-        } else if (identifier) {
-
-                l = l_buf = strjoin(identifier, ": ", message, NULL);
-                if (!l_buf) {
-                        log_oom();
-                        return;
-                }
-        } else
-                l = message;
-
-        r = utmp_wall(l, "systemd-journald", NULL);
-        if (r < 0)
-                log_debug_errno(r, "Failed to send wall message: %m");
+	r = utmp_wall(l, "systemd-journald", NULL);
+	if (r < 0)
+		log_debug_errno(r, "Failed to send wall message: %m");
 }

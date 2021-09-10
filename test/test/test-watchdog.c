@@ -19,33 +19,35 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 
-#include "watchdog.h"
 #include "log.h"
+#include "watchdog.h"
 
-int main(int argc, char *argv[]) {
-        usec_t t = 10 * USEC_PER_SEC;
-        unsigned i;
-        int r;
+int
+main(int argc, char *argv[])
+{
+	usec_t t = 10 * USEC_PER_SEC;
+	unsigned i;
+	int r;
 
-        log_set_max_level(LOG_DEBUG);
-        log_parse_environment();
+	log_set_max_level(LOG_DEBUG);
+	log_parse_environment();
 
-        r = watchdog_set_timeout(&t);
-        if (r < 0)
-                log_warning_errno(r, "Failed to open watchdog: %m");
+	r = watchdog_set_timeout(&t);
+	if (r < 0)
+		log_warning_errno(r, "Failed to open watchdog: %m");
 
-        for (i = 0; i < 5; i++) {
-                log_info("Pinging...");
-                r = watchdog_ping();
-                if (r < 0)
-                        log_warning_errno(r, "Failed to ping watchdog: %m");
+	for (i = 0; i < 5; i++) {
+		log_info("Pinging...");
+		r = watchdog_ping();
+		if (r < 0)
+			log_warning_errno(r, "Failed to ping watchdog: %m");
 
-                usleep(t/2);
-        }
+		usleep(t / 2);
+	}
 
-        watchdog_close(true);
-        return 0;
+	watchdog_close(true);
+	return 0;
 }

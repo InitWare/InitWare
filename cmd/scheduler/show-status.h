@@ -24,11 +24,11 @@
 /* Manager status */
 
 typedef enum ShowStatus {
-        _SHOW_STATUS_UNSET = -2,
-        SHOW_STATUS_AUTO = -1,
-        SHOW_STATUS_NO = 0,
-        SHOW_STATUS_YES = 1,
-        SHOW_STATUS_TEMPORARY = 2,
+	_SHOW_STATUS_UNSET = -2,
+	SHOW_STATUS_AUTO = -1,
+	SHOW_STATUS_NO = 0,
+	SHOW_STATUS_YES = 1,
+	SHOW_STATUS_TEMPORARY = 2,
 } ShowStatus;
 
 int parse_show_status(const char *v, ShowStatus *ret);

@@ -27,20 +27,20 @@
 #include "sd-event.h"
 
 enum {
-        ICMP6_EVENT_ROUTER_ADVERTISMENT_NONE           = 0,
-        ICMP6_EVENT_ROUTER_ADVERTISMENT_TIMEOUT        = 1,
-        ICMP6_EVENT_ROUTER_ADVERTISMENT_OTHER          = 2,
-        ICMP6_EVENT_ROUTER_ADVERTISMENT_MANAGED        = 3,
-        ICMP6_EVENT_ROUTER_ADVERTISMENT_PREFIX_EXPIRED = 4,
+	ICMP6_EVENT_ROUTER_ADVERTISMENT_NONE = 0,
+	ICMP6_EVENT_ROUTER_ADVERTISMENT_TIMEOUT = 1,
+	ICMP6_EVENT_ROUTER_ADVERTISMENT_OTHER = 2,
+	ICMP6_EVENT_ROUTER_ADVERTISMENT_MANAGED = 3,
+	ICMP6_EVENT_ROUTER_ADVERTISMENT_PREFIX_EXPIRED = 4,
 };
 
 typedef struct sd_icmp6_nd sd_icmp6_nd;
 
-typedef void(*sd_icmp6_nd_callback_t)(sd_icmp6_nd *nd, int event,
-                                      void *userdata);
+typedef void (
+	*sd_icmp6_nd_callback_t)(sd_icmp6_nd *nd, int event, void *userdata);
 
 int sd_icmp6_nd_set_callback(sd_icmp6_nd *nd, sd_icmp6_nd_callback_t cb,
-                             void *userdata);
+	void *userdata);
 int sd_icmp6_nd_set_index(sd_icmp6_nd *nd, int interface_index);
 int sd_icmp6_nd_set_mac(sd_icmp6_nd *nd, const struct ether_addr *mac_addr);
 
@@ -53,27 +53,26 @@ sd_icmp6_nd *sd_icmp6_nd_unref(sd_icmp6_nd *nd);
 int sd_icmp6_nd_new(sd_icmp6_nd **ret);
 
 int sd_icmp6_prefix_match(struct in6_addr *prefix, uint8_t prefixlen,
-                        struct in6_addr *addr);
+	struct in6_addr *addr);
 
 int sd_icmp6_ra_get_mtu(sd_icmp6_nd *nd, uint32_t *mtu);
 int sd_icmp6_ra_get_prefixlen(sd_icmp6_nd *nd, const struct in6_addr *addr,
-                        uint8_t *prefixlen);
+	uint8_t *prefixlen);
 int sd_icmp6_ra_get_expired_prefix(sd_icmp6_nd *nd, struct in6_addr **addr,
-                                uint8_t *prefixlen);
+	uint8_t *prefixlen);
 
 int sd_icmp6_nd_stop(sd_icmp6_nd *nd);
 int sd_icmp6_router_solicitation_start(sd_icmp6_nd *nd);
 
 #define SD_ICMP6_ADDRESS_FORMAT_STR "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x"
 
-#define SD_ICMP6_ADDRESS_FORMAT_VAL(address)   \
-        be16toh((address).s6_addr16[0]),        \
-        be16toh((address).s6_addr16[1]),        \
-        be16toh((address).s6_addr16[2]),        \
-        be16toh((address).s6_addr16[3]),        \
-        be16toh((address).s6_addr16[4]),        \
-        be16toh((address).s6_addr16[5]),        \
-        be16toh((address).s6_addr16[6]),        \
-        be16toh((address).s6_addr16[7])
+#define SD_ICMP6_ADDRESS_FORMAT_VAL(address)                                   \
+	be16toh((address).s6_addr16[0]), be16toh((address).s6_addr16[1]),      \
+		be16toh((address).s6_addr16[2]),                               \
+		be16toh((address).s6_addr16[3]),                               \
+		be16toh((address).s6_addr16[4]),                               \
+		be16toh((address).s6_addr16[5]),                               \
+		be16toh((address).s6_addr16[6]),                               \
+		be16toh((address).s6_addr16[7])
 
 #endif

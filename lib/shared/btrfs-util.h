@@ -21,26 +21,26 @@
 
 #pragma once
 
-#include <stdbool.h>
 #include <sys/types.h>
+#include <stdbool.h>
 
 #include "time-util.h"
 
 typedef struct BtrfsSubvolInfo {
-        uint64_t subvol_id;
-        usec_t otime;
+	uint64_t subvol_id;
+	usec_t otime;
 
-        sd_id128_t uuid;
-        sd_id128_t parent_uuid;
+	sd_id128_t uuid;
+	sd_id128_t parent_uuid;
 
-        bool read_only;
+	bool read_only;
 } BtrfsSubvolInfo;
 
 typedef struct BtrfsQuotaInfo {
-        uint64_t referred;
-        uint64_t exclusive;
-        uint64_t referred_max;
-        uint64_t exclusive_max;
+	uint64_t referred;
+	uint64_t exclusive;
+	uint64_t referred_max;
+	uint64_t exclusive_max;
 } BtrfsQuotaInfo;
 
 int btrfs_is_filesystem(int fd);
@@ -49,7 +49,8 @@ int btrfs_is_subvol(int fd);
 int btrfs_subvol_make(const char *path);
 int btrfs_subvol_make_label(const char *path);
 int btrfs_subvol_remove(const char *path);
-int btrfs_subvol_snapshot(const char *old_path, const char *new_path, bool read_only, bool fallback_copy);
+int btrfs_subvol_snapshot(const char *old_path, const char *new_path,
+	bool read_only, bool fallback_copy);
 
 int btrfs_subvol_set_read_only_fd(int fd, bool b);
 int btrfs_subvol_set_read_only(const char *path, bool b);
@@ -59,7 +60,8 @@ int btrfs_subvol_get_info_fd(int fd, BtrfsSubvolInfo *info);
 int btrfs_subvol_get_quota_fd(int fd, BtrfsQuotaInfo *quota);
 
 int btrfs_reflink(int infd, int outfd);
-int btrfs_clone_range(int infd, uint64_t in_offset, int ofd, uint64_t out_offset, uint64_t sz);
+int btrfs_clone_range(int infd, uint64_t in_offset, int ofd,
+	uint64_t out_offset, uint64_t sz);
 
 int btrfs_get_block_device(const char *path, dev_t *dev);
 

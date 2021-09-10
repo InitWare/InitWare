@@ -19,89 +19,94 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/socket.h>
-#include <poll.h>
 #include <sys/types.h>
-#include <assert.h>
-#include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/un.h>
-#include <sys/stat.h>
 #include <sys/signalfd.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/un.h>
+#include <assert.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <getopt.h>
+#include <poll.h>
 #include <stddef.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "log.h"
 #include "macro.h"
 #include "util.h"
 
-static int send_on_socket(int fd, const char *socket_name, const void *packet, size_t size) {
-        union {
-                struct sockaddr sa;
-                struct sockaddr_un un;
-        } sa = {
-                .un.sun_family = AF_UNIX,
-        };
+static int
+send_on_socket(int fd, const char *socket_name, const void *packet, size_t size)
+{
+	union {
+		struct sockaddr sa;
+		struct sockaddr_un un;
+	} sa = {
+		.un.sun_family = AF_UNIX,
+	};
 
-        assert(fd >= 0);
-        assert(socket_name);
-        assert(packet);
+	assert(fd >= 0);
+	assert(socket_name);
+	assert(packet);
 
-        strncpy(sa.un.sun_path, socket_name, sizeof(sa.un.sun_path));
+	strncpy(sa.un.sun_path, socket_name, sizeof(sa.un.sun_path));
 
-        if (sendto(fd, packet, size, MSG_NOSIGNAL, &sa.sa, offsetof(struct sockaddr_un, sun_path) + strlen(socket_name)) < 0)
-                return log_error_errno(errno, "Failed to send: %m");
+	if (sendto(fd, packet, size, MSG_NOSIGNAL, &sa.sa,
+		    offsetof(struct sockaddr_un, sun_path) +
+			    strlen(socket_name)) < 0)
+		return log_error_errno(errno, "Failed to send: %m");
 
-        return 0;
+	return 0;
 }
 
-int main(int argc, char *argv[]) {
-        int fd = -1, r = EXIT_FAILURE;
-        char packet[LINE_MAX];
-        size_t length;
+int
+main(int argc, char *argv[])
+{
+	int fd = -1, r = EXIT_FAILURE;
+	char packet[LINE_MAX];
+	size_t length;
 
-        log_set_target(LOG_TARGET_AUTO);
-        log_parse_environment();
-        log_open();
+	log_set_target(LOG_TARGET_AUTO);
+	log_parse_environment();
+	log_open();
 
-        if (argc != 3) {
-                log_error("Wrong number of arguments.");
-                goto finish;
-        }
+	if (argc != 3) {
+		log_error("Wrong number of arguments.");
+		goto finish;
+	}
 
-        if (streq(argv[1], "1")) {
+	if (streq(argv[1], "1")) {
+		packet[0] = '+';
+		if (!fgets(packet + 1, sizeof(packet) - 1, stdin)) {
+			log_error_errno(errno, "Failed to read password: %m");
+			goto finish;
+		}
 
-                packet[0] = '+';
-                if (!fgets(packet+1, sizeof(packet)-1, stdin)) {
-                        log_error_errno(errno, "Failed to read password: %m");
-                        goto finish;
-                }
+		truncate_nl(packet + 1);
+		length = 1 + strlen(packet + 1) + 1;
+	} else if (streq(argv[1], "0")) {
+		packet[0] = '-';
+		length = 1;
+	} else {
+		log_error("Invalid first argument %s", argv[1]);
+		goto finish;
+	}
 
-                truncate_nl(packet+1);
-                length = 1 + strlen(packet+1) + 1;
-        } else if (streq(argv[1], "0")) {
-                packet[0] = '-';
-                length = 1;
-        } else {
-                log_error("Invalid first argument %s", argv[1]);
-                goto finish;
-        }
+	fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
+	if (fd < 0) {
+		log_error_errno(errno, "socket() failed: %m");
+		goto finish;
+	}
 
-        fd = socket(AF_UNIX, SOCK_DGRAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0);
-        if (fd < 0) {
-                log_error_errno(errno, "socket() failed: %m");
-                goto finish;
-        }
+	if (send_on_socket(fd, argv[2], packet, length) < 0)
+		goto finish;
 
-        if (send_on_socket(fd, argv[2], packet, length) < 0)
-                goto finish;
-
-        r = EXIT_SUCCESS;
+	r = EXIT_SUCCESS;
 
 finish:
-        safe_close(fd);
+	safe_close(fd);
 
-        return r;
+	return r;
 }

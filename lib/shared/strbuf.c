@@ -22,8 +22,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "util.h"
 #include "strbuf.h"
+#include "util.h"
 
 /*
  * Strbuf stores given strings in a single continuous allocated memory
@@ -43,159 +43,175 @@
  *   ...
  */
 
-struct strbuf *strbuf_new(void) {
-        struct strbuf *str;
+struct strbuf *
+strbuf_new(void)
+{
+	struct strbuf *str;
 
-        str = new0(struct strbuf, 1);
-        if (!str)
-                return NULL;
+	str = new0(struct strbuf, 1);
+	if (!str)
+		return NULL;
 
-        str->buf = new0(char, 1);
-        if (!str->buf)
-                goto err;
-        str->len = 1;
+	str->buf = new0(char, 1);
+	if (!str->buf)
+		goto err;
+	str->len = 1;
 
-        str->root = new0(struct strbuf_node, 1);
-        if (!str->root)
-                goto err;
-        str->nodes_count = 1;
-        return str;
+	str->root = new0(struct strbuf_node, 1);
+	if (!str->root)
+		goto err;
+	str->nodes_count = 1;
+	return str;
 err:
-        free(str->buf);
-        free(str->root);
-        free(str);
-        return NULL;
+	free(str->buf);
+	free(str->root);
+	free(str);
+	return NULL;
 }
 
-static void strbuf_node_cleanup(struct strbuf_node *node) {
-        size_t i;
+static void
+strbuf_node_cleanup(struct strbuf_node *node)
+{
+	size_t i;
 
-        for (i = 0; i < node->children_count; i++)
-                strbuf_node_cleanup(node->children[i].child);
-        free(node->children);
-        free(node);
+	for (i = 0; i < node->children_count; i++)
+		strbuf_node_cleanup(node->children[i].child);
+	free(node->children);
+	free(node);
 }
 
 /* clean up trie data, leave only the string buffer */
-void strbuf_complete(struct strbuf *str) {
-        if (!str)
-                return;
-        if (str->root)
-                strbuf_node_cleanup(str->root);
-        str->root = NULL;
+void
+strbuf_complete(struct strbuf *str)
+{
+	if (!str)
+		return;
+	if (str->root)
+		strbuf_node_cleanup(str->root);
+	str->root = NULL;
 }
 
 /* clean up everything */
-void strbuf_cleanup(struct strbuf *str) {
-        if (!str)
-                return;
-        if (str->root)
-                strbuf_node_cleanup(str->root);
-        free(str->buf);
-        free(str);
+void
+strbuf_cleanup(struct strbuf *str)
+{
+	if (!str)
+		return;
+	if (str->root)
+		strbuf_node_cleanup(str->root);
+	free(str->buf);
+	free(str);
 }
 
-static int strbuf_children_cmp(const struct strbuf_child_entry *n1,
-                               const struct strbuf_child_entry *n2) {
-        return n1->c - n2->c;
+static int
+strbuf_children_cmp(const struct strbuf_child_entry *n1,
+	const struct strbuf_child_entry *n2)
+{
+	return n1->c - n2->c;
 }
 
-static void bubbleinsert(struct strbuf_node *node,
-                         uint8_t c,
-                         struct strbuf_node *node_child) {
+static void
+bubbleinsert(struct strbuf_node *node, uint8_t c,
+	struct strbuf_node *node_child)
+{
+	struct strbuf_child_entry new = {
+		.c = c,
+		.child = node_child,
+	};
+	int left = 0, right = node->children_count;
 
-        struct strbuf_child_entry new = {
-                .c = c,
-                .child = node_child,
-        };
-        int left = 0, right = node->children_count;
+	while (right > left) {
+		int middle = (right + left) / 2;
+		if (strbuf_children_cmp(&node->children[middle], &new) <= 0)
+			left = middle + 1;
+		else
+			right = middle;
+	}
 
-        while (right > left) {
-                int middle = (right + left) / 2 ;
-                if (strbuf_children_cmp(&node->children[middle], &new) <= 0)
-                        left = middle + 1;
-                else
-                        right = middle;
-        }
+	memmove(node->children + left + 1, node->children + left,
+		sizeof(struct strbuf_child_entry) *
+			(node->children_count - left));
+	node->children[left] = new;
 
-        memmove(node->children + left + 1, node->children + left,
-                sizeof(struct strbuf_child_entry) * (node->children_count - left));
-        node->children[left] = new;
-
-        node->children_count ++;
+	node->children_count++;
 }
 
 /* add string, return the index/offset into the buffer */
-ssize_t strbuf_add_string(struct strbuf *str, const char *s, size_t len) {
-        uint8_t c;
-        struct strbuf_node *node;
-        size_t depth;
-        char *buf_new;
-        struct strbuf_child_entry *child;
-        struct strbuf_node *node_child;
-        ssize_t off;
+ssize_t
+strbuf_add_string(struct strbuf *str, const char *s, size_t len)
+{
+	uint8_t c;
+	struct strbuf_node *node;
+	size_t depth;
+	char *buf_new;
+	struct strbuf_child_entry *child;
+	struct strbuf_node *node_child;
+	ssize_t off;
 
-        if (!str->root)
-                return -EINVAL;
+	if (!str->root)
+		return -EINVAL;
 
-        /* search string; start from last character to find possibly matching tails */
-        if (len == 0)
-                return 0;
-        str->in_count++;
-        str->in_len += len;
+	/* search string; start from last character to find possibly matching tails */
+	if (len == 0)
+		return 0;
+	str->in_count++;
+	str->in_len += len;
 
-        node = str->root;
-        c = s[len-1];
-        for (depth = 0; depth <= len; depth++) {
-                struct strbuf_child_entry search;
+	node = str->root;
+	c = s[len - 1];
+	for (depth = 0; depth <= len; depth++) {
+		struct strbuf_child_entry search;
 
-                /* match against current node */
-                off = node->value_off + node->value_len - len;
-                if (depth == len || (node->value_len >= len && memcmp(str->buf + off, s, len) == 0)) {
-                        str->dedup_len += len;
-                        str->dedup_count++;
-                        return off;
-                }
+		/* match against current node */
+		off = node->value_off + node->value_len - len;
+		if (depth == len ||
+			(node->value_len >= len &&
+				memcmp(str->buf + off, s, len) == 0)) {
+			str->dedup_len += len;
+			str->dedup_count++;
+			return off;
+		}
 
-                /* lookup child node */
-                c = s[len - 1 - depth];
-                search.c = c;
-                child = bsearch(&search, node->children, node->children_count,
-                                sizeof(struct strbuf_child_entry),
-                                (__compar_fn_t) strbuf_children_cmp);
-                if (!child)
-                        break;
-                node = child->child;
-        }
+		/* lookup child node */
+		c = s[len - 1 - depth];
+		search.c = c;
+		child = bsearch(&search, node->children, node->children_count,
+			sizeof(struct strbuf_child_entry),
+			(__compar_fn_t)strbuf_children_cmp);
+		if (!child)
+			break;
+		node = child->child;
+	}
 
-        /* add new string */
-        buf_new = realloc(str->buf, str->len + len+1);
-        if (!buf_new)
-                return -ENOMEM;
-        str->buf = buf_new;
-        off = str->len;
-        memcpy(str->buf + off, s, len);
-        str->len += len;
-        str->buf[str->len++] = '\0';
+	/* add new string */
+	buf_new = realloc(str->buf, str->len + len + 1);
+	if (!buf_new)
+		return -ENOMEM;
+	str->buf = buf_new;
+	off = str->len;
+	memcpy(str->buf + off, s, len);
+	str->len += len;
+	str->buf[str->len++] = '\0';
 
-        /* new node */
-        node_child = new0(struct strbuf_node, 1);
-        if (!node_child)
-                return -ENOMEM;
-        node_child->value_off = off;
-        node_child->value_len = len;
+	/* new node */
+	node_child = new0(struct strbuf_node, 1);
+	if (!node_child)
+		return -ENOMEM;
+	node_child->value_off = off;
+	node_child->value_len = len;
 
-        /* extend array, add new entry, sort for bisection */
-        child = realloc(node->children, (node->children_count + 1) * sizeof(struct strbuf_child_entry));
-        if (!child) {
-                free(node_child);
-                return -ENOMEM;
-        }
+	/* extend array, add new entry, sort for bisection */
+	child = realloc(node->children,
+		(node->children_count + 1) * sizeof(struct strbuf_child_entry));
+	if (!child) {
+		free(node_child);
+		return -ENOMEM;
+	}
 
-        str->nodes_count++;
+	str->nodes_count++;
 
-        node->children = child;
-        bubbleinsert(node, c, node_child);
+	node->children = child;
+	bubbleinsert(node, c, node_child);
 
-        return off;
+	return off;
 }

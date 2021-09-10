@@ -19,134 +19,151 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <linux/if_tunnel.h>
+#include <linux/ip.h>
+#include <net/if.h>
 #include <netinet/ether.h>
 #include <arpa/inet.h>
-#include <net/if.h>
-#include <linux/ip.h>
-#include <linux/if_tunnel.h>
 #include <libkmod.h>
 
-#include "util.h"
+#include "event-util.h"
 #include "macro.h"
+#include "rtnl-internal.h"
+#include "rtnl-util.h"
 #include "sd-rtnl.h"
 #include "socket-util.h"
-#include "rtnl-util.h"
-#include "event-util.h"
-#include "rtnl-internal.h"
+#include "util.h"
 
-static int load_module(const char *mod_name) {
-        struct kmod_ctx *ctx;
-        struct kmod_list *list = NULL, *l;
-        int r;
+static int
+load_module(const char *mod_name)
+{
+	struct kmod_ctx *ctx;
+	struct kmod_list *list = NULL, *l;
+	int r;
 
-        ctx = kmod_new(NULL, NULL);
-        if (!ctx) {
-                kmod_unref(ctx);
-                return -ENOMEM;
-        }
+	ctx = kmod_new(NULL, NULL);
+	if (!ctx) {
+		kmod_unref(ctx);
+		return -ENOMEM;
+	}
 
-        r = kmod_module_new_from_lookup(ctx, mod_name, &list);
-        if (r < 0)
-                return -1;
+	r = kmod_module_new_from_lookup(ctx, mod_name, &list);
+	if (r < 0)
+		return -1;
 
-        kmod_list_foreach(l, list) {
-                struct kmod_module *mod = kmod_module_get_module(l);
+	kmod_list_foreach(l, list)
+	{
+		struct kmod_module *mod = kmod_module_get_module(l);
 
-                r = kmod_module_probe_insert_module(mod, 0, NULL, NULL, NULL, NULL);
-                if (r >= 0)
-                        r = 0;
-                else
-                        r = -1;
+		r = kmod_module_probe_insert_module(mod, 0, NULL, NULL, NULL,
+			NULL);
+		if (r >= 0)
+			r = 0;
+		else
+			r = -1;
 
-                kmod_module_unref(mod);
-        }
+		kmod_module_unref(mod);
+	}
 
-        kmod_module_unref_list(list);
-        kmod_unref(ctx);
+	kmod_module_unref_list(list);
+	kmod_unref(ctx);
 
-        return r;
+	return r;
 }
 
-static int test_tunnel_configure(sd_rtnl *rtnl) {
-        int r;
-        sd_rtnl_message *m, *n;
-        struct in_addr local, remote;
+static int
+test_tunnel_configure(sd_rtnl *rtnl)
+{
+	int r;
+	sd_rtnl_message *m, *n;
+	struct in_addr local, remote;
 
-        /* skip test if module cannot be loaded */
-        r = load_module("ipip");
-        if(r < 0)
-                return EXIT_TEST_SKIP;
+	/* skip test if module cannot be loaded */
+	r = load_module("ipip");
+	if (r < 0)
+		return EXIT_TEST_SKIP;
 
-        if(getuid() != 0)
-                return EXIT_TEST_SKIP;
+	if (getuid() != 0)
+		return EXIT_TEST_SKIP;
 
-        /* IPIP tunnel */
-        assert_se(sd_rtnl_message_new_link(rtnl, &m, RTM_NEWLINK, 0) >= 0);
-        assert_se(m);
+	/* IPIP tunnel */
+	assert_se(sd_rtnl_message_new_link(rtnl, &m, RTM_NEWLINK, 0) >= 0);
+	assert_se(m);
 
-        assert_se(sd_rtnl_message_append_string(m, IFLA_IFNAME, "ipip-tunnel") >= 0);
-        assert_se(sd_rtnl_message_append_u32(m, IFLA_MTU, 1234)>= 0);
+	assert_se(sd_rtnl_message_append_string(m, IFLA_IFNAME,
+			  "ipip-tunnel") >= 0);
+	assert_se(sd_rtnl_message_append_u32(m, IFLA_MTU, 1234) >= 0);
 
-        assert_se(sd_rtnl_message_open_container(m, IFLA_LINKINFO) >= 0);
+	assert_se(sd_rtnl_message_open_container(m, IFLA_LINKINFO) >= 0);
 
-        assert_se(sd_rtnl_message_open_container_union(m, IFLA_INFO_DATA, "ipip") >= 0);
+	assert_se(sd_rtnl_message_open_container_union(m, IFLA_INFO_DATA,
+			  "ipip") >= 0);
 
-        inet_pton(AF_INET, "192.168.21.1", &local.s_addr);
-        assert_se(sd_rtnl_message_append_u32(m, IFLA_IPTUN_LOCAL, local.s_addr) >= 0);
+	inet_pton(AF_INET, "192.168.21.1", &local.s_addr);
+	assert_se(sd_rtnl_message_append_u32(m, IFLA_IPTUN_LOCAL,
+			  local.s_addr) >= 0);
 
-        inet_pton(AF_INET, "192.168.21.2", &remote.s_addr);
-        assert_se(sd_rtnl_message_append_u32(m, IFLA_IPTUN_REMOTE, remote.s_addr) >= 0);
+	inet_pton(AF_INET, "192.168.21.2", &remote.s_addr);
+	assert_se(sd_rtnl_message_append_u32(m, IFLA_IPTUN_REMOTE,
+			  remote.s_addr) >= 0);
 
-        assert_se(sd_rtnl_message_close_container(m) >= 0);
-        assert_se(sd_rtnl_message_close_container(m) >= 0);
+	assert_se(sd_rtnl_message_close_container(m) >= 0);
+	assert_se(sd_rtnl_message_close_container(m) >= 0);
 
-        assert_se(sd_rtnl_call(rtnl, m, -1, 0) == 1);
+	assert_se(sd_rtnl_call(rtnl, m, -1, 0) == 1);
 
-        assert_se((m = sd_rtnl_message_unref(m)) == NULL);
+	assert_se((m = sd_rtnl_message_unref(m)) == NULL);
 
-        r = load_module("sit");
-        if(r < 0)
-                return EXIT_TEST_SKIP;
+	r = load_module("sit");
+	if (r < 0)
+		return EXIT_TEST_SKIP;
 
-        /* sit */
-        assert_se(sd_rtnl_message_new_link(rtnl, &n, RTM_NEWLINK, 0) >= 0);
-        assert_se(n);
+	/* sit */
+	assert_se(sd_rtnl_message_new_link(rtnl, &n, RTM_NEWLINK, 0) >= 0);
+	assert_se(n);
 
-        assert_se(sd_rtnl_message_append_string(n, IFLA_IFNAME, "sit-tunnel") >= 0);
-        assert_se(sd_rtnl_message_append_u32(n, IFLA_MTU, 1234)>= 0);
+	assert_se(sd_rtnl_message_append_string(n, IFLA_IFNAME, "sit-tunnel") >=
+		0);
+	assert_se(sd_rtnl_message_append_u32(n, IFLA_MTU, 1234) >= 0);
 
-        assert_se(sd_rtnl_message_open_container(n, IFLA_LINKINFO) >= 0);
+	assert_se(sd_rtnl_message_open_container(n, IFLA_LINKINFO) >= 0);
 
-        assert_se(sd_rtnl_message_open_container_union(n, IFLA_INFO_DATA, "sit") >= 0);
+	assert_se(sd_rtnl_message_open_container_union(n, IFLA_INFO_DATA,
+			  "sit") >= 0);
 
-        assert_se(sd_rtnl_message_append_u8(n, IFLA_IPTUN_PROTO, IPPROTO_IPIP) >= 0);
+	assert_se(sd_rtnl_message_append_u8(n, IFLA_IPTUN_PROTO,
+			  IPPROTO_IPIP) >= 0);
 
-        inet_pton(AF_INET, "192.168.21.3", &local.s_addr);
-        assert_se(sd_rtnl_message_append_u32(n, IFLA_IPTUN_LOCAL, local.s_addr) >= 0);
+	inet_pton(AF_INET, "192.168.21.3", &local.s_addr);
+	assert_se(sd_rtnl_message_append_u32(n, IFLA_IPTUN_LOCAL,
+			  local.s_addr) >= 0);
 
-        inet_pton(AF_INET, "192.168.21.4", &remote.s_addr);
-        assert_se(sd_rtnl_message_append_u32(n, IFLA_IPTUN_REMOTE, remote.s_addr) >= 0);
+	inet_pton(AF_INET, "192.168.21.4", &remote.s_addr);
+	assert_se(sd_rtnl_message_append_u32(n, IFLA_IPTUN_REMOTE,
+			  remote.s_addr) >= 0);
 
-        assert_se(sd_rtnl_message_close_container(n) >= 0);
-        assert_se(sd_rtnl_message_close_container(n) >= 0);
+	assert_se(sd_rtnl_message_close_container(n) >= 0);
+	assert_se(sd_rtnl_message_close_container(n) >= 0);
 
-        assert_se(sd_rtnl_call(rtnl, n, -1, 0) == 1);
+	assert_se(sd_rtnl_call(rtnl, n, -1, 0) == 1);
 
-        assert_se((m = sd_rtnl_message_unref(n)) == NULL);
+	assert_se((m = sd_rtnl_message_unref(n)) == NULL);
 
-        return EXIT_SUCCESS;
+	return EXIT_SUCCESS;
 }
 
-int main(int argc, char *argv[]) {
-        sd_rtnl *rtnl;
-        int r;
+int
+main(int argc, char *argv[])
+{
+	sd_rtnl *rtnl;
+	int r;
 
-        assert_se(sd_rtnl_open(&rtnl, 0) >= 0);
-        assert_se(rtnl);
+	assert_se(sd_rtnl_open(&rtnl, 0) >= 0);
+	assert_se(rtnl);
 
-        r = test_tunnel_configure(rtnl);
+	r = test_tunnel_configure(rtnl);
 
-        assert_se((rtnl = sd_rtnl_unref(rtnl)) == NULL);
+	assert_se((rtnl = sd_rtnl_unref(rtnl)) == NULL);
 
-        return r;
+	return r;
 }

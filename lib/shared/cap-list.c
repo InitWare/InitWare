@@ -22,45 +22,51 @@
 #include <linux/capability.h>
 #include <string.h>
 
-#include "util.h"
 #include "cap-list.h"
 #include "missing.h"
+#include "util.h"
 
-static const struct capability_name* lookup_capability(register const char *str, register GPERF_LEN_TYPE len);
+static const struct capability_name *lookup_capability(register const char *str,
+	register GPERF_LEN_TYPE len);
 
-#include "cap-to-name.h"
 #include "cap-from-name.h"
+#include "cap-to-name.h"
 
-const char *capability_to_name(int id) {
+const char *
+capability_to_name(int id)
+{
+	if (id < 0)
+		return NULL;
 
-        if (id < 0)
-                return NULL;
+	if (id >= (int)ELEMENTSOF(capability_names))
+		return NULL;
 
-        if (id >= (int) ELEMENTSOF(capability_names))
-                return NULL;
-
-        return capability_names[id];
+	return capability_names[id];
 }
 
-int capability_from_name(const char *name) {
-        const struct capability_name *sc;
-        int r, i;
+int
+capability_from_name(const char *name)
+{
+	const struct capability_name *sc;
+	int r, i;
 
-        assert(name);
+	assert(name);
 
-        /* Try to parse numeric capability */
-        r = safe_atoi(name, &i);
-        if (r >= 0 && i >= 0)
-                return i;
+	/* Try to parse numeric capability */
+	r = safe_atoi(name, &i);
+	if (r >= 0 && i >= 0)
+		return i;
 
-        /* Try to parse string capability */
-        sc = lookup_capability(name, strlen(name));
-        if (!sc)
-                return -EINVAL;
+	/* Try to parse string capability */
+	sc = lookup_capability(name, strlen(name));
+	if (!sc)
+		return -EINVAL;
 
-        return sc->id;
+	return sc->id;
 }
 
-int capability_list_length(void) {
-        return (int) ELEMENTSOF(capability_names);
+int
+capability_list_length(void)
+{
+	return (int)ELEMENTSOF(capability_names);
 }

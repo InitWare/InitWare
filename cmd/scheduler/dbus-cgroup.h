@@ -21,9 +21,11 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "sd-bus.h"
 #include "cgroup.h"
+#include "sd-bus.h"
 
 extern const sd_bus_vtable bus_cgroup_vtable[];
 
-int bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name, sd_bus_message *message, UnitSetPropertiesMode mode, sd_bus_error *error);
+int bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
+	sd_bus_message *message, UnitSetPropertiesMode mode,
+	sd_bus_error *error);

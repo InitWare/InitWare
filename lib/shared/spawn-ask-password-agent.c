@@ -20,48 +20,50 @@
 ***/
 
 #include <sys/types.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 #include <sys/prctl.h>
-#include <signal.h>
 #include <fcntl.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "log.h"
-#include "util.h"
 #include "spawn-ask-password-agent.h"
+#include "util.h"
 
 static pid_t agent_pid = 0;
 
-int ask_password_agent_open(void) {
-        int r;
+int
+ask_password_agent_open(void)
+{
+	int r;
 
-        if (agent_pid > 0)
-                return 0;
+	if (agent_pid > 0)
+		return 0;
 
-        /* We check STDIN here, not STDOUT, since this is about input,
+	/* We check STDIN here, not STDOUT, since this is about input,
          * not output */
-        if (!isatty(STDIN_FILENO))
-                return 0;
+	if (!isatty(STDIN_FILENO))
+		return 0;
 
-        r = fork_agent(&agent_pid,
-                       NULL, 0,
-                       SYSTEMD_TTY_ASK_PASSWORD_AGENT_BINARY_PATH,
-                       SYSTEMD_TTY_ASK_PASSWORD_AGENT_BINARY_PATH, "--watch", NULL);
-        if (r < 0)
-                log_error_errno(r, "Failed to fork TTY ask password agent: %m");
+	r = fork_agent(&agent_pid, NULL, 0,
+		SYSTEMD_TTY_ASK_PASSWORD_AGENT_BINARY_PATH,
+		SYSTEMD_TTY_ASK_PASSWORD_AGENT_BINARY_PATH, "--watch", NULL);
+	if (r < 0)
+		log_error_errno(r, "Failed to fork TTY ask password agent: %m");
 
-        return r;
+	return r;
 }
 
-void ask_password_agent_close(void) {
+void
+ask_password_agent_close(void)
+{
+	if (agent_pid <= 0)
+		return;
 
-        if (agent_pid <= 0)
-                return;
-
-        /* Inform agent that we are done */
-        kill(agent_pid, SIGTERM);
-        kill(agent_pid, SIGCONT);
-        (void) wait_for_terminate(agent_pid, NULL);
-        agent_pid = 0;
+	/* Inform agent that we are done */
+	kill(agent_pid, SIGTERM);
+	kill(agent_pid, SIGCONT);
+	(void)wait_for_terminate(agent_pid, NULL);
+	agent_pid = 0;
 }

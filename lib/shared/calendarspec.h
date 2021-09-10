@@ -28,22 +28,22 @@
 #include "util.h"
 
 typedef struct CalendarComponent {
-        int value;
-        int repeat;
+	int value;
+	int repeat;
 
-        struct CalendarComponent *next;
+	struct CalendarComponent *next;
 } CalendarComponent;
 
 typedef struct CalendarSpec {
-        int weekdays_bits;
+	int weekdays_bits;
 
-        CalendarComponent *year;
-        CalendarComponent *month;
-        CalendarComponent *day;
+	CalendarComponent *year;
+	CalendarComponent *month;
+	CalendarComponent *day;
 
-        CalendarComponent *hour;
-        CalendarComponent *minute;
-        CalendarComponent *second;
+	CalendarComponent *hour;
+	CalendarComponent *minute;
+	CalendarComponent *second;
 } CalendarSpec;
 
 void calendar_spec_free(CalendarSpec *c);
@@ -54,4 +54,5 @@ bool calendar_spec_valid(CalendarSpec *spec);
 int calendar_spec_to_string(const CalendarSpec *spec, char **p);
 int calendar_spec_from_string(const char *p, CalendarSpec **spec);
 
-int calendar_spec_next_usec(const CalendarSpec *spec, usec_t usec, usec_t *next);
+int calendar_spec_next_usec(const CalendarSpec *spec, usec_t usec,
+	usec_t *next);

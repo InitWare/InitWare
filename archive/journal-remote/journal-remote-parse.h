@@ -21,48 +21,50 @@
 
 #pragma once
 
-#include "sd-event.h"
 #include "journal-remote-write.h"
+#include "sd-event.h"
 
 typedef enum {
-        STATE_LINE = 0,    /* waiting to read, or reading line */
-        STATE_DATA_START,  /* reading binary data header */
-        STATE_DATA,        /* reading binary data */
-        STATE_DATA_FINISH, /* expecting newline */
-        STATE_EOF,         /* done */
+	STATE_LINE = 0, /* waiting to read, or reading line */
+	STATE_DATA_START, /* reading binary data header */
+	STATE_DATA, /* reading binary data */
+	STATE_DATA_FINISH, /* expecting newline */
+	STATE_EOF, /* done */
 } source_state;
 
 typedef struct RemoteSource {
-        char *name;
-        int fd;
-        bool passive_fd;
+	char *name;
+	int fd;
+	bool passive_fd;
 
-        char *buf;
-        size_t size;       /* total size of the buffer */
-        size_t offset;     /* offset to the beginning of live data in the buffer */
-        size_t scanned;    /* number of bytes since the beginning of data without a newline */
-        size_t filled;     /* total number of bytes in the buffer */
+	char *buf;
+	size_t size; /* total size of the buffer */
+	size_t offset; /* offset to the beginning of live data in the buffer */
+	size_t scanned; /* number of bytes since the beginning of data without a newline */
+	size_t filled; /* total number of bytes in the buffer */
 
-        size_t field_len;  /* used for binary fields: the field name length */
-        size_t data_size;  /* and the size of the binary data chunk being processed */
+	size_t field_len; /* used for binary fields: the field name length */
+	size_t data_size; /* and the size of the binary data chunk being processed */
 
-        struct iovec_wrapper iovw;
+	struct iovec_wrapper iovw;
 
-        source_state state;
-        dual_timestamp ts;
+	source_state state;
+	dual_timestamp ts;
 
-        Writer *writer;
+	Writer *writer;
 
-        sd_event_source *event;
-        sd_event_source *buffer_event;
+	sd_event_source *event;
+	sd_event_source *buffer_event;
 } RemoteSource;
 
-RemoteSource* source_new(int fd, bool passive_fd, char *name, Writer *writer);
+RemoteSource *source_new(int fd, bool passive_fd, char *name, Writer *writer);
 
-static inline size_t source_non_empty(RemoteSource *source) {
-        assert(source);
+static inline size_t
+source_non_empty(RemoteSource *source)
+{
+	assert(source);
 
-        return source->filled;
+	return source->filled;
 }
 
 void source_free(RemoteSource *source);

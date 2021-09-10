@@ -21,61 +21,73 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <unistd.h>
-#include <stdio.h>
 #include <errno.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include "ima-setup.h"
-#include "util.h"
 #include "log.h"
+#include "util.h"
 
 #define IMA_SECFS_DIR "/sys/kernel/security/ima"
 #define IMA_SECFS_POLICY IMA_SECFS_DIR "/policy"
 #define IMA_POLICY_PATH "/etc/ima/ima-policy"
 
-int ima_setup(void) {
+int
+ima_setup(void)
+{
 #ifdef HAVE_IMA
-        _cleanup_fclose_ FILE *input = NULL;
-        _cleanup_close_ int imafd = -1;
-        unsigned lineno = 0;
-        char line[page_size()];
+	_cleanup_fclose_ FILE *input = NULL;
+	_cleanup_close_ int imafd = -1;
+	unsigned lineno = 0;
+	char line[page_size()];
 
-        if (access(IMA_SECFS_DIR, F_OK) < 0) {
-                log_debug("IMA support is disabled in the kernel, ignoring.");
-                return 0;
-        }
+	if (access(IMA_SECFS_DIR, F_OK) < 0) {
+		log_debug("IMA support is disabled in the kernel, ignoring.");
+		return 0;
+	}
 
-        input = fopen(IMA_POLICY_PATH, "re");
-        if (!input) {
-                log_full_errno(errno == ENOENT ? LOG_DEBUG : LOG_WARNING, errno,
-                               "Failed to open the IMA custom policy file "IMA_POLICY_PATH", ignoring: %m");
-                return 0;
-        }
+	input = fopen(IMA_POLICY_PATH, "re");
+	if (!input) {
+		log_full_errno(errno == ENOENT ? LOG_DEBUG : LOG_WARNING, errno,
+			"Failed to open the IMA custom policy file " IMA_POLICY_PATH
+			", ignoring: %m");
+		return 0;
+	}
 
-        if (access(IMA_SECFS_POLICY, F_OK) < 0) {
-                log_warning("Another IMA custom policy has already been loaded, ignoring.");
-                return 0;
-        }
+	if (access(IMA_SECFS_POLICY, F_OK) < 0) {
+		log_warning(
+			"Another IMA custom policy has already been loaded, ignoring.");
+		return 0;
+	}
 
-        imafd = open(IMA_SECFS_POLICY, O_WRONLY|O_CLOEXEC);
-        if (imafd < 0) {
-                log_error_errno(errno, "Failed to open the IMA kernel interface "IMA_SECFS_POLICY", ignoring: %m");
-                return 0;
-        }
+	imafd = open(IMA_SECFS_POLICY, O_WRONLY | O_CLOEXEC);
+	if (imafd < 0) {
+		log_error_errno(errno,
+			"Failed to open the IMA kernel interface " IMA_SECFS_POLICY
+			", ignoring: %m");
+		return 0;
+	}
 
-        FOREACH_LINE(line, input,
-                     return log_error_errno(errno, "Failed to read the IMA custom policy file "IMA_POLICY_PATH": %m")) {
-                size_t len;
+	FOREACH_LINE(line, input,
+		return log_error_errno(errno,
+			"Failed to read the IMA custom policy file " IMA_POLICY_PATH
+			": %m"))
+	{
+		size_t len;
 
-                len = strlen(line);
-                lineno++;
+		len = strlen(line);
+		lineno++;
 
-                if (len > 0 && write(imafd, line, len) < 0)
-                        return log_error_errno(errno, "Failed to load the IMA custom policy file "IMA_POLICY_PATH"%u: %m",
-                                               lineno);
-        }
+		if (len > 0 && write(imafd, line, len) < 0)
+			return log_error_errno(errno,
+				"Failed to load the IMA custom policy file " IMA_POLICY_PATH
+				"%u: %m",
+				lineno);
+	}
 
-        log_info("Successfully loaded the IMA custom policy "IMA_POLICY_PATH".");
+	log_info("Successfully loaded the IMA custom policy " IMA_POLICY_PATH
+		 ".");
 #endif /* HAVE_IMA */
-        return 0;
+	return 0;
 }

@@ -22,16 +22,16 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdbool.h>
 #include <net/ethernet.h>
+#include <stdbool.h>
 
 #include "sd-event.h"
 
 #include "sparse-endian.h"
 
 enum {
-        PPPOE_EVENT_RUNNING                     = 0,
-        PPPOE_EVENT_STOPPED                     = 1,
+	PPPOE_EVENT_RUNNING = 0,
+	PPPOE_EVENT_STOPPED = 1,
 };
 
 typedef struct sd_pppoe sd_pppoe;
@@ -48,6 +48,6 @@ int sd_pppoe_start(sd_pppoe *ppp);
 int sd_pppoe_stop(sd_pppoe *ppp);
 sd_pppoe *sd_pppoe_ref(sd_pppoe *ppp);
 sd_pppoe *sd_pppoe_unref(sd_pppoe *ppp);
-int sd_pppoe_new (sd_pppoe **ret);
+int sd_pppoe_new(sd_pppoe **ret);
 
 #endif

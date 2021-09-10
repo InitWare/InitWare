@@ -28,37 +28,38 @@ typedef struct Device Device;
 /* We simply watch devices, we cannot plug/unplug them. That
  * simplifies the state engine greatly */
 typedef enum DeviceState {
-        DEVICE_DEAD,
-        DEVICE_TENTATIVE, /* mounted or swapped, but not (yet) announced by udev */
-        DEVICE_PLUGGED,   /* announced by udev */
-        _DEVICE_STATE_MAX,
-        _DEVICE_STATE_INVALID = -1
+	DEVICE_DEAD,
+	DEVICE_TENTATIVE, /* mounted or swapped, but not (yet) announced by udev */
+	DEVICE_PLUGGED, /* announced by udev */
+	_DEVICE_STATE_MAX,
+	_DEVICE_STATE_INVALID = -1
 } DeviceState;
 
 typedef enum DeviceFound {
-        DEVICE_NOT_FOUND = 0,
-        DEVICE_FOUND_UDEV = 1,
-        DEVICE_FOUND_MOUNT = 2,
-        DEVICE_FOUND_SWAP = 4,
+	DEVICE_NOT_FOUND = 0,
+	DEVICE_FOUND_UDEV = 1,
+	DEVICE_FOUND_MOUNT = 2,
+	DEVICE_FOUND_SWAP = 4,
 } DeviceFound;
 
 struct Device {
-        Unit meta;
+	Unit meta;
 
-        char *sysfs;
-        DeviceFound found;
+	char *sysfs;
+	DeviceFound found;
 
-        /* In order to be able to distinguish dependencies on
+	/* In order to be able to distinguish dependencies on
         different device nodes we might end up creating multiple
         devices for the same sysfs path. We chain them up here. */
-        IWLIST_FIELDS(struct Device, same_sysfs);
+	IWLIST_FIELDS(struct Device, same_sysfs);
 
-        DeviceState state, deserialized_state;
+	DeviceState state, deserialized_state;
 };
 
 extern const UnitVTable device_vtable;
 
-const char* device_state_to_string(DeviceState i) _const_;
+const char *device_state_to_string(DeviceState i) _const_;
 DeviceState device_state_from_string(const char *s) _pure_;
 
-int device_found_node(Manager *m, const char *node, bool add, DeviceFound found, bool now);
+int device_found_node(Manager *m, const char *node, bool add, DeviceFound found,
+	bool now);

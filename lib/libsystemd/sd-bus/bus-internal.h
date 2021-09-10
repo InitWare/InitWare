@@ -27,159 +27,157 @@
 #include <pthread.h>
 
 #include "hashmap.h"
-#include "prioq.h"
 #include "list.h"
-#include "util.h"
+#include "prioq.h"
 #include "refcnt.h"
 #include "socket-util.h"
+#include "util.h"
 
-#include "sd-bus.h"
 #include "bus-error.h"
-#include "bus-match.h"
 #include "bus-kernel.h"
+#include "bus-match.h"
 #include "kdbus.h"
+#include "sd-bus.h"
 
 struct reply_callback {
-        sd_bus_message_handler_t callback;
-        usec_t timeout;
-        uint64_t cookie;
-        unsigned prioq_idx;
+	sd_bus_message_handler_t callback;
+	usec_t timeout;
+	uint64_t cookie;
+	unsigned prioq_idx;
 };
 
 struct filter_callback {
-        sd_bus_message_handler_t callback;
+	sd_bus_message_handler_t callback;
 
-        unsigned last_iteration;
+	unsigned last_iteration;
 
-        IWLIST_FIELDS(struct filter_callback, callbacks);
+	IWLIST_FIELDS(struct filter_callback, callbacks);
 };
 
 struct match_callback {
-        sd_bus_message_handler_t callback;
+	sd_bus_message_handler_t callback;
 
-        uint64_t cookie;
-        unsigned last_iteration;
+	uint64_t cookie;
+	unsigned last_iteration;
 
-        char *match_string;
+	char *match_string;
 
-        struct bus_match_node *match_node;
+	struct bus_match_node *match_node;
 };
 
 struct node {
-        char *path;
-        struct node *parent;
-        IWLIST_HEAD(struct node, child);
-        IWLIST_FIELDS(struct node, siblings);
+	char *path;
+	struct node *parent;
+	IWLIST_HEAD(struct node, child);
+	IWLIST_FIELDS(struct node, siblings);
 
-        IWLIST_HEAD(struct node_callback, callbacks);
-        IWLIST_HEAD(struct node_vtable, vtables);
-        IWLIST_HEAD(struct node_enumerator, enumerators);
-        IWLIST_HEAD(struct node_object_manager, object_managers);
+	IWLIST_HEAD(struct node_callback, callbacks);
+	IWLIST_HEAD(struct node_vtable, vtables);
+	IWLIST_HEAD(struct node_enumerator, enumerators);
+	IWLIST_HEAD(struct node_object_manager, object_managers);
 };
 
 struct node_callback {
-        struct node *node;
+	struct node *node;
 
-        bool is_fallback;
-        sd_bus_message_handler_t callback;
+	bool is_fallback;
+	sd_bus_message_handler_t callback;
 
-        unsigned last_iteration;
+	unsigned last_iteration;
 
-        IWLIST_FIELDS(struct node_callback, callbacks);
+	IWLIST_FIELDS(struct node_callback, callbacks);
 };
 
 struct node_enumerator {
-        struct node *node;
+	struct node *node;
 
-        sd_bus_node_enumerator_t callback;
+	sd_bus_node_enumerator_t callback;
 
-        unsigned last_iteration;
+	unsigned last_iteration;
 
-        IWLIST_FIELDS(struct node_enumerator, enumerators);
+	IWLIST_FIELDS(struct node_enumerator, enumerators);
 };
 
 struct node_object_manager {
-        struct node *node;
+	struct node *node;
 
-        IWLIST_FIELDS(struct node_object_manager, object_managers);
+	IWLIST_FIELDS(struct node_object_manager, object_managers);
 };
 
 struct node_vtable {
-        struct node *node;
+	struct node *node;
 
-        char *interface;
-        bool is_fallback;
-        const sd_bus_vtable *vtable;
-        sd_bus_object_find_t find;
+	char *interface;
+	bool is_fallback;
+	const sd_bus_vtable *vtable;
+	sd_bus_object_find_t find;
 
-        unsigned last_iteration;
+	unsigned last_iteration;
 
-        IWLIST_FIELDS(struct node_vtable, vtables);
+	IWLIST_FIELDS(struct node_vtable, vtables);
 };
 
 struct vtable_member {
-        const char *path;
-        const char *interface;
-        const char *member;
-        struct node_vtable *parent;
-        unsigned last_iteration;
-        const sd_bus_vtable *vtable;
+	const char *path;
+	const char *interface;
+	const char *member;
+	struct node_vtable *parent;
+	unsigned last_iteration;
+	const sd_bus_vtable *vtable;
 };
 
 typedef enum BusSlotType {
-        BUS_REPLY_CALLBACK,
-        BUS_FILTER_CALLBACK,
-        BUS_MATCH_CALLBACK,
-        BUS_NODE_CALLBACK,
-        BUS_NODE_ENUMERATOR,
-        BUS_NODE_VTABLE,
-        BUS_NODE_OBJECT_MANAGER,
-        _BUS_SLOT_INVALID = -1,
+	BUS_REPLY_CALLBACK,
+	BUS_FILTER_CALLBACK,
+	BUS_MATCH_CALLBACK,
+	BUS_NODE_CALLBACK,
+	BUS_NODE_ENUMERATOR,
+	BUS_NODE_VTABLE,
+	BUS_NODE_OBJECT_MANAGER,
+	_BUS_SLOT_INVALID = -1,
 } BusSlotType;
 
 struct sd_bus_slot {
-        unsigned n_ref;
-        sd_bus *bus;
-        void *userdata;
-        BusSlotType type:5;
-        bool floating:1;
-        char *description;
+	unsigned n_ref;
+	sd_bus *bus;
+	void *userdata;
+	BusSlotType type: 5;
+	bool floating: 1;
+	char *description;
 
-        IWLIST_FIELDS(sd_bus_slot, slots);
+	IWLIST_FIELDS(sd_bus_slot, slots);
 
-        union {
-                struct reply_callback reply_callback;
-                struct filter_callback filter_callback;
-                struct match_callback match_callback;
-                struct node_callback node_callback;
-                struct node_enumerator node_enumerator;
-                struct node_object_manager node_object_manager;
-                struct node_vtable node_vtable;
-        };
+	union {
+		struct reply_callback reply_callback;
+		struct filter_callback filter_callback;
+		struct match_callback match_callback;
+		struct node_callback node_callback;
+		struct node_enumerator node_enumerator;
+		struct node_object_manager node_object_manager;
+		struct node_vtable node_vtable;
+	};
 };
 
 enum bus_state {
-        BUS_UNSET,
-        BUS_OPENING,
-        BUS_AUTHENTICATING,
-        BUS_HELLO,
-        BUS_RUNNING,
-        BUS_CLOSING,
-        BUS_CLOSED
+	BUS_UNSET,
+	BUS_OPENING,
+	BUS_AUTHENTICATING,
+	BUS_HELLO,
+	BUS_RUNNING,
+	BUS_CLOSING,
+	BUS_CLOSED
 };
 
-static inline bool BUS_IS_OPEN(enum bus_state state) {
-        return state > BUS_UNSET && state < BUS_CLOSING;
+static inline bool
+BUS_IS_OPEN(enum bus_state state)
+{
+	return state > BUS_UNSET && state < BUS_CLOSING;
 }
 
-enum bus_auth {
-        _BUS_AUTH_INVALID,
-        BUS_AUTH_EXTERNAL,
-        BUS_AUTH_ANONYMOUS
-};
+enum bus_auth { _BUS_AUTH_INVALID, BUS_AUTH_EXTERNAL, BUS_AUTH_ANONYMOUS };
 
 struct sd_bus {
-        /* We use atomic ref counting here since sd_bus_message
+	/* We use atomic ref counting here since sd_bus_message
            objects retain references to their originating sd_bus but
            we want to allow them to be processed in a different
            thread. We won't provide full thread safety, but only the
@@ -187,154 +185,154 @@ struct sd_bus {
            sd_bus_message objects independently and on different
            threads as long as each object is used only once at the
            same time. */
-        RefCount n_ref;
+	RefCount n_ref;
 
-        enum bus_state state;
-        int input_fd, output_fd;
-        int message_version;
-        int message_endian;
+	enum bus_state state;
+	int input_fd, output_fd;
+	int message_version;
+	int message_endian;
 
-        bool is_kernel:1;
-        bool can_fds:1;
-        bool bus_client:1;
-        bool ucred_valid:1;
-        bool is_server:1;
-        bool anonymous_auth:1;
-        bool prefer_readv:1;
-        bool prefer_writev:1;
-        bool match_callbacks_modified:1;
-        bool filter_callbacks_modified:1;
-        bool nodes_modified:1;
-        bool trusted:1;
-        bool fake_creds_valid:1;
-        bool fake_pids_valid:1;
-        bool manual_peer_interface:1;
-        bool is_system:1;
-        bool is_user:1;
+	bool is_kernel: 1;
+	bool can_fds: 1;
+	bool bus_client: 1;
+	bool ucred_valid: 1;
+	bool is_server: 1;
+	bool anonymous_auth: 1;
+	bool prefer_readv: 1;
+	bool prefer_writev: 1;
+	bool match_callbacks_modified: 1;
+	bool filter_callbacks_modified: 1;
+	bool nodes_modified: 1;
+	bool trusted: 1;
+	bool fake_creds_valid: 1;
+	bool fake_pids_valid: 1;
+	bool manual_peer_interface: 1;
+	bool is_system: 1;
+	bool is_user: 1;
 
-        int use_memfd;
+	int use_memfd;
 
-        void *rbuffer;
-        size_t rbuffer_size;
+	void *rbuffer;
+	size_t rbuffer_size;
 
-        sd_bus_message **rqueue;
-        unsigned rqueue_size;
-        size_t rqueue_allocated;
+	sd_bus_message **rqueue;
+	unsigned rqueue_size;
+	size_t rqueue_allocated;
 
-        sd_bus_message **wqueue;
-        unsigned wqueue_size;
-        size_t windex;
-        size_t wqueue_allocated;
+	sd_bus_message **wqueue;
+	unsigned wqueue_size;
+	size_t windex;
+	size_t wqueue_allocated;
 
-        uint64_t cookie;
+	uint64_t cookie;
 
-        char *unique_name;
-        uint64_t unique_id;
+	char *unique_name;
+	uint64_t unique_id;
 
-        struct bus_match_node match_callbacks;
-        Prioq *reply_callbacks_prioq;
-        OrderedHashmap *reply_callbacks;
-        IWLIST_HEAD(struct filter_callback, filter_callbacks);
+	struct bus_match_node match_callbacks;
+	Prioq *reply_callbacks_prioq;
+	OrderedHashmap *reply_callbacks;
+	IWLIST_HEAD(struct filter_callback, filter_callbacks);
 
-        Hashmap *nodes;
-        Hashmap *vtable_methods;
-        Hashmap *vtable_properties;
+	Hashmap *nodes;
+	Hashmap *vtable_methods;
+	Hashmap *vtable_properties;
 
-        union sockaddr_union sockaddr;
-        socklen_t sockaddr_size;
+	union sockaddr_union sockaddr;
+	socklen_t sockaddr_size;
 
-        char *kernel;
-        char *machine;
-        pid_t nspid;
+	char *kernel;
+	char *machine;
+	pid_t nspid;
 
-        sd_id128_t server_id;
+	sd_id128_t server_id;
 
-        char *address;
-        unsigned address_index;
+	char *address;
+	unsigned address_index;
 
-        int last_connect_error;
+	int last_connect_error;
 
-        enum bus_auth auth;
-        size_t auth_rbegin;
-        struct iovec auth_iovec[3];
-        unsigned auth_index;
-        char *auth_buffer;
-        usec_t auth_timeout;
+	enum bus_auth auth;
+	size_t auth_rbegin;
+	struct iovec auth_iovec[3];
+	unsigned auth_index;
+	char *auth_buffer;
+	usec_t auth_timeout;
 
-        struct ucred ucred;
-        char *label;
+	struct ucred ucred;
+	char *label;
 
-        uint64_t creds_mask;
+	uint64_t creds_mask;
 
-        int *fds;
-        unsigned n_fds;
+	int *fds;
+	unsigned n_fds;
 
-        char *exec_path;
-        char **exec_argv;
+	char *exec_path;
+	char **exec_argv;
 
-        unsigned iteration_counter;
+	unsigned iteration_counter;
 
-        void *kdbus_buffer;
+	void *kdbus_buffer;
 
-        /* We do locking around the memfd cache, since we want to
+	/* We do locking around the memfd cache, since we want to
          * allow people to process a sd_bus_message in a different
          * thread then it was generated on and free it there. Since
          * adding something to the memfd cache might happen when a
          * message is released, we hence need to protect this bit with
          * a mutex. */
-        pthread_mutex_t memfd_cache_mutex;
-        struct memfd_cache memfd_cache[MEMFD_CACHE_MAX];
-        unsigned n_memfd_cache;
+	pthread_mutex_t memfd_cache_mutex;
+	struct memfd_cache memfd_cache[MEMFD_CACHE_MAX];
+	unsigned n_memfd_cache;
 
-        pid_t original_pid;
+	pid_t original_pid;
 
-        uint64_t hello_flags;
-        uint64_t attach_flags;
+	uint64_t hello_flags;
+	uint64_t attach_flags;
 
-        uint64_t match_cookie;
+	uint64_t match_cookie;
 
-        sd_event_source *input_io_event_source;
-        sd_event_source *output_io_event_source;
-        sd_event_source *time_event_source;
-        sd_event_source *quit_event_source;
-        sd_event *event;
-        int event_priority;
+	sd_event_source *input_io_event_source;
+	sd_event_source *output_io_event_source;
+	sd_event_source *time_event_source;
+	sd_event_source *quit_event_source;
+	sd_event *event;
+	int event_priority;
 
-        sd_bus_message *current_message;
-        sd_bus_slot *current_slot;
-        sd_bus_message_handler_t current_handler;
-        void *current_userdata;
+	sd_bus_message *current_message;
+	sd_bus_slot *current_slot;
+	sd_bus_message_handler_t current_handler;
+	void *current_userdata;
 
-        sd_bus **default_bus_ptr;
-        pid_t tid;
+	sd_bus **default_bus_ptr;
+	pid_t tid;
 
-        struct kdbus_creds fake_creds;
-        struct kdbus_pids fake_pids;
-        char *fake_label;
+	struct kdbus_creds fake_creds;
+	struct kdbus_pids fake_pids;
+	char *fake_label;
 
-        char *cgroup_root;
+	char *cgroup_root;
 
-        char *description;
+	char *description;
 
-        size_t bloom_size;
-        unsigned bloom_n_hash;
+	size_t bloom_size;
+	unsigned bloom_n_hash;
 
-        sd_bus_track *track_queue;
+	sd_bus_track *track_queue;
 
-        IWLIST_HEAD(sd_bus_slot, slots);
+	IWLIST_HEAD(sd_bus_slot, slots);
 };
 
-#define BUS_DEFAULT_TIMEOUT ((usec_t) (25 * USEC_PER_SEC))
+#define BUS_DEFAULT_TIMEOUT ((usec_t)(25 * USEC_PER_SEC))
 
-#define BUS_WQUEUE_MAX (384*1024)
-#define BUS_RQUEUE_MAX (384*1024)
+#define BUS_WQUEUE_MAX (384 * 1024)
+#define BUS_RQUEUE_MAX (384 * 1024)
 
-#define BUS_MESSAGE_SIZE_MAX (128*1024*1024)
-#define BUS_AUTH_SIZE_MAX (64*1024)
+#define BUS_MESSAGE_SIZE_MAX (128 * 1024 * 1024)
+#define BUS_AUTH_SIZE_MAX (64 * 1024)
 /* Note that the D-Bus specification states that bus paths shall have no size limit. We enforce here one
  * anyway, since truly unbounded strings are a security problem. The limit we pick is relatively large however,
  * to not clash unnecessarily with real-life applications. */
-#define BUS_PATH_SIZE_MAX (64*1024)
+#define BUS_PATH_SIZE_MAX (64 * 1024)
 
 #define BUS_CONTAINER_DEPTH 128
 
@@ -348,7 +346,7 @@ struct sd_bus {
 
 bool interface_name_is_valid(const char *p) _pure_;
 bool service_name_is_valid(const char *p) _pure_;
-char* service_name_startswith(const char *a, const char *b);
+char *service_name_startswith(const char *a, const char *b);
 bool member_name_is_valid(const char *p) _pure_;
 bool object_path_is_valid(const char *p) _pure_;
 char *object_path_startswith(const char *a, const char *b) _pure_;
@@ -376,22 +374,27 @@ bool bus_pid_changed(sd_bus *bus);
 
 char *bus_address_escape(const char *v);
 
-#define OBJECT_PATH_FOREACH_PREFIX(prefix, path)                        \
-        for (char *_slash = ({ strcpy((prefix), (path)); streq((prefix), "/") ? NULL : strrchr((prefix), '/'); }) ; \
-             _slash && ((_slash[(_slash) == (prefix)] = 0), true);       \
-             _slash = streq((prefix), "/") ? NULL : strrchr((prefix), '/'))
+#define OBJECT_PATH_FOREACH_PREFIX(prefix, path)                               \
+	for (char *_slash = ({                                                 \
+		     strcpy((prefix), (path));                                 \
+		     streq((prefix), "/") ? NULL : strrchr((prefix), '/');     \
+	     });                                                               \
+		_slash && ((_slash[(_slash) == (prefix)] = 0), true);          \
+		_slash = streq((prefix), "/") ? NULL : strrchr((prefix), '/'))
 
 /* If we are invoking callbacks of a bus object, ensure unreffing the
  * bus from the callback doesn't destroy the object we are working
  * on */
-#define BUS_DONT_DESTROY(bus) \
-        _cleanup_bus_unref_ _unused_ sd_bus *_dont_destroy_##bus = sd_bus_ref(bus)
+#define BUS_DONT_DESTROY(bus)                                                  \
+	_cleanup_bus_unref_ _unused_ sd_bus *_dont_destroy_##bus =             \
+		sd_bus_ref(bus)
 
 int bus_set_address_system(sd_bus *bus);
 int bus_set_address_user(sd_bus *bus);
 int bus_set_address_system_remote(sd_bus *b, const char *host);
 int bus_set_address_system_machine(sd_bus *b, const char *machine);
 
-int bus_remove_match_by_string(sd_bus *bus, const char *match, sd_bus_message_handler_t callback, void *userdata);
+int bus_remove_match_by_string(sd_bus *bus, const char *match,
+	sd_bus_message_handler_t callback, void *userdata);
 
 int bus_get_root_path(sd_bus *bus);

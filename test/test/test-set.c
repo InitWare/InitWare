@@ -17,31 +17,35 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "util.h"
 #include "set.h"
+#include "util.h"
 
-static void test_set_steal_first(void) {
-        _cleanup_set_free_ Set *m = NULL;
-        int seen[3] = {};
-        char *val;
+static void
+test_set_steal_first(void)
+{
+	_cleanup_set_free_ Set *m = NULL;
+	int seen[3] = {};
+	char *val;
 
-        m = set_new(&string_hash_ops);
-        assert_se(m);
+	m = set_new(&string_hash_ops);
+	assert_se(m);
 
-        assert_se(set_put(m, (void*) "1") == 1);
-        assert_se(set_put(m, (void*) "22") == 1);
-        assert_se(set_put(m, (void*) "333") == 1);
+	assert_se(set_put(m, (void *)"1") == 1);
+	assert_se(set_put(m, (void *)"22") == 1);
+	assert_se(set_put(m, (void *)"333") == 1);
 
-        while ((val = set_steal_first(m)))
-                seen[strlen(val) - 1]++;
+	while ((val = set_steal_first(m)))
+		seen[strlen(val) - 1]++;
 
-        assert_se(seen[0] == 1 && seen[1] == 1 && seen[2] == 1);
+	assert_se(seen[0] == 1 && seen[1] == 1 && seen[2] == 1);
 
-        assert_se(set_isempty(m));
+	assert_se(set_isempty(m));
 }
 
-int main(int argc, const char *argv[]) {
-        test_set_steal_first();
+int
+main(int argc, const char *argv[])
+{
+	test_set_steal_first();
 
-        return 0;
+	return 0;
 }

@@ -25,11 +25,11 @@ int detect_vm(const char **id);
 int detect_container(const char **id);
 
 enum {
-        VIRTUALIZATION_NONE = 0,
-        VIRTUALIZATION_VM,
-        VIRTUALIZATION_CONTAINER,
-        _VIRTUALIZATION_MAX,
-        _VIRTUALIZATION_INVALID = -1
+	VIRTUALIZATION_NONE = 0,
+	VIRTUALIZATION_VM,
+	VIRTUALIZATION_CONTAINER,
+	_VIRTUALIZATION_MAX,
+	_VIRTUALIZATION_INVALID = -1
 };
 
 int detect_virtualization(const char **id);

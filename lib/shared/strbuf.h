@@ -22,32 +22,32 @@
 ***/
 
 #include <stdarg.h>
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 struct strbuf {
-        char *buf;
-        size_t len;
-        struct strbuf_node *root;
+	char *buf;
+	size_t len;
+	struct strbuf_node *root;
 
-        size_t nodes_count;
-        size_t in_count;
-        size_t in_len;
-        size_t dedup_len;
-        size_t dedup_count;
+	size_t nodes_count;
+	size_t in_count;
+	size_t in_len;
+	size_t dedup_len;
+	size_t dedup_count;
 };
 
 struct strbuf_node {
-        size_t value_off;
-        size_t value_len;
+	size_t value_off;
+	size_t value_len;
 
-        struct strbuf_child_entry *children;
-        uint8_t children_count;
+	struct strbuf_child_entry *children;
+	uint8_t children_count;
 };
 
 struct strbuf_child_entry {
-        uint8_t c;
-        struct strbuf_node *child;
+	uint8_t c;
+	struct strbuf_node *child;
 };
 
 struct strbuf *strbuf_new(void);

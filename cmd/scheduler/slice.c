@@ -23,247 +23,273 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "unit.h"
-#include "slice.h"
+#include "dbus-slice.h"
 #include "load-fragment.h"
 #include "log.h"
-#include "dbus-slice.h"
+#include "slice.h"
 #include "special.h"
 #include "unit-name.h"
+#include "unit.h"
 
 static const UnitActiveState state_translation_table[_SLICE_STATE_MAX] = {
-        [SLICE_DEAD] = UNIT_INACTIVE,
-        [SLICE_ACTIVE] = UNIT_ACTIVE
+	[SLICE_DEAD] = UNIT_INACTIVE,
+	[SLICE_ACTIVE] = UNIT_ACTIVE
 };
 
-static void slice_init(Unit *u) {
-        assert(u);
-        assert(u->load_state == UNIT_STUB);
+static void
+slice_init(Unit *u)
+{
+	assert(u);
+	assert(u->load_state == UNIT_STUB);
 
-        u->ignore_on_isolate = true;
+	u->ignore_on_isolate = true;
 }
 
-static void slice_set_state(Slice *t, SliceState state) {
-        SliceState old_state;
-        assert(t);
+static void
+slice_set_state(Slice *t, SliceState state)
+{
+	SliceState old_state;
+	assert(t);
 
-        old_state = t->state;
-        t->state = state;
+	old_state = t->state;
+	t->state = state;
 
-        if (state != old_state)
-                log_debug("%s changed %s -> %s",
-                          UNIT(t)->id,
-                          slice_state_to_string(old_state),
-                          slice_state_to_string(state));
+	if (state != old_state)
+		log_debug("%s changed %s -> %s", UNIT(t)->id,
+			slice_state_to_string(old_state),
+			slice_state_to_string(state));
 
-        unit_notify(UNIT(t), state_translation_table[old_state], state_translation_table[state], true);
+	unit_notify(UNIT(t), state_translation_table[old_state],
+		state_translation_table[state], true);
 }
 
-static int slice_add_parent_slice(Slice *s) {
-        char *a, *dash;
-        Unit *parent;
-        int r;
+static int
+slice_add_parent_slice(Slice *s)
+{
+	char *a, *dash;
+	Unit *parent;
+	int r;
 
-        assert(s);
+	assert(s);
 
-        if (UNIT_ISSET(UNIT(s)->slice))
-                return 0;
+	if (UNIT_ISSET(UNIT(s)->slice))
+		return 0;
 
-        if (unit_has_name(UNIT(s), SPECIAL_ROOT_SLICE))
-                return 0;
+	if (unit_has_name(UNIT(s), SPECIAL_ROOT_SLICE))
+		return 0;
 
-        a = strdupa(UNIT(s)->id);
-        dash = strrchr(a, '-');
-        if (dash)
-                strcpy(dash, ".slice");
-        else
-                a = (char*) SPECIAL_ROOT_SLICE;
+	a = strdupa(UNIT(s)->id);
+	dash = strrchr(a, '-');
+	if (dash)
+		strcpy(dash, ".slice");
+	else
+		a = (char *)SPECIAL_ROOT_SLICE;
 
-        r = manager_load_unit(UNIT(s)->manager, a, NULL, NULL, &parent);
-        if (r < 0)
-                return r;
+	r = manager_load_unit(UNIT(s)->manager, a, NULL, NULL, &parent);
+	if (r < 0)
+		return r;
 
-        unit_ref_set(&UNIT(s)->slice, UNIT(s), parent);
-        return 0;
+	unit_ref_set(&UNIT(s)->slice, UNIT(s), parent);
+	return 0;
 }
 
-static int slice_add_default_dependencies(Slice *s) {
-        int r;
+static int
+slice_add_default_dependencies(Slice *s)
+{
+	int r;
 
-        assert(s);
+	assert(s);
 
-        /* Make sure slices are unloaded on shutdown */
-        r = unit_add_two_dependencies_by_name(
-                        UNIT(s),
-                        UNIT_BEFORE, UNIT_CONFLICTS,
-                        SPECIAL_SHUTDOWN_TARGET, NULL, true);
-        if (r < 0)
-                return r;
+	/* Make sure slices are unloaded on shutdown */
+	r = unit_add_two_dependencies_by_name(UNIT(s), UNIT_BEFORE,
+		UNIT_CONFLICTS, SPECIAL_SHUTDOWN_TARGET, NULL, true);
+	if (r < 0)
+		return r;
 
-        return 0;
+	return 0;
 }
 
-static int slice_verify(Slice *s) {
-        assert(s);
+static int
+slice_verify(Slice *s)
+{
+	assert(s);
 
-        if (UNIT(s)->load_state != UNIT_LOADED)
-                return 0;
+	if (UNIT(s)->load_state != UNIT_LOADED)
+		return 0;
 
-        if (UNIT_DEREF(UNIT(s)->slice)) {
-                char *a, *dash;
+	if (UNIT_DEREF(UNIT(s)->slice)) {
+		char *a, *dash;
 
-                a = strdupa(UNIT(s)->id);
-                dash = strrchr(a, '-');
-                if (dash)
-                        strcpy(dash, ".slice");
-                else
-                        a = (char*) SPECIAL_ROOT_SLICE;
+		a = strdupa(UNIT(s)->id);
+		dash = strrchr(a, '-');
+		if (dash)
+			strcpy(dash, ".slice");
+		else
+			a = (char *)SPECIAL_ROOT_SLICE;
 
-                if (!unit_has_name(UNIT_DEREF(UNIT(s)->slice), a)) {
-                        log_unit_error(UNIT(s)->id,
-                                       "%s located outside its parent slice. Refusing.", UNIT(s)->id);
-                        return -EINVAL;
-                }
-        }
+		if (!unit_has_name(UNIT_DEREF(UNIT(s)->slice), a)) {
+			log_unit_error(UNIT(s)->id,
+				"%s located outside its parent slice. Refusing.",
+				UNIT(s)->id);
+			return -EINVAL;
+		}
+	}
 
-        return 0;
+	return 0;
 }
 
-static int slice_load(Unit *u) {
-        Slice *s = SLICE(u);
-        int r;
+static int
+slice_load(Unit *u)
+{
+	Slice *s = SLICE(u);
+	int r;
 
-        assert(s);
+	assert(s);
 
-        r = unit_load_fragment_and_dropin_optional(u);
-        if (r < 0)
-                return r;
+	r = unit_load_fragment_and_dropin_optional(u);
+	if (r < 0)
+		return r;
 
-        /* This is a new unit? Then let's add in some extras */
-        if (u->load_state == UNIT_LOADED) {
+	/* This is a new unit? Then let's add in some extras */
+	if (u->load_state == UNIT_LOADED) {
+		r = unit_patch_contexts(u);
+		if (r < 0)
+			return r;
 
-                r = unit_patch_contexts(u);
-                if (r < 0)
-                        return r;
+		r = slice_add_parent_slice(s);
+		if (r < 0)
+			return r;
 
-                r = slice_add_parent_slice(s);
-                if (r < 0)
-                        return r;
+		if (u->default_dependencies) {
+			r = slice_add_default_dependencies(s);
+			if (r < 0)
+				return r;
+		}
+	}
 
-                if (u->default_dependencies) {
-                        r = slice_add_default_dependencies(s);
-                        if (r < 0)
-                                return r;
-                }
-        }
-
-        return slice_verify(s);
+	return slice_verify(s);
 }
 
-static int slice_coldplug(Unit *u, Hashmap *deferred_work) {
-        Slice *t = SLICE(u);
+static int
+slice_coldplug(Unit *u, Hashmap *deferred_work)
+{
+	Slice *t = SLICE(u);
 
-        assert(t);
-        assert(t->state == SLICE_DEAD);
+	assert(t);
+	assert(t->state == SLICE_DEAD);
 
-        if (t->deserialized_state != t->state)
-                slice_set_state(t, t->deserialized_state);
+	if (t->deserialized_state != t->state)
+		slice_set_state(t, t->deserialized_state);
 
-        return 0;
+	return 0;
 }
 
-static void slice_dump(Unit *u, FILE *f, const char *prefix) {
-        Slice *t = SLICE(u);
+static void
+slice_dump(Unit *u, FILE *f, const char *prefix)
+{
+	Slice *t = SLICE(u);
 
-        assert(t);
-        assert(f);
+	assert(t);
+	assert(f);
 
-        fprintf(f,
-                "%sSlice State: %s\n",
-                prefix, slice_state_to_string(t->state));
+	fprintf(f, "%sSlice State: %s\n", prefix,
+		slice_state_to_string(t->state));
 
-        cgroup_context_dump(&t->cgroup_context, f, prefix);
+	cgroup_context_dump(&t->cgroup_context, f, prefix);
 }
 
-static int slice_start(Unit *u) {
-        Slice *t = SLICE(u);
+static int
+slice_start(Unit *u)
+{
+	Slice *t = SLICE(u);
 
-        assert(t);
-        assert(t->state == SLICE_DEAD);
+	assert(t);
+	assert(t->state == SLICE_DEAD);
 
-        unit_realize_cgroup(u);
+	unit_realize_cgroup(u);
 
-        slice_set_state(t, SLICE_ACTIVE);
-        return 1;
+	slice_set_state(t, SLICE_ACTIVE);
+	return 1;
 }
 
-static int slice_stop(Unit *u) {
-        Slice *t = SLICE(u);
+static int
+slice_stop(Unit *u)
+{
+	Slice *t = SLICE(u);
 
-        assert(t);
-        assert(t->state == SLICE_ACTIVE);
+	assert(t);
+	assert(t->state == SLICE_ACTIVE);
 
-        /* We do not need to destroy the cgroup explicitly,
+	/* We do not need to destroy the cgroup explicitly,
          * unit_notify() will do that for us anyway. */
 
-        slice_set_state(t, SLICE_DEAD);
-        return 1;
+	slice_set_state(t, SLICE_DEAD);
+	return 1;
 }
 
-static int slice_kill(Unit *u, KillWho who, int signo, sd_bus_error *error) {
-        return unit_kill_common(u, who, signo, -1, -1, error);
+static int
+slice_kill(Unit *u, KillWho who, int signo, sd_bus_error *error)
+{
+	return unit_kill_common(u, who, signo, -1, -1, error);
 }
 
-static int slice_serialize(Unit *u, FILE *f, FDSet *fds) {
-        Slice *s = SLICE(u);
+static int
+slice_serialize(Unit *u, FILE *f, FDSet *fds)
+{
+	Slice *s = SLICE(u);
 
-        assert(s);
-        assert(f);
-        assert(fds);
+	assert(s);
+	assert(f);
+	assert(fds);
 
-        unit_serialize_item(u, f, "state", slice_state_to_string(s->state));
-        return 0;
+	unit_serialize_item(u, f, "state", slice_state_to_string(s->state));
+	return 0;
 }
 
-static int slice_deserialize_item(Unit *u, const char *key, const char *value, FDSet *fds) {
-        Slice *s = SLICE(u);
+static int
+slice_deserialize_item(Unit *u, const char *key, const char *value, FDSet *fds)
+{
+	Slice *s = SLICE(u);
 
-        assert(u);
-        assert(key);
-        assert(value);
-        assert(fds);
+	assert(u);
+	assert(key);
+	assert(value);
+	assert(fds);
 
-        if (streq(key, "state")) {
-                SliceState state;
+	if (streq(key, "state")) {
+		SliceState state;
 
-                state = slice_state_from_string(value);
-                if (state < 0)
-                        log_debug("Failed to parse state value %s", value);
-                else
-                        s->deserialized_state = state;
+		state = slice_state_from_string(value);
+		if (state < 0)
+			log_debug("Failed to parse state value %s", value);
+		else
+			s->deserialized_state = state;
 
-        } else
-                log_debug("Unknown serialization key '%s'", key);
+	} else
+		log_debug("Unknown serialization key '%s'", key);
 
-        return 0;
+	return 0;
 }
 
-_pure_ static UnitActiveState slice_active_state(Unit *u) {
-        assert(u);
+_pure_ static UnitActiveState
+slice_active_state(Unit *u)
+{
+	assert(u);
 
-        return state_translation_table[SLICE(u)->state];
+	return state_translation_table[SLICE(u)->state];
 }
 
-_pure_ static const char *slice_sub_state_to_string(Unit *u) {
-        assert(u);
+_pure_ static const char *
+slice_sub_state_to_string(Unit *u)
+{
+	assert(u);
 
-        return slice_state_to_string(SLICE(u)->state);
+	return slice_state_to_string(SLICE(u)->state);
 }
 
-static const char* const slice_state_table[_SLICE_STATE_MAX] = {
-        [SLICE_DEAD] = "dead",
-        [SLICE_ACTIVE] = "active"
-};
+static const char *const slice_state_table[_SLICE_STATE_MAX] = { [SLICE_DEAD] =
+									 "dead",
+	[SLICE_ACTIVE] = "active" };
 
 DEFINE_STRING_TABLE_LOOKUP(slice_state, SliceState);
 

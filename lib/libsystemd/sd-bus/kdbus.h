@@ -11,12 +11,12 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
-#define KDBUS_IOCTL_MAGIC		0x95
-#define KDBUS_SRC_ID_KERNEL		(0)
-#define KDBUS_DST_ID_NAME		(0)
-#define KDBUS_MATCH_ID_ANY		(~0ULL)
-#define KDBUS_DST_ID_BROADCAST		(~0ULL)
-#define KDBUS_FLAG_NEGOTIATE		(1ULL << 63)
+#define KDBUS_IOCTL_MAGIC 0x95
+#define KDBUS_SRC_ID_KERNEL (0)
+#define KDBUS_DST_ID_NAME (0)
+#define KDBUS_MATCH_ID_ANY (~0ULL)
+#define KDBUS_DST_ID_BROADCAST (~0ULL)
+#define KDBUS_FLAG_NEGOTIATE (1ULL << 63)
 
 /**
  * struct kdbus_notify_id_change - name registry change message
@@ -231,7 +231,7 @@ enum kdbus_policy_access_type {
  * @KDBUS_POLICY_SEE:		Allow to see a well-known name
  */
 enum kdbus_policy_type {
-	KDBUS_POLICY_SEE	= 0,
+	KDBUS_POLICY_SEE = 0,
 	KDBUS_POLICY_TALK,
 	KDBUS_POLICY_OWN,
 };
@@ -244,9 +244,9 @@ enum kdbus_policy_type {
  *			For KDBUS_POLICY_ACCESS_GROUP, the gid
  */
 struct kdbus_policy_access {
-	__u64 type;	/* USER, GROUP, WORLD */
-	__u64 access;	/* OWN, TALK, SEE */
-	__u64 id;	/* uid, gid, 0 */
+	__u64 type; /* USER, GROUP, WORLD */
+	__u64 access; /* OWN, TALK, SEE */
+	__u64 id; /* uid, gid, 0 */
 } __attribute__((__aligned__(8)));
 
 /**
@@ -270,22 +270,22 @@ struct kdbus_policy_access {
  *					metatdata.
  */
 enum kdbus_attach_flags {
-	KDBUS_ATTACH_TIMESTAMP		=  1ULL <<  0,
-	KDBUS_ATTACH_CREDS		=  1ULL <<  1,
-	KDBUS_ATTACH_PIDS		=  1ULL <<  2,
-	KDBUS_ATTACH_AUXGROUPS		=  1ULL <<  3,
-	KDBUS_ATTACH_NAMES		=  1ULL <<  4,
-	KDBUS_ATTACH_TID_COMM		=  1ULL <<  5,
-	KDBUS_ATTACH_PID_COMM		=  1ULL <<  6,
-	KDBUS_ATTACH_EXE		=  1ULL <<  7,
-	KDBUS_ATTACH_CMDLINE		=  1ULL <<  8,
-	KDBUS_ATTACH_CGROUP		=  1ULL <<  9,
-	KDBUS_ATTACH_CAPS		=  1ULL << 10,
-	KDBUS_ATTACH_SECLABEL		=  1ULL << 11,
-	KDBUS_ATTACH_AUDIT		=  1ULL << 12,
-	KDBUS_ATTACH_CONN_DESCRIPTION	=  1ULL << 13,
-	_KDBUS_ATTACH_ALL		=  (1ULL << 14) - 1,
-	_KDBUS_ATTACH_ANY		=  ~0ULL
+	KDBUS_ATTACH_TIMESTAMP = 1ULL << 0,
+	KDBUS_ATTACH_CREDS = 1ULL << 1,
+	KDBUS_ATTACH_PIDS = 1ULL << 2,
+	KDBUS_ATTACH_AUXGROUPS = 1ULL << 3,
+	KDBUS_ATTACH_NAMES = 1ULL << 4,
+	KDBUS_ATTACH_TID_COMM = 1ULL << 5,
+	KDBUS_ATTACH_PID_COMM = 1ULL << 6,
+	KDBUS_ATTACH_EXE = 1ULL << 7,
+	KDBUS_ATTACH_CMDLINE = 1ULL << 8,
+	KDBUS_ATTACH_CGROUP = 1ULL << 9,
+	KDBUS_ATTACH_CAPS = 1ULL << 10,
+	KDBUS_ATTACH_SECLABEL = 1ULL << 11,
+	KDBUS_ATTACH_AUDIT = 1ULL << 12,
+	KDBUS_ATTACH_CONN_DESCRIPTION = 1ULL << 13,
+	_KDBUS_ATTACH_ALL = (1ULL << 14) - 1,
+	_KDBUS_ATTACH_ANY = ~0ULL
 };
 
 /**
@@ -359,7 +359,7 @@ enum kdbus_attach_flags {
 enum kdbus_item_type {
 	_KDBUS_ITEM_NULL,
 	_KDBUS_ITEM_USER_BASE,
-	KDBUS_ITEM_NEGOTIATE	= _KDBUS_ITEM_USER_BASE,
+	KDBUS_ITEM_NEGOTIATE = _KDBUS_ITEM_USER_BASE,
 	KDBUS_ITEM_PAYLOAD_VEC,
 	KDBUS_ITEM_PAYLOAD_OFF,
 	KDBUS_ITEM_PAYLOAD_MEMFD,
@@ -376,8 +376,8 @@ enum kdbus_item_type {
 	KDBUS_ITEM_NAME,
 
 	/* keep these item types in sync with KDBUS_ATTACH_* flags */
-	_KDBUS_ITEM_ATTACH_BASE	= 0x1000,
-	KDBUS_ITEM_TIMESTAMP	= _KDBUS_ITEM_ATTACH_BASE,
+	_KDBUS_ITEM_ATTACH_BASE = 0x1000,
+	KDBUS_ITEM_TIMESTAMP = _KDBUS_ITEM_ATTACH_BASE,
 	KDBUS_ITEM_CREDS,
 	KDBUS_ITEM_PIDS,
 	KDBUS_ITEM_AUXGROUPS,
@@ -392,11 +392,11 @@ enum kdbus_item_type {
 	KDBUS_ITEM_AUDIT,
 	KDBUS_ITEM_CONN_DESCRIPTION,
 
-	_KDBUS_ITEM_POLICY_BASE	= 0x2000,
+	_KDBUS_ITEM_POLICY_BASE = 0x2000,
 	KDBUS_ITEM_POLICY_ACCESS = _KDBUS_ITEM_POLICY_BASE,
 
-	_KDBUS_ITEM_KERNEL_BASE	= 0x8000,
-	KDBUS_ITEM_NAME_ADD	= _KDBUS_ITEM_KERNEL_BASE,
+	_KDBUS_ITEM_KERNEL_BASE = 0x8000,
+	KDBUS_ITEM_NAME_ADD = _KDBUS_ITEM_KERNEL_BASE,
 	KDBUS_ITEM_NAME_REMOVE,
 	KDBUS_ITEM_NAME_CHANGE,
 	KDBUS_ITEM_ID_ADD,
@@ -478,9 +478,9 @@ struct kdbus_item_list {
  * @KDBUS_MSG_SIGNAL:		Treat this message as signal
  */
 enum kdbus_msg_flags {
-	KDBUS_MSG_EXPECT_REPLY	= 1ULL << 0,
-	KDBUS_MSG_NO_AUTO_START	= 1ULL << 1,
-	KDBUS_MSG_SIGNAL	= 1ULL << 2,
+	KDBUS_MSG_EXPECT_REPLY = 1ULL << 0,
+	KDBUS_MSG_NO_AUTO_START = 1ULL << 1,
+	KDBUS_MSG_SIGNAL = 1ULL << 2,
 };
 
 /**
@@ -493,7 +493,7 @@ enum kdbus_msg_flags {
  */
 enum kdbus_payload_type {
 	KDBUS_PAYLOAD_KERNEL,
-	KDBUS_PAYLOAD_DBUS	= 0x4442757344427573ULL,
+	KDBUS_PAYLOAD_DBUS = 0x4442757344427573ULL,
 };
 
 /**
@@ -556,7 +556,7 @@ struct kdbus_msg_info {
  *				@KDBUS_MSG_EXPECT_REPLY is set as well.
  */
 enum kdbus_send_flags {
-	KDBUS_SEND_SYNC_REPLY		= 1ULL << 0,
+	KDBUS_SEND_SYNC_REPLY = 1ULL << 0,
 };
 
 /**
@@ -592,9 +592,9 @@ struct kdbus_cmd_send {
  *				the priority value is ignored.
  */
 enum kdbus_recv_flags {
-	KDBUS_RECV_PEEK		= 1ULL <<  0,
-	KDBUS_RECV_DROP		= 1ULL <<  1,
-	KDBUS_RECV_USE_PRIORITY	= 1ULL <<  2,
+	KDBUS_RECV_PEEK = 1ULL << 0,
+	KDBUS_RECV_DROP = 1ULL << 1,
+	KDBUS_RECV_USE_PRIORITY = 1ULL << 2,
 };
 
 /**
@@ -604,7 +604,7 @@ enum kdbus_recv_flags {
  *					KDBUS_ITEM_FDS will carry the value -1.
  */
 enum kdbus_recv_return_flags {
-	KDBUS_RECV_RETURN_INCOMPLETE_FDS	= 1ULL <<  0,
+	KDBUS_RECV_RETURN_INCOMPLETE_FDS = 1ULL << 0,
 };
 
 /**
@@ -669,10 +669,10 @@ struct kdbus_cmd_free {
  *				bus traffic
  */
 enum kdbus_hello_flags {
-	KDBUS_HELLO_ACCEPT_FD		=  1ULL <<  0,
-	KDBUS_HELLO_ACTIVATOR		=  1ULL <<  1,
-	KDBUS_HELLO_POLICY_HOLDER	=  1ULL <<  2,
-	KDBUS_HELLO_MONITOR		=  1ULL <<  3,
+	KDBUS_HELLO_ACCEPT_FD = 1ULL << 0,
+	KDBUS_HELLO_ACTIVATOR = 1ULL << 1,
+	KDBUS_HELLO_POLICY_HOLDER = 1ULL << 2,
+	KDBUS_HELLO_MONITOR = 1ULL << 3,
 };
 
 /**
@@ -740,10 +740,10 @@ struct kdbus_info {
  * @KDBUS_LIST_QUEUED:		queued-up names
  */
 enum kdbus_list_flags {
-	KDBUS_LIST_UNIQUE		= 1ULL <<  0,
-	KDBUS_LIST_NAMES		= 1ULL <<  1,
-	KDBUS_LIST_ACTIVATORS		= 1ULL <<  2,
-	KDBUS_LIST_QUEUED		= 1ULL <<  3,
+	KDBUS_LIST_UNIQUE = 1ULL << 0,
+	KDBUS_LIST_NAMES = 1ULL << 1,
+	KDBUS_LIST_ACTIVATORS = 1ULL << 2,
+	KDBUS_LIST_QUEUED = 1ULL << 3,
 };
 
 /**
@@ -806,7 +806,7 @@ struct kdbus_cmd_info {
  *				matches.
  */
 enum kdbus_cmd_match_flags {
-	KDBUS_MATCH_REPLACE	= 1ULL <<  0,
+	KDBUS_MATCH_REPLACE = 1ULL << 0,
 };
 
 /**
@@ -836,8 +836,8 @@ struct kdbus_cmd_match {
  * @KDBUS_MAKE_ACCESS_WORLD:	Make the bus or endpoint node world-accessible
  */
 enum kdbus_make_flags {
-	KDBUS_MAKE_ACCESS_GROUP		= 1ULL <<  0,
-	KDBUS_MAKE_ACCESS_WORLD		= 1ULL <<  1,
+	KDBUS_MAKE_ACCESS_GROUP = 1ULL << 0,
+	KDBUS_MAKE_ACCESS_WORLD = 1ULL << 1,
 };
 
 /**
@@ -849,11 +849,11 @@ enum kdbus_make_flags {
  * @KDBUS_NAME_ACTIVATOR:		Name is owned by a activator connection
  */
 enum kdbus_name_flags {
-	KDBUS_NAME_REPLACE_EXISTING	= 1ULL <<  0,
-	KDBUS_NAME_ALLOW_REPLACEMENT	= 1ULL <<  1,
-	KDBUS_NAME_QUEUE		= 1ULL <<  2,
-	KDBUS_NAME_IN_QUEUE		= 1ULL <<  3,
-	KDBUS_NAME_ACTIVATOR		= 1ULL <<  4,
+	KDBUS_NAME_REPLACE_EXISTING = 1ULL << 0,
+	KDBUS_NAME_ALLOW_REPLACEMENT = 1ULL << 1,
+	KDBUS_NAME_QUEUE = 1ULL << 2,
+	KDBUS_NAME_IN_QUEUE = 1ULL << 3,
+	KDBUS_NAME_ACTIVATOR = 1ULL << 4,
 };
 
 /**
@@ -929,45 +929,38 @@ struct kdbus_cmd {
  */
 enum kdbus_ioctl_type {
 	/* bus owner (00-0f) */
-	KDBUS_CMD_BUS_MAKE =		_IOW(KDBUS_IOCTL_MAGIC, 0x00,
-					     struct kdbus_cmd),
+	KDBUS_CMD_BUS_MAKE = _IOW(KDBUS_IOCTL_MAGIC, 0x00, struct kdbus_cmd),
 
 	/* endpoint owner (10-1f) */
-	KDBUS_CMD_ENDPOINT_MAKE =	_IOW(KDBUS_IOCTL_MAGIC, 0x10,
-					     struct kdbus_cmd),
-	KDBUS_CMD_ENDPOINT_UPDATE =	_IOW(KDBUS_IOCTL_MAGIC, 0x11,
-					     struct kdbus_cmd),
+	KDBUS_CMD_ENDPOINT_MAKE =
+		_IOW(KDBUS_IOCTL_MAGIC, 0x10, struct kdbus_cmd),
+	KDBUS_CMD_ENDPOINT_UPDATE =
+		_IOW(KDBUS_IOCTL_MAGIC, 0x11, struct kdbus_cmd),
 
 	/* connection owner (80-ff) */
-	KDBUS_CMD_HELLO =		_IOWR(KDBUS_IOCTL_MAGIC, 0x80,
-					      struct kdbus_cmd_hello),
-	KDBUS_CMD_UPDATE =		_IOW(KDBUS_IOCTL_MAGIC, 0x81,
-					     struct kdbus_cmd),
-	KDBUS_CMD_BYEBYE =		_IOW(KDBUS_IOCTL_MAGIC, 0x82,
-					     struct kdbus_cmd),
-	KDBUS_CMD_FREE =		_IOW(KDBUS_IOCTL_MAGIC, 0x83,
-					     struct kdbus_cmd_free),
-	KDBUS_CMD_CONN_INFO =		_IOR(KDBUS_IOCTL_MAGIC, 0x84,
-					     struct kdbus_cmd_info),
-	KDBUS_CMD_BUS_CREATOR_INFO =	_IOR(KDBUS_IOCTL_MAGIC, 0x85,
-					     struct kdbus_cmd_info),
-	KDBUS_CMD_LIST =		_IOR(KDBUS_IOCTL_MAGIC, 0x86,
-					     struct kdbus_cmd_list),
+	KDBUS_CMD_HELLO =
+		_IOWR(KDBUS_IOCTL_MAGIC, 0x80, struct kdbus_cmd_hello),
+	KDBUS_CMD_UPDATE = _IOW(KDBUS_IOCTL_MAGIC, 0x81, struct kdbus_cmd),
+	KDBUS_CMD_BYEBYE = _IOW(KDBUS_IOCTL_MAGIC, 0x82, struct kdbus_cmd),
+	KDBUS_CMD_FREE = _IOW(KDBUS_IOCTL_MAGIC, 0x83, struct kdbus_cmd_free),
+	KDBUS_CMD_CONN_INFO =
+		_IOR(KDBUS_IOCTL_MAGIC, 0x84, struct kdbus_cmd_info),
+	KDBUS_CMD_BUS_CREATOR_INFO =
+		_IOR(KDBUS_IOCTL_MAGIC, 0x85, struct kdbus_cmd_info),
+	KDBUS_CMD_LIST = _IOR(KDBUS_IOCTL_MAGIC, 0x86, struct kdbus_cmd_list),
 
-	KDBUS_CMD_SEND =		_IOW(KDBUS_IOCTL_MAGIC, 0x90,
-					     struct kdbus_cmd_send),
-	KDBUS_CMD_RECV =		_IOR(KDBUS_IOCTL_MAGIC, 0x91,
-					     struct kdbus_cmd_recv),
+	KDBUS_CMD_SEND = _IOW(KDBUS_IOCTL_MAGIC, 0x90, struct kdbus_cmd_send),
+	KDBUS_CMD_RECV = _IOR(KDBUS_IOCTL_MAGIC, 0x91, struct kdbus_cmd_recv),
 
-	KDBUS_CMD_NAME_ACQUIRE =	_IOW(KDBUS_IOCTL_MAGIC, 0xa0,
-					     struct kdbus_cmd),
-	KDBUS_CMD_NAME_RELEASE =	_IOW(KDBUS_IOCTL_MAGIC, 0xa1,
-					     struct kdbus_cmd),
+	KDBUS_CMD_NAME_ACQUIRE =
+		_IOW(KDBUS_IOCTL_MAGIC, 0xa0, struct kdbus_cmd),
+	KDBUS_CMD_NAME_RELEASE =
+		_IOW(KDBUS_IOCTL_MAGIC, 0xa1, struct kdbus_cmd),
 
-	KDBUS_CMD_MATCH_ADD =		_IOW(KDBUS_IOCTL_MAGIC, 0xb0,
-					     struct kdbus_cmd_match),
-	KDBUS_CMD_MATCH_REMOVE =	_IOW(KDBUS_IOCTL_MAGIC, 0xb1,
-					     struct kdbus_cmd_match),
+	KDBUS_CMD_MATCH_ADD =
+		_IOW(KDBUS_IOCTL_MAGIC, 0xb0, struct kdbus_cmd_match),
+	KDBUS_CMD_MATCH_REMOVE =
+		_IOW(KDBUS_IOCTL_MAGIC, 0xb1, struct kdbus_cmd_match),
 };
 
 #endif /* _KDBUS_UAPI_H_ */

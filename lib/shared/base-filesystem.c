@@ -19,90 +19,103 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <errno.h>
 #include <sys/stat.h>
+#include <assert.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <unistd.h>
 
 #include "base-filesystem.h"
+#include "label.h"
 #include "log.h"
 #include "macro.h"
+#include "mkdir.h"
 #include "strv.h"
 #include "util.h"
-#include "label.h"
-#include "mkdir.h"
 
 typedef struct BaseFilesystem {
-        const char *dir;
-        mode_t mode;
-        const char *target;
-        const char *exists;
+	const char *dir;
+	mode_t mode;
+	const char *target;
+	const char *exists;
 } BaseFilesystem;
 
 static const BaseFilesystem table[] = {
-        { "bin",      0, "usr/bin\0",                  NULL },
-        { "lib",      0, "usr/lib\0",                  NULL },
-        { "root",  0755, NULL,                         NULL },
-        { "sbin",     0, "usr/sbin\0",                 NULL },
+	{ "bin", 0, "usr/bin\0", NULL },
+	{ "lib", 0, "usr/lib\0", NULL },
+	{ "root", 0755, NULL, NULL },
+	{ "sbin", 0, "usr/sbin\0", NULL },
 #if defined(__i386__) || defined(__x86_64__)
-        { "lib64",    0, "usr/lib/x86_64-linux-gnu\0"
-                         "usr/lib64\0",                "ld-linux-x86-64.so.2" },
+	{ "lib64", 0,
+		"usr/lib/x86_64-linux-gnu\0"
+		"usr/lib64\0",
+		"ld-linux-x86-64.so.2" },
 #endif
 };
 
-int base_filesystem_create(const char *root) {
-        _cleanup_close_ int fd = -1;
-        unsigned i;
-        int r = 0;
+int
+base_filesystem_create(const char *root)
+{
+	_cleanup_close_ int fd = -1;
+	unsigned i;
+	int r = 0;
 
-        fd = open(root, O_RDONLY|O_NONBLOCK|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW);
-        if (fd < 0)
-                return log_error_errno(errno, "Failed to open root file system: %m");
+	fd = open(root,
+		O_RDONLY | O_NONBLOCK | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+	if (fd < 0)
+		return log_error_errno(errno,
+			"Failed to open root file system: %m");
 
-        for (i = 0; i < ELEMENTSOF(table); i ++) {
-                if (faccessat(fd, table[i].dir, F_OK, AT_SYMLINK_NOFOLLOW) >= 0)
-                        continue;
+	for (i = 0; i < ELEMENTSOF(table); i++) {
+		if (faccessat(fd, table[i].dir, F_OK, AT_SYMLINK_NOFOLLOW) >= 0)
+			continue;
 
-                if (table[i].target) {
-                        const char *target = NULL, *s;
+		if (table[i].target) {
+			const char *target = NULL, *s;
 
-                        /* check if one of the targets exists */
-                        NULSTR_FOREACH(s, table[i].target) {
-                                if (faccessat(fd, s, F_OK, AT_SYMLINK_NOFOLLOW) < 0)
-                                        continue;
+			/* check if one of the targets exists */
+			NULSTR_FOREACH (s, table[i].target) {
+				if (faccessat(fd, s, F_OK,
+					    AT_SYMLINK_NOFOLLOW) < 0)
+					continue;
 
-                                /* check if a specific file exists at the target path */
-                                if (table[i].exists) {
-                                        _cleanup_free_ char *p = NULL;
+				/* check if a specific file exists at the target path */
+				if (table[i].exists) {
+					_cleanup_free_ char *p = NULL;
 
-                                        p = strjoin(s, "/", table[i].exists, NULL);
-                                        if (!p)
-                                                return log_oom();
+					p = strjoin(s, "/", table[i].exists,
+						NULL);
+					if (!p)
+						return log_oom();
 
-                                        if (faccessat(fd, p, F_OK, AT_SYMLINK_NOFOLLOW) < 0)
-                                                continue;
-                                }
+					if (faccessat(fd, p, F_OK,
+						    AT_SYMLINK_NOFOLLOW) < 0)
+						continue;
+				}
 
-                                target = s;
-                                break;
-                        }
+				target = s;
+				break;
+			}
 
-                        if (!target)
-                                continue;
+			if (!target)
+				continue;
 
-                        r = symlinkat(target, fd, table[i].dir);
-                        if (r < 0 && errno != EEXIST)
-                                return log_error_errno(errno, "Failed to create symlink at %s/%s: %m", root, table[i].dir);
-                        continue;
-                }
+			r = symlinkat(target, fd, table[i].dir);
+			if (r < 0 && errno != EEXIST)
+				return log_error_errno(errno,
+					"Failed to create symlink at %s/%s: %m",
+					root, table[i].dir);
+			continue;
+		}
 
-                RUN_WITH_UMASK(0000)
-                        r = mkdirat(fd, table[i].dir, table[i].mode);
-                if (r < 0 && errno != EEXIST)
-                        return log_error_errno(errno, "Failed to create directory at %s/%s: %m", root, table[i].dir);
-        }
+		RUN_WITH_UMASK(0000)
+		r = mkdirat(fd, table[i].dir, table[i].mode);
+		if (r < 0 && errno != EEXIST)
+			return log_error_errno(errno,
+				"Failed to create directory at %s/%s: %m", root,
+				table[i].dir);
+	}
 
-        return 0;
+	return 0;
 }

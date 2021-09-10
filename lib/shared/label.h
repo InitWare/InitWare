@@ -21,8 +21,8 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdbool.h>
 #include <sys/types.h>
+#include <stdbool.h>
 
 int label_fix(const char *path, bool ignore_enoent, bool ignore_erofs);
 

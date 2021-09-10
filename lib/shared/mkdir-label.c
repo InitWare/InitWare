@@ -21,25 +21,31 @@
 ***/
 
 #include <assert.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <stdio.h>
 
 #include "label.h"
-#include "util.h"
-#include "path-util.h"
 #include "mkdir.h"
+#include "path-util.h"
+#include "util.h"
 
-int mkdir_safe_label(const char *path, mode_t mode, uid_t uid, gid_t gid) {
-        return mkdir_safe_internal(path, mode, uid, gid, mkdir_label);
+int
+mkdir_safe_label(const char *path, mode_t mode, uid_t uid, gid_t gid)
+{
+	return mkdir_safe_internal(path, mode, uid, gid, mkdir_label);
 }
 
-int mkdir_parents_label(const char *path, mode_t mode) {
-        return mkdir_parents_internal(NULL, path, mode, mkdir_label);
+int
+mkdir_parents_label(const char *path, mode_t mode)
+{
+	return mkdir_parents_internal(NULL, path, mode, mkdir_label);
 }
 
-int mkdir_p_label(const char *path, mode_t mode) {
-        return mkdir_p_internal(NULL, path, mode, mkdir_label);
+int
+mkdir_p_label(const char *path, mode_t mode)
+{
+	return mkdir_p_internal(NULL, path, mode, mkdir_label);
 }

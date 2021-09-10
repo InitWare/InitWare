@@ -19,117 +19,121 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <string.h>
-#include <unistd.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <locale.h>
-#include <errno.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "def.h"
 #include "ring.h"
 #include "util.h"
 
-static void test_ring(void) {
-        static const char buf[8192];
-        Ring r;
-        size_t l;
-        struct iovec vec[2];
-        int s;
+static void
+test_ring(void)
+{
+	static const char buf[8192];
+	Ring r;
+	size_t l;
+	struct iovec vec[2];
+	int s;
 
-        zero(r);
+	zero(r);
 
-        l = ring_peek(&r, vec);
-        assert_se(l == 0);
+	l = ring_peek(&r, vec);
+	assert_se(l == 0);
 
-        s = ring_push(&r, buf, 2048);
-        assert_se(!s);
-        assert_se(ring_get_size(&r) == 2048);
+	s = ring_push(&r, buf, 2048);
+	assert_se(!s);
+	assert_se(ring_get_size(&r) == 2048);
 
-        l = ring_peek(&r, vec);
-        assert_se(l == 1);
-        assert_se(vec[0].iov_len == 2048);
-        assert_se(!memcmp(vec[0].iov_base, buf, vec[0].iov_len));
-        assert_se(ring_get_size(&r) == 2048);
+	l = ring_peek(&r, vec);
+	assert_se(l == 1);
+	assert_se(vec[0].iov_len == 2048);
+	assert_se(!memcmp(vec[0].iov_base, buf, vec[0].iov_len));
+	assert_se(ring_get_size(&r) == 2048);
 
-        ring_pull(&r, 2048);
-        assert_se(ring_get_size(&r) == 0);
+	ring_pull(&r, 2048);
+	assert_se(ring_get_size(&r) == 0);
 
-        l = ring_peek(&r, vec);
-        assert_se(l == 0);
-        assert_se(ring_get_size(&r) == 0);
+	l = ring_peek(&r, vec);
+	assert_se(l == 0);
+	assert_se(ring_get_size(&r) == 0);
 
-        s = ring_push(&r, buf, 2048);
-        assert_se(!s);
-        assert_se(ring_get_size(&r) == 2048);
+	s = ring_push(&r, buf, 2048);
+	assert_se(!s);
+	assert_se(ring_get_size(&r) == 2048);
 
-        l = ring_peek(&r, vec);
-        assert_se(l == 1);
-        assert_se(vec[0].iov_len == 2048);
-        assert_se(!memcmp(vec[0].iov_base, buf, vec[0].iov_len));
-        assert_se(ring_get_size(&r) == 2048);
+	l = ring_peek(&r, vec);
+	assert_se(l == 1);
+	assert_se(vec[0].iov_len == 2048);
+	assert_se(!memcmp(vec[0].iov_base, buf, vec[0].iov_len));
+	assert_se(ring_get_size(&r) == 2048);
 
-        s = ring_push(&r, buf, 1);
-        assert_se(!s);
-        assert_se(ring_get_size(&r) == 2049);
+	s = ring_push(&r, buf, 1);
+	assert_se(!s);
+	assert_se(ring_get_size(&r) == 2049);
 
-        l = ring_peek(&r, vec);
-        assert_se(l == 2);
-        assert_se(vec[0].iov_len == 2048);
-        assert_se(vec[1].iov_len == 1);
-        assert_se(!memcmp(vec[0].iov_base, buf, vec[0].iov_len));
-        assert_se(!memcmp(vec[1].iov_base, buf, vec[1].iov_len));
-        assert_se(ring_get_size(&r) == 2049);
+	l = ring_peek(&r, vec);
+	assert_se(l == 2);
+	assert_se(vec[0].iov_len == 2048);
+	assert_se(vec[1].iov_len == 1);
+	assert_se(!memcmp(vec[0].iov_base, buf, vec[0].iov_len));
+	assert_se(!memcmp(vec[1].iov_base, buf, vec[1].iov_len));
+	assert_se(ring_get_size(&r) == 2049);
 
-        ring_pull(&r, 2048);
-        assert_se(ring_get_size(&r) == 1);
+	ring_pull(&r, 2048);
+	assert_se(ring_get_size(&r) == 1);
 
-        l = ring_peek(&r, vec);
-        assert_se(l == 1);
-        assert_se(vec[0].iov_len == 1);
-        assert_se(!memcmp(vec[0].iov_base, buf, vec[0].iov_len));
-        assert_se(ring_get_size(&r) == 1);
+	l = ring_peek(&r, vec);
+	assert_se(l == 1);
+	assert_se(vec[0].iov_len == 1);
+	assert_se(!memcmp(vec[0].iov_base, buf, vec[0].iov_len));
+	assert_se(ring_get_size(&r) == 1);
 
-        ring_pull(&r, 1);
-        assert_se(ring_get_size(&r) == 0);
+	ring_pull(&r, 1);
+	assert_se(ring_get_size(&r) == 0);
 
-        s = ring_push(&r, buf, 2048);
-        assert_se(!s);
-        assert_se(ring_get_size(&r) == 2048);
+	s = ring_push(&r, buf, 2048);
+	assert_se(!s);
+	assert_se(ring_get_size(&r) == 2048);
 
-        s = ring_push(&r, buf, 2049);
-        assert_se(!s);
-        assert_se(ring_get_size(&r) == 4097);
+	s = ring_push(&r, buf, 2049);
+	assert_se(!s);
+	assert_se(ring_get_size(&r) == 4097);
 
-        l = ring_peek(&r, vec);
-        assert_se(l == 1);
-        assert_se(vec[0].iov_len == 4097);
-        assert_se(!memcmp(vec[0].iov_base, buf, vec[0].iov_len));
-        assert_se(ring_get_size(&r) == 4097);
+	l = ring_peek(&r, vec);
+	assert_se(l == 1);
+	assert_se(vec[0].iov_len == 4097);
+	assert_se(!memcmp(vec[0].iov_base, buf, vec[0].iov_len));
+	assert_se(ring_get_size(&r) == 4097);
 
-        ring_pull(&r, 1);
-        assert_se(ring_get_size(&r) == 4096);
+	ring_pull(&r, 1);
+	assert_se(ring_get_size(&r) == 4096);
 
-        s = ring_push(&r, buf, 4096);
-        assert_se(!s);
-        assert_se(ring_get_size(&r) == 8192);
+	s = ring_push(&r, buf, 4096);
+	assert_se(!s);
+	assert_se(ring_get_size(&r) == 8192);
 
-        l = ring_peek(&r, vec);
-        assert_se(l == 2);
-        assert_se(vec[0].iov_len == 8191);
-        assert_se(vec[1].iov_len == 1);
-        assert_se(!memcmp(vec[0].iov_base, buf, vec[0].iov_len));
-        assert_se(!memcmp(vec[1].iov_base, buf, vec[1].iov_len));
-        assert_se(ring_get_size(&r) == 8192);
+	l = ring_peek(&r, vec);
+	assert_se(l == 2);
+	assert_se(vec[0].iov_len == 8191);
+	assert_se(vec[1].iov_len == 1);
+	assert_se(!memcmp(vec[0].iov_base, buf, vec[0].iov_len));
+	assert_se(!memcmp(vec[1].iov_base, buf, vec[1].iov_len));
+	assert_se(ring_get_size(&r) == 8192);
 
-        ring_clear(&r);
-        assert_se(ring_get_size(&r) == 0);
+	ring_clear(&r);
+	assert_se(ring_get_size(&r) == 0);
 }
 
-int main(int argc, char *argv[]) {
-        log_parse_environment();
-        log_open();
+int
+main(int argc, char *argv[])
+{
+	log_parse_environment();
+	log_open();
 
-        test_ring();
+	test_ring();
 
-        return 0;
+	return 0;
 }

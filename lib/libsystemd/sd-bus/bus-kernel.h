@@ -25,19 +25,19 @@
 
 #include "sd-bus.h"
 
-#define KDBUS_ITEM_NEXT(item) \
-        (typeof(item))(((uint8_t *)item) + ALIGN8((item)->size))
+#define KDBUS_ITEM_NEXT(item)                                                  \
+	(typeof(item))(((uint8_t *)item) + ALIGN8((item)->size))
 
-#define KDBUS_ITEM_FOREACH(part, head, first)                           \
-        for (part = (head)->first;                                      \
-             ((uint8_t *)(part) < (uint8_t *)(head) + (head)->size) &&  \
-                ((uint8_t *) part >= (uint8_t *) head);                 \
-             part = KDBUS_ITEM_NEXT(part))
-#define KDBUS_FOREACH(iter, first, _size)                               \
-        for (iter = (first);                                            \
-             ((uint8_t *)(iter) < (uint8_t *)(first) + (_size)) &&      \
-               ((uint8_t *)(iter) >= (uint8_t *)(first));               \
-             iter = (void*)(((uint8_t *)iter) + ALIGN8((iter)->size)))
+#define KDBUS_ITEM_FOREACH(part, head, first)                                  \
+	for (part = (head)->first;                                             \
+		((uint8_t *)(part) < (uint8_t *)(head) + (head)->size) &&      \
+		((uint8_t *)part >= (uint8_t *)head);                          \
+		part = KDBUS_ITEM_NEXT(part))
+#define KDBUS_FOREACH(iter, first, _size)                                      \
+	for (iter = (first);                                                   \
+		((uint8_t *)(iter) < (uint8_t *)(first) + (_size)) &&          \
+		((uint8_t *)(iter) >= (uint8_t *)(first));                     \
+		iter = (void *)(((uint8_t *)iter) + ALIGN8((iter)->size)))
 
 #define KDBUS_ITEM_HEADER_SIZE offsetof(struct kdbus_item, data)
 #define KDBUS_ITEM_SIZE(s) ALIGN8((s) + KDBUS_ITEM_HEADER_SIZE)
@@ -46,36 +46,40 @@
 
 /* When we cache a memfd block for reuse, we will truncate blocks
  * longer than this in order not to keep too much data around. */
-#define MEMFD_CACHE_ITEM_SIZE_MAX (128*1024)
+#define MEMFD_CACHE_ITEM_SIZE_MAX (128 * 1024)
 
 /* This determines at which minimum size we prefer sending memfds over
  * sending vectors */
-#define MEMFD_MIN_SIZE (512*1024)
+#define MEMFD_MIN_SIZE (512 * 1024)
 
 /* The size of the per-connection memory pool that we set up and where
  * the kernel places our incoming messages */
-#define KDBUS_POOL_SIZE (16*1024*1024)
+#define KDBUS_POOL_SIZE (16 * 1024 * 1024)
 
 struct memfd_cache {
-        int fd;
-        void *address;
-        size_t mapped;
-        size_t allocated;
+	int fd;
+	void *address;
+	size_t mapped;
+	size_t allocated;
 };
 
 int bus_kernel_connect(sd_bus *b);
 int bus_kernel_take_fd(sd_bus *b);
 
-int bus_kernel_write_message(sd_bus *bus, sd_bus_message *m, bool hint_sync_call);
+int bus_kernel_write_message(sd_bus *bus, sd_bus_message *m,
+	bool hint_sync_call);
 int bus_kernel_read_message(sd_bus *bus, bool hint_priority, int64_t priority);
 
 int bus_kernel_open_bus_fd(const char *bus, char **path);
 
 int bus_kernel_create_bus(const char *name, bool world, char **s);
-int bus_kernel_create_endpoint(const char *bus_name, const char *ep_name, char **path);
+int bus_kernel_create_endpoint(const char *bus_name, const char *ep_name,
+	char **path);
 
-int bus_kernel_pop_memfd(sd_bus *bus, void **address, size_t *mapped, size_t *allocated);
-void bus_kernel_push_memfd(sd_bus *bus, int fd, void *address, size_t mapped, size_t allocated);
+int bus_kernel_pop_memfd(sd_bus *bus, void **address, size_t *mapped,
+	size_t *allocated);
+void bus_kernel_push_memfd(sd_bus *bus, int fd, void *address, size_t mapped,
+	size_t allocated);
 
 void bus_kernel_flush_memfd(sd_bus *bus);
 

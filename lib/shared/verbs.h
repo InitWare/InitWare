@@ -21,14 +21,14 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#define VERB_ANY ((unsigned) -1)
+#define VERB_ANY ((unsigned)-1)
 #define VERB_DEFAULT 1
 
 typedef struct {
-        const char *verb;
-        unsigned min_args, max_args;
-        unsigned flags;
-        int (* const dispatch)(int argc, char *argv[], void *userdata);
+	const char *verb;
+	unsigned min_args, max_args;
+	unsigned flags;
+	int (*const dispatch)(int argc, char *argv[], void *userdata);
 } Verb;
 
 int dispatch_verb(int argc, char *argv[], const Verb verbs[], void *userdata);

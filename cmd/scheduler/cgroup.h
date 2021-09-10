@@ -33,80 +33,83 @@ typedef struct CGroupBlockIODeviceBandwidth CGroupBlockIODeviceBandwidth;
 
 typedef enum CGroupDevicePolicy {
 
-        /* When devices listed, will allow those, plus built-in ones,
+	/* When devices listed, will allow those, plus built-in ones,
         if none are listed will allow everything. */
-        CGROUP_AUTO,
+	CGROUP_AUTO,
 
-        /* Everything forbidden, except built-in ones and listed ones. */
-        CGROUP_CLOSED,
+	/* Everything forbidden, except built-in ones and listed ones. */
+	CGROUP_CLOSED,
 
-        /* Everythings forbidden, except for the listed devices */
-        CGROUP_STRICT,
+	/* Everythings forbidden, except for the listed devices */
+	CGROUP_STRICT,
 
-        _CGROUP_DEVICE_POLICY_MAX,
-        _CGROUP_DEVICE_POLICY_INVALID = -1
+	_CGROUP_DEVICE_POLICY_MAX,
+	_CGROUP_DEVICE_POLICY_INVALID = -1
 } CGroupDevicePolicy;
 
 struct CGroupDeviceAllow {
-        IWLIST_FIELDS(CGroupDeviceAllow, device_allow);
-        char *path;
-        bool r:1;
-        bool w:1;
-        bool m:1;
+	IWLIST_FIELDS(CGroupDeviceAllow, device_allow);
+	char *path;
+	bool r: 1;
+	bool w: 1;
+	bool m: 1;
 };
 
 struct CGroupBlockIODeviceWeight {
-        IWLIST_FIELDS(CGroupBlockIODeviceWeight, device_weights);
-        char *path;
-        uint64_t weight;
+	IWLIST_FIELDS(CGroupBlockIODeviceWeight, device_weights);
+	char *path;
+	uint64_t weight;
 };
 
 struct CGroupBlockIODeviceBandwidth {
-        IWLIST_FIELDS(CGroupBlockIODeviceBandwidth, device_bandwidths);
-        char *path;
-        uint64_t bandwidth;
-        bool read;
+	IWLIST_FIELDS(CGroupBlockIODeviceBandwidth, device_bandwidths);
+	char *path;
+	uint64_t bandwidth;
+	bool read;
 };
 
 struct CGroupContext {
-        bool cpu_accounting;
-        bool blockio_accounting;
-        bool memory_accounting;
-        bool tasks_accounting;
+	bool cpu_accounting;
+	bool blockio_accounting;
+	bool memory_accounting;
+	bool tasks_accounting;
 
-        uint64_t cpu_shares;
-        uint64_t startup_cpu_shares;
-        usec_t cpu_quota_per_sec_usec;
+	uint64_t cpu_shares;
+	uint64_t startup_cpu_shares;
+	usec_t cpu_quota_per_sec_usec;
 
-        uint64_t blockio_weight;
-        uint64_t startup_blockio_weight;
-        IWLIST_HEAD(CGroupBlockIODeviceWeight, blockio_device_weights);
-        IWLIST_HEAD(CGroupBlockIODeviceBandwidth, blockio_device_bandwidths);
+	uint64_t blockio_weight;
+	uint64_t startup_blockio_weight;
+	IWLIST_HEAD(CGroupBlockIODeviceWeight, blockio_device_weights);
+	IWLIST_HEAD(CGroupBlockIODeviceBandwidth, blockio_device_bandwidths);
 
-        uint64_t memory_limit;
+	uint64_t memory_limit;
 
-        CGroupDevicePolicy device_policy;
-        IWLIST_HEAD(CGroupDeviceAllow, device_allow);
+	CGroupDevicePolicy device_policy;
+	IWLIST_HEAD(CGroupDeviceAllow, device_allow);
 
-        uint64_t tasks_max;
+	uint64_t tasks_max;
 
-        bool delegate;
+	bool delegate;
 };
 
-#include "unit.h"
-#include "manager.h"
 #include "cgroup-util.h"
+#include "manager.h"
+#include "unit.h"
 
 void cgroup_context_init(CGroupContext *c);
 void cgroup_context_done(CGroupContext *c);
-void cgroup_context_dump(CGroupContext *c, FILE* f, const char *prefix);
-void cgroup_context_apply(CGroupContext *c, CGroupControllerMask mask, const char *path, ManagerState state);
+void cgroup_context_dump(CGroupContext *c, FILE *f, const char *prefix);
+void cgroup_context_apply(CGroupContext *c, CGroupControllerMask mask,
+	const char *path, ManagerState state);
 
 CGroupControllerMask cgroup_context_get_mask(CGroupContext *c);
 
 void cgroup_context_free_device_allow(CGroupContext *c, CGroupDeviceAllow *a);
-void cgroup_context_free_blockio_device_weight(CGroupContext *c, CGroupBlockIODeviceWeight *w);
-void cgroup_context_free_blockio_device_bandwidth(CGroupContext *c, CGroupBlockIODeviceBandwidth *b);
+void cgroup_context_free_blockio_device_weight(CGroupContext *c,
+	CGroupBlockIODeviceWeight *w);
+void cgroup_context_free_blockio_device_bandwidth(CGroupContext *c,
+	CGroupBlockIODeviceBandwidth *b);
 
 CGroupControllerMask unit_get_cgroup_mask(Unit *u);
 CGroupControllerMask unit_get_siblings_mask(Unit *u);
@@ -124,7 +127,7 @@ void manager_shutdown_cgroup(Manager *m, bool delete);
 unsigned manager_dispatch_cgroup_queue(Manager *m);
 
 Unit *manager_get_unit_by_cgroup(Manager *m, const char *cgroup);
-Unit* manager_get_unit_by_pid(Manager *m, pid_t pid);
+Unit *manager_get_unit_by_pid(Manager *m, pid_t pid);
 
 pid_t unit_search_main_pid(Unit *u);
 
@@ -132,5 +135,5 @@ int manager_notify_cgroup_empty(Manager *m, const char *group);
 
 int unit_get_tasks_current(Unit *u, uint64_t *ret);
 
-const char* cgroup_device_policy_to_string(CGroupDevicePolicy i) _const_;
+const char *cgroup_device_policy_to_string(CGroupDevicePolicy i) _const_;
 CGroupDevicePolicy cgroup_device_policy_from_string(const char *s) _pure_;

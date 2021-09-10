@@ -21,52 +21,30 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/types.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <sys/types.h>
 
 #include "sd-journal.h"
 
-#include "util.h"
 #include "output-mode.h"
+#include "util.h"
 
-int output_journal(
-                FILE *f,
-                sd_journal *j,
-                OutputMode mode,
-                unsigned n_columns,
-                OutputFlags flags,
-                bool *ellipsized);
+int output_journal(FILE *f, sd_journal *j, OutputMode mode, unsigned n_columns,
+	OutputFlags flags, bool *ellipsized);
 
 int add_match_this_boot(sd_journal *j, const char *machine);
 
-int add_matches_for_unit(
-                sd_journal *j,
-                const char *unit);
+int add_matches_for_unit(sd_journal *j, const char *unit);
 
-int add_matches_for_user_unit(
-                sd_journal *j,
-                const char *unit,
-                uid_t uid);
+int add_matches_for_user_unit(sd_journal *j, const char *unit, uid_t uid);
 
-int show_journal_by_unit(
-                FILE *f,
-                const char *unit,
-                OutputMode mode,
-                unsigned n_columns,
-                usec_t not_before,
-                unsigned how_many,
-                uid_t uid,
-                OutputFlags flags,
-                int journal_open_flags,
-                bool system_unit,
-                bool *ellipsized);
+int show_journal_by_unit(FILE *f, const char *unit, OutputMode mode,
+	unsigned n_columns, usec_t not_before, unsigned how_many, uid_t uid,
+	OutputFlags flags, int journal_open_flags, bool system_unit,
+	bool *ellipsized);
 
-void json_escape(
-                FILE *f,
-                const char* p,
-                size_t l,
-                OutputFlags flags);
+void json_escape(FILE *f, const char *p, size_t l, OutputFlags flags);
 
-const char* output_mode_to_string(OutputMode m) _const_;
+const char *output_mode_to_string(OutputMode m) _const_;
 OutputMode output_mode_from_string(const char *s) _pure_;

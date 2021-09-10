@@ -19,137 +19,147 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <assert.h>
-#include <string.h>
-#include <unistd.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <stdio.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <sys/ioctl.h>
-#include <stdarg.h>
-#include <ctype.h>
 #include <sys/prctl.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <linux/rtc.h>
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
-#include "macro.h"
-#include "util.h"
-#include "log.h"
-#include "strv.h"
 #include "clock-util.h"
 #include "fileio.h"
+#include "log.h"
+#include "macro.h"
+#include "strv.h"
+#include "util.h"
 
-int clock_get_hwclock(struct tm *tm) {
-        _cleanup_close_ int fd = -1;
+int
+clock_get_hwclock(struct tm *tm)
+{
+	_cleanup_close_ int fd = -1;
 
-        assert(tm);
+	assert(tm);
 
-        fd = open("/dev/rtc", O_RDONLY|O_CLOEXEC);
-        if (fd < 0)
-                return -errno;
+	fd = open("/dev/rtc", O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return -errno;
 
-        /* This leaves the timezone fields of struct tm
+	/* This leaves the timezone fields of struct tm
          * uninitialized! */
-        if (ioctl(fd, RTC_RD_TIME, tm) < 0)
-                return -errno;
+	if (ioctl(fd, RTC_RD_TIME, tm) < 0)
+		return -errno;
 
-        /* We don't know daylight saving, so we reset this in order not
+	/* We don't know daylight saving, so we reset this in order not
          * to confuse mktime(). */
-        tm->tm_isdst = -1;
+	tm->tm_isdst = -1;
 
-        return 0;
+	return 0;
 }
 
-int clock_set_hwclock(const struct tm *tm) {
-        _cleanup_close_ int fd = -1;
+int
+clock_set_hwclock(const struct tm *tm)
+{
+	_cleanup_close_ int fd = -1;
 
-        assert(tm);
+	assert(tm);
 
-        fd = open("/dev/rtc", O_RDONLY|O_CLOEXEC);
-        if (fd < 0)
-                return -errno;
+	fd = open("/dev/rtc", O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return -errno;
 
-        if (ioctl(fd, RTC_SET_TIME, tm) < 0)
-                return -errno;
+	if (ioctl(fd, RTC_SET_TIME, tm) < 0)
+		return -errno;
 
-        return 0;
+	return 0;
 }
 
-int clock_is_localtime(void) {
-        _cleanup_fclose_ FILE *f;
+int
+clock_is_localtime(void)
+{
+	_cleanup_fclose_ FILE *f;
 
-        /*
+	/*
          * The third line of adjtime is "UTC" or "LOCAL" or nothing.
          *   # /etc/adjtime
          *   0.0 0 0
          *   0
          *   UTC
          */
-        f = fopen("/etc/adjtime", "re");
-        if (f) {
-                char line[LINE_MAX];
-                bool b;
+	f = fopen("/etc/adjtime", "re");
+	if (f) {
+		char line[LINE_MAX];
+		bool b;
 
-                b = fgets(line, sizeof(line), f) &&
-                        fgets(line, sizeof(line), f) &&
-                        fgets(line, sizeof(line), f);
-                if (!b)
-                        return -EIO;
+		b = fgets(line, sizeof(line), f) &&
+			fgets(line, sizeof(line), f) &&
+			fgets(line, sizeof(line), f);
+		if (!b)
+			return -EIO;
 
-                truncate_nl(line);
-                return streq(line, "LOCAL");
+		truncate_nl(line);
+		return streq(line, "LOCAL");
 
-        } else if (errno != ENOENT)
-                return -errno;
+	} else if (errno != ENOENT)
+		return -errno;
 
-        return 0;
+	return 0;
 }
 
-int clock_set_timezone(int *min) {
-        const struct timeval *tv_null = NULL;
-        struct timespec ts;
-        struct tm *tm;
-        int minutesdelta;
-        struct timezone tz;
+int
+clock_set_timezone(int *min)
+{
+	const struct timeval *tv_null = NULL;
+	struct timespec ts;
+	struct tm *tm;
+	int minutesdelta;
+	struct timezone tz;
 
-        assert_se(clock_gettime(CLOCK_REALTIME, &ts) == 0);
-        assert_se(tm = localtime(&ts.tv_sec));
-        minutesdelta = tm->tm_gmtoff / 60;
+	assert_se(clock_gettime(CLOCK_REALTIME, &ts) == 0);
+	assert_se(tm = localtime(&ts.tv_sec));
+	minutesdelta = tm->tm_gmtoff / 60;
 
-        tz.tz_minuteswest = -minutesdelta;
-        tz.tz_dsttime = 0; /* DST_NONE */
+	tz.tz_minuteswest = -minutesdelta;
+	tz.tz_dsttime = 0; /* DST_NONE */
 
-        /*
+	/*
          * If the RTC does not run in UTC but in local time, the very first
          * call to settimeofday() will set the kernel's timezone and will warp the
          * system clock, so that it runs in UTC instead of the local time we
          * have read from the RTC.
          */
-        if (settimeofday(tv_null, &tz) < 0)
-                return -errno;
-        if (min)
-                *min = minutesdelta;
-        return 0;
+	if (settimeofday(tv_null, &tz) < 0)
+		return -errno;
+	if (min)
+		*min = minutesdelta;
+	return 0;
 }
 
-int clock_reset_timewarp(void) {
-        const struct timeval *tv_null = NULL;
-        struct timezone tz;
+int
+clock_reset_timewarp(void)
+{
+	const struct timeval *tv_null = NULL;
+	struct timezone tz;
 
-        tz.tz_minuteswest = 0;
-        tz.tz_dsttime = 0; /* DST_NONE */
+	tz.tz_minuteswest = 0;
+	tz.tz_dsttime = 0; /* DST_NONE */
 
-        /*
+	/*
          * The very first call to settimeofday() does time warp magic. Do a
          * dummy call here, so the time warping is sealed and all later calls
          * behave as expected.
          */
-        if (settimeofday(tv_null, &tz) < 0)
-                return -errno;
+	if (settimeofday(tv_null, &tz) < 0)
+		return -errno;
 
-        return 0;
+	return 0;
 }

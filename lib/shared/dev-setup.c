@@ -19,48 +19,54 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <errno.h>
 #include <sys/stat.h>
+#include <assert.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <unistd.h>
 
 #include "dev-setup.h"
+#include "label.h"
 #include "log.h"
 #include "macro.h"
 #include "util.h"
-#include "label.h"
 
-int dev_setup(const char *prefix) {
-        const char *j, *k;
+int
+dev_setup(const char *prefix)
+{
+	const char *j, *k;
 
-        static const char symlinks[] =
-                "-/proc/kcore\0"     "/dev/core\0"
-                "/proc/self/fd\0"    "/dev/fd\0"
-                "/proc/self/fd/0\0"  "/dev/stdin\0"
-                "/proc/self/fd/1\0"  "/dev/stdout\0"
-                "/proc/self/fd/2\0"  "/dev/stderr\0";
+	static const char symlinks[] = "-/proc/kcore\0"
+				       "/dev/core\0"
+				       "/proc/self/fd\0"
+				       "/dev/fd\0"
+				       "/proc/self/fd/0\0"
+				       "/dev/stdin\0"
+				       "/proc/self/fd/1\0"
+				       "/dev/stdout\0"
+				       "/proc/self/fd/2\0"
+				       "/dev/stderr\0";
 
-        NULSTR_FOREACH_PAIR(j, k, symlinks) {
-                if (j[0] == '-') {
-                        j++;
+	NULSTR_FOREACH_PAIR (j, k, symlinks) {
+		if (j[0] == '-') {
+			j++;
 
-                        if (access(j, F_OK) < 0)
-                                continue;
-                }
+			if (access(j, F_OK) < 0)
+				continue;
+		}
 
-                if (prefix) {
-                        _cleanup_free_ char *link_name = NULL;
+		if (prefix) {
+			_cleanup_free_ char *link_name = NULL;
 
-                        link_name = strjoin(prefix, "/", k, NULL);
-                        if (!link_name)
-                                return -ENOMEM;
+			link_name = strjoin(prefix, "/", k, NULL);
+			if (!link_name)
+				return -ENOMEM;
 
-                        symlink_label(j, link_name);
-                } else
-                        symlink_label(j, k);
-        }
+			symlink_label(j, link_name);
+		} else
+			symlink_label(j, k);
+	}
 
-        return 0;
+	return 0;
 }

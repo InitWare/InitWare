@@ -26,12 +26,14 @@
 #include "log.h"
 #include "util.h"
 
-int asynchronous_job(void* (*func)(void *p), void *arg) {
-        pthread_attr_t a;
-        pthread_t t;
-        int r;
+int
+asynchronous_job(void *(*func)(void *p), void *arg)
+{
+	pthread_attr_t a;
+	pthread_t t;
+	int r;
 
-        /* It kinda sucks that we have to resort to threads to
+	/* It kinda sucks that we have to resort to threads to
          * implement an asynchronous sync(), but well, such is
          * life.
          *
@@ -40,53 +42,61 @@ int asynchronous_job(void* (*func)(void *p), void *arg) {
          * complete. This function hence is nicely asynchronous really
          * only in long running processes. */
 
-        r = pthread_attr_init(&a);
-        if (r > 0)
-                return -r;
+	r = pthread_attr_init(&a);
+	if (r > 0)
+		return -r;
 
-        r = pthread_attr_setdetachstate(&a, PTHREAD_CREATE_DETACHED);
-        if (r > 0)
-                goto finish;
+	r = pthread_attr_setdetachstate(&a, PTHREAD_CREATE_DETACHED);
+	if (r > 0)
+		goto finish;
 
-        r = pthread_create(&t, &a, func, arg);
+	r = pthread_create(&t, &a, func, arg);
 
 finish:
-        pthread_attr_destroy(&a);
-        return -r;
+	pthread_attr_destroy(&a);
+	return -r;
 }
 
-static void *sync_thread(void *p) {
-        sync();
-        return NULL;
+static void *
+sync_thread(void *p)
+{
+	sync();
+	return NULL;
 }
 
-int asynchronous_sync(void) {
-        log_debug("Spawning new thread for sync");
+int
+asynchronous_sync(void)
+{
+	log_debug("Spawning new thread for sync");
 
-        return asynchronous_job(sync_thread, NULL);
+	return asynchronous_job(sync_thread, NULL);
 }
 
-static void *close_thread(void *p) {
-        assert_se(close_nointr(PTR_TO_INT(p)) != -EBADF);
-        return NULL;
+static void *
+close_thread(void *p)
+{
+	assert_se(close_nointr(PTR_TO_INT(p)) != -EBADF);
+	return NULL;
 }
 
-int asynchronous_close(int fd) {
-        int r;
+int
+asynchronous_close(int fd)
+{
+	int r;
 
-        /* This is supposed to behave similar to safe_close(), but
+	/* This is supposed to behave similar to safe_close(), but
          * actually invoke close() asynchronously, so that it will
          * never block. Ideally the kernel would have an API for this,
          * but it doesn't, so we work around it, and hide this as a
          * far away as we can. */
 
-        if (fd >= 0) {
-                PROTECT_ERRNO;
+	if (fd >= 0) {
+		PROTECT_ERRNO;
 
-                r = asynchronous_job(close_thread, INT_TO_PTR(fd));
-                if (r < 0)
-                         assert_se(close_nointr(fd) != -EBADF);
-        }
+		r = asynchronous_job(close_thread, INT_TO_PTR(fd));
+		if (r < 0)
+			assert_se(close_nointr(fd) != -EBADF);
+	}
 
-        return -1;
+	return -1;
 }

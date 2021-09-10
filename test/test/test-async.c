@@ -20,35 +20,39 @@
 #include <unistd.h>
 
 #include "async.h"
-#include "util.h"
 #include "macro.h"
+#include "util.h"
 
 static bool test_async = false;
 
-static void *async_func(void *arg) {
-        test_async = true;
+static void *
+async_func(void *arg)
+{
+	test_async = true;
 
-        return NULL;
+	return NULL;
 }
 
-int main(int argc, char *argv[]) {
-        int fd;
-        char name[] = "/tmp/test-asynchronous_close.XXXXXX";
+int
+main(int argc, char *argv[])
+{
+	int fd;
+	char name[] = "/tmp/test-asynchronous_close.XXXXXX";
 
-        fd = mkostemp_safe(name, O_RDWR|O_CLOEXEC);
-        assert_se(fd >= 0);
-        asynchronous_close(fd);
+	fd = mkostemp_safe(name, O_RDWR | O_CLOEXEC);
+	assert_se(fd >= 0);
+	asynchronous_close(fd);
 
-        assert_se(asynchronous_job(async_func, NULL) >= 0);
+	assert_se(asynchronous_job(async_func, NULL) >= 0);
 
-        assert_se(asynchronous_sync() >= 0);
+	assert_se(asynchronous_sync() >= 0);
 
-        sleep(1);
+	sleep(1);
 
-        assert_se(fcntl(fd, F_GETFD) == -1);
-        assert_se(test_async);
+	assert_se(fcntl(fd, F_GETFD) == -1);
+	assert_se(test_async);
 
-        unlink(name);
+	unlink(name);
 
-        return 0;
+	return 0;
 }

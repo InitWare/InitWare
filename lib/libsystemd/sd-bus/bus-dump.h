@@ -21,14 +21,14 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "sd-bus.h"
 
 enum {
-        BUS_MESSAGE_DUMP_WITH_HEADER = 1,
-        BUS_MESSAGE_DUMP_SUBTREE_ONLY = 2,
+	BUS_MESSAGE_DUMP_WITH_HEADER = 1,
+	BUS_MESSAGE_DUMP_SUBTREE_ONLY = 2,
 };
 
 int bus_message_dump(sd_bus_message *m, FILE *f, unsigned flags);

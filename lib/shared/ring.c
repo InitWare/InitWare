@@ -19,28 +19,32 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/uio.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/uio.h>
-#include "macro.h"
 #include "ring.h"
+#include "macro.h"
 
 #define RING_MASK(_r, _v) ((_v) & ((_r)->size - 1))
 
-void ring_flush(Ring *r) {
-        assert(r);
+void
+ring_flush(Ring *r)
+{
+	assert(r);
 
-        r->start = 0;
-        r->used = 0;
+	r->start = 0;
+	r->used = 0;
 }
 
-void ring_clear(Ring *r) {
-        assert(r);
+void
+ring_clear(Ring *r)
+{
+	assert(r);
 
-        free(r->buf);
-        zero(*r);
+	free(r->buf);
+	zero(*r);
 }
 
 /*
@@ -55,26 +59,28 @@ void ring_clear(Ring *r) {
  *         size_t iov_len;
  *     };
  */
-size_t ring_peek(Ring *r, struct iovec *vec) {
-        assert(r);
+size_t
+ring_peek(Ring *r, struct iovec *vec)
+{
+	assert(r);
 
-        if (r->used == 0) {
-                return 0;
-        } else if (r->start + r->used <= r->size) {
-                if (vec) {
-                        vec[0].iov_base = &r->buf[r->start];
-                        vec[0].iov_len = r->used;
-                }
-                return 1;
-        } else {
-                if (vec) {
-                        vec[0].iov_base = &r->buf[r->start];
-                        vec[0].iov_len = r->size - r->start;
-                        vec[1].iov_base = r->buf;
-                        vec[1].iov_len = r->used - (r->size - r->start);
-                }
-                return 2;
-        }
+	if (r->used == 0) {
+		return 0;
+	} else if (r->start + r->used <= r->size) {
+		if (vec) {
+			vec[0].iov_base = &r->buf[r->start];
+			vec[0].iov_len = r->used;
+		}
+		return 1;
+	} else {
+		if (vec) {
+			vec[0].iov_base = &r->buf[r->start];
+			vec[0].iov_len = r->size - r->start;
+			vec[1].iov_base = r->buf;
+			vec[1].iov_len = r->used - (r->size - r->start);
+		}
+		return 2;
+	}
 }
 
 /*
@@ -82,59 +88,63 @@ size_t ring_peek(Ring *r, struct iovec *vec) {
  * at most @size bytes. If the ring buffer size is smaller, copy less bytes and
  * return the number of bytes copied.
  */
-size_t ring_copy(Ring *r, void *buf, size_t size) {
-        size_t l;
+size_t
+ring_copy(Ring *r, void *buf, size_t size)
+{
+	size_t l;
 
-        assert(r);
-        assert(buf);
+	assert(r);
+	assert(buf);
 
-        if (size > r->used)
-                size = r->used;
+	if (size > r->used)
+		size = r->used;
 
-        if (size > 0) {
-                l = r->size - r->start;
-                if (size <= l) {
-                        memcpy(buf, &r->buf[r->start], size);
-                } else {
-                        memcpy(buf, &r->buf[r->start], l);
-                        memcpy((uint8_t*)buf + l, r->buf, size - l);
-                }
-        }
+	if (size > 0) {
+		l = r->size - r->start;
+		if (size <= l) {
+			memcpy(buf, &r->buf[r->start], size);
+		} else {
+			memcpy(buf, &r->buf[r->start], l);
+			memcpy((uint8_t *)buf + l, r->buf, size - l);
+		}
+	}
 
-        return size;
+	return size;
 }
 
 /*
  * Resize ring-buffer to size @nsize. @nsize must be a power-of-2, otherwise
  * ring operations will behave incorrectly.
  */
-static int ring_resize(Ring *r, size_t nsize) {
-        uint8_t *buf;
-        size_t l;
+static int
+ring_resize(Ring *r, size_t nsize)
+{
+	uint8_t *buf;
+	size_t l;
 
-        assert(r);
-        assert(nsize > 0);
+	assert(r);
+	assert(nsize > 0);
 
-        buf = malloc(nsize);
-        if (!buf)
-                return -ENOMEM;
+	buf = malloc(nsize);
+	if (!buf)
+		return -ENOMEM;
 
-        if (r->used > 0) {
-                l = r->size - r->start;
-                if (r->used <= l) {
-                        memcpy(buf, &r->buf[r->start], r->used);
-                } else {
-                        memcpy(buf, &r->buf[r->start], l);
-                        memcpy(&buf[l], r->buf, r->used - l);
-                }
-        }
+	if (r->used > 0) {
+		l = r->size - r->start;
+		if (r->used <= l) {
+			memcpy(buf, &r->buf[r->start], r->used);
+		} else {
+			memcpy(buf, &r->buf[r->start], l);
+			memcpy(&buf[l], r->buf, r->used - l);
+		}
+	}
 
-        free(r->buf);
-        r->buf = buf;
-        r->size = nsize;
-        r->start = 0;
+	free(r->buf);
+	r->buf = buf;
+	r->size = nsize;
+	r->start = 0;
 
-        return 0;
+	return 0;
 }
 
 /*
@@ -142,69 +152,75 @@ static int ring_resize(Ring *r, size_t nsize) {
  * resizes the buffer if it is too small. It returns -ENOMEM on OOM and 0 on
  * success.
  */
-static int ring_grow(Ring *r, size_t add) {
-        size_t need;
+static int
+ring_grow(Ring *r, size_t add)
+{
+	size_t need;
 
-        assert(r);
+	assert(r);
 
-        if (r->size - r->used >= add)
-                return 0;
+	if (r->size - r->used >= add)
+		return 0;
 
-        need = r->used + add;
-        if (need <= r->used)
-                return -ENOMEM;
-        else if (need < 4096)
-                need = 4096;
+	need = r->used + add;
+	if (need <= r->used)
+		return -ENOMEM;
+	else if (need < 4096)
+		need = 4096;
 
-        need = ALIGN_POWER2(need);
-        if (need == 0)
-                return -ENOMEM;
+	need = ALIGN_POWER2(need);
+	if (need == 0)
+		return -ENOMEM;
 
-        return ring_resize(r, need);
+	return ring_resize(r, need);
 }
 
 /*
  * Push @len bytes from @u8 into the ring buffer. The buffer is resized if it
  * is too small. -ENOMEM is returned on OOM, 0 on success.
  */
-int ring_push(Ring *r, const void *u8, size_t size) {
-        int err;
-        size_t pos, l;
+int
+ring_push(Ring *r, const void *u8, size_t size)
+{
+	int err;
+	size_t pos, l;
 
-        assert(r);
-        assert(u8);
+	assert(r);
+	assert(u8);
 
-        if (size == 0)
-                return 0;
+	if (size == 0)
+		return 0;
 
-        err = ring_grow(r, size);
-        if (err < 0)
-                return err;
+	err = ring_grow(r, size);
+	if (err < 0)
+		return err;
 
-        pos = RING_MASK(r, r->start + r->used);
-        l = r->size - pos;
-        if (l >= size) {
-                memcpy(&r->buf[pos], u8, size);
-        } else {
-                memcpy(&r->buf[pos], u8, l);
-                memcpy(r->buf, (const uint8_t*)u8 + l, size - l);
-        }
+	pos = RING_MASK(r, r->start + r->used);
+	l = r->size - pos;
+	if (l >= size) {
+		memcpy(&r->buf[pos], u8, size);
+	} else {
+		memcpy(&r->buf[pos], u8, l);
+		memcpy(r->buf, (const uint8_t *)u8 + l, size - l);
+	}
 
-        r->used += size;
+	r->used += size;
 
-        return 0;
+	return 0;
 }
 
 /*
  * Remove @len bytes from the start of the ring-buffer. Note that we protect
  * against overflows so removing more bytes than available is safe.
  */
-void ring_pull(Ring *r, size_t size) {
-        assert(r);
+void
+ring_pull(Ring *r, size_t size)
+{
+	assert(r);
 
-        if (size > r->used)
-                size = r->used;
+	if (size > r->used)
+		size = r->used;
 
-        r->start = RING_MASK(r, r->start + size);
-        r->used -= size;
+	r->start = RING_MASK(r, r->start + size);
+	r->used -= size;
 }

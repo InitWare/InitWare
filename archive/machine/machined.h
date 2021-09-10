@@ -21,35 +21,35 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdbool.h>
 #include <inttypes.h>
+#include <stdbool.h>
 
-#include "util.h"
-#include "list.h"
 #include "hashmap.h"
-#include "sd-event.h"
+#include "list.h"
 #include "sd-bus.h"
+#include "sd-event.h"
+#include "util.h"
 
 typedef struct Manager Manager;
 
-#include "machine.h"
-#include "machine-dbus.h"
 #include "image-dbus.h"
+#include "machine-dbus.h"
+#include "machine.h"
 
 struct Manager {
-        sd_event *event;
-        sd_bus *bus;
+	sd_event *event;
+	sd_bus *bus;
 
-        Hashmap *machines;
-        Hashmap *machine_units;
-        Hashmap *machine_leaders;
+	Hashmap *machines;
+	Hashmap *machine_units;
+	Hashmap *machine_leaders;
 
-        Hashmap *polkit_registry;
+	Hashmap *polkit_registry;
 
-        Hashmap *image_cache;
-        sd_event_source *image_cache_defer_event;
+	Hashmap *image_cache;
+	sd_event_source *image_cache_defer_event;
 
-        IWLIST_HEAD(Machine, machine_gc_queue);
+	IWLIST_HEAD(Machine, machine_gc_queue);
 };
 
 Manager *manager_new(void);
@@ -67,13 +67,21 @@ int manager_get_machine_by_pid(Manager *m, pid_t pid, Machine **machine);
 
 extern const sd_bus_vtable manager_vtable[];
 
-int match_reloading(sd_bus *bus, sd_bus_message *message, void *userdata, sd_bus_error *error);
-int match_unit_removed(sd_bus *bus, sd_bus_message *message, void *userdata, sd_bus_error *error);
-int match_properties_changed(sd_bus *bus, sd_bus_message *message, void *userdata, sd_bus_error *error);
-int match_job_removed(sd_bus *bus, sd_bus_message *message, void *userdata, sd_bus_error *error);
+int match_reloading(sd_bus *bus, sd_bus_message *message, void *userdata,
+	sd_bus_error *error);
+int match_unit_removed(sd_bus *bus, sd_bus_message *message, void *userdata,
+	sd_bus_error *error);
+int match_properties_changed(sd_bus *bus, sd_bus_message *message,
+	void *userdata, sd_bus_error *error);
+int match_job_removed(sd_bus *bus, sd_bus_message *message, void *userdata,
+	sd_bus_error *error);
 
-int manager_start_scope(Manager *manager, const char *scope, pid_t pid, const char *slice, const char *description, sd_bus_message *more_properties, sd_bus_error *error, char **job);
-int manager_stop_unit(Manager *manager, const char *unit, sd_bus_error *error, char **job);
-int manager_kill_unit(Manager *manager, const char *unit, int signo, sd_bus_error *error);
+int manager_start_scope(Manager *manager, const char *scope, pid_t pid,
+	const char *slice, const char *description,
+	sd_bus_message *more_properties, sd_bus_error *error, char **job);
+int manager_stop_unit(Manager *manager, const char *unit, sd_bus_error *error,
+	char **job);
+int manager_kill_unit(Manager *manager, const char *unit, int signo,
+	sd_bus_error *error);
 int manager_unit_is_active(Manager *manager, const char *unit);
 int manager_job_is_active(Manager *manager, const char *path);

@@ -21,19 +21,23 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-typedef int (*SpecifierCallback)(char specifier, void *data, void *userdata, char **ret);
+typedef int (*SpecifierCallback)(char specifier, void *data, void *userdata,
+	char **ret);
 
 typedef struct Specifier {
-        const char specifier;
-        const SpecifierCallback lookup;
-        void *data;
+	const char specifier;
+	const SpecifierCallback lookup;
+	void *data;
 } Specifier;
 
-int specifier_printf(const char *text, const Specifier table[], void *userdata, char **ret);
+int specifier_printf(const char *text, const Specifier table[], void *userdata,
+	char **ret);
 
 int specifier_string(char specifier, void *data, void *userdata, char **ret);
 
-int specifier_machine_id(char specifier, void *data, void *userdata, char **ret);
+int specifier_machine_id(char specifier, void *data, void *userdata,
+	char **ret);
 int specifier_boot_id(char specifier, void *data, void *userdata, char **ret);
 int specifier_host_name(char specifier, void *data, void *userdata, char **ret);
-int specifier_kernel_release(char specifier, void *data, void *userdata, char **ret);
+int specifier_kernel_release(char specifier, void *data, void *userdata,
+	char **ret);

@@ -21,85 +21,84 @@
 
 #include "in-addr-util.h"
 
+#include "timesyncd-conf.h"
 #include "timesyncd-manager.h"
 #include "timesyncd-server.h"
-#include "timesyncd-conf.h"
 
-int manager_parse_server_string(Manager *m, ServerType type, const char *string) {
-        const char *word, *state;
-        size_t length;
-        ServerName *first;
-        int r;
+int
+manager_parse_server_string(Manager *m, ServerType type, const char *string)
+{
+	const char *word, *state;
+	size_t length;
+	ServerName *first;
+	int r;
 
-        assert(m);
-        assert(string);
+	assert(m);
+	assert(string);
 
-        first = type == SERVER_FALLBACK ? m->fallback_servers : m->system_servers;
+	first = type == SERVER_FALLBACK ? m->fallback_servers :
+						m->system_servers;
 
-        FOREACH_WORD_QUOTED(word, length, string, state) {
-                char buffer[length+1];
-                bool found = false;
-                ServerName *n;
+	FOREACH_WORD_QUOTED(word, length, string, state)
+	{
+		char buffer[length + 1];
+		bool found = false;
+		ServerName *n;
 
-                memcpy(buffer, word, length);
-                buffer[length] = 0;
+		memcpy(buffer, word, length);
+		buffer[length] = 0;
 
-                /* Filter out duplicates */
-                IWLIST_FOREACH(names, n, first)
-                        if (streq_ptr(n->string, buffer)) {
-                                found = true;
-                                break;
-                        }
+		/* Filter out duplicates */
+		IWLIST_FOREACH(names, n, first)
+		if (streq_ptr(n->string, buffer)) {
+			found = true;
+			break;
+		}
 
-                if (found)
-                        continue;
+		if (found)
+			continue;
 
-                r = server_name_new(m, NULL, type, buffer);
-                if (r < 0)
-                        return r;
-        }
+		r = server_name_new(m, NULL, type, buffer);
+		if (r < 0)
+			return r;
+	}
 
-        return 0;
+	return 0;
 }
 
-int config_parse_servers(
-                const char *unit,
-                const char *filename,
-                unsigned line,
-                const char *section,
-                unsigned section_line,
-                const char *lvalue,
-                int ltype,
-                const char *rvalue,
-                void *data,
-                void *userdata) {
+int
+config_parse_servers(const char *unit, const char *filename, unsigned line,
+	const char *section, unsigned section_line, const char *lvalue,
+	int ltype, const char *rvalue, void *data, void *userdata)
+{
+	Manager *m = userdata;
+	int r;
 
-        Manager *m = userdata;
-        int r;
+	assert(filename);
+	assert(lvalue);
+	assert(rvalue);
 
-        assert(filename);
-        assert(lvalue);
-        assert(rvalue);
+	if (isempty(rvalue))
+		manager_flush_server_names(m, ltype);
+	else {
+		r = manager_parse_server_string(m, ltype, rvalue);
+		if (r < 0) {
+			log_syntax(unit, LOG_ERR, filename, line, -r,
+				"Failed to parse NTP server string '%s'. Ignoring.",
+				rvalue);
+			return 0;
+		}
+	}
 
-        if (isempty(rvalue))
-                manager_flush_server_names(m, ltype);
-        else {
-                r = manager_parse_server_string(m, ltype, rvalue);
-                if (r < 0) {
-                        log_syntax(unit, LOG_ERR, filename, line, -r, "Failed to parse NTP server string '%s'. Ignoring.", rvalue);
-                        return 0;
-                }
-        }
-
-        return 0;
+	return 0;
 }
 
-int manager_parse_config_file(Manager *m) {
-        assert(m);
+int
+manager_parse_config_file(Manager *m)
+{
+	assert(m);
 
-        return config_parse_many("/etc/systemd/timesyncd.conf",
-                                 CONF_DIRS_NULSTR("systemd/timesyncd.conf"),
-                                 "Time\0",
-                                 config_item_perf_lookup, timesyncd_gperf_lookup,
-                                 false, m);
+	return config_parse_many("/etc/systemd/timesyncd.conf",
+		CONF_DIRS_NULSTR("systemd/timesyncd.conf"), "Time\0",
+		config_item_perf_lookup, timesyncd_gperf_lookup, false, m);
 }

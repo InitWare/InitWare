@@ -23,8 +23,8 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <netinet/in.h>
 #include <net/ethernet.h>
+#include <netinet/in.h>
 
 typedef struct sd_dhcp_lease sd_dhcp_lease;
 struct sd_dhcp_route;
@@ -37,16 +37,18 @@ int sd_dhcp_lease_get_lifetime(sd_dhcp_lease *lease, uint32_t *lifetime);
 int sd_dhcp_lease_get_netmask(sd_dhcp_lease *lease, struct in_addr *addr);
 int sd_dhcp_lease_get_router(sd_dhcp_lease *lease, struct in_addr *addr);
 int sd_dhcp_lease_get_next_server(sd_dhcp_lease *lease, struct in_addr *addr);
-int sd_dhcp_lease_get_server_identifier(sd_dhcp_lease *lease, struct in_addr *addr);
+int sd_dhcp_lease_get_server_identifier(sd_dhcp_lease *lease,
+	struct in_addr *addr);
 int sd_dhcp_lease_get_dns(sd_dhcp_lease *lease, const struct in_addr **addr);
 int sd_dhcp_lease_get_ntp(sd_dhcp_lease *lease, const struct in_addr **addr);
 int sd_dhcp_lease_get_mtu(sd_dhcp_lease *lease, uint16_t *mtu);
 int sd_dhcp_lease_get_domainname(sd_dhcp_lease *lease, const char **domainname);
 int sd_dhcp_lease_get_hostname(sd_dhcp_lease *lease, const char **hostname);
 int sd_dhcp_lease_get_root_path(sd_dhcp_lease *lease, const char **root_path);
-int sd_dhcp_lease_get_routes(sd_dhcp_lease *lease, struct sd_dhcp_route **routesgn);
+int sd_dhcp_lease_get_routes(sd_dhcp_lease *lease,
+	struct sd_dhcp_route **routesgn);
 int sd_dhcp_lease_get_client_id(sd_dhcp_lease *lease, const uint8_t **client_id,
-                                size_t *client_id_len);
+	size_t *client_id_len);
 
 int sd_dhcp_lease_save(sd_dhcp_lease *lease, const char *lease_file);
 int sd_dhcp_lease_load(sd_dhcp_lease **ret, const char *lease_file);

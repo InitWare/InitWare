@@ -21,11 +21,11 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "util.h"
 #include "sd-resolve.h"
+#include "util.h"
 
-DEFINE_TRIVIAL_CLEANUP_FUNC(sd_resolve*, sd_resolve_unref);
-DEFINE_TRIVIAL_CLEANUP_FUNC(sd_resolve_query*, sd_resolve_query_unref);
+DEFINE_TRIVIAL_CLEANUP_FUNC(sd_resolve *, sd_resolve_unref);
+DEFINE_TRIVIAL_CLEANUP_FUNC(sd_resolve_query *, sd_resolve_query_unref);
 
 #define _cleanup_resolve_unref_ _cleanup_(sd_resolve_unrefp)
 #define _cleanup_resolve_query_unref_ _cleanup_(sd_resolve_query_unrefp)

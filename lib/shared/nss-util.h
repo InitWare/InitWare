@@ -21,112 +21,68 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <nss.h>
 #include <netdb.h>
+#include <nss.h>
 #include <resolv.h>
 
 #ifndef DEPRECATED_RES_USE_INET6
-#  define DEPRECATED_RES_USE_INET6 0x00002000
+#	define DEPRECATED_RES_USE_INET6 0x00002000
 #endif
 
-#define NSS_GETHOSTBYNAME_PROTOTYPES(module)            \
-enum nss_status _nss_##module##_gethostbyname4_r(       \
-                const char *name,                       \
-                struct gaih_addrtuple **pat,            \
-                char *buffer, size_t buflen,            \
-                int *errnop, int *h_errnop,             \
-                int32_t *ttlp) _public_;                \
-enum nss_status _nss_##module##_gethostbyname3_r(       \
-                const char *name,                       \
-                int af,                                 \
-                struct hostent *host,                   \
-                char *buffer, size_t buflen,            \
-                int *errnop, int *h_errnop,             \
-                int32_t *ttlp,                          \
-                char **canonp) _public_;                \
-enum nss_status _nss_##module##_gethostbyname2_r(       \
-                const char *name,                       \
-                int af,                                 \
-                struct hostent *host,                   \
-                char *buffer, size_t buflen,            \
-                int *errnop, int *h_errnop) _public_;   \
-enum nss_status _nss_##module##_gethostbyname_r(        \
-                const char *name,                       \
-                struct hostent *host,                   \
-                char *buffer, size_t buflen,            \
-                int *errnop, int *h_errnop) _public_
+#define NSS_GETHOSTBYNAME_PROTOTYPES(module)                                   \
+	enum nss_status _nss_##module##_gethostbyname4_r(const char *name,     \
+		struct gaih_addrtuple **pat, char *buffer, size_t buflen,      \
+		int *errnop, int *h_errnop, int32_t *ttlp) _public_;           \
+	enum nss_status _nss_##module##_gethostbyname3_r(const char *name,     \
+		int af, struct hostent *host, char *buffer, size_t buflen,     \
+		int *errnop, int *h_errnop, int32_t *ttlp, char **canonp)      \
+		_public_;                                                      \
+	enum nss_status _nss_##module##_gethostbyname2_r(const char *name,     \
+		int af, struct hostent *host, char *buffer, size_t buflen,     \
+		int *errnop, int *h_errnop) _public_;                          \
+	enum nss_status _nss_##module##_gethostbyname_r(const char *name,      \
+		struct hostent *host, char *buffer, size_t buflen,             \
+		int *errnop, int *h_errnop) _public_
 
-#define NSS_GETHOSTBYADDR_PROTOTYPES(module)            \
-enum nss_status _nss_##module##_gethostbyaddr2_r(       \
-                const void* addr, socklen_t len,        \
-                int af,                                 \
-                struct hostent *host,                   \
-                char *buffer, size_t buflen,            \
-                int *errnop, int *h_errnop,             \
-                int32_t *ttlp) _public_;                \
-enum nss_status _nss_##module##_gethostbyaddr_r(        \
-                const void* addr, socklen_t len,        \
-                int af,                                 \
-                struct hostent *host,                   \
-                char *buffer, size_t buflen,            \
-                int *errnop, int *h_errnop) _public_
+#define NSS_GETHOSTBYADDR_PROTOTYPES(module)                                   \
+	enum nss_status _nss_##module##_gethostbyaddr2_r(const void *addr,     \
+		socklen_t len, int af, struct hostent *host, char *buffer,     \
+		size_t buflen, int *errnop, int *h_errnop, int32_t *ttlp)      \
+		_public_;                                                      \
+	enum nss_status _nss_##module##_gethostbyaddr_r(const void *addr,      \
+		socklen_t len, int af, struct hostent *host, char *buffer,     \
+		size_t buflen, int *errnop, int *h_errnop) _public_
 
-#define NSS_GETHOSTBYNAME_FALLBACKS(module)             \
-enum nss_status _nss_##module##_gethostbyname2_r(       \
-                const char *name,                       \
-                int af,                                 \
-                struct hostent *host,                   \
-                char *buffer, size_t buflen,            \
-                int *errnop, int *h_errnop) {           \
-        return _nss_##module##_gethostbyname3_r(        \
-                        name,                           \
-                        af,                             \
-                        host,                           \
-                        buffer, buflen,                 \
-                        errnop, h_errnop,               \
-                        NULL,                           \
-                        NULL);                          \
-}                                                       \
-enum nss_status _nss_##module##_gethostbyname_r(        \
-                const char *name,                       \
-                struct hostent *host,                   \
-                char *buffer, size_t buflen,            \
-                int *errnop, int *h_errnop) {           \
-        enum nss_status ret = NSS_STATUS_NOTFOUND;      \
-                                                        \
-        if (_res.options & DEPRECATED_RES_USE_INET6)    \
-                ret = _nss_##module##_gethostbyname3_r( \
-                        name,                           \
-                        AF_INET6,                       \
-                        host,                           \
-                        buffer, buflen,                 \
-                        errnop, h_errnop,               \
-                        NULL,                           \
-                        NULL);                          \
-        if (ret == NSS_STATUS_NOTFOUND)                 \
-                ret = _nss_##module##_gethostbyname3_r( \
-                        name,                           \
-                        AF_INET,                        \
-                        host,                           \
-                        buffer, buflen,                 \
-                        errnop, h_errnop,               \
-                        NULL,                           \
-                        NULL);                          \
-       return ret;                                      \
-}
+#define NSS_GETHOSTBYNAME_FALLBACKS(module)                                    \
+	enum nss_status _nss_##module##_gethostbyname2_r(const char *name,     \
+		int af, struct hostent *host, char *buffer, size_t buflen,     \
+		int *errnop, int *h_errnop)                                    \
+	{                                                                      \
+		return _nss_##module##_gethostbyname3_r(name, af, host,        \
+			buffer, buflen, errnop, h_errnop, NULL, NULL);         \
+	}                                                                      \
+	enum nss_status _nss_##module##_gethostbyname_r(const char *name,      \
+		struct hostent *host, char *buffer, size_t buflen,             \
+		int *errnop, int *h_errnop)                                    \
+	{                                                                      \
+		enum nss_status ret = NSS_STATUS_NOTFOUND;                     \
+                                                                               \
+		if (_res.options & DEPRECATED_RES_USE_INET6)                   \
+			ret = _nss_##module##_gethostbyname3_r(name, AF_INET6, \
+				host, buffer, buflen, errnop, h_errnop, NULL,  \
+				NULL);                                         \
+		if (ret == NSS_STATUS_NOTFOUND)                                \
+			ret = _nss_##module##_gethostbyname3_r(name, AF_INET,  \
+				host, buffer, buflen, errnop, h_errnop, NULL,  \
+				NULL);                                         \
+		return ret;                                                    \
+	}
 
-#define NSS_GETHOSTBYADDR_FALLBACKS(module)             \
-enum nss_status _nss_##module##_gethostbyaddr_r(        \
-                const void* addr, socklen_t len,        \
-                int af,                                 \
-                struct hostent *host,                   \
-                char *buffer, size_t buflen,            \
-                int *errnop, int *h_errnop) {           \
-        return _nss_##module##_gethostbyaddr2_r(        \
-                        addr, len,                      \
-                        af,                             \
-                        host,                           \
-                        buffer, buflen,                 \
-                        errnop, h_errnop,               \
-                        NULL);                          \
-}
+#define NSS_GETHOSTBYADDR_FALLBACKS(module)                                    \
+	enum nss_status _nss_##module##_gethostbyaddr_r(const void *addr,      \
+		socklen_t len, int af, struct hostent *host, char *buffer,     \
+		size_t buflen, int *errnop, int *h_errnop)                     \
+	{                                                                      \
+		return _nss_##module##_gethostbyaddr2_r(addr, len, af, host,   \
+			buffer, buflen, errnop, h_errnop, NULL);               \
+	}

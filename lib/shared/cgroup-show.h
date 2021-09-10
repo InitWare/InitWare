@@ -21,13 +21,19 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdbool.h>
 #include <sys/types.h>
-#include "util.h"
+#include <stdbool.h>
 #include "logs-show.h"
+#include "util.h"
 
-int show_cgroup_by_path(const char *path, const char *prefix, unsigned columns, bool kernel_threads, OutputFlags flags);
-int show_cgroup(const char *controller, const char *path, const char *prefix, unsigned columns, bool kernel_threads, OutputFlags flags);
+int show_cgroup_by_path(const char *path, const char *prefix, unsigned columns,
+	bool kernel_threads, OutputFlags flags);
+int show_cgroup(const char *controller, const char *path, const char *prefix,
+	unsigned columns, bool kernel_threads, OutputFlags flags);
 
-int show_cgroup_and_extra_by_spec(const char *spec, const char *prefix, unsigned n_columns, bool kernel_threads, const pid_t extra_pids[], unsigned n_extra_pids, OutputFlags flags);
-int show_cgroup_and_extra(const char *controller, const char *path, const char *prefix, unsigned n_columns, bool kernel_threads, const pid_t extra_pids[], unsigned n_extra_pids, OutputFlags flags);
+int show_cgroup_and_extra_by_spec(const char *spec, const char *prefix,
+	unsigned n_columns, bool kernel_threads, const pid_t extra_pids[],
+	unsigned n_extra_pids, OutputFlags flags);
+int show_cgroup_and_extra(const char *controller, const char *path,
+	const char *prefix, unsigned n_columns, bool kernel_threads,
+	const pid_t extra_pids[], unsigned n_extra_pids, OutputFlags flags);

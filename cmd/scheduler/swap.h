@@ -29,87 +29,87 @@ typedef struct Swap Swap;
 #include "unit.h"
 
 typedef enum SwapState {
-        SWAP_DEAD,
-        SWAP_ACTIVATING,               /* /sbin/swapon is running, but the swap not yet enabled. */
-        SWAP_ACTIVATING_DONE,          /* /sbin/swapon is running, and the swap is done. */
-        SWAP_ACTIVE,
-        SWAP_DEACTIVATING,
-        SWAP_DEACTIVATING_SIGTERM,
-        SWAP_DEACTIVATING_SIGKILL,
-        SWAP_FAILED,
-        _SWAP_STATE_MAX,
-        _SWAP_STATE_INVALID = -1
+	SWAP_DEAD,
+	SWAP_ACTIVATING, /* /sbin/swapon is running, but the swap not yet enabled. */
+	SWAP_ACTIVATING_DONE, /* /sbin/swapon is running, and the swap is done. */
+	SWAP_ACTIVE,
+	SWAP_DEACTIVATING,
+	SWAP_DEACTIVATING_SIGTERM,
+	SWAP_DEACTIVATING_SIGKILL,
+	SWAP_FAILED,
+	_SWAP_STATE_MAX,
+	_SWAP_STATE_INVALID = -1
 } SwapState;
 
 typedef enum SwapExecCommand {
-        SWAP_EXEC_ACTIVATE,
-        SWAP_EXEC_DEACTIVATE,
-        _SWAP_EXEC_COMMAND_MAX,
-        _SWAP_EXEC_COMMAND_INVALID = -1
+	SWAP_EXEC_ACTIVATE,
+	SWAP_EXEC_DEACTIVATE,
+	_SWAP_EXEC_COMMAND_MAX,
+	_SWAP_EXEC_COMMAND_INVALID = -1
 } SwapExecCommand;
 
 typedef enum SwapResult {
-        SWAP_SUCCESS,
-        SWAP_FAILURE_RESOURCES,
-        SWAP_FAILURE_TIMEOUT,
-        SWAP_FAILURE_EXIT_CODE,
-        SWAP_FAILURE_SIGNAL,
-        SWAP_FAILURE_CORE_DUMP,
-        _SWAP_RESULT_MAX,
-        _SWAP_RESULT_INVALID = -1
+	SWAP_SUCCESS,
+	SWAP_FAILURE_RESOURCES,
+	SWAP_FAILURE_TIMEOUT,
+	SWAP_FAILURE_EXIT_CODE,
+	SWAP_FAILURE_SIGNAL,
+	SWAP_FAILURE_CORE_DUMP,
+	_SWAP_RESULT_MAX,
+	_SWAP_RESULT_INVALID = -1
 } SwapResult;
 
 typedef struct SwapParameters {
-        char *what;
-        char *options;
-        int priority;
+	char *what;
+	char *options;
+	int priority;
 } SwapParameters;
 
 struct Swap {
-        Unit meta;
+	Unit meta;
 
-        char *what;
+	char *what;
 
-        /* If the device has already shown up, this is the device
+	/* If the device has already shown up, this is the device
          * node, which might be different from what, due to
          * symlinks */
-        char *devnode;
+	char *devnode;
 
-        SwapParameters parameters_proc_swaps;
-        SwapParameters parameters_fragment;
+	SwapParameters parameters_proc_swaps;
+	SwapParameters parameters_fragment;
 
-        bool from_proc_swaps:1;
-        bool from_fragment:1;
+	bool from_proc_swaps: 1;
+	bool from_fragment: 1;
 
-        /* Used while looking for swaps that vanished or got added
+	/* Used while looking for swaps that vanished or got added
          * from/to /proc/swaps */
-        bool is_active:1;
-        bool just_activated:1;
+	bool is_active: 1;
+	bool just_activated: 1;
 
-        SwapResult result;
+	SwapResult result;
 
-        usec_t timeout_usec;
+	usec_t timeout_usec;
 
-        ExecCommand exec_command[_SWAP_EXEC_COMMAND_MAX];
-        ExecContext exec_context;
-        KillContext kill_context;
-        CGroupContext cgroup_context;
+	ExecCommand exec_command[_SWAP_EXEC_COMMAND_MAX];
+	ExecContext exec_context;
+	KillContext kill_context;
+	CGroupContext cgroup_context;
 
-        ExecRuntime *exec_runtime;
+	ExecRuntime *exec_runtime;
 
-        SwapState state, deserialized_state;
+	SwapState state, deserialized_state;
 
-        ExecCommand* control_command;
-        SwapExecCommand control_command_id;
-        pid_t control_pid;
+	ExecCommand *control_command;
+	SwapExecCommand control_command_id;
+	pid_t control_pid;
 
-        sd_event_source *timer_event_source;
+	sd_event_source *timer_event_source;
 
-        /* In order to be able to distinguish dependencies on
+	/* In order to be able to distinguish dependencies on
         different device nodes we might end up creating multiple
         devices for the same swap. We chain them up here. */
 
-        IWLIST_FIELDS(struct Swap, same_devnode);
+	IWLIST_FIELDS(struct Swap, same_devnode);
 };
 
 extern const UnitVTable swap_vtable;
@@ -117,11 +117,11 @@ extern const UnitVTable swap_vtable;
 int swap_process_device_new(Manager *m, struct udev_device *dev);
 int swap_process_device_remove(Manager *m, struct udev_device *dev);
 
-const char* swap_state_to_string(SwapState i) _const_;
+const char *swap_state_to_string(SwapState i) _const_;
 SwapState swap_state_from_string(const char *s) _pure_;
 
-const char* swap_exec_command_to_string(SwapExecCommand i) _const_;
+const char *swap_exec_command_to_string(SwapExecCommand i) _const_;
 SwapExecCommand swap_exec_command_from_string(const char *s) _pure_;
 
-const char* swap_result_to_string(SwapResult i) _const_;
+const char *swap_result_to_string(SwapResult i) _const_;
 SwapResult swap_result_from_string(const char *s) _pure_;

@@ -19,116 +19,130 @@
 
 #include <stdlib.h>
 
-#include "kdbus.h"
+#include "bus-endpoint.h"
 #include "bus-kernel.h"
 #include "bus-policy.h"
-#include "bus-endpoint.h"
+#include "kdbus.h"
 
-int bus_kernel_set_endpoint_policy(int fd, uid_t uid, BusEndpoint *ep) {
+int
+bus_kernel_set_endpoint_policy(int fd, uid_t uid, BusEndpoint *ep)
+{
+	struct kdbus_cmd *update;
+	struct kdbus_item *n;
+	BusEndpointPolicy *po;
+	Iterator i;
+	size_t size;
+	int r;
 
-        struct kdbus_cmd *update;
-        struct kdbus_item *n;
-        BusEndpointPolicy *po;
-        Iterator i;
-        size_t size;
-        int r;
+	size = ALIGN8(offsetof(struct kdbus_cmd, items));
 
-        size = ALIGN8(offsetof(struct kdbus_cmd, items));
+	HASHMAP_FOREACH (po, ep->policy_hash, i) {
+		size += ALIGN8(offsetof(struct kdbus_item, str) +
+			strlen(po->name) + 1);
+		size += ALIGN8(offsetof(struct kdbus_item, policy_access) +
+			sizeof(struct kdbus_policy_access));
+	}
 
-        HASHMAP_FOREACH(po, ep->policy_hash, i) {
-                size += ALIGN8(offsetof(struct kdbus_item, str) + strlen(po->name) + 1);
-                size += ALIGN8(offsetof(struct kdbus_item, policy_access) + sizeof(struct kdbus_policy_access));
-        }
+	update = alloca0_align(size, 8);
+	update->size = size;
 
-        update = alloca0_align(size, 8);
-        update->size = size;
+	n = update->items;
 
-        n = update->items;
+	HASHMAP_FOREACH (po, ep->policy_hash, i) {
+		n->type = KDBUS_ITEM_NAME;
+		n->size =
+			offsetof(struct kdbus_item, str) + strlen(po->name) + 1;
+		strcpy(n->str, po->name);
+		n = KDBUS_ITEM_NEXT(n);
 
-        HASHMAP_FOREACH(po, ep->policy_hash, i) {
-                n->type = KDBUS_ITEM_NAME;
-                n->size = offsetof(struct kdbus_item, str) + strlen(po->name) + 1;
-                strcpy(n->str, po->name);
-                n = KDBUS_ITEM_NEXT(n);
+		n->type = KDBUS_ITEM_POLICY_ACCESS;
+		n->size = offsetof(struct kdbus_item, policy_access) +
+			sizeof(struct kdbus_policy_access);
 
-                n->type = KDBUS_ITEM_POLICY_ACCESS;
-                n->size = offsetof(struct kdbus_item, policy_access) + sizeof(struct kdbus_policy_access);
+		n->policy_access.type = KDBUS_POLICY_ACCESS_USER;
+		n->policy_access.access =
+			bus_kernel_translate_access(po->access);
+		n->policy_access.id = uid;
 
-                n->policy_access.type = KDBUS_POLICY_ACCESS_USER;
-                n->policy_access.access = bus_kernel_translate_access(po->access);
-                n->policy_access.id = uid;
+		n = KDBUS_ITEM_NEXT(n);
+	}
 
-                n = KDBUS_ITEM_NEXT(n);
-        }
+	r = ioctl(fd, KDBUS_CMD_ENDPOINT_UPDATE, update);
+	if (r < 0)
+		return -errno;
 
-        r = ioctl(fd, KDBUS_CMD_ENDPOINT_UPDATE, update);
-        if (r < 0)
-                return -errno;
-
-        return 0;
+	return 0;
 }
 
-int bus_endpoint_new(BusEndpoint **ep) {
-        assert(ep);
+int
+bus_endpoint_new(BusEndpoint **ep)
+{
+	assert(ep);
 
-        *ep = new0(BusEndpoint, 1);
-        if (!*ep)
-                return -ENOMEM;
+	*ep = new0(BusEndpoint, 1);
+	if (!*ep)
+		return -ENOMEM;
 
-        return 0;
+	return 0;
 }
 
-int bus_endpoint_add_policy(BusEndpoint *ep, const char *name, BusPolicyAccess access) {
-        _cleanup_free_ BusEndpointPolicy *po = NULL;
-        _cleanup_free_ char *key = NULL;
-        int r;
+int
+bus_endpoint_add_policy(BusEndpoint *ep, const char *name,
+	BusPolicyAccess access)
+{
+	_cleanup_free_ BusEndpointPolicy *po = NULL;
+	_cleanup_free_ char *key = NULL;
+	int r;
 
-        assert(ep);
-        assert(name);
-        assert(access > _BUS_POLICY_ACCESS_INVALID && access < _BUS_POLICY_ACCESS_MAX);
+	assert(ep);
+	assert(name);
+	assert(access > _BUS_POLICY_ACCESS_INVALID &&
+		access < _BUS_POLICY_ACCESS_MAX);
 
-        /* check if we already have this name in the policy list. If we do, see if the new access level
+	/* check if we already have this name in the policy list. If we do, see if the new access level
          * is higher than the exising one, and upgrade the entry in that case. Otherwise, do nothing.
          */
 
-        if (ep->policy_hash) {
-                po = hashmap_get(ep->policy_hash, name);
-                if (po) {
-                        if (po->access < access)
-                                po->access = access;
+	if (ep->policy_hash) {
+		po = hashmap_get(ep->policy_hash, name);
+		if (po) {
+			if (po->access < access)
+				po->access = access;
 
-                        return 0;
-                }
-        } else {
-                ep->policy_hash = hashmap_new(&string_hash_ops);
-                if (!ep->policy_hash)
-                        return -ENOMEM;
-        }
+			return 0;
+		}
+	} else {
+		ep->policy_hash = hashmap_new(&string_hash_ops);
+		if (!ep->policy_hash)
+			return -ENOMEM;
+	}
 
-        po = new0(BusEndpointPolicy, 1);
-        if (!po)
-                return -ENOMEM;
+	po = new0(BusEndpointPolicy, 1);
+	if (!po)
+		return -ENOMEM;
 
-        key = strdup(name);
-        if (!key)
-                return -ENOMEM;
+	key = strdup(name);
+	if (!key)
+		return -ENOMEM;
 
-        po->name = key;
-        po->access = access;
+	po->name = key;
+	po->access = access;
 
-        r = hashmap_put(ep->policy_hash, key, po);
-        if (r < 0)
-                return r;
+	r = hashmap_put(ep->policy_hash, key, po);
+	if (r < 0)
+		return r;
 
-        po = NULL;
-        key = NULL;
-        return 0;
+	po = NULL;
+	key = NULL;
+	return 0;
 }
 
-void bus_endpoint_free(BusEndpoint *endpoint) {
-        if (!endpoint)
-                return;
+void
+bus_endpoint_free(BusEndpoint *endpoint)
+{
+	if (!endpoint)
+		return;
 
-        hashmap_free_free_free(endpoint->policy_hash);
-        free(endpoint);
+	hashmap_free_free_free(endpoint->policy_hash);
+	free(endpoint);
 }

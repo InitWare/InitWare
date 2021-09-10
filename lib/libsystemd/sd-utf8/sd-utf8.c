@@ -19,18 +19,22 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "util.h"
-#include "utf8.h"
 #include "sd-utf8.h"
+#include "utf8.h"
+#include "util.h"
 
-_public_ const char *sd_utf8_is_valid(const char *s) {
-        assert_return(s, NULL);
+_public_ const char *
+sd_utf8_is_valid(const char *s)
+{
+	assert_return(s, NULL);
 
-        return utf8_is_valid(s);
+	return utf8_is_valid(s);
 }
 
-_public_ const char *sd_ascii_is_valid(const char *s) {
-        assert_return(s, NULL);
+_public_ const char *
+sd_ascii_is_valid(const char *s)
+{
+	assert_return(s, NULL);
 
-        return ascii_is_valid(s);
+	return ascii_is_valid(s);
 }

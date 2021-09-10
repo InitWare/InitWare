@@ -28,4 +28,5 @@ typedef struct JournalRateLimit JournalRateLimit;
 
 JournalRateLimit *journal_rate_limit_new(usec_t interval, unsigned burst);
 void journal_rate_limit_free(JournalRateLimit *r);
-int journal_rate_limit_test(JournalRateLimit *r, const char *id, int priority, uint64_t available);
+int journal_rate_limit_test(JournalRateLimit *r, const char *id, int priority,
+	uint64_t available);

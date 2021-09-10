@@ -21,10 +21,12 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "kill.h"
 #include "sd-bus.h"
 #include "unit.h"
-#include "kill.h"
 
 extern const sd_bus_vtable bus_kill_vtable[];
 
-int bus_kill_context_set_transient_property(Unit *u, KillContext *c, const char *name, sd_bus_message *message, UnitSetPropertiesMode mode, sd_bus_error *error);
+int bus_kill_context_set_transient_property(Unit *u, KillContext *c,
+	const char *name, sd_bus_message *message, UnitSetPropertiesMode mode,
+	sd_bus_error *error);

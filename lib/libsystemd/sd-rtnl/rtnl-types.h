@@ -22,23 +22,23 @@
 ***/
 
 enum {
-        NLA_UNSPEC,
-        NLA_META,
-        NLA_U8,
-        NLA_U16,
-        NLA_U32,
-        NLA_U64,
-        NLA_STRING,
-        NLA_IN_ADDR,
-        NLA_ETHER_ADDR,
-        NLA_CACHE_INFO,
-        NLA_NESTED,
-        NLA_UNION,
+	NLA_UNSPEC,
+	NLA_META,
+	NLA_U8,
+	NLA_U16,
+	NLA_U32,
+	NLA_U64,
+	NLA_STRING,
+	NLA_IN_ADDR,
+	NLA_ETHER_ADDR,
+	NLA_CACHE_INFO,
+	NLA_NESTED,
+	NLA_UNION,
 };
 
 typedef enum NLMatchType {
-        NL_MATCH_SIBLING,
-        NL_MATCH_PROTOCOL,
+	NL_MATCH_SIBLING,
+	NL_MATCH_PROTOCOL,
 } NLMatchType;
 
 typedef struct NLTypeSystemUnion NLTypeSystemUnion;
@@ -46,50 +46,57 @@ typedef struct NLTypeSystem NLTypeSystem;
 typedef struct NLType NLType;
 
 struct NLTypeSystemUnion {
-        int num;
-        NLMatchType match_type;
-        uint16_t match;
-        int (*lookup)(const char *);
-        const NLTypeSystem *type_systems;
+	int num;
+	NLMatchType match_type;
+	uint16_t match;
+	int (*lookup)(const char *);
+	const NLTypeSystem *type_systems;
 };
 
 struct NLTypeSystem {
-        uint16_t max;
-        const NLType *types;
+	uint16_t max;
+	const NLType *types;
 };
 
 struct NLType {
-        uint16_t type;
-        size_t size;
-        const NLTypeSystem *type_system;
-        const NLTypeSystemUnion *type_system_union;
+	uint16_t type;
+	size_t size;
+	const NLTypeSystem *type_system;
+	const NLTypeSystemUnion *type_system_union;
 };
 
-int type_system_get_type(const NLTypeSystem *type_system, const NLType **ret, uint16_t type);
-int type_system_get_type_system(const NLTypeSystem *type_system, const NLTypeSystem **ret, uint16_t type);
-int type_system_get_type_system_union(const NLTypeSystem *type_system, const NLTypeSystemUnion **ret, uint16_t type);
-int type_system_union_get_type_system(const NLTypeSystemUnion *type_system_union, const NLTypeSystem **ret, const char *key);
-int type_system_union_protocol_get_type_system(const NLTypeSystemUnion *type_system_union, const NLTypeSystem **ret, uint16_t protocol);
+int type_system_get_type(const NLTypeSystem *type_system, const NLType **ret,
+	uint16_t type);
+int type_system_get_type_system(const NLTypeSystem *type_system,
+	const NLTypeSystem **ret, uint16_t type);
+int type_system_get_type_system_union(const NLTypeSystem *type_system,
+	const NLTypeSystemUnion **ret, uint16_t type);
+int type_system_union_get_type_system(
+	const NLTypeSystemUnion *type_system_union, const NLTypeSystem **ret,
+	const char *key);
+int type_system_union_protocol_get_type_system(
+	const NLTypeSystemUnion *type_system_union, const NLTypeSystem **ret,
+	uint16_t protocol);
 
 typedef enum NLUnionLinkInfoData {
-        NL_UNION_LINK_INFO_DATA_BOND,
-        NL_UNION_LINK_INFO_DATA_BRIDGE,
-        NL_UNION_LINK_INFO_DATA_VLAN,
-        NL_UNION_LINK_INFO_DATA_VETH,
-        NL_UNION_LINK_INFO_DATA_DUMMY,
-        NL_UNION_LINK_INFO_DATA_MACVLAN,
-        NL_UNION_LINK_INFO_DATA_IPVLAN,
-        NL_UNION_LINK_INFO_DATA_VXLAN,
-        NL_UNION_LINK_INFO_DATA_IPIP_TUNNEL,
-        NL_UNION_LINK_INFO_DATA_IPGRE_TUNNEL,
-        NL_UNION_LINK_INFO_DATA_IPGRETAP_TUNNEL,
-        NL_UNION_LINK_INFO_DATA_IP6GRE_TUNNEL,
-        NL_UNION_LINK_INFO_DATA_IP6GRETAP_TUNNEL,
-        NL_UNION_LINK_INFO_DATA_SIT_TUNNEL,
-        NL_UNION_LINK_INFO_DATA_VTI_TUNNEL,
-        NL_UNION_LINK_INFO_DATA_IP6TNL_TUNNEL,
-        _NL_UNION_LINK_INFO_DATA_MAX,
-        _NL_UNION_LINK_INFO_DATA_INVALID = -1
+	NL_UNION_LINK_INFO_DATA_BOND,
+	NL_UNION_LINK_INFO_DATA_BRIDGE,
+	NL_UNION_LINK_INFO_DATA_VLAN,
+	NL_UNION_LINK_INFO_DATA_VETH,
+	NL_UNION_LINK_INFO_DATA_DUMMY,
+	NL_UNION_LINK_INFO_DATA_MACVLAN,
+	NL_UNION_LINK_INFO_DATA_IPVLAN,
+	NL_UNION_LINK_INFO_DATA_VXLAN,
+	NL_UNION_LINK_INFO_DATA_IPIP_TUNNEL,
+	NL_UNION_LINK_INFO_DATA_IPGRE_TUNNEL,
+	NL_UNION_LINK_INFO_DATA_IPGRETAP_TUNNEL,
+	NL_UNION_LINK_INFO_DATA_IP6GRE_TUNNEL,
+	NL_UNION_LINK_INFO_DATA_IP6GRETAP_TUNNEL,
+	NL_UNION_LINK_INFO_DATA_SIT_TUNNEL,
+	NL_UNION_LINK_INFO_DATA_VTI_TUNNEL,
+	NL_UNION_LINK_INFO_DATA_IP6TNL_TUNNEL,
+	_NL_UNION_LINK_INFO_DATA_MAX,
+	_NL_UNION_LINK_INFO_DATA_INVALID = -1
 } NLUnionLinkInfoData;
 
 const char *nl_union_link_info_data_to_string(NLUnionLinkInfoData p) _const_;

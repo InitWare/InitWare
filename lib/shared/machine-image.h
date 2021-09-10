@@ -21,37 +21,37 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "time-util.h"
 #include "hashmap.h"
+#include "time-util.h"
 
 typedef enum ImageType {
-        IMAGE_DIRECTORY,
-        IMAGE_SUBVOLUME,
-        IMAGE_RAW,
-        _IMAGE_TYPE_MAX,
-        _IMAGE_TYPE_INVALID = -1
+	IMAGE_DIRECTORY,
+	IMAGE_SUBVOLUME,
+	IMAGE_RAW,
+	_IMAGE_TYPE_MAX,
+	_IMAGE_TYPE_INVALID = -1
 } ImageType;
 
 typedef struct Image {
-        ImageType type;
-        char *name;
-        char *path;
-        bool read_only;
+	ImageType type;
+	char *name;
+	char *path;
+	bool read_only;
 
-        usec_t crtime;
-        usec_t mtime;
+	usec_t crtime;
+	usec_t mtime;
 
-        uint64_t usage;
-        uint64_t usage_exclusive;
-        uint64_t limit;
-        uint64_t limit_exclusive;
+	uint64_t usage;
+	uint64_t usage_exclusive;
+	uint64_t limit;
+	uint64_t limit_exclusive;
 } Image;
 
 Image *image_unref(Image *i);
 void image_hashmap_free(Hashmap *map);
 
-DEFINE_TRIVIAL_CLEANUP_FUNC(Image*, image_unref);
-DEFINE_TRIVIAL_CLEANUP_FUNC(Hashmap*, image_hashmap_free);
+DEFINE_TRIVIAL_CLEANUP_FUNC(Image *, image_unref);
+DEFINE_TRIVIAL_CLEANUP_FUNC(Hashmap *, image_hashmap_free);
 
 int image_find(const char *name, Image **ret);
 int image_discover(Hashmap *map);
@@ -61,10 +61,11 @@ int image_rename(Image *i, const char *new_name);
 int image_clone(Image *i, const char *new_name, bool read_only);
 int image_read_only(Image *i, bool b);
 
-const char* image_type_to_string(ImageType t) _const_;
+const char *image_type_to_string(ImageType t) _const_;
 ImageType image_type_from_string(const char *s) _pure_;
 
 bool image_name_is_valid(const char *s) _pure_;
 
-int image_path_lock(const char *path, int operation, LockFile *global, LockFile *local);
+int image_path_lock(const char *path, int operation, LockFile *global,
+	LockFile *local);
 int image_name_lock(const char *name, int operation, LockFile *ret);

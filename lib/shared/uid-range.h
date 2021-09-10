@@ -21,11 +21,11 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdbool.h>
 #include <sys/types.h>
+#include <stdbool.h>
 
 typedef struct UidRange {
-        uid_t start, nr;
+	uid_t start, nr;
 } UidRange;
 
 int uid_range_add(UidRange **p, unsigned *n, uid_t start, uid_t nr);

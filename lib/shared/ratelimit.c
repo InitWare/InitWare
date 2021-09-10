@@ -21,37 +21,38 @@
 
 #include <assert.h>
 
-#include "ratelimit.h"
 #include "log.h"
+#include "ratelimit.h"
 
 /* Modelled after Linux' lib/ratelimit.c by Dave Young
  * <hidave.darkstar@gmail.com>, which is licensed GPLv2. */
 
-bool ratelimit_test(RateLimit *r) {
-        usec_t ts;
+bool
+ratelimit_test(RateLimit *r)
+{
+	usec_t ts;
 
-        assert(r);
+	assert(r);
 
-        if (r->interval <= 0 || r->burst <= 0)
-                return true;
+	if (r->interval <= 0 || r->burst <= 0)
+		return true;
 
-        ts = now(CLOCK_MONOTONIC);
+	ts = now(CLOCK_MONOTONIC);
 
-        if (r->begin <= 0 ||
-            r->begin + r->interval < ts) {
-                r->begin = ts;
+	if (r->begin <= 0 || r->begin + r->interval < ts) {
+		r->begin = ts;
 
-                /* Reset counter */
-                r->num = 0;
-                goto good;
-        }
+		/* Reset counter */
+		r->num = 0;
+		goto good;
+	}
 
-        if (r->num < r->burst)
-                goto good;
+	if (r->num < r->burst)
+		goto good;
 
-        return false;
+	return false;
 
 good:
-        r->num++;
-        return true;
+	r->num++;
+	return true;
 }

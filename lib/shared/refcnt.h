@@ -24,11 +24,11 @@
 /* A type-safe atomic refcounter */
 
 typedef struct {
-        volatile unsigned _value;
+	volatile unsigned _value;
 } RefCount;
 
 #define REFCNT_GET(r) ((r)._value)
 #define REFCNT_INC(r) (__sync_add_and_fetch(&(r)._value, 1))
 #define REFCNT_DEC(r) (__sync_sub_and_fetch(&(r)._value, 1))
 
-#define REFCNT_INIT ((RefCount) { ._value = 1 })
+#define REFCNT_INIT ((RefCount){ ._value = 1 })

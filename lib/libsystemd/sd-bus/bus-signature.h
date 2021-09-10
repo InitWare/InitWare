@@ -21,8 +21,8 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <stdbool.h>
 #include <sys/types.h>
+#include <stdbool.h>
 
 bool signature_is_single(const char *s, bool allow_dict_entry);
 bool signature_is_pair(const char *s);

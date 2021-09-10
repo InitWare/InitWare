@@ -25,10 +25,14 @@
 
 #include "timesyncd-manager.h"
 
-const struct ConfigPerfItem* timesyncd_gperf_lookup(const char *key, GPERF_LEN_TYPE length);
+const struct ConfigPerfItem *timesyncd_gperf_lookup(const char *key,
+	GPERF_LEN_TYPE length);
 
-int manager_parse_server_string(Manager *m, ServerType type, const char *string);
+int manager_parse_server_string(Manager *m, ServerType type,
+	const char *string);
 
-int config_parse_servers(const char *unit, const char *filename, unsigned line, const char *section, unsigned section_line, const char *lvalue, int ltype, const char *rvalue, void *data, void *userdata);
+int config_parse_servers(const char *unit, const char *filename, unsigned line,
+	const char *section, unsigned section_line, const char *lvalue,
+	int ltype, const char *rvalue, void *data, void *userdata);
 
 int manager_parse_config_file(Manager *m);

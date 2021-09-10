@@ -26,41 +26,33 @@
 #include "macro.h"
 
 typedef enum ProtectHome {
-        PROTECT_HOME_NO,
-        PROTECT_HOME_YES,
-        PROTECT_HOME_READ_ONLY,
-        _PROTECT_HOME_MAX,
-        _PROTECT_HOME_INVALID = -1
+	PROTECT_HOME_NO,
+	PROTECT_HOME_YES,
+	PROTECT_HOME_READ_ONLY,
+	_PROTECT_HOME_MAX,
+	_PROTECT_HOME_INVALID = -1
 } ProtectHome;
 
 typedef enum ProtectSystem {
-        PROTECT_SYSTEM_NO,
-        PROTECT_SYSTEM_YES,
-        PROTECT_SYSTEM_FULL,
-        _PROTECT_SYSTEM_MAX,
-        _PROTECT_SYSTEM_INVALID = -1
+	PROTECT_SYSTEM_NO,
+	PROTECT_SYSTEM_YES,
+	PROTECT_SYSTEM_FULL,
+	_PROTECT_SYSTEM_MAX,
+	_PROTECT_SYSTEM_INVALID = -1
 } ProtectSystem;
 
-int setup_namespace(const char *chroot,
-                    char **read_write_dirs,
-                    char **read_only_dirs,
-                    char **inaccessible_dirs,
-                    const char *tmp_dir,
-                    const char *var_tmp_dir,
-                    const char *endpoint_path,
-                    bool private_dev,
-                    ProtectHome protect_home,
-                    ProtectSystem protect_system,
-                    unsigned long mount_flags);
+int setup_namespace(const char *chroot, char **read_write_dirs,
+	char **read_only_dirs, char **inaccessible_dirs, const char *tmp_dir,
+	const char *var_tmp_dir, const char *endpoint_path, bool private_dev,
+	ProtectHome protect_home, ProtectSystem protect_system,
+	unsigned long mount_flags);
 
-int setup_tmp_dirs(const char *id,
-                  char **tmp_dir,
-                  char **var_tmp_dir);
+int setup_tmp_dirs(const char *id, char **tmp_dir, char **var_tmp_dir);
 
 int setup_netns(int netns_storage_socket[2]);
 
-const char* protect_home_to_string(ProtectHome p) _const_;
+const char *protect_home_to_string(ProtectHome p) _const_;
 ProtectHome protect_home_from_string(const char *s) _pure_;
 
-const char* protect_system_to_string(ProtectSystem p) _const_;
+const char *protect_system_to_string(ProtectSystem p) _const_;
 ProtectSystem protect_system_from_string(const char *s) _pure_;

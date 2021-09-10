@@ -27,112 +27,114 @@
 
 #include "systemd/sd-id128.h"
 
-#include "journal-def.h"
-#include "list.h"
 #include "hashmap.h"
-#include "set.h"
+#include "journal-def.h"
 #include "journal-file.h"
+#include "list.h"
 #include "sd-journal.h"
+#include "set.h"
 
 typedef struct Match Match;
 typedef struct Location Location;
 typedef struct Directory Directory;
 
 typedef enum MatchType {
-        MATCH_DISCRETE,
-        MATCH_OR_TERM,
-        MATCH_AND_TERM
+	MATCH_DISCRETE,
+	MATCH_OR_TERM,
+	MATCH_AND_TERM
 } MatchType;
 
 struct Match {
-        MatchType type;
-        Match *parent;
-        IWLIST_FIELDS(Match, matches);
+	MatchType type;
+	Match *parent;
+	IWLIST_FIELDS(Match, matches);
 
-        /* For concrete matches */
-        char *data;
-        size_t size;
-        le64_t le_hash;
+	/* For concrete matches */
+	char *data;
+	size_t size;
+	le64_t le_hash;
 
-        /* For terms */
-        IWLIST_HEAD(Match, matches);
+	/* For terms */
+	IWLIST_HEAD(Match, matches);
 };
 
 struct Location {
-        LocationType type;
+	LocationType type;
 
-        bool seqnum_set;
-        bool realtime_set;
-        bool monotonic_set;
-        bool xor_hash_set;
+	bool seqnum_set;
+	bool realtime_set;
+	bool monotonic_set;
+	bool xor_hash_set;
 
-        uint64_t seqnum;
-        sd_id128_t seqnum_id;
+	uint64_t seqnum;
+	sd_id128_t seqnum_id;
 
-        uint64_t realtime;
+	uint64_t realtime;
 
-        uint64_t monotonic;
-        sd_id128_t boot_id;
+	uint64_t monotonic;
+	sd_id128_t boot_id;
 
-        uint64_t xor_hash;
+	uint64_t xor_hash;
 };
 
 struct Directory {
-        char *path;
-        int wd;
-        bool is_root;
-        unsigned last_seen_generation;
+	char *path;
+	int wd;
+	bool is_root;
+	unsigned last_seen_generation;
 };
 
 struct sd_journal {
-        char *path;
-        char *prefix;
+	char *path;
+	char *prefix;
 
-        OrderedHashmap *files;
-        MMapCache *mmap;
+	OrderedHashmap *files;
+	MMapCache *mmap;
 
-        Location current_location;
+	Location current_location;
 
-        JournalFile *current_file;
-        uint64_t current_field;
+	JournalFile *current_file;
+	uint64_t current_field;
 
-        Match *level0, *level1, *level2;
+	Match *level0, *level1, *level2;
 
-        pid_t original_pid;
+	pid_t original_pid;
 
-        int inotify_fd;
-        unsigned current_invalidate_counter, last_invalidate_counter;
-        usec_t last_process_usec;
-        unsigned generation;
+	int inotify_fd;
+	unsigned current_invalidate_counter, last_invalidate_counter;
+	usec_t last_process_usec;
+	unsigned generation;
 
-        char *unique_field;
-        JournalFile *unique_file;
-        uint64_t unique_offset;
+	char *unique_field;
+	JournalFile *unique_file;
+	uint64_t unique_offset;
 
-        int flags;
+	int flags;
 
-        bool on_network;
-        bool no_new_files;
-        bool unique_file_lost; /* File we were iterating over got
+	bool on_network;
+	bool no_new_files;
+	bool unique_file_lost; /* File we were iterating over got
                                   removed, and there were no more
                                   files, so sd_j_enumerate_unique
                                   will return a value equal to 0. */
-        bool has_runtime_files:1;
-        bool has_persistent_files:1;
+	bool has_runtime_files: 1;
+	bool has_persistent_files: 1;
 
-        size_t data_threshold;
+	size_t data_threshold;
 
-        Hashmap *directories_by_path;
-        Hashmap *directories_by_wd;
+	Hashmap *directories_by_path;
+	Hashmap *directories_by_wd;
 
-        Hashmap *errors;
+	Hashmap *errors;
 };
 
 char *journal_make_match_string(sd_journal *j);
 void journal_print_header(sd_journal *j);
 
-DEFINE_TRIVIAL_CLEANUP_FUNC(sd_journal*, sd_journal_close);
+DEFINE_TRIVIAL_CLEANUP_FUNC(sd_journal *, sd_journal_close);
 #define _cleanup_journal_close_ _cleanup_(sd_journal_closep)
 
-#define JOURNAL_FOREACH_DATA_RETVAL(j, data, l, retval)                     \
-        for (sd_journal_restart_data(j); ((retval) = sd_journal_enumerate_data((j), &(data), &(l))) > 0; )
+#define JOURNAL_FOREACH_DATA_RETVAL(j, data, l, retval)                        \
+	for (sd_journal_restart_data(j);                                       \
+		((retval) = sd_journal_enumerate_data((j), &(data), &(l))) >   \
+		0;)

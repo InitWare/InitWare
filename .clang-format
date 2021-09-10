@@ -556,7 +556,8 @@ IncludeCategories:
     Priority: 1
 IncludeIsMainRegex: '(Test)?$'
 IndentCaseLabels: false
-#IndentPPDirectives: None # Unknown to clang-format-5.0
+IndentWidth: 1
+IndentPPDirectives: 'AfterHash' # Unknown to clang-format-5.0
 IndentWidth: 8
 IndentWrappedFunctionNames: false
 JavaScriptQuotes: Leave
@@ -578,7 +579,6 @@ PenaltyBreakComment: 10
 PenaltyBreakFirstLessLess: 0
 PenaltyBreakString: 10
 PenaltyExcessCharacter: 100
-PenaltyReturnTypeOnItsOwnLine: 60
 
 PointerAlignment: Right
 ReflowComments: false
@@ -650,4 +650,3 @@ SpacesInSquareBrackets: false
 Standard: Cpp03
 TabWidth: 8
 UseTab: Always
-...
