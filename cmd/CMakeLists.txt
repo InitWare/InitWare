@@ -1,2 +1,3 @@
 add_subdirectory(systemctl)
 add_subdirectory(journal)
+add_subdirectory(scheduler)

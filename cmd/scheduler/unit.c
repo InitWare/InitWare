@@ -57,7 +57,6 @@
 const UnitVTable *const unit_vtable[_UNIT_TYPE_MAX] = {
 	[UNIT_SERVICE] = &service_vtable,
 	[UNIT_SOCKET] = &socket_vtable,
-	[UNIT_BUSNAME] = &busname_vtable,
 	[UNIT_TARGET] = &target_vtable,
 	[UNIT_SNAPSHOT] = &snapshot_vtable,
 	[UNIT_DEVICE] = &device_vtable,
