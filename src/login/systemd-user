@@ -1,0 +1,6 @@
+# This file is part of systemd.
+#
+# Used by systemd --user instances.
+
+account  include system-auth
+session  include system-auth

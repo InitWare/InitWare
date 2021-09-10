@@ -1,0 +1,6 @@
+# Disable known IR cameras in Lenovo Notebooks
+SUBSYSTEM=="usb", ATTRS{idVendor}=="5986", ATTRS{idProduct}=="211a", ATTR{authorized}="0"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="5986", ATTRS{idProduct}=="1141", ATTR{authorized}="0"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="04f2", ATTRS{idProduct}=="b605", ATTR{authorized}="0"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="04f2", ATTRS{idProduct}=="b613", ATTR{authorized}="0"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="04f2", ATTRS{idProduct}=="b615", ATTR{authorized}="0"
