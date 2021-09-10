@@ -39,7 +39,7 @@ verify_sys_admin_or_owner_sync(sd_bus_message *message, Job *j,
 		    sd_bus_message_get_sender(message)))
 		return 0; /* One of the job owners is calling us */
 
-	r = sd_bus_query_sender_privilege(message, CAP_SYS_ADMIN);
+	r = sd_bus_query_sender_privilege(message, 0);
 	if (r < 0)
 		return r;
 	if (r == 0)

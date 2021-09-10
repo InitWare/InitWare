@@ -111,7 +111,6 @@ service_init(Unit *u)
 	s->restart_usec = u->manager->default_restart_usec;
 	s->type = _SERVICE_TYPE_INVALID;
 	s->socket_fd = -1;
-	s->bus_endpoint_fd = -1;
 	s->guess_main_pid = true;
 
 	RATELIMIT_INIT(s->start_limit, u->manager->default_start_limit_interval,
@@ -362,7 +361,6 @@ service_done(Unit *u)
 		s->bus_name = NULL;
 	}
 
-	s->bus_endpoint_fd = safe_close(s->bus_endpoint_fd);
 	service_close_socket_fd(s);
 	service_connection_unref(s);
 
@@ -1234,7 +1232,6 @@ service_spawn(Service *s, ExecCommand *c, usec_t timeout, bool pass_fds,
 	ExecParameters exec_params = { .apply_permissions = apply_permissions,
 		.apply_chroot = apply_chroot,
 		.apply_tty_stdin = apply_tty_stdin,
-		.bus_endpoint_fd = -1,
 		.selinux_context_net = s->socket_fd_selinux_context_net };
 
 	assert(s);
@@ -1355,22 +1352,6 @@ service_spawn(Service *s, ExecCommand *c, usec_t timeout, bool pass_fds,
 	} else
 		path = UNIT(s)->cgroup_path;
 
-#ifdef ENABLE_KDBUS
-	if (s->exec_context.bus_endpoint) {
-		r = bus_kernel_create_endpoint(UNIT(s)->manager->running_as ==
-					SYSTEMD_SYSTEM ?
-				      "system" :
-				      "user",
-			UNIT(s)->id, &bus_endpoint_path);
-		if (r < 0)
-			goto fail;
-
-		/* Pass the fd to the exec_params so that the child process can upload the policy.
-                 * Keep a reference to the fd in the service, so the endpoint is kept alive as long
-                 * as the service is running. */
-		exec_params.bus_endpoint_fd = s->bus_endpoint_fd = r;
-	}
-#endif
 
 	exec_params.argv = argv;
 	exec_params.fds = fds;
@@ -2586,17 +2567,6 @@ service_deserialize_item(Unit *u, const char *key, const char *value,
 			asynchronous_close(s->socket_fd);
 			s->socket_fd = fdset_remove(fds, fd);
 		}
-	} else if (streq(key, "endpoint-fd")) {
-		int fd;
-
-		if (safe_atoi(value, &fd) < 0 || fd < 0 ||
-			!fdset_contains(fds, fd))
-			log_unit_debug(u->id,
-				"Failed to parse endpoint-fd value %s", value);
-		else {
-			safe_close(s->bus_endpoint_fd);
-			s->bus_endpoint_fd = fdset_remove(fds, fd);
-		}
 	} else if (streq(key, "fd-store-fd")) {
 		int fd;
 
@@ -3400,7 +3370,7 @@ service_notify_message_authorized(Service *s, pid_t pid, char **tags,
 }
 
 static void
-service_notify_message(Unit *u, const struct ucred *ucred, char **tags,
+service_notify_message(Unit *u, const struct socket_ucred *ucred, char **tags,
 	FDSet *fds)
 {
 	Service *s = SERVICE(u);

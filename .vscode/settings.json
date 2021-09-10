@@ -19,6 +19,11 @@
 	"ima-util.h": "c",
 	"dropin.h": "c",
 	"*.in": "cpp",
-	"bsdglibc.h": "c"
+	"bsdglibc.h": "c",
+	"prctl.h": "c",
+	"execute.h": "c",
+	"ioprio.h": "c",
+	"calendarspec.h": "c",
+	"selinux-access.h": "c"
 }
 }

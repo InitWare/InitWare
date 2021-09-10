@@ -21,7 +21,6 @@
 
 #include <sys/types.h>
 #include <sys/mount.h>
-#include <sys/prctl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <errno.h>
@@ -79,6 +78,13 @@
 #include "selinux-setup.h"
 #include "smack-setup.h"
 
+#ifdef SVC_PLATFORM_Linux
+#include <sys/prctl.h>
+#endif
+
+#define CAP_ALL 0
+#define SYSTEMD_SHUTDOWN_BINARY_PATH "FIXMENOW!"
+
 static enum {
 	ACTION_RUN,
 	ACTION_HELP,
@@ -107,7 +113,7 @@ static unsigned arg_default_start_limit_burst = DEFAULT_START_LIMIT_BURST;
 static usec_t arg_runtime_watchdog = 0;
 static usec_t arg_shutdown_watchdog = 10 * USEC_PER_MINUTE;
 static char **arg_default_environment = NULL;
-static struct rlimit *arg_default_rlimit[_RLIMIT_MAX] = {};
+static struct rlimit *arg_default_rlimit[RLIM_NLIMITS] = {};
 static uint64_t arg_capability_bounding_set = CAP_ALL;
 static nsec_t arg_timer_slack_nsec = NSEC_INFINITY;
 static usec_t arg_default_timer_accuracy_usec = 1 * USEC_PER_MINUTE;
@@ -153,6 +159,7 @@ crash(int sig)
 		/* We want to wait for the core process, hence let's enable SIGCHLD */
 		sigaction(SIGCHLD, &sa, NULL);
 
+#ifdef SVC_PLATFORM_Linux
 		pid = raw_clone(SIGCHLD, NULL);
 		if (pid < 0)
 			log_emergency_errno(errno,
@@ -210,11 +217,17 @@ crash(int sig)
 					".",
 					signal_to_string(sig), pid);
 		}
+#else
+			log_emergency_errno(errno,
+				"Caught <%s>, cannot fork for core dump: %m",
+				signal_to_string(sig));
+#endif
 	}
 
 	if (arg_crash_chvt)
 		chvt(arg_crash_chvt);
 
+#ifdef SVC_PLATFORM_Linux
 	if (arg_crash_shell) {
 		struct sigaction sa = {
 			.sa_handler = SIG_IGN,
@@ -244,6 +257,7 @@ crash(int sig)
 				".",
 				pid);
 	}
+#endif
 
 	log_emergency("Freezing execution.");
 	freeze();
@@ -470,6 +484,7 @@ DEFINE_SETTER(config_parse_target, log_set_target_from_string, "target")
 DEFINE_SETTER(config_parse_color, log_show_color_from_string, "color")
 DEFINE_SETTER(config_parse_location, log_show_location_from_string, "location")
 
+#ifdef SVC_PLATFORM_Linux
 static int
 config_parse_cpu_affinity2(const char *unit, const char *filename,
 	unsigned line, const char *section, unsigned section_line,
@@ -489,6 +504,7 @@ config_parse_cpu_affinity2(const char *unit, const char *filename,
 
 	return 0;
 }
+#endif
 
 static int
 config_parse_show_status(const char *unit, const char *filename, unsigned line,
@@ -642,10 +658,11 @@ parse_config_file(void)
 			&arg_show_status },
 		{ "Manager", "CrashChVT", config_parse_int, 0,
 			&arg_crash_chvt },
-		{ "Manager", "CPUAffinity", config_parse_cpu_affinity2, 0,
-			NULL },
 		{ "Manager", "JoinControllers", config_parse_join_controllers,
 			0, &arg_join_controllers },
+#ifdef SVC_PLATFORM_Linux
+		{ "Manager", "CPUAffinity", config_parse_cpu_affinity2, 0,
+			NULL },
 		{ "Manager", "RuntimeWatchdogSec", config_parse_sec, 0,
 			&arg_runtime_watchdog },
 		{ "Manager", "ShutdownWatchdogSec", config_parse_sec, 0,
@@ -659,6 +676,7 @@ parse_config_file(void)
 #endif
 		{ "Manager", "TimerSlackNSec", config_parse_nsec, 0,
 			&arg_timer_slack_nsec },
+#endif
 		{ "Manager", "DefaultTimerAccuracySec", config_parse_sec, 0,
 			&arg_default_timer_accuracy_usec },
 		{ "Manager", "DefaultStandardOutput", config_parse_output, 0,
@@ -697,6 +715,7 @@ parse_config_file(void)
 			&arg_default_rlimit[RLIMIT_NPROC] },
 		{ "Manager", "DefaultLimitMEMLOCK", config_parse_bytes_limit, 0,
 			&arg_default_rlimit[RLIMIT_MEMLOCK] },
+#ifdef SVC_PLATFORM_Linux
 		{ "Manager", "DefaultLimitLOCKS", config_parse_limit, 0,
 			&arg_default_rlimit[RLIMIT_LOCKS] },
 		{ "Manager", "DefaultLimitSIGPENDING", config_parse_limit, 0,
@@ -709,6 +728,7 @@ parse_config_file(void)
 			&arg_default_rlimit[RLIMIT_RTPRIO] },
 		{ "Manager", "DefaultLimitRTTIME", config_parse_limit, 0,
 			&arg_default_rlimit[RLIMIT_RTTIME] },
+#endif
 		{ "Manager", "DefaultCPUAccounting", config_parse_bool, 0,
 			&arg_default_cpu_accounting },
 		{ "Manager", "DefaultBlockIOAccounting", config_parse_bool, 0,
@@ -1416,12 +1436,14 @@ main(int argc, char *argv[])
 	if (strv_find(argv + 1, "--switched-root"))
 		skip_setup = false;
 
+#ifdef SVC_PLATFORM_Linux
 	/* If we get started via the /sbin/init symlink then we are
            called 'init'. After a subsequent reexecution we are then
            called 'systemd'. That is confusing, hence let's call us
            systemd right-away. */
 	program_invocation_short_name = systemd;
 	prctl(PR_SET_NAME, systemd);
+#endif
 
 	saved_argv = argv;
 	saved_argc = argc;
@@ -1472,6 +1494,7 @@ main(int argc, char *argv[])
 		}
 
 		if (!skip_setup) {
+#ifdef SVC_PLATFORM_Linux
 			if (clock_is_localtime() > 0) {
 				int min;
 
@@ -1507,6 +1530,7 @@ main(int argc, char *argv[])
                                  */
 				clock_reset_timewarp();
 			}
+#endif
 		}
 
 		/* Set the default for later on, but don't actually
@@ -1606,9 +1630,8 @@ main(int argc, char *argv[])
 
 	if (arg_running_as == SYSTEMD_USER && arg_action == ACTION_RUN &&
 		sd_booted() <= 0) {
-		log_error(
+		log_warning(
 			"Trying to run as user instance, but the system has not been booted with systemd.");
-		goto finish;
 	}
 
 	if (arg_running_as == SYSTEMD_SYSTEM && arg_action == ACTION_RUN &&
@@ -1750,6 +1773,7 @@ main(int argc, char *argv[])
 		test_usr();
 	}
 
+#ifdef SVC_PLATFORM_Linux
 	if (arg_running_as == SYSTEMD_SYSTEM && arg_runtime_watchdog > 0)
 		watchdog_set_timeout(&arg_runtime_watchdog);
 
@@ -1786,9 +1810,11 @@ main(int argc, char *argv[])
 			goto finish;
 		}
 	}
+#endif
 
 	if (arg_running_as == SYSTEMD_USER) {
 		/* Become reaper of our children */
+#ifdef SVC_PLATFORM_Linux // FIXME! subreaper
 		if (prctl(PR_SET_CHILD_SUBREAPER, 1) < 0) {
 			log_warning_errno(errno,
 				"Failed to make us a subreaper: %m");
@@ -1796,6 +1822,7 @@ main(int argc, char *argv[])
 				log_info(
 					"Perhaps the kernel version is too old (< 3.4?)");
 		}
+#endif
 	}
 
 	if (arg_running_as == SYSTEMD_SYSTEM) {
@@ -2074,6 +2101,7 @@ finish:
 		if (saved_rlimit_nofile.rlim_cur > 0)
 			setrlimit(RLIMIT_NOFILE, &saved_rlimit_nofile);
 
+#ifdef SVC_PLATFORM_Linux
 		if (switch_root_dir) {
 			/* Kill all remaining processes from the
                          * initrd, but don't wait for them, so that we
@@ -2087,6 +2115,7 @@ finish:
 				log_error_errno(r,
 					"Failed to switch root, trying to continue: %m");
 		}
+#endif
 
 		args_size = MAX(6, argc + 1);
 		args = newa(const char *, args_size);
@@ -2115,9 +2144,11 @@ finish:
 			args[i++] = sfd;
 			args[i++] = NULL;
 
+#ifdef SVC_PLATFORM_Linux
 			/* do not pass along the environment we inherit from the kernel or initrd */
 			if (switch_root_dir)
 				clearenv();
+#endif
 
 			assert(i <= args_size);
 			execv(args[0], (char *const *)args);

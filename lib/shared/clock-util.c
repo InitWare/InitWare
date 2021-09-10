@@ -46,6 +46,7 @@
 int
 clock_get_hwclock(struct tm *tm)
 {
+#ifdef SVC_PLATFORM_Linux
 	_cleanup_close_ int fd = -1;
 
 	assert(tm);
@@ -64,11 +65,16 @@ clock_get_hwclock(struct tm *tm)
 	tm->tm_isdst = -1;
 
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
 clock_set_hwclock(const struct tm *tm)
 {
+#ifdef SVC_PLATFORM_Linux
 	_cleanup_close_ int fd = -1;
 
 	assert(tm);
@@ -81,11 +87,16 @@ clock_set_hwclock(const struct tm *tm)
 		return -errno;
 
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
 clock_is_localtime(void)
 {
+#ifdef SVC_PLATFORM_Linux
 	_cleanup_fclose_ FILE *f;
 
 	/*
@@ -113,11 +124,16 @@ clock_is_localtime(void)
 		return -errno;
 
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
 clock_set_timezone(int *min)
 {
+#ifdef SVC_PLATFORM_Linux
 	const struct timeval *tv_null = NULL;
 	struct timespec ts;
 	struct tm *tm;
@@ -142,11 +158,16 @@ clock_set_timezone(int *min)
 	if (min)
 		*min = minutesdelta;
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
 clock_reset_timewarp(void)
 {
+#ifdef SVC_PLATFORM_Linux
 	const struct timeval *tv_null = NULL;
 	struct timezone tz;
 
@@ -162,4 +183,8 @@ clock_reset_timewarp(void)
 		return -errno;
 
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }

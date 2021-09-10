@@ -315,6 +315,7 @@ clean_posix_shm(uid_t uid)
 static int
 clean_posix_mq(uid_t uid)
 {
+#ifdef SVC_PLATFORM_Linux // TODO
 	_cleanup_closedir_ DIR *dir = NULL;
 	struct dirent *de;
 	int ret = 0;
@@ -369,6 +370,10 @@ clean_posix_mq(uid_t uid)
 fail:
 	log_warning_errno(errno, "Failed to read /dev/mqueue: %m");
 	return -errno;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int

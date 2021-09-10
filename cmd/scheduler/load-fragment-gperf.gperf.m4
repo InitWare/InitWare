@@ -23,13 +23,6 @@ $1.User,                         config_parse_unit_string_printf,    0,         
 $1.Group,                        config_parse_unit_string_printf,    0,                             offsetof($1, exec_context.group)
 $1.SupplementaryGroups,          config_parse_strv,                  0,                             offsetof($1, exec_context.supplementary_groups)
 $1.Nice,                         config_parse_exec_nice,             0,                             offsetof($1, exec_context)
-$1.OOMScoreAdjust,               config_parse_exec_oom_score_adjust, 0,                             offsetof($1, exec_context)
-$1.IOSchedulingClass,            config_parse_exec_io_class,         0,                             offsetof($1, exec_context)
-$1.IOSchedulingPriority,         config_parse_exec_io_priority,      0,                             offsetof($1, exec_context)
-$1.CPUSchedulingPolicy,          config_parse_exec_cpu_sched_policy, 0,                             offsetof($1, exec_context)
-$1.CPUSchedulingPriority,        config_parse_exec_cpu_sched_prio,   0,                             offsetof($1, exec_context)
-$1.CPUSchedulingResetOnFork,     config_parse_bool,                  0,                             offsetof($1, exec_context.cpu_sched_reset_on_fork)
-$1.CPUAffinity,                  config_parse_exec_cpu_affinity,     0,                             offsetof($1, exec_context)
 $1.UMask,                        config_parse_mode,                  0,                             offsetof($1, exec_context.umask)
 $1.Environment,                  config_parse_environ,               0,                             offsetof($1, exec_context.environment)
 $1.EnvironmentFile,              config_parse_unit_env_file,         0,                             offsetof($1, exec_context.environment_files)
@@ -45,12 +38,20 @@ $1.SyslogIdentifier,             config_parse_unit_string_printf,    0,         
 $1.SyslogFacility,               config_parse_log_facility,          0,                             offsetof($1, exec_context.syslog_priority)
 $1.SyslogLevel,                  config_parse_log_level,             0,                             offsetof($1, exec_context.syslog_priority)
 $1.SyslogLevelPrefix,            config_parse_bool,                  0,                             offsetof($1, exec_context.syslog_level_prefix)
+m4_ifdef(`SVC_PLATFORM_Linux',
+`$1.OOMScoreAdjust,               config_parse_exec_oom_score_adjust, 0,                             offsetof($1, exec_context)
+$1.IOSchedulingClass,            config_parse_exec_io_class,         0,                             offsetof($1, exec_context)
+$1.IOSchedulingPriority,         config_parse_exec_io_priority,      0,                             offsetof($1, exec_context)
+$1.CPUSchedulingPolicy,          config_parse_exec_cpu_sched_policy, 0,                             offsetof($1, exec_context)
+$1.CPUSchedulingPriority,        config_parse_exec_cpu_sched_prio,   0,                             offsetof($1, exec_context)
+$1.CPUSchedulingResetOnFork,     config_parse_bool,                  0,                             offsetof($1, exec_context.cpu_sched_reset_on_fork)
+$1.CPUAffinity,                  config_parse_exec_cpu_affinity,     0,                             offsetof($1, exec_context)
 $1.Capabilities,                 config_parse_exec_capabilities,     0,                             offsetof($1, exec_context)
 $1.SecureBits,                   config_parse_exec_secure_bits,      0,                             offsetof($1, exec_context)
 $1.CapabilityBoundingSet,        config_parse_capability_set,        0,                             offsetof($1, exec_context.capability_bounding_set)
 $1.AmbientCapabilities,          config_parse_capability_set,        0,                             offsetof($1, exec_context.capability_ambient_set)
 $1.TimerSlackNSec,               config_parse_nsec,                  0,                             offsetof($1, exec_context.timer_slack_nsec)
-$1.NoNewPrivileges,              config_parse_no_new_privileges,     0,                             offsetof($1, exec_context)
+$1.NoNewPrivileges,              config_parse_no_new_privileges,     0,                             offsetof($1, exec_context)')m4_dnl
 m4_ifdef(`HAVE_SECCOMP',
 `$1.SystemCallFilter,            config_parse_syscall_filter,        0,                             offsetof($1, exec_context)
 $1.SystemCallArchitectures,      config_parse_syscall_archs,         0,                             offsetof($1, exec_context.syscall_archs)
@@ -70,22 +71,23 @@ $1.LimitNOFILE,                  config_parse_limit,                 RLIMIT_NOFI
 $1.LimitAS,                      config_parse_bytes_limit,           RLIMIT_AS,                     offsetof($1, exec_context.rlimit)
 $1.LimitNPROC,                   config_parse_limit,                 RLIMIT_NPROC,                  offsetof($1, exec_context.rlimit)
 $1.LimitMEMLOCK,                 config_parse_bytes_limit,           RLIMIT_MEMLOCK,                offsetof($1, exec_context.rlimit)
-$1.LimitLOCKS,                   config_parse_limit,                 RLIMIT_LOCKS,                  offsetof($1, exec_context.rlimit)
+m4_ifdef(`SVC_PLATFORM_Linux',
+`$1.LimitLOCKS,                   config_parse_limit,                 RLIMIT_LOCKS,                  offsetof($1, exec_context.rlimit)
 $1.LimitSIGPENDING,              config_parse_limit,                 RLIMIT_SIGPENDING,             offsetof($1, exec_context.rlimit)
 $1.LimitMSGQUEUE,                config_parse_bytes_limit,           RLIMIT_MSGQUEUE,               offsetof($1, exec_context.rlimit)
 $1.LimitNICE,                    config_parse_nice_limit,            RLIMIT_NICE,                   offsetof($1, exec_context.rlimit)
 $1.LimitRTPRIO,                  config_parse_limit,                 RLIMIT_RTPRIO,                 offsetof($1, exec_context.rlimit)
 $1.LimitRTTIME,                  config_parse_usec_limit,            RLIMIT_RTTIME,                 offsetof($1, exec_context.rlimit)
-$1.ReadWriteDirectories,         config_parse_namespace_path_strv,   0,                             offsetof($1, exec_context.read_write_dirs)
-$1.ReadOnlyDirectories,          config_parse_namespace_path_strv,   0,                             offsetof($1, exec_context.read_only_dirs)
-$1.InaccessibleDirectories,      config_parse_namespace_path_strv,   0,                             offsetof($1, exec_context.inaccessible_dirs)
 $1.PrivateTmp,                   config_parse_bool,                  0,                             offsetof($1, exec_context.private_tmp)
 $1.PrivateNetwork,               config_parse_bool,                  0,                             offsetof($1, exec_context.private_network)
 $1.PrivateDevices,               config_parse_bool,                  0,                             offsetof($1, exec_context.private_devices)
 $1.ProtectSystem,                config_parse_protect_system,        0,                             offsetof($1, exec_context)
 $1.ProtectHome,                  config_parse_protect_home,          0,                             offsetof($1, exec_context)
 $1.MountFlags,                   config_parse_exec_mount_flags,      0,                             offsetof($1, exec_context)
-$1.Personality,                  config_parse_personality,           0,                             offsetof($1, exec_context.personality)
+$1.Personality,                  config_parse_personality,           0,                             offsetof($1, exec_context.personality)')m4_dnl
+$1.ReadWriteDirectories,         config_parse_namespace_path_strv,   0,                             offsetof($1, exec_context.read_write_dirs)
+$1.ReadOnlyDirectories,          config_parse_namespace_path_strv,   0,                             offsetof($1, exec_context.read_only_dirs)
+$1.InaccessibleDirectories,      config_parse_namespace_path_strv,   0,                             offsetof($1, exec_context.inaccessible_dirs)
 $1.RuntimeDirectoryMode,         config_parse_mode,                  0,                             offsetof($1, exec_context.runtime_directory_mode)
 $1.RuntimeDirectory,             config_parse_runtime_directory,     0,                             offsetof($1, exec_context.runtime_directory)
 m4_ifdef(`HAVE_PAM',
@@ -301,7 +303,8 @@ EXEC_CONTEXT_CONFIG_ITEMS(Socket)m4_dnl
 CGROUP_CONTEXT_CONFIG_ITEMS(Socket)m4_dnl
 KILL_CONTEXT_CONFIG_ITEMS(Socket)m4_dnl
 m4_dnl
-Mount.What,                      config_parse_string,                0,                             offsetof(Mount, parameters_fragment.what)
+m4_ifdef(`SVC_USE_Swap',
+`Mount.What,                      config_parse_string,                0,                             offsetof(Mount, parameters_fragment.what)
 Mount.Where,                     config_parse_path,                  0,                             offsetof(Mount, where)
 Mount.Options,                   config_parse_string,                0,                             offsetof(Mount, parameters_fragment.options)
 Mount.Type,                      config_parse_string,                0,                             offsetof(Mount, parameters_fragment.fstype)
@@ -311,19 +314,21 @@ Mount.SloppyOptions,             config_parse_bool,                  0,         
 Mount.LazyUnmount,               config_parse_bool,                  0,                             offsetof(Mount, lazy_unmount)
 EXEC_CONTEXT_CONFIG_ITEMS(Mount)m4_dnl
 CGROUP_CONTEXT_CONFIG_ITEMS(Mount)m4_dnl
-KILL_CONTEXT_CONFIG_ITEMS(Mount)m4_dnl
+KILL_CONTEXT_CONFIG_ITEMS(Mount)m4_dnl')m4_dnl
 m4_dnl
-Automount.Where,                 config_parse_path,                  0,                             offsetof(Automount, where)
+m4_ifdef(`SVC_USE_AUTOMOUNT',
+`Automount.Where,                 config_parse_path,                  0,                             offsetof(Automount, where)
 Automount.DirectoryMode,         config_parse_mode,                  0,                             offsetof(Automount, directory_mode)
-Automount.TimeoutIdleSec,        config_parse_sec,                   0,                             offsetof(Automount, timeout_idle_usec)
+Automount.TimeoutIdleSec,        config_parse_sec,                   0,                             offsetof(Automount, timeout_idle_usec)')m4_dnl
 m4_dnl
-Swap.What,                       config_parse_path,                  0,                             offsetof(Swap, parameters_fragment.what)
+m4_ifdef(`SVC_USE_Swap',
+`Swap.What,                       config_parse_path,                  0,                             offsetof(Swap, parameters_fragment.what)
 Swap.Priority,                   config_parse_int,                   0,                             offsetof(Swap, parameters_fragment.priority)
 Swap.Options,                    config_parse_string,                0,                             offsetof(Swap, parameters_fragment.options)
 Swap.TimeoutSec,                 config_parse_sec,                   0,                             offsetof(Swap, timeout_usec)
 EXEC_CONTEXT_CONFIG_ITEMS(Swap)m4_dnl
 CGROUP_CONTEXT_CONFIG_ITEMS(Swap)m4_dnl
-KILL_CONTEXT_CONFIG_ITEMS(Swap)m4_dnl
+KILL_CONTEXT_CONFIG_ITEMS(Swap)m4_dnl')m4_dnl
 m4_dnl
 Timer.OnCalendar,                config_parse_timer,                 0,                             0
 Timer.OnActiveSec,               config_parse_timer,                 0,                             0

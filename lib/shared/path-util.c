@@ -682,7 +682,7 @@ fallback_fstat:
 
 	return check_st_dev && (a.st_dev != b.st_dev);
 #else
-	log_warning("Unimplemented");
+	unimplemented()
 	return true;
 #endif
 }
@@ -725,7 +725,7 @@ path_is_mount_point(const char *t, bool allow_symlink)
 
 	return fd_is_mount_point(fd, lsb_basename(t), flags);
 #else
-	log_error("Unimplemented");
+	unimplemented();
 	return true;
 #endif
 }

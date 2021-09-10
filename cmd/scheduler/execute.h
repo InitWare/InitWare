@@ -21,27 +21,33 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+typedef struct Unit Unit;
 typedef struct ExecStatus ExecStatus;
 typedef struct ExecCommand ExecCommand;
 typedef struct ExecContext ExecContext;
 typedef struct ExecRuntime ExecRuntime;
 typedef struct ExecParameters ExecParameters;
 
-#include <sys/capability.h>
 #include <sys/resource.h>
 #include <sys/time.h>
-#include <linux/types.h>
 #include <sched.h>
 #include <stdbool.h>
 #include <stdio.h>
 
-#include "bus-endpoint.h"
 #include "fdset.h"
 #include "list.h"
 #include "missing.h"
 #include "namespace.h"
 #include "set.h"
 #include "util.h"
+
+#ifdef SVC_PLATFORM_Linux
+#include <linux/types.h>
+#endif
+
+#ifdef SVC_USE_Cap
+#include <sys/capability.h>
+#endif
 
 typedef enum ExecInput {
 	EXEC_INPUT_NULL,
@@ -98,19 +104,22 @@ struct ExecContext {
 	char **environment_files;
 	char **pass_environment;
 
-	struct rlimit *rlimit[_RLIMIT_MAX];
+	struct rlimit *rlimit[RLIM_NLIMITS];
 	char *working_directory, *root_directory;
 	bool working_directory_missing_ok;
 
 	mode_t umask;
-	int oom_score_adjust;
 	int nice;
+
+#ifdef SVC_PLATFORM_Linux
+	int oom_score_adjust;
 	int ioprio;
 	int cpu_sched_policy;
 	int cpu_sched_priority;
 
 	cpu_set_t *cpuset;
 	unsigned cpuset_ncpus;
+#endif
 
 	ExecInput std_input;
 	ExecOutput std_output;
@@ -150,12 +159,14 @@ struct ExecContext {
 	char **read_write_dirs, **read_only_dirs, **inaccessible_dirs;
 	unsigned long mount_flags;
 
+#ifdef SVC_USE_Cap
 	uint64_t capability_bounding_set;
 
 	uint64_t capability_ambient_set;
 
 	cap_t capabilities;
 	int secure_bits;
+#endif
 
 	int syslog_priority;
 	char *syslog_identifier;
@@ -196,9 +207,6 @@ struct ExecContext {
 	bool ioprio_set: 1;
 	bool cpu_sched_set: 1;
 	bool no_new_privileges_set: 1;
-
-	/* custom dbus enpoint */
-	BusEndpoint *bus_endpoint;
 };
 
 #include "cgroup-util.h"

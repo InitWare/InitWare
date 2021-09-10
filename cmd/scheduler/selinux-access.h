@@ -60,5 +60,6 @@ int mac_selinux_unit_access_check_strv(char **units, sd_bus_message *message,
 #	define mac_selinux_unit_access_check(unit, message, permission,       \
 		error)                                                         \
 		0
-
+#	define mac_selinux_runtime_unit_access_check(message, permission,     \
+		error) 0
 #endif

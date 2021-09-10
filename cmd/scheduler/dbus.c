@@ -44,6 +44,9 @@
 #include "strv.h"
 #include "strxcpyx.h"
 
+#define CAP_SYS_ADMIN 0
+#define CAP_KILL 0
+
 #define CONNECTIONS_MAX 4096
 
 static void destroy_bus(Manager *m, sd_bus **bus);

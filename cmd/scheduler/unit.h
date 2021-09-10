@@ -282,16 +282,24 @@ typedef enum UnitSetPropertiesMode {
 	UNIT_PERSISTENT = 2,
 } UnitSetPropertiesMode;
 
+#ifdef SVC_USE_Automount
 #include "automount.h"
+#endif
+#ifdef SVC_USE_Device
 #include "device.h"
+#endif
+#ifdef SVC_USE_MOUNT
 #include "mount.h"
+#endif
 #include "path.h"
 #include "scope.h"
 #include "service.h"
 #include "slice.h"
 #include "snapshot.h"
 #include "socket.h"
+#ifdef SVC_USE_Swap
 #include "swap.h"
+#endif
 #include "target.h"
 #include "timer.h"
 
@@ -400,7 +408,7 @@ struct UnitVTable {
 	void (*notify_cgroup_empty)(Unit *u);
 
 	/* Called whenever a process of this unit sends us a message */
-	void (*notify_message)(Unit *u, const struct ucred *ucred, char **tags,
+	void (*notify_message)(Unit *u, const struct socket_ucred *ucred, char **tags,
 		FDSet *fds);
 
 	/* Called whenever a name this Unit registered for comes or
@@ -499,10 +507,18 @@ DEFINE_CAST(SERVICE, Service);
 DEFINE_CAST(SOCKET, Socket);
 DEFINE_CAST(TARGET, Target);
 DEFINE_CAST(SNAPSHOT, Snapshot);
+#ifdef SVC_USE_Device
 DEFINE_CAST(DEVICE, Device);
+#endif
+#ifdef SVC_USE_Mount
 DEFINE_CAST(MOUNT, Mount);
+#endif
+#ifdef SVC_USE_Automount
 DEFINE_CAST(AUTOMOUNT, Automount);
+#endif
+#ifdef SVC_USE_Swap
 DEFINE_CAST(SWAP, Swap);
+#endif
 DEFINE_CAST(TIMER, Timer);
 DEFINE_CAST(PATH, Path);
 DEFINE_CAST(SLICE, Slice);

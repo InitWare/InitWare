@@ -22,12 +22,15 @@
 
 #include <sys/reboot.h>
 #include <sys/syscall.h>
-#include <linux/reboot.h>
 
 #include "bus-error.h"
 #include "bus-util.h"
 #include "emergency-action.h"
 #include "special.h"
+
+#ifdef SVC_PLATFORM_Linux
+#include <linux/reboot.h>
+#endif
 
 static void
 log_and_status(Manager *m, const char *message, const char *reason)
@@ -60,6 +63,7 @@ emergency_action(Manager *m, EmergencyAction action, const char *reboot_arg,
 		return -ECANCELED;
 	}
 
+#ifdef SVC_PLATFORM_Linux
 	switch (action) {
 	case EMERGENCY_ACTION_REBOOT: {
 		_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
@@ -133,6 +137,10 @@ emergency_action(Manager *m, EmergencyAction action, const char *reboot_arg,
 	}
 
 	return -ECANCELED;
+#else
+	log_and_status(m, "Carrying out an emergency action", reason);
+	abort();
+#endif
 }
 
 static const char *const emergency_action_table[_EMERGENCY_ACTION_MAX] = {

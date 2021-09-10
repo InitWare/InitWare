@@ -498,9 +498,10 @@ socket_load(Unit *u)
 _const_ static const char *
 listen_lookup(int family, int type)
 {
+#ifdef AF_NETLINK
 	if (family == AF_NETLINK)
 		return "ListenNetlink";
-
+#endif
 	if (type == SOCK_STREAM)
 		return "ListenStream";
 	else if (type == SOCK_DGRAM)
@@ -744,7 +745,7 @@ instance_from_socket(int fd, unsigned nr, char **instance)
 	}
 
 	case AF_UNIX: {
-		struct ucred ucred;
+		struct socket_ucred ucred;
 		int k;
 
 		k = getpeercred(fd, &ucred);
@@ -803,9 +804,11 @@ socket_close_fds(Socket *s)
 				unlink(p->path);
 				break;
 
+#ifdef SVC_USE_MQueue
 			case SOCKET_MQUEUE:
 				mq_unlink(p->path);
 				break;
+#endif
 
 			case SOCKET_SOCKET:
 				socket_address_unlink(&p->address);
@@ -837,6 +840,7 @@ socket_apply_socket_options(Socket *s, int fd)
 				"SO_KEEPALIVE failed: %m");
 	}
 
+#ifdef SOL_TCP
 	if (s->keep_alive_time) {
 		int value = s->keep_alive_time / USEC_PER_SEC;
 		if (setsockopt(fd, SOL_TCP, TCP_KEEPIDLE, &value,
@@ -873,6 +877,7 @@ socket_apply_socket_options(Socket *s, int fd)
 		if (setsockopt(fd, SOL_TCP, TCP_NODELAY, &b, sizeof(b)) < 0)
 			log_unit_warning(UNIT(s)->id, "TCP_NODELAY failed: %m");
 	}
+#endif
 
 	if (s->broadcast) {
 		int one = 1;
@@ -884,30 +889,36 @@ socket_apply_socket_options(Socket *s, int fd)
 
 	if (s->pass_cred) {
 		int one = 1;
-		if (setsockopt(fd, SOL_SOCKET, SO_PASSCRED, &one, sizeof(one)) <
+		if (socket_passcred(fd) <
 			0)
 			log_unit_warning(UNIT(s)->id, "SO_PASSCRED failed: %m");
 	}
 
+#ifdef SO_PASSSEC
 	if (s->pass_sec) {
 		int one = 1;
 		if (setsockopt(fd, SOL_SOCKET, SO_PASSSEC, &one, sizeof(one)) <
 			0)
 			log_unit_warning(UNIT(s)->id, "SO_PASSSEC failed: %m");
 	}
+#endif
 
+#ifdef SO_PRIORITY
 	if (s->priority >= 0)
 		if (setsockopt(fd, SOL_SOCKET, SO_PRIORITY, &s->priority,
 			    sizeof(s->priority)) < 0)
 			log_unit_warning(UNIT(s)->id, "SO_PRIORITY failed: %m");
+#endif
 
 	if (s->receive_buffer > 0) {
 		int value = (int)s->receive_buffer;
 
 		/* We first try with SO_RCVBUFFORCE, in case we have the perms for that */
 
+#ifdef SO_RCVBUFFORCE
 		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &value,
 			    sizeof(value)) < 0)
+#endif
 			if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &value,
 				    sizeof(value)) < 0)
 				log_unit_warning(UNIT(s)->id,
@@ -916,18 +927,22 @@ socket_apply_socket_options(Socket *s, int fd)
 
 	if (s->send_buffer > 0) {
 		int value = (int)s->send_buffer;
+#ifdef SO_SNDBUFFORCE
 		if (setsockopt(fd, SOL_SOCKET, SO_SNDBUFFORCE, &value,
 			    sizeof(value)) < 0)
+#endif
 			if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &value,
 				    sizeof(value)) < 0)
 				log_unit_warning(UNIT(s)->id,
 					"SO_SNDBUF failed: %m");
 	}
 
+#ifdef SO_MARK
 	if (s->mark >= 0)
 		if (setsockopt(fd, SOL_SOCKET, SO_MARK, &s->mark,
 			    sizeof(s->mark)) < 0)
 			log_unit_warning(UNIT(s)->id, "SO_MARK failed: %m");
+#endif
 
 	if (s->ip_tos >= 0)
 		if (setsockopt(fd, IPPROTO_IP, IP_TOS, &s->ip_tos,
@@ -953,11 +968,13 @@ socket_apply_socket_options(Socket *s, int fd)
 				"IP_TTL/IPV6_UNICAST_HOPS failed: %m");
 	}
 
+#ifdef TCP_CONGESTION
 	if (s->tcp_congestion)
 		if (setsockopt(fd, SOL_TCP, TCP_CONGESTION, s->tcp_congestion,
 			    strlen(s->tcp_congestion) + 1) < 0)
 			log_unit_warning(UNIT(s)->id,
 				"TCP_CONGESTION failed: %m");
+#endif
 
 	if (s->reuse_port) {
 		int b = s->reuse_port;
@@ -989,9 +1006,11 @@ socket_apply_fifo_options(Socket *s, int fd)
 	assert(s);
 	assert(fd >= 0);
 
+#ifdef F_SETPIPE_SZ
 	if (s->pipe_size > 0)
 		if (fcntl(fd, F_SETPIPE_SZ, s->pipe_size) < 0)
 			log_unit_warning(UNIT(s)->id, "F_SETPIPE_SZ: %m");
+#endif
 
 	if (s->smack) {
 		r = mac_smack_apply_fd(fd, s->smack);
@@ -1103,6 +1122,7 @@ static int
 mq_address_create(const char *path, mode_t mq_mode, long maxmsg, long msgsize,
 	int *_fd)
 {
+#ifdef SVC_USE_MQueue
 	int fd = -1, r = 0;
 	struct stat st;
 	mode_t old_mask;
@@ -1150,6 +1170,10 @@ mq_address_create(const char *path, mode_t mq_mode, long maxmsg, long msgsize,
 fail:
 	safe_close(fd);
 	return r;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 static int
@@ -2107,10 +2131,12 @@ socket_serialize(Unit *u, FILE *f, FDSet *fds)
 			if (r < 0)
 				return r;
 
+#ifdef AF_NETLINK
 			if (socket_address_family(&p->address) == AF_NETLINK)
 				unit_serialize_item_format(u, f, "netlink",
 					"%i %s", copy, t);
 			else
+#endif
 				unit_serialize_item_format(u, f, "socket",
 					"%i %i %s", copy, p->address.type, t);
 
@@ -2355,9 +2381,11 @@ socket_port_type_to_string(SocketPort *p)
 		case SOCK_SEQPACKET:
 			return "SequentialPacket";
 
+#ifdef AF_NETLINK
 		case SOCK_RAW:
 			if (socket_address_family(&p->address) == AF_NETLINK)
 				return "Netlink";
+#endif
 
 		default:
 			return NULL;

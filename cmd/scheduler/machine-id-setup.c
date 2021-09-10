@@ -205,6 +205,7 @@ write_machine_id(int fd, char id[34])
 int
 machine_id_commit(const char *root)
 {
+#ifdef SVC_PLATFORM_Linux
 	_cleanup_close_ int fd = -1, initial_mntns_fd = -1;
 	const char *etc_machine_id;
 	char id[34]; /* 32 + \n + \0 */
@@ -303,11 +304,16 @@ machine_id_commit(const char *root)
 			etc_machine_id);
 
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
 machine_id_setup(const char *root)
 {
+#ifdef SVC_PLATFORM_Linux
 	const char *etc_machine_id, *run_machine_id;
 	_cleanup_close_ int fd = -1;
 	bool writable = true;
@@ -413,4 +419,8 @@ machine_id_setup(const char *root)
 			etc_machine_id);
 
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }

@@ -122,8 +122,10 @@ property_get_tainted(sd_bus *bus, const char *path, const char *interface,
 	if (access("/proc/cgroups", F_OK) < 0)
 		e = stpcpy(e, "cgroups-missing:");
 
+#ifdef SVC_PLATFORM_Linux
 	if (clock_is_localtime() > 0)
 		e = stpcpy(e, "local-hwclock:");
+#endif
 
 	/* remove the last ':' */
 	if (e != buf)
@@ -2221,6 +2223,8 @@ method_get_unit_file_links(sd_bus *bus, sd_bus_message *message, void *userdata,
 	return sd_bus_send(bus, reply, NULL);
 }
 
+#define CAP_SYS_BOOT 0
+
 const sd_bus_vtable bus_manager_vtable[] = { SD_BUS_VTABLE_START(0),
 
 	SD_BUS_PROPERTY("Version", "s", property_get_version, 0,
@@ -2368,6 +2372,7 @@ const sd_bus_vtable bus_manager_vtable[] = { SD_BUS_VTABLE_START(0),
 	SD_BUS_PROPERTY("DefaultLimitMEMLOCK", "t", bus_property_get_rlimit,
 		offsetof(Manager, rlimit[RLIMIT_MEMLOCK]),
 		SD_BUS_VTABLE_PROPERTY_CONST),
+#ifdef SVC_PLATFORM_Linux
 	SD_BUS_PROPERTY("DefaultLimitLOCKS", "t", bus_property_get_rlimit,
 		offsetof(Manager, rlimit[RLIMIT_LOCKS]),
 		SD_BUS_VTABLE_PROPERTY_CONST),
@@ -2386,6 +2391,7 @@ const sd_bus_vtable bus_manager_vtable[] = { SD_BUS_VTABLE_START(0),
 	SD_BUS_PROPERTY("DefaultLimitRTTIME", "t", bus_property_get_rlimit,
 		offsetof(Manager, rlimit[RLIMIT_RTTIME]),
 		SD_BUS_VTABLE_PROPERTY_CONST),
+#endif
 	SD_BUS_PROPERTY("DefaultTasksMax", "t", NULL,
 		offsetof(Manager, default_tasks_max),
 		SD_BUS_VTABLE_PROPERTY_CONST),

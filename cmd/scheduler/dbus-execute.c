@@ -19,8 +19,6 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/prctl.h>
-
 #ifdef HAVE_SECCOMP
 #	include <seccomp.h>
 #endif
@@ -32,7 +30,6 @@
 #include "env-util.h"
 #include "execute.h"
 #include "fileio.h"
-#include "ioprio.h"
 #include "missing.h"
 #include "namespace.h"
 #include "path-util.h"
@@ -42,16 +39,26 @@
 #	include "seccomp-util.h"
 #endif
 
+#ifdef HAVE_sys_prctl_h
+#include <sys/prctl.h>
+#endif
+
+#ifdef SVC_PLATFORM_Linux
+#include "ioprio.h"
+#endif
+
 BUS_DEFINE_PROPERTY_GET_ENUM(bus_property_get_exec_output, exec_output,
 	ExecOutput);
 
 static BUS_DEFINE_PROPERTY_GET_ENUM(property_get_exec_input, exec_input,
 	ExecInput);
 
+#ifdef SVC_PLATFORM_Linux
 static BUS_DEFINE_PROPERTY_GET_ENUM(bus_property_get_protect_home, protect_home,
 	ProtectHome);
 static BUS_DEFINE_PROPERTY_GET_ENUM(bus_property_get_protect_system,
 	protect_system, ProtectSystem);
+#endif
 
 static int
 property_get_environment_files(sd_bus *bus, const char *path,
@@ -117,6 +124,7 @@ property_get_rlimit(sd_bus *bus, const char *path, const char *interface,
 	return sd_bus_message_append(reply, "t", u);
 }
 
+#ifdef SVC_PLATFORM_Linux
 static int
 property_get_oom_score_adjust(sd_bus *bus, const char *path,
 	const char *interface, const char *property, sd_bus_message *reply,
@@ -255,7 +263,9 @@ property_get_cpu_affinity(sd_bus *bus, const char *path, const char *interface,
 	else
 		return sd_bus_message_append_array(reply, 'y', NULL, 0);
 }
+#endif
 
+#ifdef HAVE_sys_prctl_h
 static int
 property_get_timer_slack_nsec(sd_bus *bus, const char *path,
 	const char *interface, const char *property, sd_bus_message *reply,
@@ -275,7 +285,9 @@ property_get_timer_slack_nsec(sd_bus *bus, const char *path,
 
 	return sd_bus_message_append(reply, "t", u);
 }
+#endif
 
+#ifdef SVC_USE_Cap
 static int
 property_get_capability_bounding_set(sd_bus *bus, const char *path,
 	const char *interface, const char *property, sd_bus_message *reply,
@@ -327,7 +339,9 @@ property_get_capabilities(sd_bus *bus, const char *path, const char *interface,
 
 	return sd_bus_message_append(reply, "s", s);
 }
+#endif
 
+#ifdef SVC_PLATFORM_Linux
 static int
 property_get_syscall_filter(sd_bus *bus, const char *path,
 	const char *interface, const char *property, sd_bus_message *reply,
@@ -492,6 +506,7 @@ property_get_personality(sd_bus *bus, const char *path, const char *interface,
 	return sd_bus_message_append(reply, "s",
 		personality_to_string(c->personality));
 }
+#endif
 
 static int
 property_get_address_families(sd_bus *bus, const char *path,
@@ -517,9 +532,11 @@ property_get_address_families(sd_bus *bus, const char *path,
 		return r;
 
 	SET_FOREACH (af, c->address_families, i) {
-		const char *name;
+		const char *name = NULL;
 
+#if 0 // FIXME
 		name = af_to_name(PTR_TO_INT(af));
+#endif
 		if (!name)
 			continue;
 
@@ -579,6 +596,7 @@ const sd_bus_vtable bus_exec_vtable[] = { SD_BUS_VTABLE_START(0),
 	SD_BUS_PROPERTY("LimitMEMLOCK", "t", property_get_rlimit,
 		offsetof(ExecContext, rlimit[RLIMIT_MEMLOCK]),
 		SD_BUS_VTABLE_PROPERTY_CONST),
+#ifdef SVC_PLATFORM_Linux
 	SD_BUS_PROPERTY("LimitLOCKS", "t", property_get_rlimit,
 		offsetof(ExecContext, rlimit[RLIMIT_LOCKS]),
 		SD_BUS_VTABLE_PROPERTY_CONST),
@@ -597,29 +615,12 @@ const sd_bus_vtable bus_exec_vtable[] = { SD_BUS_VTABLE_START(0),
 	SD_BUS_PROPERTY("LimitRTTIME", "t", property_get_rlimit,
 		offsetof(ExecContext, rlimit[RLIMIT_RTTIME]),
 		SD_BUS_VTABLE_PROPERTY_CONST),
+#endif
 	SD_BUS_PROPERTY("WorkingDirectory", "s", NULL,
 		offsetof(ExecContext, working_directory),
 		SD_BUS_VTABLE_PROPERTY_CONST),
 	SD_BUS_PROPERTY("RootDirectory", "s", NULL,
 		offsetof(ExecContext, root_directory),
-		SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("OOMScoreAdjust", "i", property_get_oom_score_adjust, 0,
-		SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("Nice", "i", property_get_nice, 0,
-		SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("IOScheduling", "i", property_get_ioprio, 0,
-		SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("CPUSchedulingPolicy", "i",
-		property_get_cpu_sched_policy, 0, SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("CPUSchedulingPriority", "i",
-		property_get_cpu_sched_priority, 0,
-		SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("CPUAffinity", "ay", property_get_cpu_affinity, 0,
-		SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("TimerSlackNSec", "t", property_get_timer_slack_nsec, 0,
-		SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("CPUSchedulingResetOnFork", "b", bus_property_get_bool,
-		offsetof(ExecContext, cpu_sched_reset_on_fork),
 		SD_BUS_VTABLE_PROPERTY_CONST),
 	SD_BUS_PROPERTY("NonBlocking", "b", bus_property_get_bool,
 		offsetof(ExecContext, non_blocking),
@@ -650,6 +651,7 @@ const sd_bus_vtable bus_exec_vtable[] = { SD_BUS_VTABLE_START(0),
 	SD_BUS_PROPERTY("SyslogLevelPrefix", "b", bus_property_get_bool,
 		offsetof(ExecContext, syslog_level_prefix),
 		SD_BUS_VTABLE_PROPERTY_CONST),
+#ifdef SVC_USE_Cap
 	SD_BUS_PROPERTY("Capabilities", "s", property_get_capabilities, 0,
 		SD_BUS_VTABLE_PROPERTY_CONST),
 	SD_BUS_PROPERTY("SecureBits", "i", bus_property_get_int,
@@ -661,6 +663,7 @@ const sd_bus_vtable bus_exec_vtable[] = { SD_BUS_VTABLE_START(0),
 	SD_BUS_PROPERTY("AmbientCapabilities", "t",
 		property_get_ambient_capabilities, 0,
 		SD_BUS_VTABLE_PROPERTY_CONST),
+#endif
 	SD_BUS_PROPERTY("User", "s", NULL, offsetof(ExecContext, user),
 		SD_BUS_VTABLE_PROPERTY_CONST),
 	SD_BUS_PROPERTY("Group", "s", NULL, offsetof(ExecContext, group),
@@ -682,6 +685,14 @@ const sd_bus_vtable bus_exec_vtable[] = { SD_BUS_VTABLE_START(0),
 	SD_BUS_PROPERTY("MountFlags", "t", bus_property_get_ulong,
 		offsetof(ExecContext, mount_flags),
 		SD_BUS_VTABLE_PROPERTY_CONST),
+	SD_BUS_PROPERTY("SameProcessGroup", "b", bus_property_get_bool,
+		offsetof(ExecContext, same_pgrp), SD_BUS_VTABLE_PROPERTY_CONST),
+	SD_BUS_PROPERTY("UtmpIdentifier", "s", NULL,
+		offsetof(ExecContext, utmp_id), SD_BUS_VTABLE_PROPERTY_CONST),
+	SD_BUS_PROPERTY("IgnoreSIGPIPE", "b", bus_property_get_bool,
+		offsetof(ExecContext, ignore_sigpipe),
+		SD_BUS_VTABLE_PROPERTY_CONST),
+#ifdef SVC_PLATFORM_Linux
 	SD_BUS_PROPERTY("PrivateTmp", "b", bus_property_get_bool,
 		offsetof(ExecContext, private_tmp),
 		SD_BUS_VTABLE_PROPERTY_CONST),
@@ -697,19 +708,12 @@ const sd_bus_vtable bus_exec_vtable[] = { SD_BUS_VTABLE_START(0),
 	SD_BUS_PROPERTY("ProtectSystem", "s", bus_property_get_protect_system,
 		offsetof(ExecContext, protect_system),
 		SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("SameProcessGroup", "b", bus_property_get_bool,
-		offsetof(ExecContext, same_pgrp), SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("UtmpIdentifier", "s", NULL,
-		offsetof(ExecContext, utmp_id), SD_BUS_VTABLE_PROPERTY_CONST),
 	SD_BUS_PROPERTY("SELinuxContext", "(bs)", property_get_selinux_context,
 		0, SD_BUS_VTABLE_PROPERTY_CONST),
 	SD_BUS_PROPERTY("AppArmorProfile", "(bs)",
 		property_get_apparmor_profile, 0, SD_BUS_VTABLE_PROPERTY_CONST),
 	SD_BUS_PROPERTY("SmackProcessLabel", "(bs)",
 		property_get_smack_process_label, 0,
-		SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("IgnoreSIGPIPE", "b", bus_property_get_bool,
-		offsetof(ExecContext, ignore_sigpipe),
 		SD_BUS_VTABLE_PROPERTY_CONST),
 	SD_BUS_PROPERTY("NoNewPrivileges", "b", bus_property_get_bool,
 		offsetof(ExecContext, no_new_privileges),
@@ -722,6 +726,25 @@ const sd_bus_vtable bus_exec_vtable[] = { SD_BUS_VTABLE_START(0),
 		property_get_syscall_errno, 0, SD_BUS_VTABLE_PROPERTY_CONST),
 	SD_BUS_PROPERTY("Personality", "s", property_get_personality, 0,
 		SD_BUS_VTABLE_PROPERTY_CONST),
+	SD_BUS_PROPERTY("OOMScoreAdjust", "i", property_get_oom_score_adjust, 0,
+		SD_BUS_VTABLE_PROPERTY_CONST),
+	SD_BUS_PROPERTY("Nice", "i", property_get_nice, 0,
+		SD_BUS_VTABLE_PROPERTY_CONST),
+	SD_BUS_PROPERTY("IOScheduling", "i", property_get_ioprio, 0,
+		SD_BUS_VTABLE_PROPERTY_CONST),
+	SD_BUS_PROPERTY("CPUSchedulingPolicy", "i",
+		property_get_cpu_sched_policy, 0, SD_BUS_VTABLE_PROPERTY_CONST),
+	SD_BUS_PROPERTY("CPUSchedulingPriority", "i",
+		property_get_cpu_sched_priority, 0,
+		SD_BUS_VTABLE_PROPERTY_CONST),
+	SD_BUS_PROPERTY("CPUAffinity", "ay", property_get_cpu_affinity, 0,
+		SD_BUS_VTABLE_PROPERTY_CONST),
+	SD_BUS_PROPERTY("TimerSlackNSec", "t", property_get_timer_slack_nsec, 0,
+		SD_BUS_VTABLE_PROPERTY_CONST),
+	SD_BUS_PROPERTY("CPUSchedulingResetOnFork", "b", bus_property_get_bool,
+		offsetof(ExecContext, cpu_sched_reset_on_fork),
+		SD_BUS_VTABLE_PROPERTY_CONST),
+#endif
 	SD_BUS_PROPERTY("RestrictAddressFamilies", "(bas)",
 		property_get_address_families, 0, SD_BUS_VTABLE_PROPERTY_CONST),
 	SD_BUS_PROPERTY("RuntimeDirectoryMode", "u", bus_property_get_mode,

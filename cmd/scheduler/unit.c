@@ -59,14 +59,20 @@ const UnitVTable *const unit_vtable[_UNIT_TYPE_MAX] = {
 	[UNIT_SOCKET] = &socket_vtable,
 	[UNIT_TARGET] = &target_vtable,
 	[UNIT_SNAPSHOT] = &snapshot_vtable,
-	[UNIT_DEVICE] = &device_vtable,
-	[UNIT_MOUNT] = &mount_vtable,
-	[UNIT_AUTOMOUNT] = &automount_vtable,
-	[UNIT_SWAP] = &swap_vtable,
 	[UNIT_TIMER] = &timer_vtable,
 	[UNIT_PATH] = &path_vtable,
 	[UNIT_SLICE] = &slice_vtable,
 	[UNIT_SCOPE] = &scope_vtable,
+#ifdef SVC_USE_Device
+	[UNIT_DEVICE] = &device_vtable,
+#endif
+#ifdef SVC_USE_Automount
+	[UNIT_MOUNT] = &mount_vtable,
+	[UNIT_AUTOMOUNT] = &automount_vtable,
+#endif
+#ifdef SVC_USE_Swap
+	[UNIT_SWAP] = &swap_vtable,
+#endif
 };
 
 static int maybe_warn_about_dependency(const char *id, const char *other,
@@ -2121,6 +2127,7 @@ unit_notify(Unit *u, UnitActiveState os, UnitActiveState ns,
                          * yet connected. */
 			bus_init(m, true);
 
+#ifdef SVC_USE_Audit
 		if (u->type == UNIT_SERVICE &&
 			!UNIT_IS_ACTIVE_OR_RELOADING(os) &&
 			m->n_reloading <= 0) {
@@ -2129,6 +2136,7 @@ unit_notify(Unit *u, UnitActiveState os, UnitActiveState ns,
 				true);
 			u->in_audit = true;
 		}
+#endif
 
 		if (!UNIT_IS_ACTIVE_OR_RELOADING(os))
 			manager_send_unit_plymouth(m, u);
@@ -2143,6 +2151,7 @@ unit_notify(Unit *u, UnitActiveState os, UnitActiveState ns,
 			/* Hmm, if there was no start record written
                          * write it now, so that we always have a nice
                          * pair */
+#ifdef SVC_USE_Audit
 			if (!u->in_audit) {
 				manager_send_unit_audit(m, u,
 					AUDIT_SERVICE_START,
@@ -2156,6 +2165,7 @@ unit_notify(Unit *u, UnitActiveState os, UnitActiveState ns,
 				manager_send_unit_audit(m, u,
 					AUDIT_SERVICE_STOP,
 					ns == UNIT_INACTIVE);
+#endif
 
 			u->in_audit = false;
 		}
@@ -3178,10 +3188,12 @@ unit_add_node_link(Unit *u, const char *what, bool wants, UnitDependency dep)
 	if (!is_device_path(what))
 		return 0;
 
+#ifdef SVC_USE_Device
 	/* When device units aren't supported (such as in a
          * container), don't create dependencies on them. */
 	if (unit_vtable[UNIT_DEVICE]->supported &&
 		!unit_vtable[UNIT_DEVICE]->supported(u->manager))
+#endif
 		return 0;
 
 	e = unit_name_from_path(what, ".device");
@@ -3583,7 +3595,7 @@ unit_patch_contexts(Unit *u)
 	ec = unit_get_exec_context(u);
 	if (ec) {
 		/* This only copies in the ones that need memory */
-		for (i = 0; i < _RLIMIT_MAX; i++)
+		for (i = 0; i < RLIM_NLIMITS; i++)
 			if (u->manager->rlimit[i] && !ec->rlimit[i]) {
 				ec->rlimit[i] = newdup(struct rlimit,
 					u->manager->rlimit[i], 1);
@@ -3610,9 +3622,11 @@ unit_patch_contexts(Unit *u)
 				!set_isempty(ec->address_families)))
 			ec->no_new_privileges = true;
 
+#ifdef SVC_PLATFORM_Linux
 		if (ec->private_devices)
 			ec->capability_bounding_set &=
 				~(UINT64_C(1) << CAP_MKNOD);
+#endif
 	}
 
 	cc = unit_get_cgroup_context(u);

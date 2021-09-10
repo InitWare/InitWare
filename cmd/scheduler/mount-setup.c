@@ -73,6 +73,7 @@ typedef struct MountPoint {
 #	define N_EARLY_MOUNT 4
 #endif
 
+#ifdef SVC_PLATFORM_Linux
 static const MountPoint mount_table[] = {
 	{ "sysfs", "/sys", "sysfs", NULL, MS_NOSUID | MS_NOEXEC | MS_NODEV,
 		NULL, MNT_FATAL | MNT_IN_CONTAINER },
@@ -462,3 +463,24 @@ mount_setup(bool loaded_policy)
 
 	return 0;
 }
+#else
+int
+mount_setup(bool loaded_policy)
+{
+	unimplemented();
+	return -ENOTSUP;
+}
+
+int mount_setup_early(void)
+{
+	unimplemented();
+	return -ENOTSUP;
+}
+
+int
+mount_cgroup_controllers(char ***join_controllers) {
+	unimplemented();
+	return -ENOTSUP;
+}
+#endif
+

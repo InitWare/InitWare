@@ -21,14 +21,9 @@
 
 #include <sys/types.h>
 #include <sys/mount.h>
-#include <sys/personality.h>
-#include <sys/prctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
-#include <linux/fs.h>
-#include <linux/oom.h>
-#include <linux/sched.h>
 #include <assert.h>
 #include <dirent.h>
 #include <errno.h>
@@ -60,7 +55,6 @@
 #include "af-list.h"
 #include "apparmor-util.h"
 #include "async.h"
-#include "bus-endpoint.h"
 #include "cap-list.h"
 #include "capability.h"
 #include "def.h"
@@ -69,7 +63,6 @@
 #include "execute.h"
 #include "exit-status.h"
 #include "fileio.h"
-#include "ioprio.h"
 #include "label.h"
 #include "log.h"
 #include "macro.h"
@@ -88,6 +81,16 @@
 
 #ifdef HAVE_SECCOMP
 #	include "seccomp-util.h"
+#endif
+
+#ifdef SVC_PLATFORM_Linux
+#include <sys/personality.h>
+#include <sys/prctl.h>
+#include <linux/fs.h>
+#include <linux/oom.h>
+#include <linux/sched.h>
+
+#include "ioprio.h"
 #endif
 
 #define IDLE_TIMEOUT_USEC (5 * USEC_PER_SEC)
@@ -726,6 +729,7 @@ enforce_user(const ExecContext *context, uid_t uid)
 {
 	assert(context);
 
+#ifdef SVC_USE_Cap
 	/* Sets (but doesn't lookup) the uid and make sure we keep the
          * capabilities while doing so. */
 
@@ -765,6 +769,7 @@ enforce_user(const ExecContext *context, uid_t uid)
 				return -errno;
 		}
 	}
+#endif
 
 	/* Third step: actually set the uids */
 	if (setresuid(uid, uid, uid) < 0)
@@ -1323,9 +1328,6 @@ exec_needs_mount_namespace(const ExecContext *context,
 		(runtime->tmp_dir || runtime->var_tmp_dir))
 		return true;
 
-	if (params->bus_endpoint_path)
-		return true;
-
 	if (context->private_devices ||
 		context->protect_system != PROTECT_SYSTEM_NO ||
 		context->protect_home != PROTECT_HOME_NO)
@@ -1390,8 +1392,6 @@ exec_child(ExecCommand *command, const ExecContext *context,
 		memcpy(dont_close + n_dont_close, fds, sizeof(int) * n_fds);
 		n_dont_close += n_fds;
 	}
-	if (params->bus_endpoint_fd >= 0)
-		dont_close[n_dont_close++] = params->bus_endpoint_fd;
 	if (runtime) {
 		if (runtime->netns_storage_socket[0] >= 0)
 			dont_close[n_dont_close++] =
@@ -1492,6 +1492,7 @@ exec_child(ExecCommand *command, const ExecContext *context,
 		}
 	}
 
+#ifdef SVC_PLATFORM_Linux
 	if (context->oom_score_adjust_set) {
 		char t[DECIMAL_STR_MAX(context->oom_score_adjust)];
 
@@ -1560,6 +1561,7 @@ exec_child(ExecCommand *command, const ExecContext *context,
 			*exit_status = EXIT_PERSONALITY;
 			return -errno;
 		}
+#endif
 
 	if (context->utmp_id)
 		utmp_put_init_process(context->utmp_id, getpid(), getsid(0),
@@ -1648,6 +1650,7 @@ exec_child(ExecCommand *command, const ExecContext *context,
 	}
 #endif
 
+#ifdef SVC_PLATFORM_Linux
 	if (context->private_network && runtime &&
 		runtime->netns_storage_socket[0] >= 0) {
 		r = setup_netns(runtime->netns_storage_socket);
@@ -1724,6 +1727,7 @@ exec_child(ExecCommand *command, const ExecContext *context,
 			return -errno;
 		}
 	}
+#endif
 
 #ifdef HAVE_SELINUX
 	if (params->apply_permissions && mac_selinux_use() &&
@@ -1753,6 +1757,7 @@ exec_child(ExecCommand *command, const ExecContext *context,
 		return r;
 	}
 
+#ifdef SVC_USE_Cap
 	if (params->apply_permissions) {
 		int secure_bits = context->secure_bits;
 
@@ -1812,7 +1817,7 @@ exec_child(ExecCommand *command, const ExecContext *context,
 			}
 		}
 
-		if (context->user) {
+		if (context->user) { // FIXME should run!
 			r = enforce_user(context, uid);
 			if (r < 0) {
 				*exit_status = EXIT_USER;
@@ -1906,6 +1911,7 @@ exec_child(ExecCommand *command, const ExecContext *context,
 		}
 #endif
 	}
+#endif
 
 	r = build_environment(context, n_fds, params->watchdog_usec, home,
 		username, shell, &our_env);
@@ -2046,15 +2052,17 @@ exec_context_init(ExecContext *c)
 	assert(c);
 
 	c->umask = 0022;
+#ifdef SVC_PLATFORM_Linux
 	c->ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, 0);
 	c->cpu_sched_policy = SCHED_OTHER;
+	c->timer_slack_nsec = NSEC_INFINITY;
+	c->personality = 0xffffffffUL;
+	c->capability_bounding_set = CAP_ALL;
+#endif
 	c->syslog_priority = LOG_DAEMON | LOG_INFO;
 	c->syslog_level_prefix = true;
 	c->ignore_sigpipe = true;
-	c->timer_slack_nsec = NSEC_INFINITY;
-	c->personality = 0xffffffffUL;
 	c->runtime_directory_mode = 0755;
-	c->capability_bounding_set = CAP_ALL;
 }
 
 void
@@ -2100,25 +2108,14 @@ exec_context_done(ExecContext *c)
 	free(c->pam_name);
 	c->pam_name = NULL;
 
+#ifdef SVC_PLATFORM_Linux
 	if (c->capabilities) {
 		cap_free(c->capabilities);
 		c->capabilities = NULL;
 	}
 
-	strv_free(c->read_only_dirs);
-	c->read_only_dirs = NULL;
-
-	strv_free(c->read_write_dirs);
-	c->read_write_dirs = NULL;
-
-	strv_free(c->inaccessible_dirs);
-	c->inaccessible_dirs = NULL;
-
 	if (c->cpuset)
 		CPU_FREE(c->cpuset);
-
-	free(c->utmp_id);
-	c->utmp_id = NULL;
 
 	free(c->selinux_context);
 	c->selinux_context = NULL;
@@ -2131,15 +2128,25 @@ exec_context_done(ExecContext *c)
 
 	set_free(c->syscall_archs);
 	c->syscall_archs = NULL;
+#endif
+
+	strv_free(c->read_only_dirs);
+	c->read_only_dirs = NULL;
+
+	strv_free(c->read_write_dirs);
+	c->read_write_dirs = NULL;
+
+	strv_free(c->inaccessible_dirs);
+	c->inaccessible_dirs = NULL;
+
+	free(c->utmp_id);
+	c->utmp_id = NULL;
 
 	set_free(c->address_families);
 	c->address_families = NULL;
 
 	strv_free(c->runtime_directory);
 	c->runtime_directory = NULL;
-
-	bus_endpoint_free(c->bus_endpoint);
-	c->bus_endpoint = NULL;
 }
 
 int
@@ -2376,20 +2383,25 @@ exec_context_dump(ExecContext *c, FILE *f, const char *prefix)
 		"%sWorkingDirectory: %s\n"
 		"%sRootDirectory: %s\n"
 		"%sNonBlocking: %s\n"
+#ifdef SVC_PLATFORM_Linux
 		"%sPrivateTmp: %s\n"
 		"%sPrivateNetwork: %s\n"
 		"%sPrivateDevices: %s\n"
 		"%sProtectHome: %s\n"
 		"%sProtectSystem: %s\n"
+#endif
 		"%sIgnoreSIGPIPE: %s\n",
 		prefix, c->umask, prefix,
 		c->working_directory ? c->working_directory : "/", prefix,
 		c->root_directory ? c->root_directory : "/", prefix,
-		yes_no(c->non_blocking), prefix, yes_no(c->private_tmp), prefix,
+		yes_no(c->non_blocking),
+#ifdef SVC_PLATFORM_Linux
+		prefix, yes_no(c->private_tmp), prefix,
 		yes_no(c->private_network), prefix, yes_no(c->private_devices),
 		prefix, protect_home_to_string(c->protect_home), prefix,
-		protect_system_to_string(c->protect_system), prefix,
-		yes_no(c->ignore_sigpipe));
+		protect_system_to_string(c->protect_system),
+#endif
+		prefix, yes_no(c->ignore_sigpipe));
 
 	STRV_FOREACH (e, c->environment)
 		fprintf(f, "%sEnvironment: %s\n", prefix, *e);
@@ -2402,54 +2414,11 @@ exec_context_dump(ExecContext *c, FILE *f, const char *prefix)
 
 	if (c->nice_set)
 		fprintf(f, "%sNice: %i\n", prefix, c->nice);
-
-	if (c->oom_score_adjust_set)
-		fprintf(f, "%sOOMScoreAdjust: %i\n", prefix,
-			c->oom_score_adjust);
-
 	for (i = 0; i < RLIM_NLIMITS; i++)
 		if (c->rlimit[i])
 			fprintf(f, "%s%s: " RLIM_FMT " " RLIM_FMT "\n", prefix,
 				rlimit_to_string(i), c->rlimit[i]->rlim_cur,
 				c->rlimit[i]->rlim_max);
-
-	if (c->ioprio_set) {
-		_cleanup_free_ char *class_str = NULL;
-
-		ioprio_class_to_string_alloc(IOPRIO_PRIO_CLASS(c->ioprio),
-			&class_str);
-		fprintf(f,
-			"%sIOSchedulingClass: %s\n"
-			"%sIOPriority: %i\n",
-			prefix, strna(class_str), prefix,
-			(int)IOPRIO_PRIO_DATA(c->ioprio));
-	}
-
-	if (c->cpu_sched_set) {
-		_cleanup_free_ char *policy_str = NULL;
-
-		sched_policy_to_string_alloc(c->cpu_sched_policy, &policy_str);
-		fprintf(f,
-			"%sCPUSchedulingPolicy: %s\n"
-			"%sCPUSchedulingPriority: %i\n"
-			"%sCPUSchedulingResetOnFork: %s\n",
-			prefix, strna(policy_str), prefix,
-			c->cpu_sched_priority, prefix,
-			yes_no(c->cpu_sched_reset_on_fork));
-	}
-
-	if (c->cpuset) {
-		fprintf(f, "%sCPUAffinity:", prefix);
-		for (i = 0; i < c->cpuset_ncpus; i++)
-			if (CPU_ISSET_S(i, CPU_ALLOC_SIZE(c->cpuset_ncpus),
-				    c->cpuset))
-				fprintf(f, " %u", i);
-		fputs("\n", f);
-	}
-
-	if (c->timer_slack_nsec != NSEC_INFINITY)
-		fprintf(f, "%sTimerSlackNSec: " NSEC_FMT "\n", prefix,
-			c->timer_slack_nsec);
 
 	fprintf(f,
 		"%sStandardInput: %s\n"
@@ -2493,6 +2462,49 @@ exec_context_dump(ExecContext *c, FILE *f, const char *prefix)
 			"%sSyslogLevel: %s\n",
 			prefix, strna(fac_str), prefix, strna(lvl_str));
 	}
+
+#ifdef SVC_PLATFORM_Linux
+	if (c->oom_score_adjust_set)
+		fprintf(f, "%sOOMScoreAdjust: %i\n", prefix,
+			c->oom_score_adjust);
+
+	if (c->ioprio_set) {
+		_cleanup_free_ char *class_str = NULL;
+
+		ioprio_class_to_string_alloc(IOPRIO_PRIO_CLASS(c->ioprio),
+			&class_str);
+		fprintf(f,
+			"%sIOSchedulingClass: %s\n"
+			"%sIOPriority: %i\n",
+			prefix, strna(class_str), prefix,
+			(int)IOPRIO_PRIO_DATA(c->ioprio));
+	}
+
+	if (c->cpu_sched_set) {
+		_cleanup_free_ char *policy_str = NULL;
+
+		sched_policy_to_string_alloc(c->cpu_sched_policy, &policy_str);
+		fprintf(f,
+			"%sCPUSchedulingPolicy: %s\n"
+			"%sCPUSchedulingPriority: %i\n"
+			"%sCPUSchedulingResetOnFork: %s\n",
+			prefix, strna(policy_str), prefix,
+			c->cpu_sched_priority, prefix,
+			yes_no(c->cpu_sched_reset_on_fork));
+	}
+
+	if (c->cpuset) {
+		fprintf(f, "%sCPUAffinity:", prefix);
+		for (i = 0; i < c->cpuset_ncpus; i++)
+			if (CPU_ISSET_S(i, CPU_ALLOC_SIZE(c->cpuset_ncpus),
+				    c->cpuset))
+				fprintf(f, " %u", i);
+		fputs("\n", f);
+	}
+
+	if (c->timer_slack_nsec != NSEC_INFINITY)
+		fprintf(f, "%sTimerSlackNSec: " NSEC_FMT "\n", prefix,
+			c->timer_slack_nsec);
 
 	if (c->capabilities) {
 		_cleanup_cap_free_charp_ char *t;
@@ -2542,6 +2554,7 @@ exec_context_dump(ExecContext *c, FILE *f, const char *prefix)
 
 		fputs("\n", f);
 	}
+#endif
 
 	if (c->user)
 		fprintf(f, "%sUser: %s\n", prefix, c->user);
@@ -2578,6 +2591,7 @@ exec_context_dump(ExecContext *c, FILE *f, const char *prefix)
 	if (c->utmp_id)
 		fprintf(f, "%sUtmpIdentifier: %s\n", prefix, c->utmp_id);
 
+#ifdef SVC_PLATFORM_Linux
 	if (c->selinux_context)
 		fprintf(f, "%sSELinuxContext: %s%s\n", prefix,
 			c->selinux_context_ignore ? "-" : "",
@@ -2642,6 +2656,7 @@ exec_context_dump(ExecContext *c, FILE *f, const char *prefix)
 		fprintf(f, "%sAppArmorProfile: %s%s\n", prefix,
 			c->apparmor_profile_ignore ? "-" : "",
 			c->apparmor_profile);
+#endif
 }
 
 bool
@@ -2898,6 +2913,7 @@ exec_runtime_make(ExecRuntime **rt, ExecContext *c, const char *id)
 	if (!c->private_network && !c->private_tmp)
 		return 0;
 
+#ifdef SVC_PLATFORM_Linux
 	r = exec_runtime_allocate(rt);
 	if (r < 0)
 		return r;
@@ -2915,6 +2931,10 @@ exec_runtime_make(ExecRuntime **rt, ExecContext *c, const char *id)
 	}
 
 	return 1;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 ExecRuntime *

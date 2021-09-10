@@ -683,7 +683,7 @@ log_object_internalv(int level, int error, const char *file, int line,
 	const char *format, va_list ap)
 {
 	PROTECT_ERRNO;
-	char buffer[LINE_MAX], fmtcpy;
+	char buffer[LINE_MAX], fmtcpy[LINE_MAX];
 
 	if (error < 0)
 		error = -error;

@@ -62,7 +62,7 @@ enum {
 	_ARCHITECTURE_INVALID = -1
 };
 
-int uname_architecture(void);
+// FIXME int uname_architecture(void);
 
 /*
  * LIB_ARCH_TUPLE should resolve to the local library path
@@ -188,5 +188,9 @@ int uname_architecture(void);
 #	error "Please register your architecture here!"
 #endif
 
-const char *architecture_to_string(int a) _const_;
-int architecture_from_string(const char *s) _pure_;
+/*const char *architecture_to_string(int a) _const_;
+int architecture_from_string(const char *s) _pure_; */
+// FIXME
+#define uname_architecture(...) 0
+#define architecture_to_string(a) "Architecture"
+#define architecture_from_string(s) 0

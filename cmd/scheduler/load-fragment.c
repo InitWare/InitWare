@@ -22,12 +22,9 @@
 
 #include <sys/types.h>
 #include <sys/mount.h>
-#include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <linux/fs.h>
-#include <linux/oom.h>
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -62,6 +59,10 @@
 #include "unit-printf.h"
 #include "unit.h"
 #include "utf8.h"
+
+#ifdef SVC_PLATFORM_Linux
+#include <sys/prctl.h>
+#endif
 
 #ifdef HAVE_SECCOMP
 #	include "seccomp-util.h"
@@ -326,6 +327,7 @@ config_parse_socket_listen(const char *unit, const char *filename,
 		path_kill_slashes(p->path);
 
 	} else if (streq(lvalue, "ListenNetlink")) {
+#ifdef SVC_PLATFORM_Linux
 		_cleanup_free_ char *k = NULL;
 
 		p->type = SOCKET_SOCKET;
@@ -340,6 +342,10 @@ config_parse_socket_listen(const char *unit, const char *filename,
 			log_syntax(unit, LOG_ERR, filename, line, -r,
 				"Failed to parse address value, ignoring: %s",
 				rvalue);
+#else
+		{
+			log_syntax(unit, LOG_ERR, filename, line, -r, "Netlink sockets unsupported on this platform, ignoring: %s", rvalue);
+#endif
 			return 0;
 		}
 
@@ -461,6 +467,7 @@ config_parse_exec_nice(const char *unit, const char *filename, unsigned line,
 	return 0;
 }
 
+#ifdef SVC_PLATFORM_Linux
 int
 config_parse_exec_oom_score_adjust(const char *unit, const char *filename,
 	unsigned line, const char *section, unsigned section_line,
@@ -495,218 +502,6 @@ config_parse_exec_oom_score_adjust(const char *unit, const char *filename,
 
 	return 0;
 }
-
-int
-config_parse_exec(const char *unit, const char *filename, unsigned line,
-	const char *section, unsigned section_line, const char *lvalue,
-	int ltype, const char *rvalue, void *data, void *userdata)
-{
-	ExecCommand **e = data, *nce;
-	char *path, **n;
-	unsigned k;
-	int r;
-
-	assert(filename);
-	assert(lvalue);
-	assert(rvalue);
-	assert(e);
-
-	e += ltype;
-
-	if (isempty(rvalue)) {
-		/* An empty assignment resets the list */
-		*e = exec_command_free_list(*e);
-		return 0;
-	}
-
-	/* We accept an absolute path as first argument, or
-         * alternatively an absolute prefixed with @ to allow
-         * overriding of argv[0]. */
-	for (;;) {
-		int i;
-		const char *word, *state, *reason;
-		size_t l;
-		bool separate_argv0 = false, ignore = false;
-
-		path = NULL;
-		nce = NULL;
-		n = NULL;
-
-		rvalue += strspn(rvalue, WHITESPACE);
-
-		if (rvalue[0] == 0)
-			break;
-
-		k = 0;
-		FOREACH_WORD_QUOTED(word, l, rvalue, state)
-		{
-			if (k == 0) {
-				for (i = 0; i < 2; i++) {
-					if (*word == '-' && !ignore) {
-						ignore = true;
-						word++;
-					}
-
-					if (*word == '@' && !separate_argv0) {
-						separate_argv0 = true;
-						word++;
-					}
-				}
-			} else if (strneq(word, ";", MAX(l, 1U)))
-				goto found;
-
-			k++;
-		}
-		if (!isempty(state)) {
-			log_syntax(unit, LOG_ERR, filename, line, EINVAL,
-				"Trailing garbage, ignoring.");
-			return 0;
-		}
-
-	found:
-		/* If separate_argv0, we'll move first element to path variable */
-		n = new (char *, MAX(k + !separate_argv0, 1u));
-		if (!n)
-			return log_oom();
-
-		k = 0;
-		FOREACH_WORD_QUOTED(word, l, rvalue, state)
-		{
-			char *c;
-			unsigned skip;
-
-			if (separate_argv0 ? path == NULL : k == 0) {
-				/* first word, very special */
-				skip = separate_argv0 + ignore;
-
-				/* skip special chars in the beginning */
-				if (l <= skip) {
-					log_syntax(unit, LOG_ERR, filename,
-						line, EINVAL,
-						"Empty path in command line, ignoring: %s",
-						rvalue);
-					r = 0;
-					goto fail;
-				}
-
-			} else if (strneq(word, ";", MAX(l, 1U)))
-				/* new commandline */
-				break;
-
-			else
-				skip = strneq(word, "\\;", MAX(l, 1U));
-
-			c = cunescape_length(word + skip, l - skip);
-			if (!c) {
-				r = log_oom();
-				goto fail;
-			}
-
-			if (!utf8_is_valid(c)) {
-				log_invalid_utf8(unit, LOG_ERR, filename, line,
-					EINVAL, rvalue);
-				r = 0;
-				goto fail;
-			}
-
-			/* where to stuff this? */
-			if (separate_argv0 && path == NULL)
-				path = c;
-			else
-				n[k++] = c;
-		}
-
-		n[k] = NULL;
-
-		if (!n[0])
-			reason = "Empty executable name or zeroeth argument";
-		else if (!string_is_safe(path ?: n[0]))
-			reason = "Executable path contains special characters";
-		else if (!path_is_absolute(path ?: n[0]))
-			reason = "Executable path is not absolute";
-		else if (endswith(path ?: n[0], "/"))
-			reason = "Executable path specifies a directory";
-		else
-			goto ok;
-
-		log_syntax(unit, LOG_ERR, filename, line, EINVAL,
-			"%s, ignoring: %s", reason, rvalue);
-		r = 0;
-		goto fail;
-
-	ok:
-		if (!path) {
-			path = strdup(n[0]);
-			if (!path) {
-				r = log_oom();
-				goto fail;
-			}
-		}
-
-		nce = new0(ExecCommand, 1);
-		if (!nce) {
-			r = log_oom();
-			goto fail;
-		}
-
-		nce->argv = n;
-		nce->path = path;
-		nce->ignore = ignore;
-
-		path_kill_slashes(nce->path);
-
-		exec_command_append_list(e, nce);
-
-		rvalue = state;
-	}
-
-	return 0;
-
-fail:
-	n[k] = NULL;
-	strv_free(n);
-	free(path);
-	free(nce);
-
-	return r;
-}
-
-DEFINE_CONFIG_PARSE_ENUM(config_parse_service_type, service_type, ServiceType,
-	"Failed to parse service type");
-DEFINE_CONFIG_PARSE_ENUM(config_parse_service_restart, service_restart,
-	ServiceRestart, "Failed to parse service restart specifier");
-
-int
-config_parse_socket_bindtodevice(const char *unit, const char *filename,
-	unsigned line, const char *section, unsigned section_line,
-	const char *lvalue, int ltype, const char *rvalue, void *data,
-	void *userdata)
-{
-	Socket *s = data;
-	char *n;
-
-	assert(filename);
-	assert(lvalue);
-	assert(rvalue);
-	assert(data);
-
-	if (rvalue[0] && !streq(rvalue, "*")) {
-		n = strdup(rvalue);
-		if (!n)
-			return log_oom();
-	} else
-		n = NULL;
-
-	free(s->bind_to_device);
-	s->bind_to_device = n;
-
-	return 0;
-}
-
-DEFINE_CONFIG_PARSE_ENUM(config_parse_output, exec_output, ExecOutput,
-	"Failed to parse output specifier");
-DEFINE_CONFIG_PARSE_ENUM(config_parse_input, exec_input, ExecInput,
-	"Failed to parse input specifier");
 
 int
 config_parse_exec_io_class(const char *unit, const char *filename,
@@ -1008,6 +803,219 @@ config_parse_capability_set(const char *unit, const char *filename,
 
 	return 0;
 }
+#endif
+
+int
+config_parse_exec(const char *unit, const char *filename, unsigned line,
+	const char *section, unsigned section_line, const char *lvalue,
+	int ltype, const char *rvalue, void *data, void *userdata)
+{
+	ExecCommand **e = data, *nce;
+	char *path, **n;
+	unsigned k;
+	int r;
+
+	assert(filename);
+	assert(lvalue);
+	assert(rvalue);
+	assert(e);
+
+	e += ltype;
+
+	if (isempty(rvalue)) {
+		/* An empty assignment resets the list */
+		*e = exec_command_free_list(*e);
+		return 0;
+	}
+
+	/* We accept an absolute path as first argument, or
+         * alternatively an absolute prefixed with @ to allow
+         * overriding of argv[0]. */
+	for (;;) {
+		int i;
+		const char *word, *state, *reason;
+		size_t l;
+		bool separate_argv0 = false, ignore = false;
+
+		path = NULL;
+		nce = NULL;
+		n = NULL;
+
+		rvalue += strspn(rvalue, WHITESPACE);
+
+		if (rvalue[0] == 0)
+			break;
+
+		k = 0;
+		FOREACH_WORD_QUOTED(word, l, rvalue, state)
+		{
+			if (k == 0) {
+				for (i = 0; i < 2; i++) {
+					if (*word == '-' && !ignore) {
+						ignore = true;
+						word++;
+					}
+
+					if (*word == '@' && !separate_argv0) {
+						separate_argv0 = true;
+						word++;
+					}
+				}
+			} else if (strneq(word, ";", MAX(l, 1U)))
+				goto found;
+
+			k++;
+		}
+		if (!isempty(state)) {
+			log_syntax(unit, LOG_ERR, filename, line, EINVAL,
+				"Trailing garbage, ignoring.");
+			return 0;
+		}
+
+	found:
+		/* If separate_argv0, we'll move first element to path variable */
+		n = new (char *, MAX(k + !separate_argv0, 1u));
+		if (!n)
+			return log_oom();
+
+		k = 0;
+		FOREACH_WORD_QUOTED(word, l, rvalue, state)
+		{
+			char *c;
+			unsigned skip;
+
+			if (separate_argv0 ? path == NULL : k == 0) {
+				/* first word, very special */
+				skip = separate_argv0 + ignore;
+
+				/* skip special chars in the beginning */
+				if (l <= skip) {
+					log_syntax(unit, LOG_ERR, filename,
+						line, EINVAL,
+						"Empty path in command line, ignoring: %s",
+						rvalue);
+					r = 0;
+					goto fail;
+				}
+
+			} else if (strneq(word, ";", MAX(l, 1U)))
+				/* new commandline */
+				break;
+
+			else
+				skip = strneq(word, "\\;", MAX(l, 1U));
+
+			c = cunescape_length(word + skip, l - skip);
+			if (!c) {
+				r = log_oom();
+				goto fail;
+			}
+
+			if (!utf8_is_valid(c)) {
+				log_invalid_utf8(unit, LOG_ERR, filename, line,
+					EINVAL, rvalue);
+				r = 0;
+				goto fail;
+			}
+
+			/* where to stuff this? */
+			if (separate_argv0 && path == NULL)
+				path = c;
+			else
+				n[k++] = c;
+		}
+
+		n[k] = NULL;
+
+		if (!n[0])
+			reason = "Empty executable name or zeroeth argument";
+		else if (!string_is_safe(path ?: n[0]))
+			reason = "Executable path contains special characters";
+		else if (!path_is_absolute(path ?: n[0]))
+			reason = "Executable path is not absolute";
+		else if (endswith(path ?: n[0], "/"))
+			reason = "Executable path specifies a directory";
+		else
+			goto ok;
+
+		log_syntax(unit, LOG_ERR, filename, line, EINVAL,
+			"%s, ignoring: %s", reason, rvalue);
+		r = 0;
+		goto fail;
+
+	ok:
+		if (!path) {
+			path = strdup(n[0]);
+			if (!path) {
+				r = log_oom();
+				goto fail;
+			}
+		}
+
+		nce = new0(ExecCommand, 1);
+		if (!nce) {
+			r = log_oom();
+			goto fail;
+		}
+
+		nce->argv = n;
+		nce->path = path;
+		nce->ignore = ignore;
+
+		path_kill_slashes(nce->path);
+
+		exec_command_append_list(e, nce);
+
+		rvalue = state;
+	}
+
+	return 0;
+
+fail:
+	n[k] = NULL;
+	strv_free(n);
+	free(path);
+	free(nce);
+
+	return r;
+}
+
+DEFINE_CONFIG_PARSE_ENUM(config_parse_service_type, service_type, ServiceType,
+	"Failed to parse service type");
+DEFINE_CONFIG_PARSE_ENUM(config_parse_service_restart, service_restart,
+	ServiceRestart, "Failed to parse service restart specifier");
+
+int
+config_parse_socket_bindtodevice(const char *unit, const char *filename,
+	unsigned line, const char *section, unsigned section_line,
+	const char *lvalue, int ltype, const char *rvalue, void *data,
+	void *userdata)
+{
+	Socket *s = data;
+	char *n;
+
+	assert(filename);
+	assert(lvalue);
+	assert(rvalue);
+	assert(data);
+
+	if (rvalue[0] && !streq(rvalue, "*")) {
+		n = strdup(rvalue);
+		if (!n)
+			return log_oom();
+	} else
+		n = NULL;
+
+	free(s->bind_to_device);
+	s->bind_to_device = n;
+
+	return 0;
+}
+
+DEFINE_CONFIG_PARSE_ENUM(config_parse_output, exec_output, ExecOutput,
+	"Failed to parse output specifier");
+DEFINE_CONFIG_PARSE_ENUM(config_parse_input, exec_input, ExecInput,
+	"Failed to parse input specifier");
 
 static int
 rlim_parse_u64(const char *val, rlim_t *res)
@@ -1324,6 +1332,7 @@ config_parse_kill_signal(const char *unit, const char *filename, unsigned line,
 	return 0;
 }
 
+#ifdef SVC_PLATFORM_Linux
 int
 config_parse_exec_mount_flags(const char *unit, const char *filename,
 	unsigned line, const char *section, unsigned section_line,
@@ -1368,6 +1377,7 @@ config_parse_exec_mount_flags(const char *unit, const char *filename,
 	c->mount_flags = flags;
 	return 0;
 }
+#endif
 
 int
 config_parse_exec_selinux_context(const char *unit, const char *filename,
@@ -3190,6 +3200,7 @@ config_parse_no_new_privileges(const char *unit, const char *filename,
 	return 0;
 }
 
+#ifdef SVC_PLATFORM_Linux
 int
 config_parse_protect_home(const char *unit, const char *filename, unsigned line,
 	const char *section, unsigned section_line, const char *lvalue,
@@ -3266,6 +3277,7 @@ config_parse_protect_system(const char *unit, const char *filename,
 
 	return 0;
 }
+#endif
 
 #define FOLLOW_MAX 8
 
@@ -3621,21 +3633,23 @@ unit_dump_config_items(FILE *f)
 		{ config_parse_unit_path_printf, "PATH" },
 		{ config_parse_strv, "STRING [...]" },
 		{ config_parse_exec_nice, "NICE" },
+#ifdef SVC_PLATFORM_Linux
 		{ config_parse_exec_oom_score_adjust, "OOMSCOREADJUST" },
 		{ config_parse_exec_io_class, "IOCLASS" },
 		{ config_parse_exec_io_priority, "IOPRIORITY" },
 		{ config_parse_exec_cpu_sched_policy, "CPUSCHEDPOLICY" },
 		{ config_parse_exec_cpu_sched_prio, "CPUSCHEDPRIO" },
 		{ config_parse_exec_cpu_affinity, "CPUAFFINITY" },
+		{ config_parse_exec_capabilities, "CAPABILITIES" },
+		{ config_parse_exec_secure_bits, "SECUREBITS" },
+		{ config_parse_capability_set, "BOUNDINGSET" },
+#endif
 		{ config_parse_mode, "MODE" },
 		{ config_parse_unit_env_file, "FILE" },
 		{ config_parse_output, "OUTPUT" },
 		{ config_parse_input, "INPUT" },
 		{ config_parse_log_facility, "FACILITY" },
 		{ config_parse_log_level, "LEVEL" },
-		{ config_parse_exec_capabilities, "CAPABILITIES" },
-		{ config_parse_exec_secure_bits, "SECUREBITS" },
-		{ config_parse_capability_set, "BOUNDINGSET" },
 		{ config_parse_limit, "LIMIT" },
 		{ config_parse_unit_deps, "UNIT [...]" },
 		{ config_parse_exec, "PATH [ARGUMENT [...]]" },
@@ -3653,7 +3667,9 @@ unit_dump_config_items(FILE *f)
 		{ config_parse_nsec, "NANOSECONDS" },
 		{ config_parse_namespace_path_strv, "PATH [...]" },
 		{ config_parse_unit_requires_mounts_for, "PATH [...]" },
+#ifdef SVC_PLATFORM_Linux
 		{ config_parse_exec_mount_flags, "MOUNTFLAG [...]" },
+#endif
 		{ config_parse_unit_string_printf, "STRING" },
 		{ config_parse_trigger_unit, "UNIT" },
 		{ config_parse_timer, "TIMER" },

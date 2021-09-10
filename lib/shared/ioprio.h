@@ -1,5 +1,9 @@
-#ifndef IOPRIO_H
-#define IOPRIO_H
+#ifndef IOPRIO_H_
+#define IOPRIO_H_
+
+#include "svc-config.h"
+
+#ifdef SVC_PLATFORM_Linux
 
 /* This is minimal version of Linux' linux/ioprio.h header file, which
  * is licensed GPL2 */
@@ -56,4 +60,6 @@ ioprio_get(int which, int who)
 	return syscall(__NR_ioprio_get, which, who);
 }
 
-#endif
+#endif /* SVC_PLATFORM_Linux */
+
+#endif /* IOPRIO_H_ */

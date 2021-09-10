@@ -27,7 +27,6 @@
 #include <sys/stat.h>
 #include <sys/timerfd.h>
 #include <sys/wait.h>
-#include <linux/kd.h>
 #include <assert.h>
 #include <dirent.h>
 #include <errno.h>
@@ -79,6 +78,10 @@
 #include "util.h"
 #include "virt.h"
 #include "watchdog.h"
+
+#ifdef SVC_PLATFORM_Linux
+#include <linux/kd.h>
+#endif
 
 /* Initial delay and the interval for printing status messages about running jobs */
 #define JOBS_IN_PROGRESS_WAIT_USEC (5 * USEC_PER_SEC)
@@ -405,12 +408,14 @@ enable_special_signals(Manager *m)
 
 	assert(m);
 
+#ifdef RB_DISABLE_CAD
 	/* Enable that we get SIGINT on control-alt-del. In containers
          * this will fail with EPERM (older) or EINVAL (newer), so
          * ignore that. */
 	if (bsd_reboot(RB_DISABLE_CAD) < 0 && errno != EPERM && errno != EINVAL)
 		log_warning_errno(errno,
 			"Failed to enable ctrl-alt-del handling: %m");
+#endif
 
 	fd = open_terminal("/dev/tty0", O_RDWR | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {
@@ -419,10 +424,12 @@ enable_special_signals(Manager *m)
 			log_warning_errno(errno,
 				"Failed to open /dev/tty0: %m");
 	} else {
+#ifdef SVC_PLATFORM_Linux
 		/* Enable that we get SIGWINCH on kbrequest */
 		if (ioctl(fd, KDSIGACCEPT, SIGWINCH) < 0)
 			log_warning_errno(errno,
 				"Failed to enable kbrequest handling: %m");
+#endif
 	}
 
 	return 0;
@@ -662,18 +669,22 @@ manager_new(SystemdRunningAs running_as, bool test_run, Manager **_m)
 		goto fail;
 
 	r = manager_setup_cgroup(m);
+#if 0
 	if (r < 0)
 		goto fail;
+#endif
 
 	r = manager_setup_time_change(m);
 	if (r < 0)
 		goto fail;
 
+#ifdef SVC_USE_UDev
 	m->udev = udev_new();
 	if (!m->udev) {
 		r = -ENOMEM;
 		goto fail;
 	}
+#endif
 
 	/* Note that we set up neither kdbus, nor the notify fd
          * here. We do that after deserialization, since they might
@@ -745,7 +756,7 @@ manager_setup_notify(Manager *m)
 			return log_error_errno(errno, "bind(%s) failed: %m",
 				sa.un.sun_path);
 
-		r = setsockopt(fd, SOL_SOCKET, SO_PASSCRED, &one, sizeof(one));
+		r = socket_passcred(fd);
 		if (r < 0)
 			return log_error_errno(errno, "SO_PASSCRED failed: %m");
 
@@ -1184,7 +1195,9 @@ manager_free(Manager *m)
 
 	manager_close_idle_pipe(m);
 
+#ifdef SVC_USE_UDev
 	udev_unref(m->udev);
+#endif
 	sd_event_unref(m->event);
 
 	free(m->notify_socket);
@@ -1198,7 +1211,7 @@ manager_free(Manager *m)
 	free(m->switch_root);
 	free(m->switch_root_init);
 
-	for (i = 0; i < _RLIMIT_MAX; i++)
+	for (i = 0; i < RLIM_NLIMITS; i++)
 		free(m->rlimit[i]);
 
 	assert(hashmap_isempty(m->units_requiring_mounts_for));
@@ -1863,7 +1876,7 @@ manager_dispatch_cgroups_agent_fd(sd_event_source *source, int fd,
 }
 
 static void
-manager_invoke_notify_message(Manager *m, Unit *u, const struct ucred *ucred,
+manager_invoke_notify_message(Manager *m, Unit *u, const struct socket_ucred *ucred,
 	const char *buf, FDSet *fds)
 {
 	_cleanup_strv_free_ char **tags = NULL;
@@ -1923,7 +1936,8 @@ manager_dispatch_notify_fd(sd_event_source *source, int fd, uint32_t revents,
 	};
 
 	struct cmsghdr *cmsg;
-	struct ucred *ucred = NULL;
+	struct socket_ucred ucred ={0};
+	bool ucred_gotten = false;
 	bool found = false;
 	Unit *u1, *u2, *u3;
 	int r, *fd_array = NULL;
@@ -1956,11 +1970,7 @@ manager_dispatch_notify_fd(sd_event_source *source, int fd, uint32_t revents,
 			fd_array = (int *)CMSG_DATA(cmsg);
 			n_fds = (cmsg->cmsg_len - CMSG_LEN(0)) / sizeof(int);
 
-		} else if (cmsg->cmsg_level == SOL_SOCKET &&
-			cmsg->cmsg_type == SCM_CREDENTIALS &&
-			cmsg->cmsg_len == CMSG_LEN(sizeof(struct ucred))) {
-			ucred = (struct ucred *)CMSG_DATA(cmsg);
-		}
+		} else if (cmsg_readucred(cmsg, &ucred) > 0) ucred_gotten = true;
 	}
 
 	if (n_fds > 0) {
@@ -1974,7 +1984,7 @@ manager_dispatch_notify_fd(sd_event_source *source, int fd, uint32_t revents,
 		}
 	}
 
-	if (!ucred || ucred->pid <= 0) {
+	if (!ucred_gotten || ucred.pid <= 0) {
 		log_warning(
 			"Received notify message without valid credentials. Ignoring.");
 		return 0;
@@ -1992,21 +2002,21 @@ manager_dispatch_notify_fd(sd_event_source *source, int fd, uint32_t revents,
 
 	/* Notify every unit that might be interested, but try
          * to avoid notifying the same one multiple times. */
-	u1 = manager_get_unit_by_pid(m, ucred->pid);
+	u1 = manager_get_unit_by_pid(m, ucred.pid);
 	if (u1) {
-		manager_invoke_notify_message(m, u1, ucred, buf, fds);
+		manager_invoke_notify_message(m, u1, &ucred, buf, fds);
 		found = true;
 	}
 
-	u2 = hashmap_get(m->watch_pids1, LONG_TO_PTR(ucred->pid));
+	u2 = hashmap_get(m->watch_pids1, LONG_TO_PTR(ucred.pid));
 	if (u2 && u2 != u1) {
-		manager_invoke_notify_message(m, u2, ucred, buf, fds);
+		manager_invoke_notify_message(m, u2, &ucred, buf, fds);
 		found = true;
 	}
 
-	u3 = hashmap_get(m->watch_pids2, LONG_TO_PTR(ucred->pid));
+	u3 = hashmap_get(m->watch_pids2, LONG_TO_PTR(ucred.pid));
 	if (u3 && u3 != u2 && u3 != u1) {
-		manager_invoke_notify_message(m, u3, ucred, buf, fds);
+		manager_invoke_notify_message(m, u3, &ucred, buf, fds);
 		found = true;
 	}
 
@@ -2014,7 +2024,7 @@ manager_dispatch_notify_fd(sd_event_source *source, int fd, uint32_t revents,
 		log_warning(
 			"Cannot find unit for notify message of PID " PID_FMT
 			".",
-			ucred->pid);
+			ucred.pid);
 
 	if (fdset_size(fds) > 0)
 		log_warning(
@@ -2651,8 +2661,12 @@ manager_send_unit_plymouth(Manager *m, Unit *u)
 	if (detect_container(NULL) > 0)
 		return;
 
-	if (u->type != UNIT_SERVICE && u->type != UNIT_MOUNT &&
-		u->type != UNIT_SWAP)
+	if (u->type != UNIT_SERVICE
+#ifdef SVC_USE_Mount
+	 && u->type != UNIT_MOUNT &&
+		u->type != UNIT_SWAP
+#endif
+		)
 		return;
 
 	/* We set SOCK_NONBLOCK here so that we rather drop the
@@ -3566,7 +3580,7 @@ manager_set_default_rlimits(Manager *m, struct rlimit **default_rlimit)
 
 	assert(m);
 
-	for (i = 0; i < _RLIMIT_MAX; i++) {
+	for (i = 0; i < RLIM_NLIMITS; i++) {
 		if (!default_rlimit[i])
 			continue;
 

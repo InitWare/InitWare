@@ -23,6 +23,7 @@
 
 typedef struct Automount Automount;
 
+#include "mount.h"
 #include "unit.h"
 
 typedef enum AutomountState {

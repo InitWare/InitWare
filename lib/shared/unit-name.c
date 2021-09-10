@@ -35,17 +35,21 @@
 static const char *const unit_type_table[_UNIT_TYPE_MAX] = { [UNIT_SERVICE] =
 								     "service",
 	[UNIT_SOCKET] = "socket",
-	[UNIT_BUSNAME] = "busname",
 	[UNIT_TARGET] = "target",
 	[UNIT_SNAPSHOT] = "snapshot",
-	[UNIT_DEVICE] = "device",
-	[UNIT_MOUNT] = "mount",
-	[UNIT_AUTOMOUNT] = "automount",
-	[UNIT_SWAP] = "swap",
 	[UNIT_TIMER] = "timer",
 	[UNIT_PATH] = "path",
 	[UNIT_SLICE] = "slice",
-	[UNIT_SCOPE] = "scope" };
+	[UNIT_SCOPE] = "scope"
+#ifdef SVC_USE_Device
+	[UNIT_DEVICE] = "device",
+#endif
+#ifdef SVC_USE_Mount
+	[UNIT_MOUNT] = "mount",
+	[UNIT_AUTOMOUNT] = "automount",
+	[UNIT_SWAP] = "swap",
+#endif
+	};
 
 DEFINE_STRING_TABLE_LOOKUP(unit_type, UnitType);
 

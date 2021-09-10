@@ -20,7 +20,6 @@
 ***/
 
 #include <sys/ioctl.h>
-#include <linux/watchdog.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -28,12 +27,17 @@
 #include "log.h"
 #include "watchdog.h"
 
+#ifdef SVC_PLATFORM_Linux
+#include <linux/watchdog.h>
+#endif
+
 static int watchdog_fd = -1;
 static usec_t watchdog_timeout = USEC_INFINITY;
 
 static int
 update_timeout(void)
 {
+#ifdef SVC_PLATFORM_Linux
 	int r;
 
 	if (watchdog_fd < 0)
@@ -77,11 +81,16 @@ update_timeout(void)
 	}
 
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 static int
 open_watchdog(void)
 {
+#ifdef SVC_PLATFORM_Linux
 	struct watchdog_info ident;
 
 	if (watchdog_fd >= 0)
@@ -96,11 +105,16 @@ open_watchdog(void)
 			ident.firmware_version);
 
 	return update_timeout();
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
 watchdog_set_timeout(usec_t *usec)
 {
+#ifdef SVC_PLATFORM_Linux
 	int r;
 
 	watchdog_timeout = *usec;
@@ -118,11 +132,16 @@ watchdog_set_timeout(usec_t *usec)
 	*usec = watchdog_timeout;
 
 	return r;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
 watchdog_ping(void)
 {
+#ifdef SVC_PLATFORM_Linux
 	int r;
 
 	if (watchdog_fd < 0) {
@@ -137,11 +156,16 @@ watchdog_ping(void)
 			"Failed to ping hardware watchdog: %m");
 
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 void
 watchdog_close(bool disarm)
 {
+#ifdef SVC_PLATFORM_Linux
 	int r;
 
 	if (watchdog_fd < 0)
@@ -173,4 +197,7 @@ watchdog_close(bool disarm)
 	}
 
 	watchdog_fd = safe_close(watchdog_fd);
+#else
+	unimplemented();
+#endif
 }

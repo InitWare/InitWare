@@ -20,7 +20,6 @@
 ***/
 
 #include <sys/socket.h>
-#include <asm/types.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <stdlib.h>
@@ -30,11 +29,16 @@
 #include "loopback-setup.h"
 #include "macro.h"
 #include "missing.h"
-#include "rtnl-util.h"
-#include "sd-rtnl.h"
 #include "socket-util.h"
 #include "util.h"
 
+#ifdef SVC_PLATFORM_Linux
+#include <asm/types.h>
+#include "sd-rtnl.h"
+#include "rtnl-util.h"
+#endif
+
+#ifdef SVC_PLATFORM_Linux
 static int
 start_loopback(sd_rtnl *rtnl)
 {
@@ -77,10 +81,12 @@ check_loopback(sd_rtnl *rtnl)
 
 	return flags & IFF_UP;
 }
+#endif
 
 int
 loopback_setup(void)
 {
+#ifdef SVC_PLATFORM_Linux
 	_cleanup_rtnl_unref_ sd_rtnl *rtnl = NULL;
 	int r;
 
@@ -102,4 +108,8 @@ loopback_setup(void)
 	}
 
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }

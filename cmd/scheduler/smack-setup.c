@@ -23,7 +23,6 @@
 
 #include <sys/types.h>
 #include <sys/mount.h>
-#include <sys/vfs.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -44,6 +43,8 @@
 #define CIPSO_CONFIG "/etc/smack/cipso.d/"
 
 #ifdef HAVE_SMACK
+
+#include <sys/vfs.h>
 
 static int
 write_rules(const char *dstpath, const char *srcdir)

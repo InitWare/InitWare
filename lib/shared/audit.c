@@ -88,6 +88,7 @@ audit_loginuid_from_pid(pid_t pid, uid_t *uid)
 bool
 use_audit(void)
 {
+#ifdef SVC_PLATFORM_Linux
 	static int cached_use = -1;
 
 	if (cached_use < 0) {
@@ -105,4 +106,7 @@ use_audit(void)
 	}
 
 	return cached_use;
+#else
+	return false;
+#endif
 }

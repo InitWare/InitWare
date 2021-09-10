@@ -31,6 +31,7 @@
 #include <sys/utsname.h>
 #include <sys/wait.h>
 #include <sys/xattr.h>
+#include <sys/un.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <assert.h>
@@ -7698,6 +7699,7 @@ getpeercred(int fd, struct socket_ucred *ucred)
         xucred.uid = unp.unp_euid;
         xucred.pid = unp.unp_pid;
 #else
+	unimplemented();
         return -ENOTSUP;
 #endif
 
