@@ -1,2 +1,0 @@
-# Disable known IR cameras in Dell Notebooks
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0BDA", ATTRS{idProduct}=="58F6", ATTR{authorized}="0"

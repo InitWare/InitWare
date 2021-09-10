@@ -1,0 +1,15 @@
+#ifndef SVC_CONFIG_H_IN_
+#define SVC_CONFIG_H_IN_
+
+#cmakedefine SVC_PLATFORM_Linux
+#cmakedefine SVC_PLATFORM_BSD
+#cmakedefine SVC_PLATFORM_FreeBSD
+#cmakedefine SVC_PLATFORM_NetBSD
+#cmakedefine SVC_PLATFORM_DragonFlyBSD
+#cmakedefine SVC_PLATFORM_OpenBSD
+#cmakedefine SVC_PLATFORM_MacOS
+
+
+#cmakedefine SVC_USE_CGroups
+
+#endif /* SVC_CONFIG_H_IN_ */

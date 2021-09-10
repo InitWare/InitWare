@@ -1,0 +1,13 @@
+{
+    "editor.formatOnSave": false,
+    "editor.formatOnSaveMode": "modifications",
+    "editor.tabSize": 8,
+    "[cmake]": {
+        "editor.tabSize": 8
+    },
+    "[xml]": {
+        "editor.tabSize": 2,
+    },
+    "editor.detectIndentation": false,
+    "editor.insertSpaces": false
+}
