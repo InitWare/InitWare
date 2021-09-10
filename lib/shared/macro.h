@@ -23,11 +23,16 @@
 
 #include <sys/param.h>
 #include <sys/types.h>
-#include <sys/sysmacros.h>
 #include <sys/uio.h>
 #include <assert.h>
 #include <inttypes.h>
 #include <stdbool.h>
+
+#include "svc-config.h"
+
+#ifdef HAVE_sys_sysmacros_h
+#include <sys/sysmacros.h>
+#endif
 
 #define _printf_(a, b) __attribute__((format(printf, a, b)))
 #define _alloc_(...) __attribute__((alloc_size(__VA_ARGS__)))
@@ -92,12 +97,14 @@
 #define ALIGN4(l) (((l) + 3) & ~3)
 #define ALIGN8(l) (((l) + 7) & ~7)
 
+#ifndef ALIGN
 #if __SIZEOF_POINTER__ == 8
 #	define ALIGN(l) ALIGN8(l)
 #elif __SIZEOF_POINTER__ == 4
 #	define ALIGN(l) ALIGN4(l)
 #else
 #	error "Wut? Pointers are neither 4 nor 8 bytes long?"
+#endif
 #endif
 
 #define ALIGN_PTR(p) ((void *)ALIGN((unsigned long)(p)))
@@ -150,6 +157,7 @@ ALIGN_POWER2(unsigned long u)
 		(type *)((char *)UNIQ_T(A, uniq) - offsetof(type, member));    \
 	})
 
+#ifndef __MAX
 #undef MAX
 #define MAX(a, b) __MAX(UNIQ, (a), UNIQ, (b))
 #define __MAX(aq, a, bq, b)                                                    \
@@ -158,6 +166,7 @@ ALIGN_POWER2(unsigned long u)
 		const typeof(b) UNIQ_T(B, bq) = (b);                           \
 		UNIQ_T(A, aq) > UNIQ_T(B, bq) ? UNIQ_T(A, aq) : UNIQ_T(B, bq); \
 	})
+#endif
 
 /* evaluates to (void) if _A or _B are not constant or of different types */
 #define CONST_MAX(_A, _B)                                                      \
@@ -179,6 +188,7 @@ ALIGN_POWER2(unsigned long u)
 		MAX(_c, z);                                                    \
 	})
 
+#ifndef __MIN
 #undef MIN
 #define MIN(a, b) __MIN(UNIQ, (a), UNIQ, (b))
 #define __MIN(aq, a, bq, b)                                                    \
@@ -187,6 +197,7 @@ ALIGN_POWER2(unsigned long u)
 		const typeof(b) UNIQ_T(B, bq) = (b);                           \
 		UNIQ_T(A, aq) < UNIQ_T(B, bq) ? UNIQ_T(A, aq) : UNIQ_T(B, bq); \
 	})
+#endif
 
 #define MIN3(x, y, z)                                                          \
 	__extension__({                                                        \
@@ -516,5 +527,9 @@ GID_IS_INVALID(gid_t gid)
 #define CMSG_FOREACH(cmsg, mh)                                                 \
 	for ((cmsg) = CMSG_FIRSTHDR(mh); (cmsg);                               \
 		(cmsg) = CMSG_NXTHDR((mh), (cmsg)))
+
+
+#define unimplemented() log_debug("%s: unimplemented\n", __FUNCTION__)
+#define unimplemented_msg(...) log_debug("%s: %s: unimplemented\n", __FUNCTION__, __VA_ARGS__)
 
 #include "log.h"

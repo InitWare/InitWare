@@ -21,9 +21,7 @@
 ***/
 #include <unistd.h>
 
-#include "acpi-fpdt.h"
 #include "boot-timestamps.h"
-#include "efivars.h"
 
 int
 boot_timestamps(const dual_timestamp *n, dual_timestamp *firmware,

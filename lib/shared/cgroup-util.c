@@ -29,6 +29,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "bsdglibc.h"
 #include "cgroup-util.h"
 #include "fileio.h"
 #include "log.h"

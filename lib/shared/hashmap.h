@@ -105,7 +105,7 @@ extern const struct hash_ops uint64_hash_ops;
 unsigned long devt_hash_func(const void *p,
 	const uint8_t hash_key[HASH_KEY_SIZE]) _pure_;
 int devt_compare_func(const void *a, const void *b) _pure_;
-extern const struct hash_ops devt_hash_ops = { .hash = devt_hash_func,
+static const struct hash_ops devt_hash_ops = { .hash = devt_hash_func,
 	.compare = devt_compare_func };
 #else
 #	define devt_hash_func uint64_hash_func

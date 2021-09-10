@@ -21,6 +21,10 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "svc-config.h"
+
+#ifdef SVC_PLATFORM_Linux
+
 #include <sys/capability.h>
 #include <inttypes.h>
 #include <stdbool.h>
@@ -59,3 +63,5 @@ cap_test_all(uint64_t caps)
 	m = (UINT64_C(1) << (cap_last_cap() + 1)) - 1;
 	return (caps & m) == m;
 }
+
+#endif

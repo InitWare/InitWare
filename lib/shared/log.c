@@ -23,12 +23,13 @@
 #include <sys/un.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <printf.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <unistd.h>
 
+#include "bsdglibc.h"
+#include "bsdprintf.h"
 #include "log.h"
 #include "macro.h"
 #include "missing.h"

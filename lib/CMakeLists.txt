@@ -1,0 +1,3 @@
+add_subdirectory(bsdcompat)
+add_subdirectory(shared)
+add_subdirectory(initware)

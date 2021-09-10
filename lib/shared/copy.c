@@ -19,12 +19,14 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/sendfile.h>
 #include <sys/xattr.h>
 
-#include "btrfs-util.h"
 #include "copy.h"
 #include "util.h"
+
+#ifdef SVC_HAVE_sys_sendfile_h
+#include <sys/sendfile.h>
+#endif
 
 #define COPY_BUFFER_SIZE (16 * 1024)
 
@@ -36,13 +38,6 @@ copy_bytes(int fdf, int fdt, off_t max_bytes, bool try_reflink)
 
 	assert(fdf >= 0);
 	assert(fdt >= 0);
-
-	/* Try btrfs reflinks first. */
-	if (try_reflink && max_bytes == (off_t)-1) {
-		r = btrfs_reflink(fdf, fdt);
-		if (r >= 0)
-			return r;
-	}
 
 	for (;;) {
 		size_t m = COPY_BUFFER_SIZE;
@@ -56,6 +51,7 @@ copy_bytes(int fdf, int fdt, off_t max_bytes, bool try_reflink)
 				m = (size_t)max_bytes;
 		}
 
+#ifdef HAVE_sys_sendfile_h
 		/* First try sendfile(), unless we already tried */
 		if (try_sendfile) {
 			n = sendfile(fdt, fdf, NULL, m);
@@ -71,6 +67,7 @@ copy_bytes(int fdf, int fdt, off_t max_bytes, bool try_reflink)
 				/* Succcess! */
 				goto next;
 		}
+#endif
 
 		/* As a fallback just copy bits by hand */
 		{
@@ -418,6 +415,7 @@ copy_file(const char *from, const char *to, int flags, mode_t mode,
 	return 0;
 }
 
+#ifdef SVC_HAVE_renameat2
 int
 copy_file_atomic(const char *from, const char *to, mode_t mode, bool replace,
 	unsigned chattr_flags)
@@ -444,6 +442,7 @@ copy_file_atomic(const char *from, const char *to, mode_t mode, bool replace,
 
 	return 0;
 }
+#endif
 
 int
 copy_times(int fdf, int fdt)

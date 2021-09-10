@@ -22,6 +22,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "bsdglibc.h"
 #include "dropin.h"
 #include "fileio.h"
 #include "fstab-util.h"
@@ -31,6 +32,8 @@
 #include "special.h"
 #include "unit-name.h"
 #include "util.h"
+
+#define SYSTEMD_FSCK_PATH "FSCKPATH"
 
 static int
 write_fsck_sysroot_service(const char *dir, const char *what)

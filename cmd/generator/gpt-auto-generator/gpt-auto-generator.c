@@ -20,7 +20,7 @@
 ***/
 
 #include <sys/ioctl.h>
-#include <sys/statfs.h>
+#include "bsdstatfs.h"
 #include <blkid/blkid.h>
 #include <fcntl.h>
 #include <stdlib.h>

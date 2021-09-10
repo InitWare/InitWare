@@ -30,6 +30,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "bsdglibc.h"
 #include "fileio.h"
 #include "log.h"
 #include "macro.h"
@@ -504,6 +505,7 @@ path_join(const char *root, const char *path, const char *rest)
 static int
 fd_fdinfo_mnt_id(int fd, const char *filename, int flags, int *mnt_id)
 {
+#ifdef SVC_PLATFORM_Linux
 	char path[strlen("/proc/self/fdinfo/") + DECIMAL_STR_MAX(int)];
 	_cleanup_free_ char *fdinfo = NULL;
 	_cleanup_close_ int subfd = -1;
@@ -542,11 +544,15 @@ fd_fdinfo_mnt_id(int fd, const char *filename, int flags, int *mnt_id)
 	p[strcspn(p, WHITESPACE)] = 0;
 
 	return safe_atoi(p, mnt_id);
+#else
+	return 0;
+#endif
 }
 
 int
 fd_is_mount_point(int fd, const char *filename, int flags)
 {
+#ifdef SVC_PLATFORM_Linux
 	union file_handle_union h = FILE_HANDLE_INIT,
 				h_parent = FILE_HANDLE_INIT;
 	int mount_id = -1, mount_id_parent = -1;
@@ -675,11 +681,16 @@ fallback_fstat:
 		return 1;
 
 	return check_st_dev && (a.st_dev != b.st_dev);
+#else
+	log_warning("Unimplemented");
+	return true;
+#endif
 }
 
 int
 path_is_mount_point(const char *t, bool allow_symlink)
 {
+#ifdef SVC_PLATFORM_Linux
 	_cleanup_free_ char *canonical = NULL, *parent = NULL;
 	_cleanup_close_ int fd = -1;
 	int flags = allow_symlink ? AT_SYMLINK_FOLLOW : 0;
@@ -713,6 +724,10 @@ path_is_mount_point(const char *t, bool allow_symlink)
 		return -errno;
 
 	return fd_is_mount_point(fd, basename(t), flags);
+#else
+	log_error("Unimplemented");
+	return true;
+#endif
 }
 
 int

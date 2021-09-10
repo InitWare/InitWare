@@ -19,7 +19,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/statfs.h>
+#include "bsdstatfs.h"
 #include <linux/fs.h>
 #include <fcntl.h>
 

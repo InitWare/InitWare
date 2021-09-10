@@ -23,9 +23,7 @@
 ***/
 #include <sys/stat.h>
 #include <assert.h>
-#include <byteswap.h>
 #include <ctype.h>
-#include <endian.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdbool.h>
@@ -37,6 +35,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "bsdendian.h"
 #include "time-dst.h"
 #include "util.h"
 

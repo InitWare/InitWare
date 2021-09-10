@@ -27,10 +27,10 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <acpi-fpdt.h>
-#include <fileio.h>
-#include <time-util.h>
-#include <util.h>
+#include "acpi-fpdt.h"
+#include "fileio.h"
+#include "time-util.h"
+#include "util.h"
 
 struct acpi_table_header {
 	char signature[4];

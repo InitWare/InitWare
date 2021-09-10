@@ -33,6 +33,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "bsdglibc.h"
 #include "fileio.h"
 #include "macro.h"
 #include "missing.h"
@@ -196,6 +197,7 @@ socket_address_parse_and_warn(SocketAddress *a, const char *s)
 	return 0;
 }
 
+#ifdef SVC_PLATFORM_Linux
 int
 socket_address_parse_netlink(SocketAddress *a, const char *s)
 {
@@ -225,6 +227,7 @@ socket_address_parse_netlink(SocketAddress *a, const char *s)
 
 	return 0;
 }
+#endif
 
 int
 socket_address_verify(const SocketAddress *a)
@@ -284,6 +287,7 @@ socket_address_verify(const SocketAddress *a)
 
 		return 0;
 
+#ifdef AF_NETLINK
 	case AF_NETLINK:
 
 		if (a->size != sizeof(struct sockaddr_nl))
@@ -293,6 +297,7 @@ socket_address_verify(const SocketAddress *a)
 			return -EINVAL;
 
 		return 0;
+#endif
 
 	default:
 		return -EAFNOSUPPORT;
@@ -311,6 +316,7 @@ socket_address_print(const SocketAddress *a, char **ret)
 	if (r < 0)
 		return r;
 
+#ifdef AF_NETLINK
 	if (socket_address_family(a) == AF_NETLINK) {
 		_cleanup_free_ char *sfamily = NULL;
 
@@ -324,6 +330,7 @@ socket_address_print(const SocketAddress *a, char **ret)
 
 		return 0;
 	}
+#endif
 
 	return sockaddr_pretty(&a->sockaddr.sa, a->size, false, true, ret);
 }
@@ -398,6 +405,7 @@ socket_address_equal(const SocketAddress *a, const SocketAddress *b)
 
 		break;
 
+#ifdef AF_NETLINK
 	case AF_NETLINK:
 		if (a->protocol != b->protocol)
 			return false;
@@ -406,6 +414,7 @@ socket_address_equal(const SocketAddress *a, const SocketAddress *b)
 			return false;
 
 		break;
+#endif
 
 	default:
 		/* Cannot compare, so we assume the addresses are different */
@@ -434,6 +443,7 @@ socket_address_is(const SocketAddress *a, const char *s, int type)
 bool
 socket_address_is_netlink(const SocketAddress *a, const char *s)
 {
+#ifdef AF_NETLINK
 	struct SocketAddress b;
 
 	assert(a);
@@ -443,6 +453,9 @@ socket_address_is_netlink(const SocketAddress *a, const char *s)
 		return false;
 
 	return socket_address_equal(a, &b);
+#else
+	return false;
+#endif
 }
 
 const char *
@@ -509,6 +522,7 @@ socket_address_matches_fd(const SocketAddress *a, int fd)
 	if (b.type != a->type)
 		return false;
 
+#ifdef SO_PROTOCOL
 	if (a->protocol != 0) {
 		solen = sizeof(b.protocol);
 		if (getsockopt(fd, SOL_SOCKET, SO_PROTOCOL, &b.protocol,
@@ -518,6 +532,7 @@ socket_address_matches_fd(const SocketAddress *a, int fd)
 		if (b.protocol != a->protocol)
 			return false;
 	}
+#endif
 
 	return socket_address_equal(a, &b);
 }
@@ -657,7 +672,7 @@ getpeername_pretty(int fd, bool include_port, char **ret)
 		return -errno;
 
 	if (sa.sa.sa_family == AF_UNIX) {
-		struct ucred ucred = {};
+		struct socket_ucred ucred = {};
 
 		/* UNIX connection sockets are anonymous, so let's use
                  * PID/UID as pretty credentials instead */
@@ -706,6 +721,11 @@ socknameinfo_pretty(union sockaddr_union *sa, socklen_t salen, char **_ret)
 	char host[NI_MAXHOST], *ret;
 
 	assert(_ret);
+
+#ifndef NI_IDN
+#define NI_IDN 0
+#define NI_IDN_USE_STD3_ASCII_RULES 0
+#endif
 
 	r = getnameinfo(&sa->sa, salen, host, sizeof(host), NULL, 0,
 		NI_IDN | NI_IDN_USE_STD3_ASCII_RULES);
@@ -760,6 +780,7 @@ socket_address_unlink(SocketAddress *a)
 	return 1;
 }
 
+#ifdef AF_NETLINK
 static const char *const netlink_family_table[] = {
 	[NETLINK_ROUTE] = "route",
 	[NETLINK_FIREWALL] = "firewall",
@@ -782,6 +803,7 @@ static const char *const netlink_family_table[] = {
 };
 
 DEFINE_STRING_TABLE_LOOKUP_WITH_FALLBACK(netlink_family, int, INT_MAX);
+#endif
 
 static const char *const socket_address_bind_ipv6_only_table
 	[_SOCKET_ADDRESS_BIND_IPV6_ONLY_MAX] = { [SOCKET_ADDRESS_DEFAULT] =
@@ -811,6 +833,7 @@ sockaddr_equal(const union sockaddr_union *a, const union sockaddr_union *b)
 	return false;
 }
 
+#ifdef SVC_PLATFORM_Linux
 char *
 ether_addr_to_string(const struct ether_addr *addr,
 	char buffer[ETHER_ADDR_TO_STRING_MAX])
@@ -829,3 +852,4 @@ ether_addr_to_string(const struct ether_addr *addr,
 
 	return buffer;
 }
+#endif

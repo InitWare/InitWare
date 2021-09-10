@@ -19,7 +19,15 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/types.h>
+#include <sys/cdefs.h>
+
+#include <stdbool.h>
+#include <stddef.h>
+
+#define _KERNEL
 #include <arpa/inet.h>
+#undef _KERNEL
 
 #include "in-addr-util.h"
 

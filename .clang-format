@@ -557,7 +557,7 @@ IncludeCategories:
 IncludeIsMainRegex: '(Test)?$'
 IndentCaseLabels: false
 IndentWidth: 1
-IndentPPDirectives: 'AfterHash' # Unknown to clang-format-5.0
+# IndentPPDirectives: 'AfterHash' # we only want an indent of 1! not available
 IndentWidth: 8
 IndentWrappedFunctionNames: false
 JavaScriptQuotes: Leave

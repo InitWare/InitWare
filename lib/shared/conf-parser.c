@@ -19,7 +19,6 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <netinet/ether.h>
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>
@@ -39,6 +38,10 @@
 #include "strv.h"
 #include "utf8.h"
 #include "util.h"
+
+#ifdef SVC_HAVE_netinet_ether_h
+#include <netinet/ether.h>
+#endif
 
 int
 log_syntax_internal(const char *unit, int level, const char *file, int line,

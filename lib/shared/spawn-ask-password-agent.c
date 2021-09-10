@@ -20,7 +20,6 @@
 ***/
 
 #include <sys/types.h>
-#include <sys/prctl.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -32,6 +31,8 @@
 #include "util.h"
 
 static pid_t agent_pid = 0;
+
+#define SYSTEMD_TTY_ASK_PASSWORD_AGENT_BINARY_PATH "FIXME!"
 
 int
 ask_password_agent_open(void)

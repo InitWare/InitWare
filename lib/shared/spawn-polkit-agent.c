@@ -20,7 +20,6 @@
 ***/
 
 #include <sys/types.h>
-#include <sys/prctl.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -32,6 +31,8 @@
 #include "log.h"
 #include "spawn-polkit-agent.h"
 #include "util.h"
+
+#define POLKIT_AGENT_BINARY_PATH "FIXME!"
 
 #ifdef ENABLE_POLKIT
 static pid_t agent_pid = 0;

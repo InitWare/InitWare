@@ -84,12 +84,15 @@ socket_address_listen(const SocketAddress *a, int flags, int backlog,
 
 	if (socket_address_family(a) == AF_INET ||
 		socket_address_family(a) == AF_INET6) {
+#ifdef SO_BINDTODEVICE
 		if (bind_to_device)
 			if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE,
 				    bind_to_device,
 				    strlen(bind_to_device) + 1) < 0)
 				return -errno;
+#endif
 
+#ifdef IP_FREEBIND
 		if (free_bind) {
 			one = 1;
 			if (setsockopt(fd, IPPROTO_IP, IP_FREEBIND, &one,
@@ -97,7 +100,9 @@ socket_address_listen(const SocketAddress *a, int flags, int backlog,
 				log_warning_errno(errno,
 					"IP_FREEBIND failed: %m");
 		}
+#endif
 
+#ifdef IP_TRANSPARENT
 		if (transparent) {
 			one = 1;
 			if (setsockopt(fd, IPPROTO_IP, IP_TRANSPARENT, &one,
@@ -105,6 +110,7 @@ socket_address_listen(const SocketAddress *a, int flags, int backlog,
 				log_warning_errno(errno,
 					"IP_TRANSPARENT failed: %m");
 		}
+#endif
 	}
 
 	one = 1;

@@ -23,6 +23,8 @@
 
 #include <sys/types.h>
 
+#include <stdbool.h>
+
 #include "capability.h"
 
 int audit_session_from_pid(pid_t pid, uint32_t *id);

@@ -21,7 +21,7 @@
 
 #include <sys/mount.h>
 #include <sys/stat.h>
-#include <sys/statfs.h>
+#include "bsdstatfs.h"
 #include <sys/statvfs.h>
 #include <assert.h>
 #include <errno.h>

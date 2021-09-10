@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "bsdglibc.h"
 #include "strbuf.h"
 #include "util.h"
 

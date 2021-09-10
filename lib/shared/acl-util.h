@@ -47,4 +47,7 @@ DEFINE_TRIVIAL_CLEANUP_FUNC(uid_t *, acl_free_uid_tp);
 #	define acl_free_gid_tp acl_free
 DEFINE_TRIVIAL_CLEANUP_FUNC(gid_t *, acl_free_gid_tp);
 
+#else
+typedef void * acl_t;
+
 #endif

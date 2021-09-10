@@ -48,7 +48,6 @@
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
-#include <linux/ioctl.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -66,6 +65,10 @@
 #include "pty.h"
 #include "ring.h"
 #include "util.h"
+
+#ifdef SVC_PLATFORM_Linux
+#include <linux/ioctl.h>
+#endif
 
 #define PTY_BUFSIZE 4096
 
@@ -297,7 +300,9 @@ pty_setup_child(Pty *pty)
 	/* erase character should be normal backspace, PLEASEEE! */
 	attr.c_cc[VERASE] = 010;
 	/* always set UTF8 flag */
+#ifdef IUTF8
 	attr.c_iflag |= IUTF8;
+#endif
 
 	r = tcsetattr(pty->fd, TCSANOW, &attr);
 	if (r < 0)

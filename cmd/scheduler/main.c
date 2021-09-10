@@ -727,8 +727,8 @@ parse_config_file(void)
 
 	const char *fn, *conf_dirs_nulstr;
 
-	fn = arg_running_as == SYSTEMD_SYSTEM ? PKGSYSCONFDIR "/system.conf" :
-						      PKGSYSCONFDIR "/user.conf";
+	fn = arg_running_as == SYSTEMD_SYSTEM ? INSTALL_PKGSYSCONF_DIR "/system.conf" :
+						      INSTALL_PKGSYSCONF_DIR "/user.conf";
 	conf_dirs_nulstr = arg_running_as == SYSTEMD_SYSTEM ?
 		      CONF_DIRS_NULSTR("systemd/system.conf") :
 		      CONF_DIRS_NULSTR("systemd/user.conf");
@@ -1708,8 +1708,10 @@ main(int argc, char *argv[])
 
 		write_container_id();
 
+#if 0
 		log_info("Detected architecture %s.",
 			architecture_to_string(uname_architecture()));
+#endif
 
 		if (in_initrd())
 			log_info("Running in initial RAM disk.");

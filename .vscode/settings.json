@@ -11,6 +11,12 @@
     "editor.detectIndentation": false,
 "editor.insertSpaces": false,
 "files.associations": {
-	"sd-rtnl.h": "c"
+	"sd-rtnl.h": "c",
+	"acl-util.h": "c",
+	"def.h": "c",
+	"statvfs.h": "c",
+	"sendfile.h": "c",
+	"ima-util.h": "c",
+	"dropin.h": "c"
 }
 }

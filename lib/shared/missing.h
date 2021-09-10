@@ -25,6 +25,12 @@
 
 #include <sys/resource.h>
 #include <sys/syscall.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#ifdef SVC_PLATFORM_Linux
 #include <linux/audit.h>
 #include <linux/capability.h>
 #include <linux/if_link.h>
@@ -32,10 +38,6 @@
 #include <linux/loop.h>
 #include <linux/neighbour.h>
 #include <linux/oom.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <unistd.h>
 
 #ifdef HAVE_AUDIT
 #	include <libaudit.h>
@@ -1071,3 +1073,5 @@ missing_kcmp(pid_t pid1, pid_t pid2, int type, unsigned long idx1,
 #ifndef PR_CAP_AMBIENT_CLEAR_ALL
 #	define PR_CAP_AMBIENT_CLEAR_ALL 4
 #endif
+
+#endif /* SVC_PLATFORM_Linux */

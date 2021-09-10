@@ -21,6 +21,8 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/time.h>
+
 #include <inttypes.h>
 #include <stdio.h>
 

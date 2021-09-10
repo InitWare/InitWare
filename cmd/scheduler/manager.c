@@ -1909,7 +1909,10 @@ manager_dispatch_notify_fd(sd_event_source *source, int fd, uint32_t revents,
 	};
 	union {
 		struct cmsghdr cmsghdr;
-		uint8_t buf[CMSG_SPACE(sizeof(struct ucred)) +
+		uint8_t buf[
+#ifdef CMSG_CREDS_STRUCT_SIZE
+			CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE) +
+#endif
 			CMSG_SPACE(sizeof(int) * NOTIFY_FD_MAX)];
 	} control = {};
 	struct msghdr msghdr = {

@@ -24,6 +24,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "bsdglibc.h"
 #include "strv.h"
 #include "time-util.h"
 #include "util.h"

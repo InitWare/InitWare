@@ -24,22 +24,14 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
-#include <sys/personality.h>
-#include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/time.h>
 #include <sys/utsname.h>
-#include <sys/vfs.h>
 #include <sys/wait.h>
 #include <sys/xattr.h>
-#include <linux/fs.h>
-#include <linux/kd.h>
-#include <linux/magic.h>
-#include <linux/sched.h>
-#include <linux/tiocl.h>
-#include <linux/vt.h>
+#include <netinet/in.h>
 #include <netinet/ip.h>
 #include <assert.h>
 #include <ctype.h>
@@ -73,6 +65,7 @@
 #	include <sys/auxv.h>
 #endif
 
+#include "bsdglibc.h"
 #include "cgroup-util.h"
 #include "conf-parser.h"
 #include "def.h"
@@ -82,7 +75,6 @@
 #include "fileio.h"
 #include "gunicode.h"
 #include "hashmap.h"
-#include "ioprio.h"
 #include "label.h"
 #include "log.h"
 #include "macro.h"
@@ -95,6 +87,27 @@
 #include "utf8.h"
 #include "util.h"
 #include "virt.h"
+
+#ifdef SVC_PLATFORM_Linux
+#include <linux/fs.h>
+#include <linux/kd.h>
+#include <linux/magic.h>
+#include <linux/sched.h>
+#include <linux/tiocl.h>
+#include <linux/vt.h>
+
+#include "ioprio.h"
+#endif
+
+#ifdef SVC_HAVE_sys_personality_h
+#include <sys/personality.h>
+#endif
+#ifdef SVC_HAVE_sys_prctl_h
+#include <sys/prctl.h>
+#endif
+#ifdef SVC_HAVE_sys_vfs_h
+#include <sys/vfs.h>
+#endif
 
 int saved_argc = 0;
 char **saved_argv = NULL;
@@ -2112,6 +2125,7 @@ fstype_is_network(const char *fstype)
 int
 chvt(int vt)
 {
+#ifdef SVC_PLATFORM_Linux
 	_cleanup_close_ int fd;
 
 	fd = open_terminal("/dev/tty0",
@@ -2132,6 +2146,10 @@ chvt(int vt)
 		return -errno;
 
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
@@ -2309,17 +2327,28 @@ reset_terminal_fd(int fd, bool switch_to_text)
 	/* Disable exclusive mode, just in case */
 	ioctl(fd, TIOCNXCL);
 
+#ifdef KD_TEXT
 	/* Switch to text mode */
 	if (switch_to_text)
 		ioctl(fd, KDSETMODE, KD_TEXT);
+#endif
 
+#ifdef KDSKBMODE
 	/* Enable console unicode mode */
 	ioctl(fd, KDSKBMODE, K_UNICODE);
+#endif
 
 	if (tcgetattr(fd, &termios) < 0) {
 		r = -errno;
 		goto finish;
 	}
+
+#ifndef IUCLC
+#define IUCLC 0
+#endif
+#ifndef IUTF8
+#define IUTF8 0
+#endif
 
 	/* We only reset the stuff that matters to the software. How
          * hardware is set up we don't touch assuming that somebody
@@ -3101,6 +3130,10 @@ dev_urandom(void *p, size_t n)
          * returned entropy, but is good enough for or usual usecases
          * of seeding the hash functions for hashtable */
 
+#ifndef GRND_NONBLOCK
+#define GRND_NONBLOCK 0
+#endif
+
 	/* Use the getrandom() syscall unless we know we don't have
          * it, or when the requested size is too large for it. */
 	if (have_syscall != 0 || (size_t)(int)n != n) {
@@ -3208,11 +3241,15 @@ rename_process(const char name[8])
          * "systemd"). If you pass a longer string it will be
          * truncated */
 
+#ifdef SVC_HAVE_sys_prctl_h
 	prctl(PR_SET_NAME, name);
+#endif
 
+#ifdef SVC_HAVE_program_invocation_name
 	if (program_invocation_name)
 		strncpy(program_invocation_name, name,
 			strlen(program_invocation_name));
+#endif
 
 	if (saved_argc > 0) {
 		int i;
@@ -3554,6 +3591,10 @@ rm_rf_children_dangerous(int fd, bool only_dirs, bool honour_sticky,
 			if (root_dev && st.st_dev != root_dev->st_dev)
 				continue;
 
+#ifndef O_NOATIME
+#define O_NOATIME 0
+#endif
+
 			subdir_fd = openat(fd, de->d_name,
 				O_RDONLY | O_NONBLOCK | O_DIRECTORY |
 					O_CLOEXEC | O_NOFOLLOW | O_NOATIME);
@@ -3587,10 +3628,15 @@ rm_rf_children_dangerous(int fd, bool only_dirs, bool honour_sticky,
 _pure_ static int
 is_temporary_fs(struct statfs *s)
 {
+#ifdef SVC_PLATFORM_Linux
 	assert(s);
 
 	return F_TYPE_EQUAL(s->f_type, TMPFS_MAGIC) ||
 		F_TYPE_EQUAL(s->f_type, RAMFS_MAGIC);
+#else
+	unimplemented();
+	return true;
+#endif
 }
 
 int
@@ -3770,6 +3816,7 @@ fchmod_and_fchown(int fd, mode_t mode, uid_t uid, gid_t gid)
 	return 0;
 }
 
+#ifdef SVC_PLATFORM_Linux
 cpu_set_t *
 cpu_set_malloc(unsigned *ncpus)
 {
@@ -3858,6 +3905,7 @@ parse_cpu_set_and_warn(const char *rvalue, cpu_set_t **cpu_set,
 
 	return (int)ncpus;
 }
+#endif
 
 int
 status_vprintf(const char *status, bool ellipse, bool ephemeral,
@@ -4790,7 +4838,9 @@ do_execute(char **directories, usec_t timeout, char *argv[])
 	reset_all_signal_handlers();
 	reset_signal_mask();
 
+#ifdef SVC_HAVE_sys_prctl_h
 	assert_se(prctl(PR_SET_PDEATHSIG, SIGTERM) == 0);
+#endif
 
 	pids = hashmap_new(NULL);
 	if (!pids)
@@ -4848,8 +4898,10 @@ do_execute(char **directories, usec_t timeout, char *argv[])
 			} else if (pid == 0) {
 				char *_argv[2];
 
+#ifdef SVC_HAVE_sys_prctl_h
 				assert_se(
 					prctl(PR_SET_PDEATHSIG, SIGTERM) == 0);
+#endif
 
 				if (!argv) {
 					_argv[0] = path;
@@ -5140,17 +5192,23 @@ fopen_temporary(const char *path, FILE **_f, char **_temp_path)
 int
 terminal_vhangup_fd(int fd)
 {
+#ifdef SVC_PLATFORM_Linux
 	assert(fd >= 0);
 
 	if (ioctl(fd, TIOCVHANGUP) < 0)
 		return -errno;
 
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
 terminal_vhangup(const char *name)
 {
+#ifdef SVC_PLATFORM_Linux
 	_cleanup_close_ int fd;
 
 	fd = open_terminal(name, O_RDWR | O_NOCTTY | O_CLOEXEC | O_NONBLOCK);
@@ -5158,11 +5216,16 @@ terminal_vhangup(const char *name)
 		return fd;
 
 	return terminal_vhangup_fd(fd);
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
 vt_disallocate(const char *name)
 {
+#ifdef SVC_PLATFORM_Linux
 	int fd, r;
 	unsigned u;
 
@@ -5230,6 +5293,10 @@ vt_disallocate(const char *name)
 	safe_close(fd);
 
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
@@ -5853,12 +5920,14 @@ block_get_whole_disk(dev_t d, dev_t *ret)
 	return -ENOENT;
 }
 
+#ifdef SVC_PLATFORM_Linux
 static const char *const ioprio_class_table[] = { [IOPRIO_CLASS_NONE] = "none",
 	[IOPRIO_CLASS_RT] = "realtime",
 	[IOPRIO_CLASS_BE] = "best-effort",
 	[IOPRIO_CLASS_IDLE] = "idle" };
 
 DEFINE_STRING_TABLE_LOOKUP_WITH_FALLBACK(ioprio_class, int, INT_MAX);
+#endif
 
 static const char *const sigchld_code_table[] = {
 	[CLD_EXITED] = "exited",
@@ -5908,6 +5977,7 @@ static const char *const log_level_table[] = { [LOG_EMERG] = "emerg",
 
 DEFINE_STRING_TABLE_LOOKUP_WITH_FALLBACK(log_level, int, LOG_DEBUG);
 
+#ifdef SVC_PLATFORM_Linux
 static const char *const sched_policy_table[] = { [SCHED_OTHER] = "other",
 	[SCHED_BATCH] = "batch",
 	[SCHED_IDLE] = "idle",
@@ -5915,8 +5985,9 @@ static const char *const sched_policy_table[] = { [SCHED_OTHER] = "other",
 	[SCHED_RR] = "rr" };
 
 DEFINE_STRING_TABLE_LOOKUP_WITH_FALLBACK(sched_policy, int, INT_MAX);
+#endif
 
-static const char *const rlimit_table[_RLIMIT_MAX] = { [RLIMIT_CPU] =
+static const char *const rlimit_table[] = { [RLIMIT_CPU] =
 							       "LimitCPU",
 	[RLIMIT_FSIZE] = "LimitFSIZE",
 	[RLIMIT_DATA] = "LimitDATA",
@@ -5927,20 +5998,27 @@ static const char *const rlimit_table[_RLIMIT_MAX] = { [RLIMIT_CPU] =
 	[RLIMIT_AS] = "LimitAS",
 	[RLIMIT_NPROC] = "LimitNPROC",
 	[RLIMIT_MEMLOCK] = "LimitMEMLOCK",
+#ifdef SVC_PLATFORM_Linux
 	[RLIMIT_LOCKS] = "LimitLOCKS",
 	[RLIMIT_SIGPENDING] = "LimitSIGPENDING",
 	[RLIMIT_MSGQUEUE] = "LimitMSGQUEUE",
 	[RLIMIT_NICE] = "LimitNICE",
 	[RLIMIT_RTPRIO] = "LimitRTPRIO",
-	[RLIMIT_RTTIME] = "LimitRTTIME" };
+	[RLIMIT_RTTIME] = "LimitRTTIME"
+#endif
+	};
 
 DEFINE_STRING_TABLE_LOOKUP(rlimit, int);
 
 static const char *const ip_tos_table[] = {
+#ifdef IPTOS_LOWDELAY
 	[IPTOS_LOWDELAY] = "low-delay",
+#endif
 	[IPTOS_THROUGHPUT] = "throughput",
 	[IPTOS_RELIABILITY] = "reliability",
+#ifdef IPTOS_LOWCOST
 	[IPTOS_LOWCOST] = "low-cost",
+#endif
 };
 
 DEFINE_STRING_TABLE_LOOKUP_WITH_FALLBACK(ip_tos, int, 0xff);
@@ -6122,11 +6200,13 @@ fd_inc_sndbuf(int fd, size_t n)
 	if (r >= 0 && l == sizeof(value) && (size_t)value >= n * 2)
 		return 0;
 
+#ifdef SO_SNFBUFFORCE
 	/* If we have the privileges we will ignore the kernel limit. */
 
 	value = (int)n;
 	if (setsockopt(fd, SOL_SOCKET, SO_SNDBUFFORCE, &value, sizeof(value)) <
 		0)
+#endif
 		if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &value,
 			    sizeof(value)) < 0)
 			return -errno;
@@ -6144,11 +6224,13 @@ fd_inc_rcvbuf(int fd, size_t n)
 	if (r >= 0 && l == sizeof(value) && (size_t)value >= n * 2)
 		return 0;
 
+#ifdef SO_RCVBUFFORCE
 	/* If we have the privileges we will ignore the kernel limit. */
 
 	value = (int)n;
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &value, sizeof(value)) <
 		0)
+#endif
 		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &value,
 			    sizeof(value)) < 0)
 			return -errno;
@@ -6192,11 +6274,13 @@ fork_agent(pid_t *pid, const int except[], unsigned n_except, const char *path,
 		return 0;
 	}
 
+#ifdef SVC_HAVE_sys_prctl_h
 	/* In the child:
          *
          * Make sure the agent goes away when the parent dies */
 	if (prctl(PR_SET_PDEATHSIG, SIGTERM) < 0)
 		_exit(EXIT_FAILURE);
+#endif
 
 	/* Make sure we actually can kill the agent, if we need to, in
          * case somebody invoked us from a shell script that trapped
@@ -6428,6 +6512,7 @@ in_initrd(void)
 void
 warn_melody(void)
 {
+#ifdef SVC_PLATFORM_Linux
 	_cleanup_close_ int fd = -1;
 
 	fd = open("/dev/console", O_WRONLY | O_CLOEXEC | O_NOCTTY);
@@ -6446,6 +6531,9 @@ warn_melody(void)
 	usleep(125 * USEC_PER_MSEC);
 
 	ioctl(fd, KIOCSOUND, 0);
+#else
+	unimplemented();
+#endif
 }
 
 int
@@ -7473,6 +7561,7 @@ namespace_open(pid_t pid, int *pidns_fd, int *mntns_fd, int *netns_fd,
 int
 namespace_enter(int pidns_fd, int mntns_fd, int netns_fd, int root_fd)
 {
+#ifdef SVC_PLATFORM_Linux
 	if (pidns_fd >= 0)
 		if (setns(pidns_fd, CLONE_NEWPID) < 0)
 			return -errno;
@@ -7484,6 +7573,7 @@ namespace_enter(int pidns_fd, int mntns_fd, int netns_fd, int root_fd)
 	if (netns_fd >= 0)
 		if (setns(netns_fd, CLONE_NEWNET) < 0)
 			return -errno;
+#endif
 
 	if (root_fd >= 0) {
 		if (fchdir(root_fd) < 0)
@@ -7536,39 +7626,98 @@ pid_is_alive(pid_t pid)
 	return true;
 }
 
-int
-getpeercred(int fd, struct ucred *ucred)
-{
-	socklen_t n = sizeof(struct ucred);
-	struct ucred u;
-	int r;
+int cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred) {
+#ifdef CMSG_TYPE_CREDS
+        /* FIXME: Consider checking cmsg_len */
+        if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == CMSG_TYPE_CREDS) {
+		CMSG_CREDS_STRUCT *creds = (CMSG_CREDS_STRUCT *) CMSG_DATA(cmsg);
+		xucred->gid = creds->CMSG_CREDS_STRUCT_gid;
+		xucred->uid = creds->CMSG_CREDS_STRUCT_uid;
+		xucred->pid = creds->CMSG_CREDS_STRUCT_pid;
+		return 1;
+	}
+#endif
 
-	assert(fd >= 0);
-	assert(ucred);
+        return 0;
+}
 
-	r = getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &u, &n);
-	if (r < 0)
+int socket_passcred(int fd) {
+        int one = 1;
+
+#ifdef SOCKOPT_CREDPASS_OPT
+	if (setsockopt(fd, SOCKOPT_CREDPASS_LEVEL, SOCKOPT_CREDPASS_OPT, &one, sizeof(one)) == -1)
 		return -errno;
+#endif
 
-	if (n != sizeof(struct ucred))
-		return -EIO;
+                return 0;
+}
+
+int
+getpeercred(int fd, struct socket_ucred *ucred)
+{
+	struct socket_ucred xucred;
+
+#if defined(SO_PEERCRED) && defined(SVC_PLATFORM_OpenBSD)
+        socklen_t len;
+        struct sockpeercred cred;
+
+        len = sizeof *xucred;
+        if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &len) == -1)
+                return -errno;
+
+        xucred.gid = cred.gid;
+        xucred.uid = cred.uid;
+        xucred.pid = cred.pid;
+#elif defined(SO_PEERCRED) && defined(SVC_PLATFORM_Linux)
+        socklen_t len;
+
+        len = sizeof xucred;
+        if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &xucred, &len) == -1)
+                return -errno;
+#elif defined(LOCAL_PEERCRED)
+	struct xucred cred;
+	socklen_t len = sizeof cred;
+
+	if (getsockopt(fd, 0, LOCAL_PEERCRED, &cred, &len) < 0)
+		return -errno;
+        xucred.gid = cred.cr_gid;
+        xucred.uid = cred.cr_uid;
+#if !defined(SVC_PLATFORM_DragonFlyBSD) && !defined(SVC_PLATFORM_MacOSX)
+	xucred.pid = cred.cr_pid;
+#else
+	xucred.pid = 0;
+#endif
+
+#elif defined(LOCAL_PEEREID)
+        struct unpcbid unp;
+        socklen_t unpl = sizeof unp;
+
+        if (getsockopt(fd, 0, LOCAL_PEEREID, &unp, &unpl) < 0)
+                return -errno;
+        xucred.gid = unp.unp_egid;
+        xucred.uid = unp.unp_euid;
+        xucred.pid = unp.unp_pid;
+#else
+        return -ENOTSUP;
+#endif
 
 	/* Check if the data is actually useful and not suppressed due
          * to namespacing issues */
-	if (u.pid <= 0)
+	if (xucred.pid <= 0)
 		return -ENODATA;
-	if (u.uid == UID_INVALID)
+	if (xucred.uid == UID_INVALID)
 		return -ENODATA;
-	if (u.gid == GID_INVALID)
+	if (xucred.gid == GID_INVALID)
 		return -ENODATA;
 
-	*ucred = u;
+	*ucred = xucred;
 	return 0;
 }
 
 int
 getpeersec(int fd, char **ret)
 {
+#ifdef SO_PEERSDEC
 	socklen_t n = 64;
 	char *s;
 	int r;
@@ -7605,6 +7754,9 @@ getpeersec(int fd, char **ret)
 
 	*ret = s;
 	return 0;
+#else
+	return -ENOTSUP;
+#endif
 }
 
 /* This is much like like mkostemp() but is subject to umask(). */
@@ -7680,6 +7832,7 @@ fd_warn_permissions(const char *path, int fd)
 unsigned long
 personality_from_string(const char *p)
 {
+#ifdef SVC_PLATFORM_Linux
 	/* Parse a personality specifier. We introduce our own
          * identifiers that indicate specific ABIs, rather than just
          * hints regarding the register size, since we want to keep
@@ -7729,6 +7882,7 @@ personality_from_string(const char *p)
 		return PER_LINUX;
 
 #endif
+#endif
 
 	/* personality(7) documents that 0xffffffffUL is used for
          * querying the current personality, hence let's use that here
@@ -7739,6 +7893,7 @@ personality_from_string(const char *p)
 const char *
 personality_to_string(unsigned long p)
 {
+#ifdef SVC_PLATFORM_Linux
 #if defined(__x86_64__)
 
 	if (p == PER_LINUX32)
@@ -7766,13 +7921,14 @@ personality_to_string(unsigned long p)
 		return "s390";
 
 #endif
-
+#endif
 	return NULL;
 }
 
 uint64_t
 physical_memory(void)
 {
+#ifdef SVC_PLATFORM_Linux
 	long mem;
 
 	/* We return this as uint64_t in case we are running as 32bit
@@ -7782,6 +7938,10 @@ physical_memory(void)
 	assert(mem > 0);
 
 	return (uint64_t)mem * (uint64_t)page_size();
+#else
+	unimplemented();
+	return (uint64_t)-1;
+#endif
 }
 
 void
@@ -7848,6 +8008,7 @@ update_reboot_param_file(const char *param)
 int
 umount_recursive(const char *prefix, int flags)
 {
+#ifdef SVC_PLATFORM_Linux
 	bool again;
 	int n = 0, r;
 
@@ -7911,6 +8072,9 @@ umount_recursive(const char *prefix, int flags)
 	} while (again);
 
 	return r ? r : n;
+#else
+	return -ENOTSUP;
+#endif
 }
 
 static int
@@ -7927,6 +8091,7 @@ get_mount_flags(const char *path, unsigned long *flags)
 int
 bind_remount_recursive(const char *prefix, bool ro)
 {
+#ifdef SVC_PLATFORM_Linux
 	_cleanup_set_free_free_ Set *done = NULL;
 	_cleanup_free_ char *cleaned = NULL;
 	int r;
@@ -8085,6 +8250,10 @@ bind_remount_recursive(const char *prefix, bool ro)
 				return -errno;
 		}
 	}
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
@@ -8806,6 +8975,7 @@ same_fd(int a, int b)
 	if (a == b)
 		return true;
 
+#ifdef KCMP_FILE
 	/* Try to use kcmp() if we have it. */
 	pid = getpid();
 	r = kcmp(pid, pid, KCMP_FILE, a, b);
@@ -8815,6 +8985,7 @@ same_fd(int a, int b)
 		return false;
 	if (errno != ENOSYS)
 		return -errno;
+#endif
 
 	/* We don't have kcmp(), use fstat() instead. */
 	if (fstat(a, &sta) < 0)
@@ -8854,6 +9025,7 @@ same_fd(int a, int b)
 int
 chattr_fd(int fd, bool b, unsigned mask)
 {
+#ifdef FS_IOC_GETFLAGS
 	unsigned old_attr, new_attr;
 
 	assert(fd >= 0);
@@ -8876,11 +9048,16 @@ chattr_fd(int fd, bool b, unsigned mask)
 		return -errno;
 
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
 chattr_path(const char *p, bool b, unsigned mask)
 {
+#ifdef SVC_PLATFORM_Linux
 	_cleanup_close_ int fd = -1;
 
 	assert(p);
@@ -8893,22 +9070,32 @@ chattr_path(const char *p, bool b, unsigned mask)
 		return -errno;
 
 	return chattr_fd(fd, b, mask);
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
 read_attr_fd(int fd, unsigned *ret)
 {
+#ifdef SVC_PLATFORM_Linux
 	assert(fd >= 0);
 
 	if (ioctl(fd, FS_IOC_GETFLAGS, ret) < 0)
 		return -errno;
 
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
 read_attr_path(const char *p, unsigned *ret)
 {
+#ifdef SVC_PLATFORM_Linux
 	_cleanup_close_ int fd = -1;
 
 	assert(p);
@@ -8919,6 +9106,10 @@ read_attr_path(const char *p, unsigned *ret)
 		return -errno;
 
 	return read_attr_fd(fd, ret);
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
@@ -8957,10 +9148,13 @@ make_lock_file(const char *p, int operation, LockFile *ret)
 		if (fd < 0)
 			return -errno;
 
+#ifdef F_OFD_SETLK
 		r = fcntl(fd,
 			(operation & LOCK_NB) ? F_OFD_SETLK : F_OFD_SETLKW,
 			&fl);
-		if (r < 0) {
+		if (r < 0)
+#endif
+		{
 			/* If the kernel is too old, use good old BSD locks */
 			if (errno == EINVAL)
 				r = flock(fd, operation);
@@ -9032,8 +9226,10 @@ release_lock_file(LockFile *f)
 				.l_whence = SEEK_SET,
 			};
 
+#ifdef F_OFD_SETLK
 			r = fcntl(f->fd, F_OFD_SETLK, &fl);
 			if (r < 0 && errno == EINVAL)
+#endif
 				r = flock(f->fd, LOCK_EX | LOCK_NB);
 
 			if (r >= 0)
@@ -9564,9 +9760,9 @@ parse_percent(const char *p)
 uint64_t
 system_tasks_max(void)
 {
-#if SIZEOF_PID_T == 4
+#if SVC_SIZEOF_PID_T == 4
 #	define TASKS_MAX ((uint64_t)(INT32_MAX - 1))
-#elif SIZEOF_PID_T == 2
+#elif SVC_SIZEOF_PID_T == 2
 #	define TASKS_MAX ((uint64_t)(INT16_MAX - 1))
 #else
 #	error "Unknown pid_t size"
@@ -9689,6 +9885,7 @@ try_pipe:
 		if (pipe2(pipefds, O_CLOEXEC | O_NONBLOCK) < 0)
 			return -errno;
 
+#ifdef F_GETPIPE_SZ
 		isz = fcntl(pipefds[1], F_GETPIPE_SZ, 0);
 		if (isz < 0)
 			return -errno;
@@ -9709,6 +9906,7 @@ try_pipe:
 			if ((size_t)isz < size)
 				goto try_dev_shm;
 		}
+#endif
 
 		n = write(pipefds[1], data, size);
 		if (n < 0)
@@ -9723,6 +9921,13 @@ try_pipe:
 
 		return r;
 	}
+
+#ifndef O_TMPFILE
+#define O_TMPFILE 0
+#endif
+#ifndef O_PATH
+#define O_PATH O_RDONLY
+#endif
 
 try_dev_shm:
 	if ((flags & ACQUIRE_NO_TMPFILE) == 0) {
@@ -9842,6 +10047,8 @@ wait_for_terminate_with_timeout(pid_t pid, usec_t timeout)
 	return -EPROTO;
 }
 
+
+#ifdef SVC_PLATFORM_Linux
 bool
 is_fs_type(const struct statfs *s, statfs_f_type_t magic_value)
 {
@@ -9861,6 +10068,7 @@ fd_is_fs_type(int fd, statfs_f_type_t magic_value)
 
 	return is_fs_type(&s, magic_value);
 }
+#endif
 
 static bool
 safe_transition(const struct stat *a, const struct stat *b)
@@ -10051,9 +10259,11 @@ chase_symlinks(const char *path, const char *original_root, unsigned flags,
 
 		previous_stat = st;
 
+#ifdef AUTOFS_SUPER_MAGIC
 		if ((flags & CHASE_NO_AUTOFS) &&
 			fd_is_fs_type(child, AUTOFS_SUPER_MAGIC) > 0)
 			return -EREMOTE;
+#endif
 
 		if (S_ISLNK(st.st_mode)) {
 			char *joined;

@@ -26,18 +26,13 @@
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/statfs.h>
-#include <sys/sysmacros.h>
 #include <sys/time.h>
-#include <alloca.h>
-#include <def.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <glob.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <locale.h>
-#include <mntent.h>
 #include <sched.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -48,42 +43,58 @@
 #include <time.h>
 #include <unistd.h>
 
-#if SIZEOF_PID_T == 4
+#include "bsducred.h"
+#include "bsdstatfs.h"
+#include "def.h"
+
+#ifdef HAVE_alloca_h
+#include <alloca.h>
+#endif
+
+#ifdef HAVE_mntent_h
+#include <mntent.h>
+#endif
+
+#ifdef HAVE_sys_sysmacros_h
+#include <sys/sysmacros.h>
+#endif
+
+#if SVC_SIZEOF_PID_T == 4
 #	define PID_PRI PRIi32
-#elif SIZEOF_PID_T == 2
+#elif SVC_SIZEOF_PID_T == 2
 #	define PID_PRI PRIi16
 #else
 #	error Unknown pid_t size
 #endif
 #define PID_FMT "%" PID_PRI
 
-#if SIZEOF_UID_T == 4
+#if SVC_SIZEOF_UID_T == 4
 #	define UID_FMT "%" PRIu32
-#elif SIZEOF_UID_T == 2
+#elif SVC_SIZEOF_UID_T == 2
 #	define UID_FMT "%" PRIu16
 #else
 #	error Unknown uid_t size
 #endif
 
-#if SIZEOF_GID_T == 4
+#if SVC_SIZEOF_GID_T == 4
 #	define GID_FMT "%" PRIu32
-#elif SIZEOF_GID_T == 2
+#elif SVC_SIZEOF_GID_T == 2
 #	define GID_FMT "%" PRIu16
 #else
 #	error Unknown gid_t size
 #endif
 
-#if SIZEOF_TIME_T == 8
+#if SVC_SIZEOF_TIME_T == 8
 #	define PRI_TIME PRIi64
-#elif SIZEOF_TIME_T == 4
+#elif SVC_SIZEOF_TIME_T == 4
 #	define PRI_TIME "li"
 #else
 #	error Unknown time_t size
 #endif
 
-#if SIZEOF_RLIM_T == 8
+#if SVC_SIZEOF_RLIM_T == 8
 #	define RLIM_FMT "%" PRIu64
-#elif SIZEOF_RLIM_T == 4
+#elif SVC_SIZEOF_RLIM_T == 4
 #	define RLIM_FMT "%" PRIu32
 #else
 #	error Unknown rlim_t size
@@ -128,7 +139,7 @@ size_t page_size(void) _pure_;
 
 bool streq_ptr(const char *a, const char *b) _pure_;
 
-#define new (t, n)((t *)malloc_multiply(sizeof(t), (n)))
+#define new(t, n)((t *)malloc_multiply(sizeof(t), (n)))
 
 #define new0(t, n) ((t *)calloc((n), sizeof(t)))
 
@@ -547,10 +558,12 @@ int rm_rf_dangerous(const char *path, bool only_dirs, bool delete_root,
 
 int pipe_eof(int fd);
 
+#ifdef SVC_PLATFORM_Linux
 cpu_set_t *cpu_set_malloc(unsigned *ncpus);
 int parse_cpu_set_and_warn(const char *rvalue, cpu_set_t **cpu_set,
 	const char *unit, const char *filename, unsigned line,
 	const char *lvalue);
+#endif
 
 int status_vprintf(const char *status, bool ellipse, bool ephemeral,
 	const char *format, va_list ap) _printf_(4, 0);
@@ -803,8 +816,10 @@ close_pairp(int (*p)[2])
 DEFINE_TRIVIAL_CLEANUP_FUNC(FILE *, fclose);
 DEFINE_TRIVIAL_CLEANUP_FUNC(FILE *, pclose);
 DEFINE_TRIVIAL_CLEANUP_FUNC(DIR *, closedir);
+#ifdef SVC_PLATFORM_Linux
 DEFINE_TRIVIAL_CLEANUP_FUNC(FILE *, endmntent);
 DEFINE_TRIVIAL_CLEANUP_FUNC(cpu_set_t *, CPU_FREE);
+#endif
 
 #define _cleanup_free_ _cleanup_(freep)
 #define _cleanup_close_ _cleanup_(closep)
@@ -813,9 +828,11 @@ DEFINE_TRIVIAL_CLEANUP_FUNC(cpu_set_t *, CPU_FREE);
 #define _cleanup_fclose_ _cleanup_(fclosep)
 #define _cleanup_pclose_ _cleanup_(pclosep)
 #define _cleanup_closedir_ _cleanup_(closedirp)
-#define _cleanup_endmntent_ _cleanup_(endmntentp)
 #define _cleanup_close_pair_ _cleanup_(close_pairp)
+#ifdef SVC_PLATFORM_Linux
+#define _cleanup_endmntent_ _cleanup_(endmntentp)
 #define _cleanup_cpu_free_ _cleanup_(CPU_FREEp)
+#endif
 
 _malloc_ _alloc_(1, 2) static inline void *malloc_multiply(size_t a, size_t b)
 {
@@ -1132,7 +1149,7 @@ int namespace_enter(int pidns_fd, int mntns_fd, int netns_fd, int root_fd);
 bool pid_is_alive(pid_t pid);
 bool pid_is_unwaited(pid_t pid);
 
-int getpeercred(int fd, struct ucred *ucred);
+int getpeercred(int fd, struct socket_ucred *ucred);
 int getpeersec(int fd, char **ret);
 
 int writev_safe(int fd, const struct iovec *w, int j);
@@ -1149,6 +1166,7 @@ uint64_t physical_memory(void);
 
 void hexdump(FILE *f, const void *p, size_t s);
 
+#ifdef SVC_PLATFORM_Linux
 union file_handle_union {
 	struct file_handle handle;
 	char padding[sizeof(struct file_handle) + MAX_HANDLE_SZ];
@@ -1157,6 +1175,7 @@ union file_handle_union {
 	{                                                                      \
 		.handle.handle_bytes = MAX_HANDLE_SZ                           \
 	}
+#endif
 
 int update_reboot_param_file(const char *param);
 
@@ -1311,12 +1330,14 @@ char *set_iovec_string_field(struct iovec *iovec, unsigned int *n_iovec,
 char *set_iovec_field_free(struct iovec *iovec, unsigned int *n_iovec,
 	const char *field, char *value);
 
+#ifdef SVC_HAVE_statfs
 /* The .f_type field of struct statfs is really weird defined on
  * different archs. Let's give its type a name. */
 typedef typeof(((struct statfs *)NULL)->f_type) statfs_f_type_t;
 
 bool is_fs_type(const struct statfs *s, statfs_f_type_t magic_value) _pure_;
 int fd_is_fs_type(int fd, statfs_f_type_t magic_value);
+#endif
 
 enum {
 	CHASE_PREFIX_ROOT = 1U
