@@ -28,6 +28,12 @@
 #include "def.h"
 #include "set.h"
 
+#ifndef SVC_PLATFORM_Linux
+#define CGROUP_ROOT_DIR "/mnt"
+#else
+#define CGROUP_ROOT_DIR "/sys/fs/cgroup"
+#endif
+
 /* A bit mask of well known cgroup controllers */
 typedef enum CGroupControllerMask {
 	CGROUP_CPU = 1,

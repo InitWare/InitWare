@@ -24,6 +24,9 @@
 	"execute.h": "c",
 	"ioprio.h": "c",
 	"calendarspec.h": "c",
-	"selinux-access.h": "c"
+	"selinux-access.h": "c",
+	"fuse.h": "c",
+	"mempool.h": "c",
+	"strbuf.h": "c"
 }
 }

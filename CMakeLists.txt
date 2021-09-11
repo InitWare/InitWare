@@ -64,10 +64,15 @@ elseif (APPLE)
 	set(SVC_PLATFORM_MacOS TRUE)
 endif ()
 
+pkg_check_modules(fuse REQUIRED IMPORTED_TARGET fuse)
+
 if (NOT SVC_PLATFORM_Linux)
 	pkg_check_modules(inotify REQUIRED IMPORTED_TARGET libinotify)
 	pkg_check_modules(epoll-shim REQUIRED IMPORTED_TARGET epoll-shim)
 	set(EPOLL_LIBS PkgConfig::inotify PkgConfig::epoll-shim)
+else ()
+	pkg_check_modules(kqueue REQUIRED IMPORTED_TARGET libkqueue)
+	set(KQ_LIBS PkgConfig::kqueue)
 endif ()
 
 find_package(Threads REQUIRED)

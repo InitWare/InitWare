@@ -884,6 +884,7 @@ get_process_cmdline(pid_t pid, size_t max_length, bool comm_fallback,
 int
 is_kernel_thread(pid_t pid)
 {
+#ifdef SVC_PLATFORM_Linux
 	const char *p;
 	size_t count;
 	char c;
@@ -908,6 +909,7 @@ is_kernel_thread(pid_t pid)
 
 	if (count <= 0)
 		return eof ? 1 : -errno;
+#endif
 
 	return 0;
 }

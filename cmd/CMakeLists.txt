@@ -1,3 +1,5 @@
 add_subdirectory(systemctl)
 add_subdirectory(journal)
 add_subdirectory(scheduler)
+add_subdirectory(fusecgfs)
+add_subdirectory(cgls)

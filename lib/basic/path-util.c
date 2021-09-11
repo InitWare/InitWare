@@ -682,7 +682,7 @@ fallback_fstat:
 
 	return check_st_dev && (a.st_dev != b.st_dev);
 #else
-	unimplemented()
+	unimplemented();
 	return true;
 #endif
 }

@@ -467,16 +467,16 @@ join_path(const char *controller, const char *path, const char *suffix,
 
 	if (!isempty(controller)) {
 		if (!isempty(path) && !isempty(suffix))
-			t = strjoin("/sys/fs/cgroup/", controller, "/", path,
+			t = strjoin(CGROUP_ROOT_DIR "/", controller, "/", path,
 				"/", suffix, NULL);
 		else if (!isempty(path))
-			t = strjoin("/sys/fs/cgroup/", controller, "/", path,
+			t = strjoin(CGROUP_ROOT_DIR "/", controller, "/", path,
 				NULL);
 		else if (!isempty(suffix))
-			t = strjoin("/sys/fs/cgroup/", controller, "/", suffix,
+			t = strjoin(CGROUP_ROOT_DIR "/", controller, "/", suffix,
 				NULL);
 		else
-			t = strappend("/sys/fs/cgroup/", controller);
+			t = strappend(CGROUP_ROOT_DIR "/", controller);
 	} else {
 		if (!isempty(path) && !isempty(suffix))
 			t = strjoin(path, "/", suffix, NULL);
@@ -508,11 +508,13 @@ cg_get_path(const char *controller, const char *path, const char *suffix,
 	if (_unlikely_(!good)) {
 		int r;
 
+#ifdef SVC_PLATFORM_Linux
 		r = path_is_mount_point("/sys/fs/cgroup", false);
 		if (r < 0)
 			return r;
 		if (r == 0)
 			return -ENOENT;
+#endif
 
 		/* Cache this to save a few stat()s */
 		good = true;
@@ -534,7 +536,7 @@ check_hierarchy(const char *p)
 		return 0;
 
 	/* Check if this controller actually really exists */
-	cc = strjoina("/sys/fs/cgroup/", p);
+	cc = strjoina(CGROUP_ROOT_DIR "/", p);
 	if (laccess(cc, F_OK) < 0)
 		return -errno;
 
@@ -1090,7 +1092,7 @@ cg_mangle_path(const char *path, char **result)
 	assert(result);
 
 	/* First, check if it already is a filesystem path */
-	if (path_startswith(path, "/sys/fs/cgroup")) {
+	if (path_startswith(path, CGROUP_ROOT_DIR)) {
 		t = strdup(path);
 		if (!t)
 			return -ENOMEM;
