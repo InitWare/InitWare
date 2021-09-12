@@ -132,8 +132,15 @@ check_function_exists(__secure_getenv HAVE___secure_getenv)
 option(SVC_USE_CGroups "Use Control Groups" ON)
 cmake_dependent_option(SVC_USE_libcap "Use Capabilities (libcap)" ON
     "libcap_FOUND" OFF)
+option(SVC_USE_systemd_paths "Include the default systemd unit-file paths")
 
-set(PKG_DIR_NAME "InitWare")
+option(SVC_USE_sessiond "Build the Session Manager")
+
+set(PKG_DIR_NAME
+"InitWare"
+CACHE STRING
+    "Default name of InitWare subdirectories (can be set to 'systemd' for \
+systemd compatibility.)")
 
 # Paths, either absolute ("full") or relative ("rel")
 set(INSTALL_RUNSTATE_DIR

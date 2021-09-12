@@ -603,7 +603,7 @@ manager_new(SystemdRunningAs running_as, bool test_run, Manager **_m)
 
 	m->pin_cgroupfs_fd = m->notify_fd = m->cgroups_agent_fd = m->signal_fd =
 		m->time_change_fd = m->dev_autofs_fd = m->private_listen_fd =
-			m->kdbus_fd = m->utab_inotify_fd = -1;
+			m->utab_inotify_fd = -1;
 	m->current_job_id =
 		1; /* start as id #1, so that we can leave #0 around as "null-like" value */
 
@@ -861,34 +861,6 @@ manager_setup_cgroups_agent(Manager *m)
 		(void)sd_event_source_set_description(
 			m->cgroups_agent_event_source, "manager-cgroups-agent");
 	}
-
-	return 0;
-}
-
-static int
-manager_setup_kdbus(Manager *m)
-{
-#ifdef ENABLE_KDBUS
-	_cleanup_free_ char *p = NULL;
-
-	assert(m);
-
-	if (m->test_run || m->kdbus_fd >= 0)
-		return 0;
-
-	if (m->running_as == SYSTEMD_SYSTEM && detect_container(NULL) <= 0)
-		bus_kernel_fix_attach_mask();
-
-	m->kdbus_fd = bus_kernel_create_bus(
-		m->running_as == SYSTEMD_SYSTEM ? "system" : "user",
-		m->running_as == SYSTEMD_SYSTEM, &p);
-
-	if (m->kdbus_fd < 0)
-		return log_debug_errno(m->kdbus_fd,
-			"Failed to set up kdbus: %m");
-
-	log_debug("Successfully set up kdbus on %s", p);
-#endif
 
 	return 0;
 }
@@ -1186,7 +1158,6 @@ manager_free(Manager *m)
 	safe_close(m->notify_fd);
 	safe_close(m->cgroups_agent_fd);
 	safe_close(m->time_change_fd);
-	safe_close(m->kdbus_fd);
 
 	manager_close_ask_password(m);
 
@@ -1451,7 +1422,6 @@ manager_startup(Manager *m, FILE *serialization, FDSet *fds)
 
 	/* We might have deserialized the kdbus control fd, but if we
          * didn't, then let's create the bus now. */
-	manager_setup_kdbus(m);
 	manager_connect_bus(m, !!serialization);
 	bus_track_coldplug(m, &m->subscribed, &m->deserialized_subscribed);
 
@@ -2818,16 +2788,6 @@ manager_serialize(Manager *m, FILE *f, FDSet *fds, bool switching_root)
 		fprintf(f, "cgroups-agent-fd=%i\n", copy);
 	}
 
-	if (m->kdbus_fd >= 0) {
-		int copy;
-
-		copy = fdset_put_dup(fds, m->kdbus_fd);
-		if (copy < 0)
-			return copy;
-
-		fprintf(f, "kdbus-fd=%i\n", copy);
-	}
-
 	bus_track_serialize(m->subscribed, f);
 
 	fputc('\n', f);
@@ -3023,18 +2983,6 @@ manager_deserialize(Manager *m, FILE *f, FDSet *fds)
 						m->cgroups_agent_event_source);
 				safe_close(m->cgroups_agent_fd);
 				m->cgroups_agent_fd = fdset_remove(fds, fd);
-			}
-
-		} else if (startswith(l, "kdbus-fd=")) {
-			int fd;
-
-			if (safe_atoi(l + 9, &fd) < 0 || fd < 0 ||
-				!fdset_contains(fds, fd))
-				log_debug("Failed to parse kdbus fd: %s",
-					l + 9);
-			else {
-				safe_close(m->kdbus_fd);
-				m->kdbus_fd = fdset_remove(fds, fd);
 			}
 
 		} else {

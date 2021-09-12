@@ -649,16 +649,6 @@ service_add_extras(Service *s)
 		s->notify_access = NOTIFY_MAIN;
 
 	if (s->bus_name) {
-#ifdef ENABLE_KDBUS
-		const char *n;
-
-		n = strjoina(s->bus_name, ".busname");
-		r = unit_add_dependency_by_name(UNIT(s), UNIT_AFTER, n, NULL,
-			true);
-		if (r < 0)
-			return r;
-#endif
-
 		r = unit_watch_bus_name(UNIT(s), s->bus_name);
 		if (r < 0)
 			return r;

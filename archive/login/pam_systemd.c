@@ -169,33 +169,6 @@ get_seat_from_display(const char *display, const char **seat, uint32_t *vtnr)
 	return 0;
 }
 
-static int
-export_legacy_dbus_address(pam_handle_t *handle, uid_t uid, const char *runtime)
-{
-#ifdef ENABLE_KDBUS
-	_cleanup_free_ char *s = NULL;
-	int r;
-
-	/* skip export if kdbus is not active */
-	if (access("/sys/fs/kdbus", F_OK) < 0)
-		return PAM_SUCCESS;
-
-	if (asprintf(&s,
-		    KERNEL_USER_BUS_ADDRESS_FMT ";" UNIX_USER_BUS_ADDRESS_FMT,
-		    uid, runtime) < 0) {
-		pam_syslog(handle, LOG_ERR, "Failed to set bus variable.");
-		return PAM_BUF_ERR;
-	}
-
-	r = pam_misc_setenv(handle, "DBUS_SESSION_BUS_ADDRESS", s, 0);
-	if (r != PAM_SUCCESS) {
-		pam_syslog(handle, LOG_ERR, "Failed to set bus variable.");
-		return r;
-	}
-#endif
-	return PAM_SUCCESS;
-}
-
 _public_ PAM_EXTERN int
 pam_sm_open_session(pam_handle_t *handle, int flags, int argc,
 	const char **argv)
@@ -256,10 +229,6 @@ pam_sm_open_session(pam_handle_t *handle, int flags, int argc,
 					"Failed to set runtime dir.");
 				return r;
 			}
-
-			r = export_legacy_dbus_address(handle, pw->pw_uid, rt);
-			if (r != PAM_SUCCESS)
-				return r;
 		}
 
 		return PAM_SUCCESS;

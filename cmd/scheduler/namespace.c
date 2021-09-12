@@ -292,81 +292,6 @@ fail:
 }
 
 static int
-mount_kdbus(BindMount *m)
-{
-	char temporary_mount[] = "/tmp/kdbus-dev-XXXXXX";
-	_cleanup_free_ char *basepath = NULL;
-	_cleanup_umask_ mode_t u;
-	char *busnode = NULL, *root;
-	struct stat st;
-	int r;
-
-	assert(m);
-
-	u = umask(0000);
-
-	if (!mkdtemp(temporary_mount))
-		return log_error_errno(errno, "Failed create temp dir: %m");
-
-	root = strjoina(temporary_mount, "/kdbus");
-	(void)mkdir(root, 0755);
-	if (mount("tmpfs", root, "tmpfs", MS_NOSUID | MS_STRICTATIME,
-		    "mode=777") < 0) {
-		r = -errno;
-		goto fail;
-	}
-
-	/* create a new /dev/null dev node copy so we have some fodder to
-         * bind-mount the custom endpoint over. */
-	if (stat("/dev/null", &st) < 0) {
-		log_error_errno(errno, "Failed to stat /dev/null: %m");
-		r = -errno;
-		goto fail;
-	}
-
-	busnode = strjoina(root, "/bus");
-	if (mknod(busnode, (st.st_mode & ~07777) | 0600, st.st_rdev) < 0) {
-		log_error_errno(errno, "mknod() for %s failed: %m", busnode);
-		r = -errno;
-		goto fail;
-	}
-
-	r = mount(m->path, busnode, "bind", MS_BIND, NULL);
-	if (r < 0) {
-		log_error_errno(errno, "bind mount of %s failed: %m", m->path);
-		r = -errno;
-		goto fail;
-	}
-
-	basepath = dirname_malloc(m->path);
-	if (!basepath) {
-		r = -ENOMEM;
-		goto fail;
-	}
-
-	if (mount(root, basepath, NULL, MS_MOVE, NULL) < 0) {
-		log_error_errno(errno, "bind mount of %s failed: %m", basepath);
-		r = -errno;
-		goto fail;
-	}
-
-	rmdir(temporary_mount);
-	return 0;
-
-fail:
-	if (busnode) {
-		umount(busnode);
-		unlink(busnode);
-	}
-
-	umount(root);
-	rmdir(root);
-	rmdir(temporary_mount);
-
-	return r;
-}
-
-static int
 apply_mount(BindMount *m, const char *tmp_dir, const char *var_tmp_dir)
 {
 	const char *what;
@@ -401,9 +326,6 @@ apply_mount(BindMount *m, const char *tmp_dir, const char *var_tmp_dir)
 
 	case PRIVATE_DEV:
 		return mount_dev(m);
-
-	case PRIVATE_BUS_ENDPOINT:
-		return mount_kdbus(m);
 
 	default:
 		assert_not_reached("Unknown mode");

@@ -1573,19 +1573,6 @@ exec_child(ExecCommand *command, const ExecContext *context,
 		}
 	}
 
-#ifdef ENABLE_KDBUS
-	if (params->bus_endpoint_fd >= 0 && context->bus_endpoint) {
-		uid_t ep_uid = (uid == UID_INVALID) ? 0 : uid;
-
-		r = bus_kernel_set_endpoint_policy(params->bus_endpoint_fd,
-			ep_uid, context->bus_endpoint);
-		if (r < 0) {
-			*exit_status = EXIT_BUS_ENDPOINT;
-			return r;
-		}
-	}
-#endif
-
 	/* If delegation is enabled we'll pass ownership of the cgroup
          * (but only in systemd's own controller hierarchy!) to the
          * user of the new process. */
