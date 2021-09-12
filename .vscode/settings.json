@@ -32,6 +32,7 @@
 	"types.h": "c",
 	"sparse-endian.h": "c",
 	"bsdendian.h": "c",
-	"rtnl-util.h": "c"
+	"rtnl-util.h": "c",
+	"cstdlib": "c"
 }
 }
