@@ -3631,6 +3631,7 @@ print_status_info(UnitStatusInfo *i, bool *ellipsized)
 
 		printf("   CGroup: %s\n", i->control_group);
 
+		printf("ArgTransport: %d\n", arg_transport);
 		if (arg_transport == BUS_TRANSPORT_LOCAL ||
 			arg_transport == BUS_TRANSPORT_MACHINE) {
 			unsigned k = 0;

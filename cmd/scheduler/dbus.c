@@ -85,7 +85,7 @@ bus_forward_agent_released(Manager *m, const char *path)
 	assert(m);
 	assert(path);
 
-	if (!m->running_as == SYSTEMD_SYSTEM)
+	if (m->running_as != SYSTEMD_SYSTEM)
 		return 0;
 
 	if (!m->system_bus)
@@ -1032,17 +1032,17 @@ bus_init_private(Manager *m)
 
 	assert(m);
 
+	log_error("Shall we create private socket?");
+
 	if (m->private_listen_fd >= 0)
 		return 0;
 
-	/* We don't need the private socket if we have kdbus */
-	if (m->kdbus_fd >= 0)
-		return 0;
-
 	if (m->running_as == SYSTEMD_SYSTEM) {
+#if 0 /* actually we don't care */
 		/* We want the private bus only when running as init */
 		if (getpid() != 1)
 			return 0;
+#endif
 
 		strcpy(sa.un.sun_path, "/run/systemd/private");
 		salen = offsetof(union sockaddr_union, un.sun_path) +

@@ -209,6 +209,12 @@ ordered_hashmap_put(OrderedHashmap *h, const void *key, void *value)
 	return hashmap_put(PLAIN_HASHMAP(h), key, value);
 }
 
+/**
+ * @brief Update value for a key.
+ *
+ * @retval 0 if updated successfully.
+ * @retval -ENOENT if key not present in map.
+ */
 int hashmap_update(Hashmap *h, const void *key, void *value);
 static inline int
 ordered_hashmap_update(OrderedHashmap *h, const void *key, void *value)
@@ -216,6 +222,12 @@ ordered_hashmap_update(OrderedHashmap *h, const void *key, void *value)
 	return hashmap_update(PLAIN_HASHMAP(h), key, value);
 }
 
+/**
+ * @brief Update or if not present create the value for a key.
+ *
+ * @retval 1 if new key added
+ * @retval 0 if existing key's value updated
+ */
 int hashmap_replace(Hashmap *h, const void *key, void *value);
 static inline int
 ordered_hashmap_replace(OrderedHashmap *h, const void *key, void *value)

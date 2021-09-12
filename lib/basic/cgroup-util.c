@@ -772,7 +772,7 @@ cg_pid_get_path(const char *controller, pid_t pid, char **path)
 {
 	_cleanup_fclose_ FILE *f = NULL;
 	char line[LINE_MAX];
-	const char *fs;
+	char *fs;
 	size_t cs;
 
 	assert(path);
@@ -786,7 +786,12 @@ cg_pid_get_path(const char *controller, pid_t pid, char **path)
 	} else
 		controller = SYSTEMD_CGROUP_CONTROLLER;
 
+#ifdef SVC_PLATFORM_Linux
 	fs = procfs_file_alloca(pid, "cgroup");
+#else
+	fs = alloca(strlen("/mnt/systemd/cgroup.meta/") + DECIMAL_STR_MAX(pid_t) + strlen("/cgroup") + 1);
+	sprintf(fs, "/mnt/systemd/cgroup.meta/" PID_FMT "/cgroup", pid);
+#endif
 
 	f = fopen(fs, "re");
 	if (!f)
