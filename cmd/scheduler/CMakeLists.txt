@@ -1,7 +1,10 @@
-add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.gperf
-    COMMAND m4 -P < ${CMAKE_CURRENT_SOURCE_DIR}/load-fragment-gperf.gperf.m4
-      > ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.gperf
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/load-fragment-gperf.gperf.m4)
+#add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.gperf
+#    COMMAND m4 -P < ${CMAKE_CURRENT_SOURCE_DIR}/load-fragment-gperf.gperf.m4
+#      > ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.gperf
+#    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/load-fragment-gperf.gperf.m4)
+
+build_m4(${CMAKE_CURRENT_SOURCE_DIR}/load-fragment-gperf.gperf.m4
+    ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.gperf)
 
 add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.c
     COMMAND ${GPERF} < ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.gperf
@@ -25,6 +28,6 @@ add_executable(svc.schedulerd cgroup.c dbus-cgroup.c dbus-execute.c dbus-job.c
     hostname-setup.c  kmod-setup.c locale-setup.c loopback-setup.c machine-id-setup.c mount-setup.c
 
     ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.c
-    ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf-nulstr.c   )
+    ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf-nulstr.c)
 target_include_directories(svc.schedulerd PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(svc.schedulerd initware)

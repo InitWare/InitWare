@@ -3620,7 +3620,7 @@ unit_patch_contexts(Unit *u)
 				!set_isempty(ec->address_families)))
 			ec->no_new_privileges = true;
 
-#ifdef SVC_PLATFORM_Linux
+#ifdef SVC_USE_libcap
 		if (ec->private_devices)
 			ec->capability_bounding_set &=
 				~(UINT64_C(1) << CAP_MKNOD);

@@ -94,18 +94,15 @@
 #include <linux/sched.h>
 #include <linux/tiocl.h>
 #include <linux/vt.h>
+#include <sys/personality.h>
+#include <sys/sysmacros.h>
+#include <sys/vfs.h>
 
 #include "ioprio.h"
 #endif
 
-#ifdef SVC_HAVE_sys_personality_h
-#include <sys/personality.h>
-#endif
 #ifdef SVC_HAVE_sys_prctl_h
 #include <sys/prctl.h>
-#endif
-#ifdef SVC_HAVE_sys_vfs_h
-#include <sys/vfs.h>
 #endif
 
 int saved_argc = 0;

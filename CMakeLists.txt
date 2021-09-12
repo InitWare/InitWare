@@ -32,6 +32,26 @@ macro (check_type_size_in type headers var)
 	list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE -D__BSD_VISIBLE")
 endmacro ()
 
+# Add a list of variables to the M4 invocation parameters
+macro(add_to_m4_params)
+	foreach(arg IN ITEMS ${ARGN})
+		if (arg AND ${arg})
+			string(APPEND M4_PARAMS " -D${arg}=${${arg}}")
+		endif ()
+	endforeach()
+endmacro()
+
+function(build_m4 in out)
+	# CMake has outrageously incomprehensible escaping rules; we try to circumvent
+	# this madness as best we can here.
+	set(command "m4 ${M4_PARAMS} -P < ${in} > ${out}")
+	add_custom_command(
+	    OUTPUT ${out}
+	    VERBATIM COMMAND sh -c ${command}
+	    DEPENDS ${in})
+endfunction(build_m4)
+
+
 # ------------------------------------------------------------------------------
 # feature checks
 # ------------------------------------------------------------------------------
@@ -81,6 +101,8 @@ find_package(Threads REQUIRED)
 find_package(Python COMPONENTS Interpreter)
 find_program(GPERF gperf REQUIRED)
 
+check_include_file(sys/endian.h HAVE_sys_endian_h)
+check_include_file(endian.h HAVE_endian_h)
 check_include_file(mntent.h HAVE_mntent_h)
 
 check_type_size(pid_t SVC_SIZEOF_PID_T)
@@ -92,6 +114,7 @@ check_type_size_in(rlim_t "sys/resource.h" SVC_SIZEOF_RLIM_T)
 check_type_size_in(__compar_fn_t "stdlib.h" SVC_HAVE___compar_fn_t)
 check_type_size_in("struct statfs" "sys/statfs.h;sys/statvfs.h" SVC_HAVE_statfs)
 check_type_size_in("struct statvfs" "sys/statvfs.h" SVC_HAVE_statvfs)
+check_type_size_in("struct ucred" "sys/socket.h" HAVE_socket_struct_ucred)
 
 check_symbol_exists(canonicalize_file_name "stdlib.h" HAVE_canonicalize_file_name)
 check_symbol_exists(environ "unistd.h" HAVE_environ)
@@ -108,13 +131,11 @@ check_function_exists(__secure_getenv HAVE___secure_getenv)
 # options configurable by the user
 # ------------------------------------------------------------------------------
 
-cmake_dependent_option(USE_CGroups "Use Control Groups" ON
-    "NOT SVC_PLATFORM_Linux" OFF)
+option(SVC_USE_CGroups "Use Control Groups" ON)
+cmake_dependent_option(SVC_USE_libcap "Use Capabilities (libcap)" ON
+    "libcap_FOUND" OFF)
 
-cmake_dependent_option(USE_libcap "Use Capabilities (libcap)" ON
-    "NOT libcap_FOUND" OFF)
-
-set(PKG_DIR_NAME" InitWare")
+set(PKG_DIR_NAME "InitWare")
 
 # Paths, either absolute ("full") or relative ("rel")
 set(INSTALL_RUNSTATE_DIR
@@ -191,6 +212,8 @@ configure_file(head/systemd/svc-config.h.in head/systemd/svc-config.h)
 # ------------------------------------------------------------------------------
 # the build proper
 # ------------------------------------------------------------------------------
+
+add_to_m4_params(SVC_PLATFORM_Linux SVC_PLATFORM_BSD UnsSet)
 
 add_subdirectory(cmd)
 add_subdirectory(lib)

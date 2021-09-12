@@ -31,7 +31,7 @@
 #include "time-util.h"
 #include "util.h"
 
-#ifdef SVC_USE_Capability
+#ifdef SVC_USE_libcapability
 #include <linux/capability.h>
 #endif
 

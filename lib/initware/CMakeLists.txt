@@ -5,7 +5,11 @@ add_subdirectory(sd-id128)
 add_subdirectory(sd-login)
 add_subdirectory(sd-path)
 add_subdirectory(sd-utf8)
+if (SVC_PLATFORM_Linux)
+	add_subdirectory(sd-rtnl)
+	set(SD_RTNL initware-rtnl)
+endif ()
 
 add_library(initware empty.c)
-target_link_libraries(initware PUBLIC initware-bus initware-daemon
+target_link_libraries(initware PUBLIC initware-bus initware-daemon ${SD_RTNL}
     initware-event initware-id128 initware-login initware-path initware-utf8)

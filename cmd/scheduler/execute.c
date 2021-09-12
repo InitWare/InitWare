@@ -727,7 +727,7 @@ enforce_user(const ExecContext *context, uid_t uid)
 {
 	assert(context);
 
-#ifdef SVC_USE_Cap
+#ifdef SVC_USE_libcap
 	/* Sets (but doesn't lookup) the uid and make sure we keep the
          * capabilities while doing so. */
 
@@ -1755,7 +1755,7 @@ exec_child(ExecCommand *command, const ExecContext *context,
 		return r;
 	}
 
-#ifdef SVC_USE_Cap
+#ifdef SVC_USE_libcap
 	if (params->apply_permissions) {
 		int secure_bits = context->secure_bits;
 
@@ -2055,6 +2055,8 @@ exec_context_init(ExecContext *c)
 	c->cpu_sched_policy = SCHED_OTHER;
 	c->timer_slack_nsec = NSEC_INFINITY;
 	c->personality = 0xffffffffUL;
+#endif
+#ifdef SVC_USE_libcap
 	c->capability_bounding_set = CAP_ALL;
 #endif
 	c->syslog_priority = LOG_DAEMON | LOG_INFO;
@@ -2106,12 +2108,14 @@ exec_context_done(ExecContext *c)
 	free(c->pam_name);
 	c->pam_name = NULL;
 
-#ifdef SVC_PLATFORM_Linux
+#ifdef SVC_USE_libcap
 	if (c->capabilities) {
 		cap_free(c->capabilities);
 		c->capabilities = NULL;
 	}
+#endif
 
+#ifdef SVC_PLATFORM_Linux
 	if (c->cpuset)
 		CPU_FREE(c->cpuset);
 
@@ -2503,7 +2507,9 @@ exec_context_dump(ExecContext *c, FILE *f, const char *prefix)
 	if (c->timer_slack_nsec != NSEC_INFINITY)
 		fprintf(f, "%sTimerSlackNSec: " NSEC_FMT "\n", prefix,
 			c->timer_slack_nsec);
+#endif
 
+#ifdef SVC_USE_libcap
 	if (c->capabilities) {
 		_cleanup_cap_free_charp_ char *t;
 

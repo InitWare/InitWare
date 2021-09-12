@@ -26,6 +26,10 @@
 #include "special.h"
 #include "util.h"
 
+#ifdef SVC_PLATFORM_Linux
+#include <sys/sysmacros.h>
+#endif
+
 #define CGROUP_CPU_QUOTA_PERIOD_USEC ((usec_t)100 * USEC_PER_MSEC)
 
 void

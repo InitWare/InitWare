@@ -43,7 +43,7 @@ typedef struct ExecParameters ExecParameters;
 #include <linux/types.h>
 #endif
 
-#ifdef SVC_USE_Cap
+#ifdef SVC_USE_libcap
 #include <sys/capability.h>
 #endif
 
@@ -157,7 +157,7 @@ struct ExecContext {
 	char **read_write_dirs, **read_only_dirs, **inaccessible_dirs;
 	unsigned long mount_flags;
 
-#ifdef SVC_USE_Cap
+#ifdef SVC_USE_libcap
 	uint64_t capability_bounding_set;
 
 	uint64_t capability_ambient_set;

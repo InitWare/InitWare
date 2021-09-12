@@ -662,7 +662,9 @@ config_parse_exec_cpu_affinity(const char *unit, const char *filename,
 
 	return 0;
 }
+#endif
 
+#ifdef SVC_USE_libcap
 int
 config_parse_exec_capabilities(const char *unit, const char *filename,
 	unsigned line, const char *section, unsigned section_line,

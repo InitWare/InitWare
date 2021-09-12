@@ -254,7 +254,7 @@ condition_test_security(Condition *c)
 static int
 condition_test_capability(Condition *c)
 {
-#ifdef SVC_USE_Cap
+#ifdef SVC_USE_libcap
 	_cleanup_fclose_ FILE *f = NULL;
 	int value;
 	char line[LINE_MAX];

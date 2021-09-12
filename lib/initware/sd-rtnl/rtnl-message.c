@@ -25,6 +25,7 @@
 #include "missing.h"
 #include "refcnt.h"
 #include "util.h"
+#include "socket-util.h"
 
 #include "rtnl-internal.h"
 #include "rtnl-types.h"

@@ -37,11 +37,9 @@
 #include "seccomp-util.h"
 #endif
 
-#ifdef HAVE_sys_prctl_h
-#include <sys/prctl.h>
-#endif
-
 #ifdef SVC_PLATFORM_Linux
+#include <sys/prctl.h>
+
 #include "ioprio.h"
 #endif
 
@@ -263,7 +261,7 @@ property_get_cpu_affinity(sd_bus *bus, const char *path, const char *interface,
 }
 #endif
 
-#ifdef HAVE_sys_prctl_h
+#ifdef SVC_PLATFORM_Linux
 static int
 property_get_timer_slack_nsec(sd_bus *bus, const char *path,
 	const char *interface, const char *property, sd_bus_message *reply,
@@ -285,7 +283,7 @@ property_get_timer_slack_nsec(sd_bus *bus, const char *path,
 }
 #endif
 
-#ifdef SVC_USE_Cap
+#ifdef SVC_USE_libcap
 static int
 property_get_capability_bounding_set(sd_bus *bus, const char *path,
 	const char *interface, const char *property, sd_bus_message *reply,
@@ -649,7 +647,7 @@ const sd_bus_vtable bus_exec_vtable[] = { SD_BUS_VTABLE_START(0),
 	SD_BUS_PROPERTY("SyslogLevelPrefix", "b", bus_property_get_bool,
 		offsetof(ExecContext, syslog_level_prefix),
 		SD_BUS_VTABLE_PROPERTY_CONST),
-#ifdef SVC_USE_Cap
+#ifdef SVC_USE_libcap
 	SD_BUS_PROPERTY("Capabilities", "s", property_get_capabilities, 0,
 		SD_BUS_VTABLE_PROPERTY_CONST),
 	SD_BUS_PROPERTY("SecureBits", "i", bus_property_get_int,

@@ -51,7 +51,8 @@ $1.SecureBits,                   config_parse_exec_secure_bits,      0,         
 $1.CapabilityBoundingSet,        config_parse_capability_set,        0,                             offsetof($1, exec_context.capability_bounding_set)
 $1.AmbientCapabilities,          config_parse_capability_set,        0,                             offsetof($1, exec_context.capability_ambient_set)
 $1.TimerSlackNSec,               config_parse_nsec,                  0,                             offsetof($1, exec_context.timer_slack_nsec)
-$1.NoNewPrivileges,              config_parse_no_new_privileges,     0,                             offsetof($1, exec_context)')m4_dnl
+$1.NoNewPrivileges,              config_parse_no_new_privileges,     0,                             offsetof($1, exec_context)'
+)m4_dnl
 m4_ifdef(`HAVE_SECCOMP',
 `$1.SystemCallFilter,            config_parse_syscall_filter,        0,                             offsetof($1, exec_context)
 $1.SystemCallArchitectures,      config_parse_syscall_archs,         0,                             offsetof($1, exec_context.syscall_archs)
@@ -84,7 +85,8 @@ $1.PrivateDevices,               config_parse_bool,                  0,         
 $1.ProtectSystem,                config_parse_protect_system,        0,                             offsetof($1, exec_context)
 $1.ProtectHome,                  config_parse_protect_home,          0,                             offsetof($1, exec_context)
 $1.MountFlags,                   config_parse_exec_mount_flags,      0,                             offsetof($1, exec_context)
-$1.Personality,                  config_parse_personality,           0,                             offsetof($1, exec_context.personality)')m4_dnl
+$1.Personality,                  config_parse_personality,           0,                             offsetof($1, exec_context.personality)'
+)m4_dnl
 $1.ReadWriteDirectories,         config_parse_namespace_path_strv,   0,                             offsetof($1, exec_context.read_write_dirs)
 $1.ReadOnlyDirectories,          config_parse_namespace_path_strv,   0,                             offsetof($1, exec_context.read_only_dirs)
 $1.InaccessibleDirectories,      config_parse_namespace_path_strv,   0,                             offsetof($1, exec_context.inaccessible_dirs)

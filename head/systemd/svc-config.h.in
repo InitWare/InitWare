@@ -10,6 +10,7 @@
 #cmakedefine SVC_PLATFORM_MacOS
 
 #cmakedefine SVC_USE_CGroups
+#cmakedefine SVC_USE_libcap
 
 #define SVC_SIZEOF_PID_T @SVC_SIZEOF_PID_T@
 #define SVC_SIZEOF_UID_T @SVC_SIZEOF_UID_T@
@@ -18,9 +19,12 @@
 #define SVC_SIZEOF_RLIM_T @SVC_SIZEOF_RLIM_T@
 
 /* header files */
+#cmakedefine HAVE_sys_endian_h
+#cmakedefine HAVE_endian_h
 #cmakedefine HAVE_mntent_h
 
 /* data types */
+#cmakedefine HAVE_socket_struct_ucred
 #cmakedefine SVC_HAVE_statfs
 #cmakedefine SVC_HAVE_statvfs
 

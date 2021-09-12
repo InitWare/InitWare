@@ -1,5 +1,7 @@
 add_subdirectory(systemctl)
 add_subdirectory(journal)
 add_subdirectory(scheduler)
-add_subdirectory(fusecgfs)
+if (SVC_PLATFORM_BSD)
+	add_subdirectory(fusecgfs)
+endif ()
 add_subdirectory(cgls)

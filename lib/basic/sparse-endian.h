@@ -18,8 +18,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-#ifndef SPARSE_ENDIAN_H
-#define SPARSE_ENDIAN_H
+#ifndef SPARSE_ENDIAN_H_
+#define SPARSE_ENDIAN_H_
 
 #include "bsdendian.h"
 
@@ -134,4 +134,4 @@ be64toh(be64_t value)
 #undef __sd_bitwise
 #undef __sd_force
 
-#endif /* SPARSE_ENDIAN_H */
+#endif /* SPARSE_ENDIAN_H_ */

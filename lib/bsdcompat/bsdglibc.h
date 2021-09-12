@@ -90,6 +90,8 @@ extern char **environ;
 #define bsd_reboot(how) reboot(how, "")
 #define setresgid(r, e, s) setgid(r)
 #define setresuid(r, e, s) setuid(r)
+#else
+#define bsd_reboot reboot
 #endif
 
 #ifndef SVC_HAVE_lsb_basename

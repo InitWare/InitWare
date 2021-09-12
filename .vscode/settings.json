@@ -29,6 +29,9 @@
 	"mempool.h": "c",
 	"strbuf.h": "c",
 	"cgrpfs.h": "c",
-	"types.h": "c"
+	"types.h": "c",
+	"sparse-endian.h": "c",
+	"bsdendian.h": "c",
+	"rtnl-util.h": "c"
 }
 }
