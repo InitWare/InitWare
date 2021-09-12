@@ -1,12 +1,12 @@
-#include <string.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <assert.h>
 #include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "bsdglibc.h"
 
-#ifndef SVC_HAVE_mempcpy
+#ifndef HAVE_mempcpy
 void *
 mempcpy(void *dest, const void *src, size_t n)
 {

@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -479,8 +477,7 @@ mount_points_list_umount(MountPoint **head, bool *changed)
 
 	assert(head);
 
-	IWLIST_FOREACH_SAFE(mount_point, m, n, *head)
-	{
+	IWLIST_FOREACH_SAFE (mount_point, m, n, *head) {
 		/* If we are in a container, don't attempt to
                    read-only mount anything as that brings no real
                    benefits, but might confuse the host, as we remount
@@ -557,8 +554,7 @@ swap_points_list_off(MountPoint **head, bool *changed)
 
 	assert(head);
 
-	IWLIST_FOREACH_SAFE(mount_point, m, n, *head)
-	{
+	IWLIST_FOREACH_SAFE (mount_point, m, n, *head) {
 		log_info("Deactivating swap %s.", m->path);
 		if (swapoff(m->path) == 0) {
 			if (changed)
@@ -586,8 +582,7 @@ loopback_points_list_detach(MountPoint **head, bool *changed)
 
 	k = lstat("/", &root_st);
 
-	IWLIST_FOREACH_SAFE(mount_point, m, n, *head)
-	{
+	IWLIST_FOREACH_SAFE (mount_point, m, n, *head) {
 		int r;
 		struct stat loopback_st;
 
@@ -626,8 +621,7 @@ dm_points_list_detach(MountPoint **head, bool *changed)
 
 	k = lstat("/", &root_st);
 
-	IWLIST_FOREACH_SAFE(mount_point, m, n, *head)
-	{
+	IWLIST_FOREACH_SAFE (mount_point, m, n, *head) {
 		int r;
 
 		if (k >= 0 && major(root_st.st_dev) != 0 &&

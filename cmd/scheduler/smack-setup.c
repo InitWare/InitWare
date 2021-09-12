@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -155,12 +153,12 @@ mac_smack_setup(bool *loaded_policy)
 		return 0;
 	}
 
-#	ifdef SMACK_RUN_LABEL
+#ifdef SMACK_RUN_LABEL
 	r = write_string_file("/proc/self/attr/current", SMACK_RUN_LABEL);
 	if (r)
 		log_warning("Failed to set SMACK label \"%s\" on self: %s",
 			SMACK_RUN_LABEL, strerror(-r));
-#	endif
+#endif
 
 	r = write_rules("/sys/fs/smackfs/cipso2", CIPSO_CONFIG);
 	switch (r) {

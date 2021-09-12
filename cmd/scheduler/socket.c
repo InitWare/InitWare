@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -239,8 +237,7 @@ have_non_accept_socket(Socket *s)
 	if (!s->accept)
 		return true;
 
-	IWLIST_FOREACH(port, p, s->ports)
-	{
+	IWLIST_FOREACH (port, p, s->ports) {
 		if (p->type != SOCKET_SOCKET)
 			return true;
 
@@ -259,8 +256,7 @@ socket_add_mount_links(Socket *s)
 
 	assert(s);
 
-	IWLIST_FOREACH(port, p, s->ports)
-	{
+	IWLIST_FOREACH (port, p, s->ports) {
 		const char *path = NULL;
 
 		if (p->type == SOCKET_SOCKET)
@@ -390,8 +386,7 @@ socket_find_symlink_target(Socket *s)
 	const char *found = NULL;
 	SocketPort *p;
 
-	IWLIST_FOREACH(port, p, s->ports)
-	{
+	IWLIST_FOREACH (port, p, s->ports) {
 		const char *f = NULL;
 
 		switch (p->type) {
@@ -637,8 +632,7 @@ socket_dump(Unit *u, FILE *f, const char *prefix)
 			format_timespan(time_string, FORMAT_TIMESPAN_MAX,
 				s->defer_accept, USEC_PER_SEC));
 
-	IWLIST_FOREACH(port, p, s->ports)
-	{
+	IWLIST_FOREACH (port, p, s->ports) {
 		if (p->type == SOCKET_SOCKET) {
 			const char *t;
 			int r;
@@ -781,8 +775,7 @@ socket_close_fds(Socket *s)
 
 	assert(s);
 
-	IWLIST_FOREACH(port, p, s->ports)
-	{
+	IWLIST_FOREACH (port, p, s->ports) {
 		p->event_source = sd_event_source_unref(p->event_source);
 
 		if (p->fd < 0)
@@ -889,8 +882,7 @@ socket_apply_socket_options(Socket *s, int fd)
 
 	if (s->pass_cred) {
 		int one = 1;
-		if (socket_passcred(fd) <
-			0)
+		if (socket_passcred(fd) < 0)
 			log_unit_warning(UNIT(s)->id, "SO_PASSCRED failed: %m");
 	}
 
@@ -1204,8 +1196,7 @@ socket_open_fds(Socket *s)
 
 	assert(s);
 
-	IWLIST_FOREACH(port, p, s->ports)
-	{
+	IWLIST_FOREACH (port, p, s->ports) {
 		if (p->fd >= 0)
 			continue;
 
@@ -1303,8 +1294,7 @@ socket_unwatch_fds(Socket *s)
 
 	assert(s);
 
-	IWLIST_FOREACH(port, p, s->ports)
-	{
+	IWLIST_FOREACH (port, p, s->ports) {
 		if (p->fd < 0)
 			continue;
 
@@ -1326,8 +1316,7 @@ socket_watch_fds(Socket *s)
 
 	assert(s);
 
-	IWLIST_FOREACH(port, p, s->ports)
-	{
+	IWLIST_FOREACH (port, p, s->ports) {
 		if (p->fd < 0)
 			continue;
 
@@ -1541,8 +1530,7 @@ socket_chown(Socket *s, pid_t *_pid)
 			}
 		}
 
-		IWLIST_FOREACH(port, p, s->ports)
-		{
+		IWLIST_FOREACH (port, p, s->ports) {
 			const char *path = NULL;
 
 			if (p->type == SOCKET_SOCKET)
@@ -2113,8 +2101,7 @@ socket_serialize(Unit *u, FILE *f, FDSet *fds)
 		unit_serialize_item(u, f, "control-command",
 			socket_exec_command_to_string(s->control_command_id));
 
-	IWLIST_FOREACH(port, p, s->ports)
-	{
+	IWLIST_FOREACH (port, p, s->ports) {
 		int copy;
 
 		if (p->fd < 0)
@@ -2220,10 +2207,11 @@ socket_deserialize_item(Unit *u, const char *key, const char *value, FDSet *fds)
 			log_unit_debug(u->id, "Failed to parse fifo value %s",
 				value);
 		else {
-			IWLIST_FOREACH(port, p, s->ports)
-			if (p->type == SOCKET_FIFO &&
-				path_equal_or_files_same(p->path, value + skip))
-				break;
+			IWLIST_FOREACH (port, p, s->ports)
+				if (p->type == SOCKET_FIFO &&
+					path_equal_or_files_same(p->path,
+						value + skip))
+					break;
 
 			if (p) {
 				safe_close(p->fd);
@@ -2240,10 +2228,11 @@ socket_deserialize_item(Unit *u, const char *key, const char *value, FDSet *fds)
 			log_unit_debug(u->id,
 				"Failed to parse special value %s", value);
 		else {
-			IWLIST_FOREACH(port, p, s->ports)
-			if (p->type == SOCKET_SPECIAL &&
-				path_equal_or_files_same(p->path, value + skip))
-				break;
+			IWLIST_FOREACH (port, p, s->ports)
+				if (p->type == SOCKET_SPECIAL &&
+					path_equal_or_files_same(p->path,
+						value + skip))
+					break;
 
 			if (p) {
 				safe_close(p->fd);
@@ -2260,10 +2249,10 @@ socket_deserialize_item(Unit *u, const char *key, const char *value, FDSet *fds)
 			log_unit_debug(u->id, "Failed to parse mqueue value %s",
 				value);
 		else {
-			IWLIST_FOREACH(port, p, s->ports)
-			if (p->type == SOCKET_MQUEUE &&
-				streq(p->path, value + skip))
-				break;
+			IWLIST_FOREACH (port, p, s->ports)
+				if (p->type == SOCKET_MQUEUE &&
+					streq(p->path, value + skip))
+					break;
 
 			if (p) {
 				safe_close(p->fd);
@@ -2280,9 +2269,10 @@ socket_deserialize_item(Unit *u, const char *key, const char *value, FDSet *fds)
 			log_unit_debug(u->id, "Failed to parse socket value %s",
 				value);
 		else {
-			IWLIST_FOREACH(port, p, s->ports)
-			if (socket_address_is(&p->address, value + skip, type))
-				break;
+			IWLIST_FOREACH (port, p, s->ports)
+				if (socket_address_is(&p->address, value + skip,
+					    type))
+					break;
 
 			if (p) {
 				safe_close(p->fd);
@@ -2299,10 +2289,10 @@ socket_deserialize_item(Unit *u, const char *key, const char *value, FDSet *fds)
 			log_unit_debug(u->id, "Failed to parse socket value %s",
 				value);
 		else {
-			IWLIST_FOREACH(port, p, s->ports)
-			if (socket_address_is_netlink(&p->address,
-				    value + skip))
-				break;
+			IWLIST_FOREACH (port, p, s->ports)
+				if (socket_address_is_netlink(&p->address,
+					    value + skip))
+					break;
 
 			if (p) {
 				safe_close(p->fd);
@@ -2324,8 +2314,7 @@ socket_distribute_fds(Unit *u, FDSet *fds)
 
 	assert(u);
 
-	IWLIST_FOREACH(port, p, s->ports)
-	{
+	IWLIST_FOREACH (port, p, s->ports) {
 		Iterator i;
 		int fd;
 
@@ -2671,9 +2660,9 @@ socket_collect_fds(Socket *s, int **fds, unsigned *n_fds)
 	/* Called from the service code for requesting our fds */
 
 	rn_fds = 0;
-	IWLIST_FOREACH(port, p, s->ports)
-	if (p->fd >= 0)
-		rn_fds++;
+	IWLIST_FOREACH (port, p, s->ports)
+		if (p->fd >= 0)
+			rn_fds++;
 
 	if (rn_fds <= 0) {
 		*fds = NULL;
@@ -2685,9 +2674,9 @@ socket_collect_fds(Socket *s, int **fds, unsigned *n_fds)
 		return -ENOMEM;
 
 	k = 0;
-	IWLIST_FOREACH(port, p, s->ports)
-	if (p->fd >= 0)
-		rfds[k++] = p->fd;
+	IWLIST_FOREACH (port, p, s->ports)
+		if (p->fd >= 0)
+			rfds[k++] = p->fd;
 
 	assert(k == rn_fds);
 

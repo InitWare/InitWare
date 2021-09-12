@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 #pragma once
 
 /***
@@ -34,7 +32,6 @@
 
 #include "macro.h"
 #include "util.h"
-
 
 #if defined(SVC_PLATFORM_Linux)
 #define CREDPASS_IMPLICIT 1

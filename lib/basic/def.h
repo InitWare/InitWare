@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 #pragma once
 
 /***
@@ -50,26 +48,26 @@
 #define REBOOT_PARAM_FILE "/run/systemd/reboot-param"
 
 #ifdef HAVE_SPLIT_USR
-#	define KBD_KEYMAP_DIRS                                                \
-		"/usr/share/keymaps/\0"                                        \
-		"/usr/share/kbd/keymaps/\0"                                    \
-		"/usr/lib/kbd/keymaps/\0"                                      \
-		"/lib/kbd/keymaps/\0"
+#define KBD_KEYMAP_DIRS                                                        \
+	"/usr/share/keymaps/\0"                                                \
+	"/usr/share/kbd/keymaps/\0"                                            \
+	"/usr/lib/kbd/keymaps/\0"                                              \
+	"/lib/kbd/keymaps/\0"
 #else
-#	define KBD_KEYMAP_DIRS                                                \
-		"/usr/share/keymaps/\0"                                        \
-		"/usr/share/kbd/keymaps/\0"                                    \
-		"/usr/lib/kbd/keymaps/\0"
+#define KBD_KEYMAP_DIRS                                                        \
+	"/usr/share/keymaps/\0"                                                \
+	"/usr/share/kbd/keymaps/\0"                                            \
+	"/usr/lib/kbd/keymaps/\0"
 #endif
 
 #define UNIX_SYSTEM_BUS_ADDRESS "unix:path=/var/run/dbus/system_bus_socket"
 #define KERNEL_SYSTEM_BUS_ADDRESS "kernel:path=/sys/fs/kdbus/0-system/bus"
 
 #ifdef ENABLE_KDBUS
-#	define DEFAULT_SYSTEM_BUS_ADDRESS                                     \
-		KERNEL_SYSTEM_BUS_ADDRESS ";" UNIX_SYSTEM_BUS_ADDRESS
+#define DEFAULT_SYSTEM_BUS_ADDRESS                                             \
+	KERNEL_SYSTEM_BUS_ADDRESS ";" UNIX_SYSTEM_BUS_ADDRESS
 #else
-#	define DEFAULT_SYSTEM_BUS_ADDRESS UNIX_SYSTEM_BUS_ADDRESS
+#define DEFAULT_SYSTEM_BUS_ADDRESS UNIX_SYSTEM_BUS_ADDRESS
 #endif
 
 #define UNIX_USER_BUS_ADDRESS_FMT "unix:path=%s/bus"
@@ -83,7 +81,7 @@
 	}
 
 #ifndef TTY_GID
-#	define TTY_GID 5
+#define TTY_GID 5
 #endif
 
 #define NOTIFY_FD_MAX 768

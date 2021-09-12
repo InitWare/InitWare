@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -34,7 +32,7 @@
 #include <unistd.h>
 
 #ifdef HAVE_SECCOMP
-#	include <seccomp.h>
+#include <seccomp.h>
 #endif
 
 #include "af-list.h"
@@ -65,7 +63,7 @@
 #endif
 
 #ifdef HAVE_SECCOMP
-#	include "seccomp-util.h"
+#include "seccomp-util.h"
 #endif
 
 int
@@ -344,7 +342,9 @@ config_parse_socket_listen(const char *unit, const char *filename,
 				rvalue);
 #else
 		{
-			log_syntax(unit, LOG_ERR, filename, line, -r, "Netlink sockets unsupported on this platform, ignoring: %s", rvalue);
+			log_syntax(unit, LOG_ERR, filename, line, -r,
+				"Netlink sockets unsupported on this platform, ignoring: %s",
+				rvalue);
 #endif
 			return 0;
 		}
@@ -2883,10 +2883,11 @@ config_parse_blockio_bandwidth(const char *unit, const char *filename,
 	if (isempty(rvalue)) {
 		CGroupBlockIODeviceBandwidth *next;
 
-		IWLIST_FOREACH_SAFE(device_bandwidths, b, next,
+		IWLIST_FOREACH_SAFE (device_bandwidths, b, next,
 			c->blockio_device_bandwidths)
-		if (b->read == read)
-			cgroup_context_free_blockio_device_bandwidth(c, b);
+			if (b->read == read)
+				cgroup_context_free_blockio_device_bandwidth(c,
+					b);
 
 		return 0;
 	}

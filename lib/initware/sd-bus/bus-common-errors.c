@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -21,10 +19,10 @@
 
 #include <errno.h>
 
+#include "bsdglibc.h"
 #include "bus-common-errors.h"
 #include "bus-error.h"
 #include "sd-bus.h"
-#include "bsdglibc.h"
 
 BUS_ERROR_MAP_ELF_REGISTER const sd_bus_error_map bus_common_errors[] = {
 	SD_BUS_ERROR_MAP(BUS_ERROR_NO_SUCH_UNIT, ENOENT),

@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -1907,8 +1905,8 @@ mount_dispatch_io(sd_event_source *source, int fd, uint32_t revents,
 	r = mount_load_proc_self_mountinfo(m, true);
 	if (r < 0) {
 		/* Reset flags, just in case, for later calls */
-		IWLIST_FOREACH(units_by_type, u, m->units_by_type[UNIT_MOUNT])
-		{
+		IWLIST_FOREACH (units_by_type, u,
+			m->units_by_type[UNIT_MOUNT]) {
 			Mount *mount = MOUNT(u);
 
 			mount->is_mounted = mount->just_mounted =
@@ -1920,8 +1918,7 @@ mount_dispatch_io(sd_event_source *source, int fd, uint32_t revents,
 
 	manager_dispatch_load_queue(m);
 
-	IWLIST_FOREACH(units_by_type, u, m->units_by_type[UNIT_MOUNT])
-	{
+	IWLIST_FOREACH (units_by_type, u, m->units_by_type[UNIT_MOUNT]) {
 		Mount *mount = MOUNT(u);
 
 		if (!mount->is_mounted) {

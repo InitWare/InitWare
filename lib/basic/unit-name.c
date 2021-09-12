@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -32,8 +30,8 @@
 
 #define VALID_CHARS DIGITS LETTERS ":-_.\\"
 
-static const char *const unit_type_table[_UNIT_TYPE_MAX] = { [UNIT_SERVICE] =
-								     "service",
+static const char *const unit_type_table[_UNIT_TYPE_MAX] = {
+	[UNIT_SERVICE] = "service",
 	[UNIT_SOCKET] = "socket",
 	[UNIT_TARGET] = "target",
 	[UNIT_SNAPSHOT] = "snapshot",
@@ -42,14 +40,14 @@ static const char *const unit_type_table[_UNIT_TYPE_MAX] = { [UNIT_SERVICE] =
 	[UNIT_SLICE] = "slice",
 	[UNIT_SCOPE] = "scope"
 #ifdef SVC_USE_Device
-	[UNIT_DEVICE] = "device",
+		[UNIT_DEVICE] = "device",
 #endif
 #ifdef SVC_USE_Mount
 	[UNIT_MOUNT] = "mount",
 	[UNIT_AUTOMOUNT] = "automount",
 	[UNIT_SWAP] = "swap",
 #endif
-	};
+};
 
 DEFINE_STRING_TABLE_LOOKUP(unit_type, UnitType);
 

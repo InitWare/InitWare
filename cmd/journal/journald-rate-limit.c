@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -241,9 +239,9 @@ journal_rate_limit_test(JournalRateLimit *r, const char *id, int priority,
 	h = string_hash_func(id, r->hash_key);
 	g = r->buckets[h % BUCKETS_MAX];
 
-	IWLIST_FOREACH(bucket, g, g)
-	if (streq(g->id, id))
-		break;
+	IWLIST_FOREACH (bucket, g, g)
+		if (streq(g->id, id))
+			break;
 
 	if (!g) {
 		g = journal_rate_limit_group_new(r, id, ts);

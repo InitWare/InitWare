@@ -22,15 +22,15 @@
 #include "util.h"
 
 #ifdef HAVE_XZ
-#	define XZ_OK 0
+#define XZ_OK 0
 #else
-#	define XZ_OK -EPROTONOSUPPORT
+#define XZ_OK -EPROTONOSUPPORT
 #endif
 
 #ifdef HAVE_LZ4
-#	define LZ4_OK 0
+#define LZ4_OK 0
 #else
-#	define LZ4_OK -EPROTONOSUPPORT
+#define LZ4_OK -EPROTONOSUPPORT
 #endif
 
 typedef int(compress_blob_t)(const void *src, uint64_t src_size, void *dst,

@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -29,11 +27,11 @@
 #include "util.h"
 
 #ifndef RC_LOCAL_SCRIPT_PATH_START
-#	define RC_LOCAL_SCRIPT_PATH_START "/etc/rc.d/rc.local"
+#define RC_LOCAL_SCRIPT_PATH_START "/etc/rc.d/rc.local"
 #endif
 
 #ifndef RC_LOCAL_SCRIPT_PATH_STOP
-#	define RC_LOCAL_SCRIPT_PATH_STOP "/sbin/halt.local"
+#define RC_LOCAL_SCRIPT_PATH_STOP "/sbin/halt.local"
 #endif
 
 const char *arg_dest = "/tmp";

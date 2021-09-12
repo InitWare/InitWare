@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -24,11 +22,11 @@
 
 #ifdef HAVE_AUDIT
 
-#	include <libaudit.h>
-#	include <stdbool.h>
+#include <libaudit.h>
+#include <stdbool.h>
 
-#	include "log.h"
-#	include "util.h"
+#include "log.h"
+#include "util.h"
 
 static bool initialized = false;
 static int audit_fd;

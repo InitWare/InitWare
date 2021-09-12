@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -36,10 +34,10 @@
 #include "missing.h"
 #include "path-util.h"
 #include "set.h"
+#include "socket-util.h"
 #include "strv.h"
 #include "unit-name.h"
 #include "util.h"
-#include "socket-util.h"
 
 #include "bus-util.h"
 

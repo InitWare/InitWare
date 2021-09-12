@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -26,8 +24,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "errno-list.h"
 #include "bsdglibc.h"
+#include "errno-list.h"
 #include "util.h"
 
 #include "bus-error.h"

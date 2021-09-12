@@ -28,6 +28,7 @@
 	"fuse.h": "c",
 	"mempool.h": "c",
 	"strbuf.h": "c",
-	"cgrpfs.h": "c"
+	"cgrpfs.h": "c",
+	"types.h": "c"
 }
 }

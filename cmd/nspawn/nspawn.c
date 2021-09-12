@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -47,15 +45,15 @@
 #include <unistd.h>
 
 #ifdef HAVE_SELINUX
-#	include <selinux/selinux.h>
+#include <selinux/selinux.h>
 #endif
 
 #ifdef HAVE_SECCOMP
-#	include <seccomp.h>
+#include <seccomp.h>
 #endif
 
 #ifdef HAVE_BLKID
-#	include <blkid/blkid.h>
+#include <blkid/blkid.h>
 #endif
 
 #include "audit.h"
@@ -102,7 +100,7 @@
 #include "util.h"
 
 #ifdef HAVE_SECCOMP
-#	include "seccomp-util.h"
+#include "seccomp-util.h"
 #endif
 
 typedef struct ExposePort {
@@ -755,8 +753,7 @@ parse_argv(int argc, char *argv[])
 				return -EINVAL;
 			}
 
-			IWLIST_FOREACH(ports, p, arg_expose_ports)
-			{
+			IWLIST_FOREACH (ports, p, arg_expose_ports) {
 				if (p->protocol == protocol &&
 					p->host_port == host_port) {
 					log_error(
@@ -1749,8 +1746,7 @@ flush_ports(union in_addr_union *exposed)
 
 	log_debug("Lost IP address.");
 
-	IWLIST_FOREACH(ports, p, arg_expose_ports)
-	{
+	IWLIST_FOREACH (ports, p, arg_expose_ports) {
 		r = fw_add_local_dnat(false, af, p->protocol, NULL, NULL, 0,
 			NULL, 0, p->host_port, exposed, p->container_port,
 			NULL);
@@ -1798,8 +1794,7 @@ expose_ports(sd_rtnl *rtnl, union in_addr_union *exposed)
 	in_addr_to_string(af, &new_exposed, &pretty);
 	log_debug("New container IP is %s.", strna(pretty));
 
-	IWLIST_FOREACH(ports, p, arg_expose_ports)
-	{
+	IWLIST_FOREACH (ports, p, arg_expose_ports) {
 		r = fw_add_local_dnat(true, af, p->protocol, NULL, NULL, 0,
 			NULL, 0, p->host_port, &new_exposed, p->container_port,
 			in_addr_is_null(af, exposed) ? NULL : exposed);
@@ -2973,12 +2968,12 @@ dissect_image(int fd, char **root_device, bool *root_device_rw,
 {
 #ifdef HAVE_BLKID
 	int home_nr = -1, srv_nr = -1;
-#	ifdef GPT_ROOT_NATIVE
+#ifdef GPT_ROOT_NATIVE
 	int root_nr = -1;
-#	endif
-#	ifdef GPT_ROOT_SECONDARY
+#endif
+#ifdef GPT_ROOT_SECONDARY
 	int secondary_root_nr = -1;
-#	endif
+#endif
 	_cleanup_free_ char *home = NULL, *root = NULL, *secondary_root = NULL,
 			    *srv = NULL, *generic = NULL;
 	_cleanup_udev_enumerate_unref_ struct udev_enumerate *e = NULL;
@@ -3222,7 +3217,7 @@ dissect_image(int fd, char **root_device, bool *root_device_rw,
 				if (r < 0)
 					return log_oom();
 			}
-#	ifdef GPT_ROOT_NATIVE
+#ifdef GPT_ROOT_NATIVE
 			else if (sd_id128_equal(type_id, GPT_ROOT_NATIVE)) {
 
 				if (root && nr >= root_nr)
@@ -3235,8 +3230,8 @@ dissect_image(int fd, char **root_device, bool *root_device_rw,
 				if (r < 0)
 					return log_oom();
 			}
-#	endif
-#	ifdef GPT_ROOT_SECONDARY
+#endif
+#ifdef GPT_ROOT_SECONDARY
 			else if (sd_id128_equal(type_id, GPT_ROOT_SECONDARY)) {
 
 				if (secondary_root && nr >= secondary_root_nr)
@@ -3250,7 +3245,7 @@ dissect_image(int fd, char **root_device, bool *root_device_rw,
 				if (r < 0)
 					return log_oom();
 			}
-#	endif
+#endif
 			else if (sd_id128_equal(type_id, GPT_LINUX_GENERIC)) {
 
 				if (generic)
@@ -3878,8 +3873,8 @@ determine_names(void)
 		if (arg_directory && path_equal(arg_directory, "/"))
 			arg_machine = gethostname_malloc();
 		else
-			arg_machine =
-				strdup(lsb_basename(arg_image ?: arg_directory));
+			arg_machine = strdup(
+				lsb_basename(arg_image ?: arg_directory));
 
 		if (!arg_machine)
 			return log_oom();

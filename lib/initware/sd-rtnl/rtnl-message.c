@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -1579,7 +1577,6 @@ socket_write_message(sd_rtnl *nl, sd_rtnl_message *m)
 static int
 socket_recv_message(int fd, struct iovec *iov, uint32_t *_group, bool peek)
 {
-	
 	uint8_t cred_buffer[CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE) +
 		CMSG_SPACE(sizeof(struct nl_pktinfo))];
 	struct msghdr msg = {

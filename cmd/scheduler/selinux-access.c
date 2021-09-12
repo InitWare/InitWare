@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -23,26 +21,26 @@
 
 #ifdef HAVE_SELINUX
 
-#	include <sys/socket.h>
-#	include <selinux/avc.h>
-#	include <selinux/selinux.h>
-#	include <errno.h>
-#	include <limits.h>
-#	include <stdio.h>
-#	include <string.h>
-#	ifdef HAVE_AUDIT
-#		include <libaudit.h>
-#	endif
+#include <sys/socket.h>
+#include <selinux/avc.h>
+#include <selinux/selinux.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
+#ifdef HAVE_AUDIT
+#include <libaudit.h>
+#endif
 
-#	include "audit-fd.h"
-#	include "audit.h"
-#	include "bus-util.h"
-#	include "log.h"
-#	include "path-util.h"
-#	include "sd-bus.h"
-#	include "selinux-util.h"
-#	include "strv.h"
-#	include "util.h"
+#include "audit-fd.h"
+#include "audit.h"
+#include "bus-util.h"
+#include "log.h"
+#include "path-util.h"
+#include "sd-bus.h"
+#include "selinux-util.h"
+#include "strv.h"
+#include "util.h"
 
 static bool initialized = false;
 
@@ -93,7 +91,7 @@ _printf_(2, 3) static int log_callback(int type, const char *fmt, ...)
 {
 	va_list ap;
 
-#	ifdef HAVE_AUDIT
+#ifdef HAVE_AUDIT
 	if (get_audit_fd() >= 0) {
 		_cleanup_free_ char *buf = NULL;
 		int r;
@@ -115,7 +113,7 @@ _printf_(2, 3) static int log_callback(int type, const char *fmt, ...)
 			return 0;
 		}
 	}
-#	endif
+#endif
 
 	va_start(ap, fmt);
 	log_internalv(LOG_AUTH | LOG_INFO, 0, __FILE__, __LINE__, __FUNCTION__,

@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -23,10 +21,10 @@
 #include <assert.h>
 #include <dirent.h>
 #include <errno.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libgen.h>
 #include <unistd.h>
 
 #include "conf-files.h"

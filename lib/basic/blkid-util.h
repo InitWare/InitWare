@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 #pragma once
 
 /***
@@ -22,12 +20,12 @@
 ***/
 
 #ifdef HAVE_BLKID
-#	include <blkid/blkid.h>
+#include <blkid/blkid.h>
 #endif
 
 #include "util.h"
 
 #ifdef HAVE_BLKID
 DEFINE_TRIVIAL_CLEANUP_FUNC(blkid_probe, blkid_free_probe);
-#	define _cleanup_blkid_free_probe_ _cleanup_(blkid_free_probep)
+#define _cleanup_blkid_free_probe_ _cleanup_(blkid_free_probep)
 #endif

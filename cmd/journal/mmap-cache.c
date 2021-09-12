@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -88,9 +86,9 @@ struct MMapCache {
 
 #ifdef ENABLE_DEBUG_MMAP_CACHE
 /* Tiny windows increase mmap activity and the chance of exposing unsafe use. */
-#	define WINDOW_SIZE (page_size())
+#define WINDOW_SIZE (page_size())
 #else
-#	define WINDOW_SIZE (8ULL * 1024ULL * 1024ULL)
+#define WINDOW_SIZE (8ULL * 1024ULL * 1024ULL)
 #endif
 
 MMapCache *
@@ -136,8 +134,7 @@ window_unlink(Window *w)
 		IWLIST_REMOVE(unused, w->cache->unused, w);
 	}
 
-	IWLIST_FOREACH(by_window, c, w->contexts)
-	{
+	IWLIST_FOREACH (by_window, c, w->contexts) {
 		assert(c->window == w);
 		c->window = NULL;
 	}
@@ -453,9 +450,9 @@ find_mmap(MMapCache *m, int fd, int prot, unsigned context, bool keep_always,
 	if (f->sigbus)
 		return -EIO;
 
-	IWLIST_FOREACH(by_fd, w, f->windows)
-	if (window_matches(w, fd, prot, offset, size))
-		break;
+	IWLIST_FOREACH (by_fd, w, f->windows)
+		if (window_matches(w, fd, prot, offset, size))
+			break;
 
 	if (!w)
 		return 0;
@@ -643,8 +640,7 @@ mmap_cache_process_sigbus(MMapCache *m)
 		HASHMAP_FOREACH (f, m->fds, i) {
 			Window *w;
 
-			IWLIST_FOREACH(by_fd, w, f->windows)
-			{
+			IWLIST_FOREACH (by_fd, w, f->windows) {
 				if ((uint8_t *)addr >= (uint8_t *)w->ptr &&
 					(uint8_t *)addr <
 						(uint8_t *)w->ptr + w->size) {
@@ -677,8 +673,8 @@ mmap_cache_process_sigbus(MMapCache *m)
 		if (!f->sigbus)
 			continue;
 
-		IWLIST_FOREACH(by_fd, w, f->windows)
-		window_invalidate(w);
+		IWLIST_FOREACH (by_fd, w, f->windows)
+			window_invalidate(w);
 	}
 }
 

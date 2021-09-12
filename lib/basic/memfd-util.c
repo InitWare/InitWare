@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -26,7 +24,7 @@
 #include <stdio.h>
 
 #ifdef HAVE_LINUX_MEMFD_H
-#	include <linux/memfd.h>
+#include <linux/memfd.h>
 #endif
 
 #include "bus-label.h"

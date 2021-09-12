@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -55,13 +53,13 @@ detect_vm_cpuid(const char **_id)
 
 	/* http://lwn.net/Articles/301888/ */
 
-#	if defined(__i386__)
-#		define REG_a "eax"
-#		define REG_b "ebx"
-#	elif defined(__amd64__)
-#		define REG_a "rax"
-#		define REG_b "rbx"
-#	endif
+#if defined(__i386__)
+#define REG_a "eax"
+#define REG_b "ebx"
+#elif defined(__amd64__)
+#define REG_a "rax"
+#define REG_b "rbx"
+#endif
 
 	/* First detect whether there is a hypervisor */
 	eax = 1;

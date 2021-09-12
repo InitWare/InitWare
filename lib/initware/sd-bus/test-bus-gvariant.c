@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -20,7 +18,7 @@
 ***/
 
 #ifdef HAVE_GLIB
-#	include <glib.h>
+#include <glib.h>
 #endif
 
 #include "bus-dump.h"
@@ -171,9 +169,9 @@ test_marshal(void)
 		GVariant *v;
 		char *t;
 
-#	if !defined(GLIB_VERSION_2_36)
+#if !defined(GLIB_VERSION_2_36)
 		g_type_init();
-#	endif
+#endif
 
 		v = g_variant_new_from_data(G_VARIANT_TYPE("(yyyyuta{tv})"),
 			m->header, sizeof(struct bus_header) + m->fields_size,

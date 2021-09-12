@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -688,7 +686,7 @@ bus_creds_add_more(sd_bus_creds *c, uint64_t mask, pid_t pid, pid_t tid)
 		(SD_BUS_CREDS_UID | SD_BUS_CREDS_EUID | SD_BUS_CREDS_SUID |
 			SD_BUS_CREDS_FSUID | SD_BUS_CREDS_GID |
 			SD_BUS_CREDS_EGID | SD_BUS_CREDS_SGID |
-			SD_BUS_CREDS_FSGID | SD_BUS_CREDS_SUPPLEMENTARY_GIDS )) {
+			SD_BUS_CREDS_FSGID | SD_BUS_CREDS_SUPPLEMENTARY_GIDS)) {
 		_cleanup_fclose_ FILE *f = NULL;
 		const char *p;
 

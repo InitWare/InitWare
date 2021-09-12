@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -79,8 +77,7 @@ property_get_sessions(sd_bus *bus, const char *path, const char *interface,
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH(sessions_by_user, session, u->sessions)
-	{
+	IWLIST_FOREACH (sessions_by_user, session, u->sessions) {
 		_cleanup_free_ char *p = NULL;
 
 		p = session_bus_path(session);

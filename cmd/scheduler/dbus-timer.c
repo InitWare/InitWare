@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -47,8 +45,7 @@ property_get_monotonic_timers(sd_bus *bus, const char *path,
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH(value, v, t->values)
-	{
+	IWLIST_FOREACH (value, v, t->values) {
 		_cleanup_free_ char *buf = NULL;
 		const char *s;
 		size_t l;
@@ -94,8 +91,7 @@ property_get_calendar_timers(sd_bus *bus, const char *path,
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH(value, v, t->values)
-	{
+	IWLIST_FOREACH (value, v, t->values) {
 		_cleanup_free_ char *buf = NULL;
 
 		if (v->base != TIMER_CALENDAR)

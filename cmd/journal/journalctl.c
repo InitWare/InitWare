@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -1175,8 +1173,7 @@ get_boots(sd_journal *j, BootId **boots, BootId *query_ref_boot,
 				break;
 			}
 		} else {
-			IWLIST_FOREACH(boot_list, id, head)
-			{
+			IWLIST_FOREACH (boot_list, id, head) {
 				if (sd_id128_equal(id->id, current->id)) {
 					/* boot id already stored, something wrong with the journal files */
 					/* exiting as otherwise this problem would cause forever loop */
@@ -1217,8 +1214,7 @@ list_boots(sd_journal *j)
 	w = DECIMAL_STR_WIDTH(count - 1) + 1;
 
 	i = 0;
-	IWLIST_FOREACH(boot_list, id, all_ids)
-	{
+	IWLIST_FOREACH (boot_list, id, all_ids) {
 		char a[FORMAT_TIMESTAMP_MAX], b[FORMAT_TIMESTAMP_MAX];
 
 		printf("% *i " SD_ID128_FORMAT_STR " %s—%s\n", w, i - count + 1,
@@ -1738,7 +1734,7 @@ setup_keys(void)
 				".\n",
 				SD_ID128_FORMAT_VAL(machine));
 
-#	ifdef HAVE_QRENCODE
+#ifdef HAVE_QRENCODE
 		/* If this is not an UTF-8 system don't print any QR codes */
 		if (is_locale_utf8()) {
 			fputs("\nTo transfer the verification key to your phone please scan the QR code below:\n\n",
@@ -1746,7 +1742,7 @@ setup_keys(void)
 			print_qr_code(stderr, seed, seed_size, n, arg_interval,
 				hn, machine);
 		}
-#	endif
+#endif
 		free(hn);
 	}
 

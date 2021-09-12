@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -504,8 +502,7 @@ process_match(sd_rtnl *rtnl, sd_rtnl_message *m)
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH(match_callbacks, c, rtnl->match_callbacks)
-	{
+	IWLIST_FOREACH (match_callbacks, c, rtnl->match_callbacks) {
 		if (type == c->type) {
 			r = c->callback(rtnl, m, c->userdata);
 			if (r != 0) {
@@ -1117,14 +1114,15 @@ sd_rtnl_remove_match(sd_rtnl *rtnl, uint16_t type,
 	assert_return(callback, -EINVAL);
 	assert_return(!rtnl_pid_changed(rtnl), -ECHILD);
 
-	IWLIST_FOREACH(match_callbacks, c, rtnl->match_callbacks)
-	if (c->callback == callback && c->type == type &&
-		c->userdata == userdata) {
-		IWLIST_REMOVE(match_callbacks, rtnl->match_callbacks, c);
-		free(c);
+	IWLIST_FOREACH (match_callbacks, c, rtnl->match_callbacks)
+		if (c->callback == callback && c->type == type &&
+			c->userdata == userdata) {
+			IWLIST_REMOVE(match_callbacks, rtnl->match_callbacks,
+				c);
+			free(c);
 
-		return 1;
-	}
+			return 1;
+		}
 
 	return 0;
 }

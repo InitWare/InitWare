@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -122,7 +120,7 @@ uname_architecture(void)
 #elif defined(__cris__)
 		{ "crisv32", ARCHITECTURE_CRIS },
 #else
-#	error "Please register your architecture here!"
+#error "Please register your architecture here!"
 #endif
 	};
 

@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -25,9 +23,9 @@
 #include <unistd.h>
 
 #ifdef HAVE_SELINUX
-#	include <selinux/context.h>
-#	include <selinux/label.h>
-#	include <selinux/selinux.h>
+#include <selinux/context.h>
+#include <selinux/label.h>
+#include <selinux/selinux.h>
 #endif
 
 #include "path-util.h"
@@ -38,15 +36,14 @@
 DEFINE_TRIVIAL_CLEANUP_FUNC(security_context_t, freecon);
 DEFINE_TRIVIAL_CLEANUP_FUNC(context_t, context_free);
 
-#	define _cleanup_security_context_free_ _cleanup_(freeconp)
-#	define _cleanup_context_free_ _cleanup_(context_freep)
+#define _cleanup_security_context_free_ _cleanup_(freeconp)
+#define _cleanup_context_free_ _cleanup_(context_freep)
 
 static int cached_use = -1;
 static struct selabel_handle *label_hnd = NULL;
 
-#	define log_enforcing(...)                                             \
-		log_full(security_getenforce() == 1 ? LOG_ERR : LOG_DEBUG,     \
-			__VA_ARGS__)
+#define log_enforcing(...)                                                     \
+	log_full(security_getenforce() == 1 ? LOG_ERR : LOG_DEBUG, __VA_ARGS__)
 #endif
 
 bool

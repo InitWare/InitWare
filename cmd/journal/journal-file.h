@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 #pragma once
 
 /***
@@ -24,7 +22,7 @@
 #include <inttypes.h>
 
 #ifdef HAVE_GCRYPT
-#	include <gcrypt.h>
+#include <gcrypt.h>
 #endif
 
 #include "sd-id128.h"

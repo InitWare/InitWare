@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -31,8 +29,8 @@
 #include "util.h"
 
 #ifdef HAVE_GNUTLS
-#	include <gnutls/gnutls.h>
-#	include <gnutls/x509.h>
+#include <gnutls/gnutls.h>
+#include <gnutls/x509.h>
 #endif
 
 void

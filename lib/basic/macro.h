@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 #pragma once
 
 /***
@@ -99,11 +97,11 @@
 
 #ifndef ALIGN
 #if __SIZEOF_POINTER__ == 8
-#	define ALIGN(l) ALIGN8(l)
+#define ALIGN(l) ALIGN8(l)
 #elif __SIZEOF_POINTER__ == 4
-#	define ALIGN(l) ALIGN4(l)
+#define ALIGN(l) ALIGN4(l)
 #else
-#	error "Wut? Pointers are neither 4 nor 8 bytes long?"
+#error "Wut? Pointers are neither 4 nor 8 bytes long?"
 #endif
 #endif
 
@@ -249,11 +247,11 @@ ALIGN_POWER2(unsigned long u)
 /* We override the glibc assert() here. */
 #undef assert
 #ifdef NDEBUG
-#	define assert(expr)                                                   \
-		do {                                                           \
-		} while (false)
+#define assert(expr)                                                           \
+	do {                                                                   \
+	} while (false)
 #else
-#	define assert(expr) assert_se(expr)
+#define assert(expr) assert_se(expr)
 #endif
 
 #define assert_not_reached(t)                                                  \
@@ -266,17 +264,17 @@ ALIGN_POWER2(unsigned long u)
 /* static_assert() is sometimes defined in a way that trips up
  * -Wdeclaration-after-statement, hence let's temporarily turn off
  * this warning around it. */
-#	define assert_cc(expr)                                                \
-		DISABLE_WARNING_DECLARATION_AFTER_STATEMENT;                   \
-		static_assert(expr, #expr);                                    \
-		REENABLE_WARNING
+#define assert_cc(expr)                                                        \
+	DISABLE_WARNING_DECLARATION_AFTER_STATEMENT;                           \
+	static_assert(expr, #expr);                                            \
+	REENABLE_WARNING
 #else
-#	define assert_cc(expr)                                                \
-		DISABLE_WARNING_DECLARATION_AFTER_STATEMENT;                   \
-		struct CONCATENATE(_assert_struct_, __COUNTER__) {             \
-			char x[(expr) ? 0 : -1];                               \
-		};                                                             \
-		REENABLE_WARNING
+#define assert_cc(expr)                                                        \
+	DISABLE_WARNING_DECLARATION_AFTER_STATEMENT;                           \
+	struct CONCATENATE(_assert_struct_, __COUNTER__) {                     \
+		char x[(expr) ? 0 : -1];                                       \
+	};                                                                     \
+	REENABLE_WARNING
 #endif
 
 #define assert_return(expr, r)                                                 \
@@ -464,9 +462,9 @@ IOVEC_INCREMENT(struct iovec *i, unsigned n, size_t k)
 	"/usr/lib/" n ".d\0" CONF_DIR_SPLIT_USR(n)
 
 #ifdef HAVE_SPLIT_USR
-#	define CONF_DIR_SPLIT_USR(n) "/lib/" n ".d\0"
+#define CONF_DIR_SPLIT_USR(n) "/lib/" n ".d\0"
 #else
-#	define CONF_DIR_SPLIT_USR(n)
+#define CONF_DIR_SPLIT_USR(n)
 #endif
 
 /* Define C11 thread_local attribute even on older gcc compiler
@@ -476,24 +474,24 @@ IOVEC_INCREMENT(struct iovec *i, unsigned n, size_t k)
  * Don't break on glibc < 2.16 that doesn't define __STDC_NO_THREADS__
  * see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=53769
  */
-#	if __STDC_VERSION__ >= 201112L &&                                     \
-		!(defined(__STDC_NO_THREADS__) ||                              \
-			(defined(__GNU_LIBRARY__) && __GLIBC__ == 2 &&         \
-				__GLIBC_MINOR__ < 16))
-#		define thread_local _Thread_local
-#	else
-#		define thread_local __thread
-#	endif
+#if __STDC_VERSION__ >= 201112L &&                                             \
+	!(defined(__STDC_NO_THREADS__) ||                                      \
+		(defined(__GNU_LIBRARY__) && __GLIBC__ == 2 &&                 \
+			__GLIBC_MINOR__ < 16))
+#define thread_local _Thread_local
+#else
+#define thread_local __thread
+#endif
 #endif
 
 /* Define C11 noreturn without <stdnoreturn.h> and even on older gcc
  * compiler versions */
 #ifndef noreturn
-#	if __STDC_VERSION__ >= 201112L
-#		define noreturn _Noreturn
-#	else
-#		define noreturn __attribute__((noreturn))
-#	endif
+#if __STDC_VERSION__ >= 201112L
+#define noreturn _Noreturn
+#else
+#define noreturn __attribute__((noreturn))
+#endif
 #endif
 
 #define UID_INVALID ((uid_t)-1)
@@ -528,8 +526,8 @@ GID_IS_INVALID(gid_t gid)
 	for ((cmsg) = CMSG_FIRSTHDR(mh); (cmsg);                               \
 		(cmsg) = CMSG_NXTHDR((mh), (cmsg)))
 
-
 #define unimplemented() log_debug("%s: unimplemented\n", __FUNCTION__)
-#define unimplemented_msg(...) log_debug("%s: %s: unimplemented\n", __FUNCTION__, __VA_ARGS__)
+#define unimplemented_msg(...)                                                 \
+	log_debug("%s: %s: unimplemented\n", __FUNCTION__, __VA_ARGS__)
 
 #include "log.h"

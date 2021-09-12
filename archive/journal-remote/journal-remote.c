@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -44,7 +42,7 @@
 #include "strv.h"
 
 #ifdef HAVE_GNUTLS
-#	include <gnutls/gnutls.h>
+#include <gnutls/gnutls.h>
 #endif
 
 #include "journal-remote-write.h"

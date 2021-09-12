@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -1425,8 +1423,7 @@ unit_condition_test_list(Unit *u, Condition *first,
 	/* Otherwise, if all of the non-trigger conditions apply and
          * if any of the trigger conditions apply (unless there are
          * none) we return true */
-	IWLIST_FOREACH(conditions, c, first)
-	{
+	IWLIST_FOREACH (conditions, c, first) {
 		int r;
 
 		r = condition_test(c);
@@ -3523,7 +3520,8 @@ unit_get_unit_file_state(Unit *u)
 					SYSTEMD_SYSTEM ?
 				      UNIT_FILE_SYSTEM :
 				      UNIT_FILE_USER,
-			NULL, lsb_basename(u->fragment_path), &u->unit_file_state);
+			NULL, lsb_basename(u->fragment_path),
+			&u->unit_file_state);
 		if (r < 0)
 			u->unit_file_state = UNIT_FILE_BAD;
 	}

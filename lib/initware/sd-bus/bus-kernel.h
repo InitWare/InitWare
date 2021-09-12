@@ -6,8 +6,6 @@ uint64_t request_name_flags_to_kdbus(uint64_t sd_bus_flags);
 uint64_t attach_flags_to_kdbus(uint64_t sd_bus_flags);
 
 #if 0
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 #pragma once
 
 /***

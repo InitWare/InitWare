@@ -24,11 +24,11 @@
 #include "bsdendian.h"
 
 #ifdef __CHECKER__
-#	define __sd_bitwise __attribute__((bitwise))
-#	define __sd_force __attribute__((force))
+#define __sd_bitwise __attribute__((bitwise))
+#define __sd_force __attribute__((force))
 #else
-#	define __sd_bitwise
-#	define __sd_force
+#define __sd_bitwise
+#define __sd_force
 #endif
 
 typedef uint16_t __sd_bitwise le16_t;
@@ -52,19 +52,19 @@ typedef uint64_t __sd_bitwise be64_t;
 #undef le64toh
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-#	define bswap16_on_le(x) bswap16(x)
-#	define bswap32_on_le(x) bswap32(x)
-#	define bswap64_on_le(x) bswap64(x)
-#	define bswap16_on_be(x) (x)
-#	define bswap32_on_be(x) (x)
-#	define bswap64_on_be(x) (x)
+#define bswap16_on_le(x) bswap16(x)
+#define bswap32_on_le(x) bswap32(x)
+#define bswap64_on_le(x) bswap64(x)
+#define bswap16_on_be(x) (x)
+#define bswap32_on_be(x) (x)
+#define bswap64_on_be(x) (x)
 #elif __BYTE_ORDER == __BIG_ENDIAN
-#	define bswap16_on_le(x) (x)
-#	define bswap32_on_le(x) (x)
-#	define bswap64_on_le(x) (x)
-#	define bswap16_on_be(x) bswap16(x)
-#	define bswap32_on_be(x) bswap32(x)
-#	define bswap64_on_be(x) bswap64(x)
+#define bswap16_on_le(x) (x)
+#define bswap32_on_le(x) (x)
+#define bswap64_on_le(x) (x)
+#define bswap16_on_be(x) bswap16(x)
+#define bswap32_on_be(x) bswap32(x)
+#define bswap64_on_be(x) bswap64(x)
 #endif
 
 static inline le16_t

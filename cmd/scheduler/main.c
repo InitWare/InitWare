@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -32,10 +30,10 @@
 #include <unistd.h>
 
 #ifdef HAVE_VALGRIND_VALGRIND_H
-#	include <valgrind/valgrind.h>
+#include <valgrind/valgrind.h>
 #endif
 #ifdef HAVE_SECCOMP
-#	include <seccomp.h>
+#include <seccomp.h>
 #endif
 
 #include "architecture.h"
@@ -218,9 +216,9 @@ crash(int sig)
 					signal_to_string(sig), pid);
 		}
 #else
-			log_emergency_errno(errno,
-				"Caught <%s>, cannot fork for core dump: %m",
-				signal_to_string(sig));
+		log_emergency_errno(errno,
+			"Caught <%s>, cannot fork for core dump: %m",
+			signal_to_string(sig));
 #endif
 	}
 
@@ -747,8 +745,9 @@ parse_config_file(void)
 
 	const char *fn, *conf_dirs_nulstr;
 
-	fn = arg_running_as == SYSTEMD_SYSTEM ? INSTALL_PKGSYSCONF_DIR "/system.conf" :
-						      INSTALL_PKGSYSCONF_DIR "/user.conf";
+	fn = arg_running_as == SYSTEMD_SYSTEM ?
+		      INSTALL_PKGSYSCONF_DIR "/system.conf" :
+		      INSTALL_PKGSYSCONF_DIR "/user.conf";
 	conf_dirs_nulstr = arg_running_as == SYSTEMD_SYSTEM ?
 		      CONF_DIRS_NULSTR("systemd/system.conf") :
 		      CONF_DIRS_NULSTR("systemd/user.conf");

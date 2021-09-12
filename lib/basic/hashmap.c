@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -160,10 +158,10 @@ struct hashmap_debug_info {
 /* Tracks all existing hashmaps. Get at it from gdb. See sd_dump_hashmaps.py */
 static IWLIST_HEAD(struct hashmap_debug_info, hashmap_debug_list);
 
-#	define HASHMAP_DEBUG_FIELDS struct hashmap_debug_info debug;
+#define HASHMAP_DEBUG_FIELDS struct hashmap_debug_info debug;
 
 #else /* !ENABLE_DEBUG_HASHMAP */
-#	define HASHMAP_DEBUG_FIELDS
+#define HASHMAP_DEBUG_FIELDS
 #endif /* ENABLE_DEBUG_HASHMAP */
 
 enum HashmapType {

@@ -66,7 +66,7 @@ void delnode(cg_node_t *node);
 /* Lookup a node by path, or the second-last node of that path. */
 cg_node_t *lookupnode(const char *path, bool secondlast);
 /* Get full path of node without initial / */
-char * nodefullpath(cg_node_t * node);
+char *nodefullpath(cg_node_t *node);
 
 /* Attach a PID to a CGroup */
 int attachpid(cg_node_t *node, pid_t pid);

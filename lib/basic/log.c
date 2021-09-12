@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -607,14 +605,16 @@ log_dispatch(int level, int error, const char *file, int line, const char *func,
 }
 
 /* Expand %m. fmtout must be a char [LINE_MAX]. */
-static int expand_percentm(int errno_num, const char *fmtin, char *fmtout)
+static int
+expand_percentm(int errno_num, const char *fmtin, char *fmtout)
 {
 	char *fmtout_end = &fmtout[LINE_MAX];
 
 	while (*fmtin != '\0' && fmtout < fmtout_end)
 		if (*fmtin == '%' && fmtin[1] == 'm') {
 			fmtin += 2;
-			fmtout += snprintf(fmtout, fmtout_end - fmtout, "%s", strerror(errno_num));
+			fmtout += snprintf(fmtout, fmtout_end - fmtout, "%s",
+				strerror(errno_num));
 		} else
 			*fmtout++ = *fmtin++;
 	*fmtout = '\0';

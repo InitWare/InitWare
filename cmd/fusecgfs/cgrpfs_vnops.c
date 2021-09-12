@@ -79,7 +79,7 @@ cg_open(const char *path, struct fuse_file_info *fi)
 
 	if (node->type == CGN_PROCS) {
 		uintptr_t key;
-		 cg_node_t *el;
+		cg_node_t *el;
 		Iterator i;
 		_cleanup_strv_free_ char **str = NULL;
 
@@ -124,7 +124,7 @@ cg_open(const char *path, struct fuse_file_info *fi)
 				return -ENOMEM;
 			}
 
-							free(path);
+			free(path);
 		}
 	}
 

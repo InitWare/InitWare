@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -27,8 +25,8 @@
 #include <unistd.h>
 
 #ifdef HAVE_ELFUTILS
-#	include <elfutils/libdwfl.h>
-#	include <dwarf.h>
+#include <elfutils/libdwfl.h>
+#include <dwarf.h>
 #endif
 
 #include "acl-util.h"

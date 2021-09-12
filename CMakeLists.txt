@@ -29,6 +29,7 @@ macro (check_type_size_in type headers var)
 	set(CMAKE_EXTRA_INCLUDE_FILES ${headers})
 	check_type_size(${type} ${var})
 	cmake_push_check_state(RESET)
+	list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE -D__BSD_VISIBLE")
 endmacro ()
 
 # ------------------------------------------------------------------------------
@@ -71,6 +72,7 @@ if (NOT SVC_PLATFORM_Linux)
 	pkg_check_modules(epoll-shim REQUIRED IMPORTED_TARGET epoll-shim)
 	set(EPOLL_LIBS PkgConfig::inotify PkgConfig::epoll-shim)
 else ()
+	pkg_check_modules(libcap IMPORTED_TARGET libcap)
 	pkg_check_modules(kqueue REQUIRED IMPORTED_TARGET libkqueue)
 	set(KQ_LIBS PkgConfig::kqueue)
 endif ()
@@ -78,6 +80,8 @@ endif ()
 find_package(Threads REQUIRED)
 find_package(Python COMPONENTS Interpreter)
 find_program(GPERF gperf REQUIRED)
+
+check_include_file(mntent.h HAVE_mntent_h)
 
 check_type_size(pid_t SVC_SIZEOF_PID_T)
 check_type_size(uid_t SVC_SIZEOF_UID_T)
@@ -89,8 +93,16 @@ check_type_size_in(__compar_fn_t "stdlib.h" SVC_HAVE___compar_fn_t)
 check_type_size_in("struct statfs" "sys/statfs.h;sys/statvfs.h" SVC_HAVE_statfs)
 check_type_size_in("struct statvfs" "sys/statvfs.h" SVC_HAVE_statvfs)
 
+check_symbol_exists(canonicalize_file_name "stdlib.h" HAVE_canonicalize_file_name)
+check_symbol_exists(environ "unistd.h" HAVE_environ)
+check_symbol_exists(get_current_dir_name "unistd.h" SVC_HAVE_get_current_dir_name)
+check_symbol_exists(gettid "unistd.h" HAVE_gettid)
+check_symbol_exists(name_to_handle_at "fcntl.h" HAVE_name_to_handle_at)
+check_function_exists(mempcpy HAVE_mempcpy)
 check_symbol_exists(program_invocation_short_name "errno.h"
 		    SVC_HAVE_program_invocation_short_name)
+check_function_exists(secure_getenv HAVE_secure_getenv)
+check_function_exists(__secure_getenv HAVE___secure_getenv)
 
 # ------------------------------------------------------------------------------
 # options configurable by the user
@@ -98,6 +110,9 @@ check_symbol_exists(program_invocation_short_name "errno.h"
 
 cmake_dependent_option(USE_CGroups "Use Control Groups" ON
     "NOT SVC_PLATFORM_Linux" OFF)
+
+cmake_dependent_option(USE_libcap "Use Capabilities (libcap)" ON
+    "NOT libcap_FOUND" OFF)
 
 set(PKG_DIR_NAME" InitWare")
 

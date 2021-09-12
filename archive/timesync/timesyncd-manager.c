@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -57,7 +55,7 @@
 #include "util.h"
 
 #ifndef ADJ_SETOFFSET
-#	define ADJ_SETOFFSET 0x0100 /* add 'time' to current time */
+#define ADJ_SETOFFSET 0x0100 /* add 'time' to current time */
 #endif
 
 /* expected accuracy of time synchronization; used to adjust the poll interval */
@@ -1121,18 +1119,18 @@ manager_network_read_link_servers(Manager *m)
 	if (r < 0)
 		goto clear;
 
-	IWLIST_FOREACH(names, n, m->link_servers)
-	n->marked = true;
+	IWLIST_FOREACH (names, n, m->link_servers)
+		n->marked = true;
 
 	STRV_FOREACH (i, ntp) {
 		bool found = false;
 
-		IWLIST_FOREACH(names, n, m->link_servers)
-		if (streq(n->string, *i)) {
-			n->marked = false;
-			found = true;
-			break;
-		}
+		IWLIST_FOREACH (names, n, m->link_servers)
+			if (streq(n->string, *i)) {
+				n->marked = false;
+				found = true;
+				break;
+			}
 
 		if (!found) {
 			r = server_name_new(m, NULL, SERVER_LINK, *i);
@@ -1141,9 +1139,9 @@ manager_network_read_link_servers(Manager *m)
 		}
 	}
 
-	IWLIST_FOREACH_SAFE(names, n, nx, m->link_servers)
-	if (n->marked)
-		server_name_free(n);
+	IWLIST_FOREACH_SAFE (names, n, nx, m->link_servers)
+		if (n->marked)
+			server_name_free(n);
 
 	return 0;
 

@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -45,8 +43,7 @@ property_get_paths(sd_bus *bus, const char *path, const char *interface,
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH(spec, k, p->specs)
-	{
+	IWLIST_FOREACH (spec, k, p->specs) {
 		r = sd_bus_message_append(reply, "(ss)",
 			path_type_to_string(k->type), k->path);
 		if (r < 0)

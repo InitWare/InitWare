@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -132,16 +130,15 @@ seat_save(Seat *s)
 		Session *i;
 
 		fputs("SESSIONS=", f);
-		IWLIST_FOREACH(sessions_by_seat, i, s->sessions)
-		{
+		IWLIST_FOREACH (sessions_by_seat, i, s->sessions) {
 			fprintf(f, "%s%c", i->id,
 				i->sessions_by_seat_next ? ' ' : '\n');
 		}
 
 		fputs("UIDS=", f);
-		IWLIST_FOREACH(sessions_by_seat, i, s->sessions)
-		fprintf(f, UID_FMT "%c", i->user->uid,
-			i->sessions_by_seat_next ? ' ' : '\n');
+		IWLIST_FOREACH (sessions_by_seat, i, s->sessions)
+			fprintf(f, UID_FMT "%c", i->user->uid,
+				i->sessions_by_seat_next ? ' ' : '\n');
 	}
 
 	fflush(f);
@@ -360,20 +357,20 @@ seat_active_vt_changed(Seat *s, unsigned int vtnr)
 
 	/* we might have earlier closing sessions on the same VT, so try to
          * find a running one first */
-	IWLIST_FOREACH(sessions_by_seat, i, s->sessions)
-	if (i->vtnr == vtnr && !i->stopping) {
-		new_active = i;
-		break;
-	}
+	IWLIST_FOREACH (sessions_by_seat, i, s->sessions)
+		if (i->vtnr == vtnr && !i->stopping) {
+			new_active = i;
+			break;
+		}
 
 	if (!new_active) {
 		/* no running one? then we can't decide which one is the
                  * active one, let the first one win */
-		IWLIST_FOREACH(sessions_by_seat, i, s->sessions)
-		if (i->vtnr == vtnr) {
-			new_active = i;
-			break;
-		}
+		IWLIST_FOREACH (sessions_by_seat, i, s->sessions)
+			if (i->vtnr == vtnr) {
+				new_active = i;
+				break;
+			}
 	}
 
 	r = seat_set_active(s, new_active);
@@ -486,8 +483,7 @@ seat_stop_sessions(Seat *s, bool force)
 
 	assert(s);
 
-	IWLIST_FOREACH(sessions_by_seat, session, s->sessions)
-	{
+	IWLIST_FOREACH (sessions_by_seat, session, s->sessions) {
 		k = session_stop(session, force);
 		if (k < 0)
 			r = k;
@@ -513,8 +509,7 @@ seat_evict_position(Seat *s, Session *session)
 		/* There might be another session claiming the same
                  * position (eg., during gdm->session transition), so lets look
                  * for it and set it on the free slot. */
-		IWLIST_FOREACH(sessions_by_seat, iter, s->sessions)
-		{
+		IWLIST_FOREACH (sessions_by_seat, iter, s->sessions) {
 			if (iter->pos == pos) {
 				s->positions[pos] = iter;
 				break;
@@ -654,8 +649,7 @@ seat_get_idle_hint(Seat *s, dual_timestamp *t)
 
 	assert(s);
 
-	IWLIST_FOREACH(sessions_by_seat, session, s->sessions)
-	{
+	IWLIST_FOREACH (sessions_by_seat, session, s->sessions) {
 		dual_timestamp k;
 		int ih;
 

@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -495,7 +493,7 @@ manager_on_notify(sd_event_source *s, int fd, uint32_t revents, void *userdata)
 		struct cmsghdr cmsghdr;
 		uint8_t buf[
 #ifdef CMSG_CREDS_STRUCT_SIZE
-			    CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE) +
+			CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE) +
 #endif
 			CMSG_SPACE(sizeof(int) * NOTIFY_FD_MAX)];
 	} control = {};

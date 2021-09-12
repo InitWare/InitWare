@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -93,8 +91,7 @@ svg_header(void)
 	sampledata = head;
 	IWLIST_FIND_TAIL(link, sampledata, head);
 	sampledata_last = head;
-	IWLIST_FOREACH_BEFORE(link, sampledata, head)
-	{
+	IWLIST_FOREACH_BEFORE (link, sampledata, head) {
 		sampledata_last = sampledata;
 	}
 
@@ -259,8 +256,7 @@ svg_graph_box(int height)
 	struct list_sample_data *sampledata_last;
 
 	sampledata_last = head;
-	IWLIST_FOREACH_BEFORE(link, sampledata, head)
-	{
+	IWLIST_FOREACH_BEFORE (link, sampledata, head) {
 		sampledata_last = sampledata;
 	}
 
@@ -327,8 +323,7 @@ svg_pss_graph(void)
 	struct list_sample_data *sampledata_last;
 
 	sampledata_last = head;
-	IWLIST_FOREACH_BEFORE(link, sampledata, head)
-	{
+	IWLIST_FOREACH_BEFORE (link, sampledata, head) {
 		sampledata_last = sampledata;
 	}
 
@@ -356,8 +351,7 @@ svg_pss_graph(void)
 	/* now plot the graph itself */
 	i = 1;
 	prev_sampledata = head;
-	IWLIST_FOREACH_BEFORE(link, sampledata, head)
-	{
+	IWLIST_FOREACH_BEFORE (link, sampledata, head) {
 		int bottom;
 		int top;
 		struct ps_sched_struct *cross_place;
@@ -457,8 +451,7 @@ svg_pss_graph(void)
 
 	/* overlay all the text labels */
 	i = 1;
-	IWLIST_FOREACH_BEFORE(link, sampledata, head)
-	{
+	IWLIST_FOREACH_BEFORE (link, sampledata, head) {
 		int bottom;
 		int top = 0;
 		struct ps_sched_struct *prev_sample;
@@ -605,8 +598,7 @@ svg_io_bi_bar(void)
 
 	/* find the max IO first */
 	i = 1;
-	IWLIST_FOREACH_BEFORE(link, sampledata, head)
-	{
+	IWLIST_FOREACH_BEFORE (link, sampledata, head) {
 		int start;
 		int stop;
 		int diff;
@@ -649,8 +641,7 @@ svg_io_bi_bar(void)
 	/* plot bi */
 	i = 1;
 	prev_sampledata = head;
-	IWLIST_FOREACH_BEFORE(link, sampledata, head)
-	{
+	IWLIST_FOREACH_BEFORE (link, sampledata, head) {
 		int start;
 		int stop;
 		int diff;
@@ -735,8 +726,7 @@ svg_io_bo_bar(void)
 
 	/* find the max IO first */
 	i = 0;
-	IWLIST_FOREACH_BEFORE(link, sampledata, head)
-	{
+	IWLIST_FOREACH_BEFORE (link, sampledata, head) {
 		int start;
 		int stop;
 		int diff;
@@ -775,8 +765,7 @@ svg_io_bo_bar(void)
 	/* plot bo */
 	prev_sampledata = head;
 	i = 1;
-	IWLIST_FOREACH_BEFORE(link, sampledata, head)
-	{
+	IWLIST_FOREACH_BEFORE (link, sampledata, head) {
 		int start;
 		int stop;
 		int diff;
@@ -845,8 +834,7 @@ svg_cpu_bar(int cpu_num)
 
 	/* bars for each sample, proportional to the CPU util. */
 	prev_sampledata = head;
-	IWLIST_FOREACH_BEFORE(link, sampledata, head)
-	{
+	IWLIST_FOREACH_BEFORE (link, sampledata, head) {
 		int c;
 		double trt;
 		double ptrt;
@@ -903,8 +891,7 @@ svg_wait_bar(int cpu_num)
 
 	/* bars for each sample, proportional to the CPU util. */
 	prev_sampledata = head;
-	IWLIST_FOREACH_BEFORE(link, sampledata, head)
-	{
+	IWLIST_FOREACH_BEFORE (link, sampledata, head) {
 		int c;
 		double twt;
 		double ptwt;
@@ -957,8 +944,7 @@ svg_entropy_bar(void)
 
 	/* bars for each sample, scale 0-4096 */
 	prev_sampledata = head;
-	IWLIST_FOREACH_BEFORE(link, sampledata, head)
-	{
+	IWLIST_FOREACH_BEFORE (link, sampledata, head) {
 		/* svg("<!-- entropy %.03f %i -->\n", sampletime[i], entropy_avail[i]); */
 		svg("<rect class=\"cpu\" x=\"%.03f\" y=\"%.03f\" width=\"%.03f\" height=\"%.03f\" />\n",
 			time_to_graph(

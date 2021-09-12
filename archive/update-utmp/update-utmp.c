@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -26,7 +24,7 @@
 #include <unistd.h>
 
 #ifdef HAVE_AUDIT
-#	include <libaudit.h>
+#include <libaudit.h>
 #endif
 
 #include "sd-bus.h"

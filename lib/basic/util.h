@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 #pragma once
 
 /***
@@ -43,8 +41,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "bsducred.h"
 #include "bsdstatfs.h"
+#include "bsducred.h"
 #include "def.h"
 
 #ifdef HAVE_alloca_h
@@ -60,44 +58,44 @@
 #endif
 
 #if SVC_SIZEOF_PID_T == 4
-#	define PID_PRI PRIi32
+#define PID_PRI PRIi32
 #elif SVC_SIZEOF_PID_T == 2
-#	define PID_PRI PRIi16
+#define PID_PRI PRIi16
 #else
-#	error Unknown pid_t size
+#error Unknown pid_t size
 #endif
 #define PID_FMT "%" PID_PRI
 
 #if SVC_SIZEOF_UID_T == 4
-#	define UID_FMT "%" PRIu32
+#define UID_FMT "%" PRIu32
 #elif SVC_SIZEOF_UID_T == 2
-#	define UID_FMT "%" PRIu16
+#define UID_FMT "%" PRIu16
 #else
-#	error Unknown uid_t size
+#error Unknown uid_t size
 #endif
 
 #if SVC_SIZEOF_GID_T == 4
-#	define GID_FMT "%" PRIu32
+#define GID_FMT "%" PRIu32
 #elif SVC_SIZEOF_GID_T == 2
-#	define GID_FMT "%" PRIu16
+#define GID_FMT "%" PRIu16
 #else
-#	error Unknown gid_t size
+#error Unknown gid_t size
 #endif
 
 #if SVC_SIZEOF_TIME_T == 8
-#	define PRI_TIME PRIi64
+#define PRI_TIME PRIi64
 #elif SVC_SIZEOF_TIME_T == 4
-#	define PRI_TIME "li"
+#define PRI_TIME "li"
 #else
-#	error Unknown time_t size
+#error Unknown time_t size
 #endif
 
 #if SVC_SIZEOF_RLIM_T == 8
-#	define RLIM_FMT "%" PRIu64
+#define RLIM_FMT "%" PRIu64
 #elif SVC_SIZEOF_RLIM_T == 4
-#	define RLIM_FMT "%" PRIu32
+#define RLIM_FMT "%" PRIu32
 #else
-#	error Unknown rlim_t size
+#error Unknown rlim_t size
 #endif
 
 #include "macro.h"
@@ -139,7 +137,7 @@ size_t page_size(void) _pure_;
 
 bool streq_ptr(const char *a, const char *b) _pure_;
 
-#define new(t, n)((t *)malloc_multiply(sizeof(t), (n)))
+#define new(t, n) ((t *)malloc_multiply(sizeof(t), (n)))
 
 #define new0(t, n) ((t *)calloc((n), sizeof(t)))
 
@@ -999,7 +997,7 @@ u64log2(uint64_t n)
 #if __SIZEOF_LONG_LONG__ == 8
 	return (n > 1) ? (unsigned)__builtin_clzll(n) ^ 63U : 0;
 #else
-#	error "Wut?"
+#error "Wut?"
 #endif
 }
 
@@ -1009,7 +1007,7 @@ u32ctz(uint32_t n)
 #if __SIZEOF_INT__ == 4
 	return __builtin_ctz(n);
 #else
-#	error "Wut?"
+#error "Wut?"
 #endif
 }
 

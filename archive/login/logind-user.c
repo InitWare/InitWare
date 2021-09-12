@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -166,8 +164,7 @@ user_save(User *u)
 
 		fputs("SESSIONS=", f);
 		first = true;
-		IWLIST_FOREACH(sessions_by_user, i, u->sessions)
-		{
+		IWLIST_FOREACH (sessions_by_user, i, u->sessions) {
 			if (first)
 				first = false;
 			else
@@ -178,8 +175,7 @@ user_save(User *u)
 
 		fputs("\nSEATS=", f);
 		first = true;
-		IWLIST_FOREACH(sessions_by_user, i, u->sessions)
-		{
+		IWLIST_FOREACH (sessions_by_user, i, u->sessions) {
 			if (!i->seat)
 				continue;
 
@@ -193,8 +189,7 @@ user_save(User *u)
 
 		fputs("\nACTIVE_SESSIONS=", f);
 		first = true;
-		IWLIST_FOREACH(sessions_by_user, i, u->sessions)
-		{
+		IWLIST_FOREACH (sessions_by_user, i, u->sessions) {
 			if (!session_is_active(i))
 				continue;
 
@@ -208,8 +203,7 @@ user_save(User *u)
 
 		fputs("\nONLINE_SESSIONS=", f);
 		first = true;
-		IWLIST_FOREACH(sessions_by_user, i, u->sessions)
-		{
+		IWLIST_FOREACH (sessions_by_user, i, u->sessions) {
 			if (session_get_state(i) == SESSION_CLOSING)
 				continue;
 
@@ -223,8 +217,7 @@ user_save(User *u)
 
 		fputs("\nACTIVE_SEATS=", f);
 		first = true;
-		IWLIST_FOREACH(sessions_by_user, i, u->sessions)
-		{
+		IWLIST_FOREACH (sessions_by_user, i, u->sessions) {
 			if (!session_is_active(i) || !i->seat)
 				continue;
 
@@ -238,8 +231,7 @@ user_save(User *u)
 
 		fputs("\nONLINE_SEATS=", f);
 		first = true;
-		IWLIST_FOREACH(sessions_by_user, i, u->sessions)
-		{
+		IWLIST_FOREACH (sessions_by_user, i, u->sessions) {
 			if (session_get_state(i) == SESSION_CLOSING || !i->seat)
 				continue;
 
@@ -571,8 +563,7 @@ user_stop(User *u, bool force)
 		return r;
 	}
 
-	IWLIST_FOREACH(sessions_by_user, s, u->sessions)
-	{
+	IWLIST_FOREACH (sessions_by_user, s, u->sessions) {
 		k = session_stop(s, force);
 		if (k < 0)
 			r = k;
@@ -606,8 +597,7 @@ user_finalize(User *u)
 	if (u->started)
 		log_debug("User %s logged out.", u->name);
 
-	IWLIST_FOREACH(sessions_by_user, s, u->sessions)
-	{
+	IWLIST_FOREACH (sessions_by_user, s, u->sessions) {
 		k = session_finalize(s);
 		if (k < 0)
 			r = k;
@@ -645,8 +635,7 @@ user_get_idle_hint(User *u, dual_timestamp *t)
 
 	assert(u);
 
-	IWLIST_FOREACH(sessions_by_user, s, u->sessions)
-	{
+	IWLIST_FOREACH (sessions_by_user, s, u->sessions) {
 		dual_timestamp k;
 		int ih;
 
@@ -740,8 +729,7 @@ user_get_state(User *u)
 	if (u->sessions) {
 		bool all_closing = true;
 
-		IWLIST_FOREACH(sessions_by_user, i, u->sessions)
-		{
+		IWLIST_FOREACH (sessions_by_user, i, u->sessions) {
 			SessionState state;
 
 			state = session_get_state(i);
@@ -782,8 +770,7 @@ user_elect_display(User *u)
          * the "display". We try to keep the assignment stable, but we
          * "upgrade" to better choices. */
 
-	IWLIST_FOREACH(sessions_by_user, s, u->sessions)
-	{
+	IWLIST_FOREACH (sessions_by_user, s, u->sessions) {
 		if (s->class != SESSION_USER)
 			continue;
 

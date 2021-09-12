@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -25,11 +23,11 @@
 #include <stdlib.h>
 
 #ifdef HAVE_GLIB
-#	include <gio/gio.h>
+#include <gio/gio.h>
 #endif
 
 #ifdef HAVE_DBUS
-#	include <dbus/dbus.h>
+#include <dbus/dbus.h>
 #endif
 
 #include "log.h"
@@ -195,9 +193,9 @@ main(int argc, char *argv[])
 		GDBusMessage *g;
 		char *p;
 
-#	if !defined(GLIB_VERSION_2_36)
+#if !defined(GLIB_VERSION_2_36)
 		g_type_init();
-#	endif
+#endif
 
 		g = g_dbus_message_new_from_blob(buffer, sz, 0, NULL);
 		p = g_dbus_message_print(g, 0);

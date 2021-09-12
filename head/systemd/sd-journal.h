@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 #ifndef foosdjournalhfoo
 #define foosdjournalhfoo
 
@@ -61,28 +59,21 @@ int sd_journal_perror_with_location(const char *file, const char *line,
 /* implicitly add code location to messages sent, if this is enabled */
 #ifndef SD_JOURNAL_SUPPRESS_LOCATION
 
-#	define sd_journal_print(priority, ...)                                \
-		sd_journal_print_with_location(priority,                       \
-			"CODE_FILE=" __FILE__,                                 \
-			"CODE_LINE=" _SD_STRINGIFY(__LINE__), __func__,        \
-			__VA_ARGS__)
-#	define sd_journal_printv(priority, format, ap)                        \
-		sd_journal_printv_with_location(priority,                      \
-			"CODE_FILE=" __FILE__,                                 \
-			"CODE_LINE=" _SD_STRINGIFY(__LINE__), __func__,        \
-			format, ap)
-#	define sd_journal_send(...)                                           \
-		sd_journal_send_with_location("CODE_FILE=" __FILE__,           \
-			"CODE_LINE=" _SD_STRINGIFY(__LINE__), __func__,        \
-			__VA_ARGS__)
-#	define sd_journal_sendv(iovec, n)                                     \
-		sd_journal_sendv_with_location("CODE_FILE=" __FILE__,          \
-			"CODE_LINE=" _SD_STRINGIFY(__LINE__), __func__, iovec, \
-			n)
-#	define sd_journal_perror(message)                                     \
-		sd_journal_perror_with_location("CODE_FILE=" __FILE__,         \
-			"CODE_LINE=" _SD_STRINGIFY(__LINE__), __func__,        \
-			message)
+#define sd_journal_print(priority, ...)                                        \
+	sd_journal_print_with_location(priority, "CODE_FILE=" __FILE__,        \
+		"CODE_LINE=" _SD_STRINGIFY(__LINE__), __func__, __VA_ARGS__)
+#define sd_journal_printv(priority, format, ap)                                \
+	sd_journal_printv_with_location(priority, "CODE_FILE=" __FILE__,       \
+		"CODE_LINE=" _SD_STRINGIFY(__LINE__), __func__, format, ap)
+#define sd_journal_send(...)                                                   \
+	sd_journal_send_with_location("CODE_FILE=" __FILE__,                   \
+		"CODE_LINE=" _SD_STRINGIFY(__LINE__), __func__, __VA_ARGS__)
+#define sd_journal_sendv(iovec, n)                                             \
+	sd_journal_sendv_with_location("CODE_FILE=" __FILE__,                  \
+		"CODE_LINE=" _SD_STRINGIFY(__LINE__), __func__, iovec, n)
+#define sd_journal_perror(message)                                             \
+	sd_journal_perror_with_location("CODE_FILE=" __FILE__,                 \
+		"CODE_LINE=" _SD_STRINGIFY(__LINE__), __func__, message)
 
 #endif
 

@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -21,7 +19,6 @@
 
 #include <sys/mount.h>
 #include <sys/stat.h>
-#include "bsdstatfs.h"
 #include <sys/statvfs.h>
 #include <assert.h>
 #include <errno.h>
@@ -29,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "bsdstatfs.h"
 
 #include "cgroup-util.h"
 #include "def.h"
@@ -68,9 +66,9 @@ typedef struct MountPoint {
  * other ones we can delay until SELinux and IMA are loaded. When
  * SMACK is enabled we need smackfs, too, so it's a fifth one. */
 #ifdef HAVE_SMACK
-#	define N_EARLY_MOUNT 5
+#define N_EARLY_MOUNT 5
 #else
-#	define N_EARLY_MOUNT 4
+#define N_EARLY_MOUNT 4
 #endif
 
 #ifdef SVC_PLATFORM_Linux
@@ -471,16 +469,17 @@ mount_setup(bool loaded_policy)
 	return -ENOTSUP;
 }
 
-int mount_setup_early(void)
+int
+mount_setup_early(void)
 {
 	unimplemented();
 	return -ENOTSUP;
 }
 
 int
-mount_cgroup_controllers(char ***join_controllers) {
+mount_cgroup_controllers(char ***join_controllers)
+{
 	unimplemented();
 	return -ENOTSUP;
 }
 #endif
-

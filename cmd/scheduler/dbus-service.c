@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -261,9 +259,8 @@ bus_service_set_transient_property(Service *s, const char *name,
 
 			fputs("ExecStart=\n", f);
 
-			IWLIST_FOREACH(command, c,
-				s->exec_command[SERVICE_EXEC_START])
-			{
+			IWLIST_FOREACH (command, c,
+				s->exec_command[SERVICE_EXEC_START]) {
 				_cleanup_free_ char *a;
 
 				a = strv_join_quoted(c->argv);

@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -20,11 +18,11 @@
 ***/
 
 #include <sys/ioctl.h>
-#include "bsdstatfs.h"
 #include <blkid/blkid.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "bsdstatfs.h"
 
 #include "blkid-util.h"
 #include "btrfs-util.h"

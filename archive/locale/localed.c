@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -42,7 +40,7 @@
 #include "util.h"
 
 #ifdef HAVE_XKBCOMMON
-#	include <xkbcommon/xkbcommon.h>
+#include <xkbcommon/xkbcommon.h>
 #endif
 
 enum {

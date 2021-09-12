@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -473,8 +471,8 @@ join_path(const char *controller, const char *path, const char *suffix,
 			t = strjoin(CGROUP_ROOT_DIR "/", controller, "/", path,
 				NULL);
 		else if (!isempty(suffix))
-			t = strjoin(CGROUP_ROOT_DIR "/", controller, "/", suffix,
-				NULL);
+			t = strjoin(CGROUP_ROOT_DIR "/", controller, "/",
+				suffix, NULL);
 		else
 			t = strappend(CGROUP_ROOT_DIR "/", controller);
 	} else {
@@ -789,7 +787,8 @@ cg_pid_get_path(const char *controller, pid_t pid, char **path)
 #ifdef SVC_PLATFORM_Linux
 	fs = procfs_file_alloca(pid, "cgroup");
 #else
-	fs = alloca(strlen("/mnt/systemd/cgroup.meta/") + DECIMAL_STR_MAX(pid_t) + strlen("/cgroup") + 1);
+	fs = alloca(strlen("/mnt/systemd/cgroup.meta/") +
+		DECIMAL_STR_MAX(pid_t) + strlen("/cgroup") + 1);
 	sprintf(fs, "/mnt/systemd/cgroup.meta/" PID_FMT "/cgroup", pid);
 #endif
 

@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 #pragma once
 
 /***
@@ -30,8 +28,8 @@
 #include "kdbus.h"
 #include "macro.h"
 #include "sd-bus.h"
-#include "time-util.h"
 #include "socket-util.h"
+#include "time-util.h"
 
 struct bus_container {
 	char enclosing;

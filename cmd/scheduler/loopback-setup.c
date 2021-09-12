@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -34,8 +32,8 @@
 
 #ifdef SVC_PLATFORM_Linux
 #include <asm/types.h>
-#include "sd-rtnl.h"
 #include "rtnl-util.h"
+#include "sd-rtnl.h"
 #endif
 
 #ifdef SVC_PLATFORM_Linux

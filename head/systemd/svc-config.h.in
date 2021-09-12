@@ -17,8 +17,23 @@
 #define SVC_SIZEOF_TIME_T @SVC_SIZEOF_TIME_T@
 #define SVC_SIZEOF_RLIM_T @SVC_SIZEOF_RLIM_T@
 
+/* header files */
+#cmakedefine HAVE_mntent_h
+
+/* data types */
 #cmakedefine SVC_HAVE_statfs
 #cmakedefine SVC_HAVE_statvfs
+
+/* functions and symbols */
+#cmakedefine HAVE_canonicalize_file_name
+#cmakedefine HAVE_environ
+#cmakedefine SVC_HAVE_get_current_dir_name
+#cmakedefine SVC_HAVE_program_invocation_short_name
+#cmakedefine HAVE_gettid
+#cmakedefine HAVE_name_to_handle_at
+#cmakedefine HAVE_mempcpy
+#cmakedefine HAVE___secure_getenv
+#cmakedefine HAVE_secure_getenv
 
 /* paths */
 #define INSTALL_PKGRUNSTATE_DIR "@INSTALL_PKGRUNSTATE_DIR@"

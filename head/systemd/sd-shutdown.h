@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 #ifndef foosdshutdownhfoo
 #define foosdshutdownhfoo
 
@@ -31,7 +29,7 @@ extern "C" {
 #endif
 
 #ifndef _sd_packed_
-#	define _sd_packed_ __attribute__((packed))
+#define _sd_packed_ __attribute__((packed))
 #endif
 
 typedef enum sd_shutdown_mode {

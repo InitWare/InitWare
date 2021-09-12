@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -553,9 +551,9 @@ swap_set_state(Swap *s, SwapState state)
            now. This is necessary, since swap_start() refuses
            operation with EAGAIN if there's already another job for
            the same device node queued. */
-	IWLIST_FOREACH_OTHERS(same_devnode, other, s)
-	if (UNIT(other)->job)
-		job_add_to_run_queue(UNIT(other)->job);
+	IWLIST_FOREACH_OTHERS (same_devnode, other, s)
+		if (UNIT(other)->job)
+			job_add_to_run_queue(UNIT(other)->job);
 }
 
 static int
@@ -730,9 +728,9 @@ swap_enter_dead_or_active(Swap *s, SwapResult f)
 
 		swap_enter_active(s, f);
 
-		IWLIST_FOREACH_OTHERS(same_devnode, other, s)
-		if (UNIT(other)->job)
-			swap_enter_dead_or_active(other, f);
+		IWLIST_FOREACH_OTHERS (same_devnode, other, s)
+			if (UNIT(other)->job)
+				swap_enter_dead_or_active(other, f);
 	} else
 		swap_enter_dead(s, f);
 }
@@ -898,9 +896,9 @@ swap_start(Unit *u)
 	/* If there's a job for another swap unit for the same node
          * running, then let's not dispatch this one for now, and wait
          * until that other job has finished. */
-	IWLIST_FOREACH_OTHERS(same_devnode, other, s)
-	if (UNIT(other)->job && UNIT(other)->job->state == JOB_RUNNING)
-		return -EAGAIN;
+	IWLIST_FOREACH_OTHERS (same_devnode, other, s)
+		if (UNIT(other)->job && UNIT(other)->job->state == JOB_RUNNING)
+			return -EAGAIN;
 
 	s->result = SWAP_SUCCESS;
 	swap_enter_activating(s);
@@ -1220,8 +1218,7 @@ swap_dispatch_io(sd_event_source *source, int fd, uint32_t revents,
 		log_error_errno(r, "Failed to reread /proc/swaps: %m");
 
 		/* Reset flags, just in case, for late calls */
-		IWLIST_FOREACH(units_by_type, u, m->units_by_type[UNIT_SWAP])
-		{
+		IWLIST_FOREACH (units_by_type, u, m->units_by_type[UNIT_SWAP]) {
 			Swap *swap = SWAP(u);
 
 			swap->is_active = swap->just_activated = false;
@@ -1232,8 +1229,7 @@ swap_dispatch_io(sd_event_source *source, int fd, uint32_t revents,
 
 	manager_dispatch_load_queue(m);
 
-	IWLIST_FOREACH(units_by_type, u, m->units_by_type[UNIT_SWAP])
-	{
+	IWLIST_FOREACH (units_by_type, u, m->units_by_type[UNIT_SWAP]) {
 		Swap *swap = SWAP(u);
 
 		if (!swap->is_active) {
@@ -1300,9 +1296,9 @@ swap_following(Unit *u)
 	if (s->from_fragment)
 		return NULL;
 
-	IWLIST_FOREACH_OTHERS(same_devnode, other, s)
-	if (other->from_fragment)
-		return UNIT(other);
+	IWLIST_FOREACH_OTHERS (same_devnode, other, s)
+		if (other->from_fragment)
+			return UNIT(other);
 
 	/* Otherwise make everybody follow the unit that's named after
          * the swap device in the kernel */
@@ -1310,12 +1306,11 @@ swap_following(Unit *u)
 	if (streq_ptr(s->what, s->devnode))
 		return NULL;
 
-	IWLIST_FOREACH_AFTER(same_devnode, other, s)
-	if (streq_ptr(other->what, other->devnode))
-		return UNIT(other);
+	IWLIST_FOREACH_AFTER (same_devnode, other, s)
+		if (streq_ptr(other->what, other->devnode))
+			return UNIT(other);
 
-	IWLIST_FOREACH_BEFORE(same_devnode, other, s)
-	{
+	IWLIST_FOREACH_BEFORE (same_devnode, other, s) {
 		if (streq_ptr(other->what, other->devnode))
 			return UNIT(other);
 
@@ -1345,8 +1340,7 @@ swap_following_set(Unit *u, Set **_set)
 	if (!set)
 		return -ENOMEM;
 
-	IWLIST_FOREACH_OTHERS(same_devnode, other, s)
-	{
+	IWLIST_FOREACH_OTHERS (same_devnode, other, s) {
 		r = set_put(set, other);
 		if (r < 0)
 			goto fail;

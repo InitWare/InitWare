@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -140,16 +138,15 @@ cgroup_context_dump(CGroupContext *c, FILE *f, const char *prefix)
 		cgroup_device_policy_to_string(c->device_policy), prefix,
 		yes_no(c->delegate));
 
-	IWLIST_FOREACH(device_allow, a, c->device_allow)
-	fprintf(f, "%sDeviceAllow=%s %s%s%s\n", prefix, a->path,
-		a->r ? "r" : "", a->w ? "w" : "", a->m ? "m" : "");
+	IWLIST_FOREACH (device_allow, a, c->device_allow)
+		fprintf(f, "%sDeviceAllow=%s %s%s%s\n", prefix, a->path,
+			a->r ? "r" : "", a->w ? "w" : "", a->m ? "m" : "");
 
-	IWLIST_FOREACH(device_weights, w, c->blockio_device_weights)
-	fprintf(f, "%sBlockIODeviceWeight=%s %" PRIu64, prefix, w->path,
-		w->weight);
+	IWLIST_FOREACH (device_weights, w, c->blockio_device_weights)
+		fprintf(f, "%sBlockIODeviceWeight=%s %" PRIu64, prefix, w->path,
+			w->weight);
 
-	IWLIST_FOREACH(device_bandwidths, b, c->blockio_device_bandwidths)
-	{
+	IWLIST_FOREACH (device_bandwidths, b, c->blockio_device_bandwidths) {
 		char buf[FORMAT_BYTES_MAX];
 
 		fprintf(f, "%s%s=%s %s\n", prefix,
@@ -402,9 +399,8 @@ cgroup_context_apply(CGroupContext *c, CGroupControllerMask mask,
 					path);
 
 			/* FIXME: no way to reset this list */
-			IWLIST_FOREACH(device_weights, w,
-				c->blockio_device_weights)
-			{
+			IWLIST_FOREACH (device_weights, w,
+				c->blockio_device_weights) {
 				dev_t dev;
 
 				r = lookup_blkio_device(w->path, &dev);
@@ -427,9 +423,8 @@ cgroup_context_apply(CGroupContext *c, CGroupControllerMask mask,
 		}
 
 		/* FIXME: no way to reset this list */
-		IWLIST_FOREACH(device_bandwidths, b,
-			c->blockio_device_bandwidths)
-		{
+		IWLIST_FOREACH (device_bandwidths, b,
+			c->blockio_device_bandwidths) {
 			const char *a;
 			dev_t dev;
 
@@ -519,8 +514,7 @@ cgroup_context_apply(CGroupContext *c, CGroupControllerMask mask,
 			whitelist_major(path, "kdbus/*", 'c', "rw");
 		}
 
-		IWLIST_FOREACH(device_allow, a, c->device_allow)
-		{
+		IWLIST_FOREACH (device_allow, a, c->device_allow) {
 			char acc[4];
 			unsigned k = 0;
 

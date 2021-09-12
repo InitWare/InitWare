@@ -66,8 +66,8 @@ delnode(cg_node_t *node)
 	uintptr_t pid;
 	cg_node_t *val, *tmp;
 
-	LIST_FOREACH_SAFE(val, &node->subnodes, entries, tmp)
-	delnode(val);
+	LIST_FOREACH_SAFE (val, &node->subnodes, entries, tmp)
+		delnode(val);
 
 	/* move up all contained PIDs to parent */
 	HASHMAP_FOREACH_KEY (val, pid, cgmgr.pid_to_cg, it)
@@ -196,8 +196,7 @@ lookupnode(const char *path, bool secondlast)
 		else if (!strlen(part)) /* root dir */
 			return node;
 
-		LIST_FOREACH(subnode, &node->subnodes, entries)
-		{
+		LIST_FOREACH (subnode, &node->subnodes, entries) {
 			if ((strlen(subnode->name) == partlen) &&
 				!strncmp(subnode->name, part, partlen)) {
 				node = subnode;
@@ -233,30 +232,32 @@ lookupnode(const char *path, bool secondlast)
 	return node;
 }
 
-static int nodefullpath_internal(cg_node_t * node, char*** path)
+static int
+nodefullpath_internal(cg_node_t *node, char ***path)
 {
-	if(node->parent)
-		if (nodefullpath_internal(node->parent, path) < 0) return -ENOMEM;
+	if (node->parent)
+		if (nodefullpath_internal(node->parent, path) < 0)
+			return -ENOMEM;
 
 	return strv_extend(path, node->name);
 }
 
-char * nodefullpath(cg_node_t * node)
+char *
+nodefullpath(cg_node_t *node)
 {
-	_cleanup_strv_free_ char ** strv = NULL;
+	_cleanup_strv_free_ char **strv = NULL;
 	int r;
 
 	if (!node->parent)
 		return strdup("");
-	
+
 	strv_extend(&strv, "");
 	r = nodefullpath_internal(node, &strv);
 
 	if (r < 0)
 		return NULL;
-	else
-	{
-		char * res = strv_join(strv, "/");
+	else {
+		char *res = strv_join(strv, "/");
 		return res;
 	}
 }
@@ -374,8 +375,7 @@ loop()
 				errx(EXIT_FAILURE, "Got <0 from fuse");
 
 			fuse_session_process_buf(se, &fbuf, tmpch);
-		} else if (kev.filter == EVFILT_PROC){
-
+		} else if (kev.filter == EVFILT_PROC) {
 			if (kev.fflags & NOTE_CHILD) {
 				cg_node_t *parent = hashmap_get(cgmgr.pid_to_cg,
 					(void *)(uintptr_t)kev.data);
@@ -393,8 +393,8 @@ loop()
 					"NOTE_TRACKERR received from Kernel Queue");
 			else if (kev.fflags & NOTE_EXEC)
 				log_debug("NOTE_EXEC was received");
-		}
-		else assert(!"Unreached");
+		} else
+			assert(!"Unreached");
 	}
 
 	free(buf);

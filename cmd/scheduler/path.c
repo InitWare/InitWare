@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -311,8 +309,7 @@ path_add_mount_links(Path *p)
 
 	assert(p);
 
-	IWLIST_FOREACH(spec, s, p->specs)
-	{
+	IWLIST_FOREACH (spec, s, p->specs) {
 		r = unit_require_mounts_for(UNIT(p), s->path);
 		if (r < 0)
 			return r;
@@ -425,8 +422,8 @@ path_dump(Unit *u, FILE *f, const char *prefix)
 		trigger ? trigger->id : "n/a", prefix,
 		yes_no(p->make_directory), prefix, p->directory_mode);
 
-	IWLIST_FOREACH(spec, s, p->specs)
-	path_spec_dump(s, f, prefix);
+	IWLIST_FOREACH (spec, s, p->specs)
+		path_spec_dump(s, f, prefix);
 }
 
 static void
@@ -436,8 +433,8 @@ path_unwatch(Path *p)
 
 	assert(p);
 
-	IWLIST_FOREACH(spec, s, p->specs)
-	path_spec_unwatch(s);
+	IWLIST_FOREACH (spec, s, p->specs)
+		path_spec_unwatch(s);
 }
 
 static int
@@ -448,8 +445,7 @@ path_watch(Path *p)
 
 	assert(p);
 
-	IWLIST_FOREACH(spec, s, p->specs)
-	{
+	IWLIST_FOREACH (spec, s, p->specs) {
 		r = path_spec_watch(s, path_dispatch_io);
 		if (r < 0)
 			return r;
@@ -567,8 +563,7 @@ path_check_good(Path *p, bool initial)
 
 	assert(p);
 
-	IWLIST_FOREACH(spec, s, p->specs)
-	{
+	IWLIST_FOREACH (spec, s, p->specs) {
 		good = path_spec_check_good(s, initial);
 
 		if (good)
@@ -624,8 +619,8 @@ path_mkdir(Path *p)
 	if (!p->make_directory)
 		return;
 
-	IWLIST_FOREACH(spec, s, p->specs)
-	path_spec_mkdir(s, p->directory_mode);
+	IWLIST_FOREACH (spec, s, p->specs)
+		path_spec_mkdir(s, p->directory_mode);
 }
 
 static int
@@ -748,9 +743,9 @@ path_dispatch_io(sd_event_source *source, int fd, uint32_t revents,
 
 	/* log_debug("inotify wakeup on %s.", u->id); */
 
-	IWLIST_FOREACH(spec, s, p->specs)
-	if (path_spec_owns_inotify_fd(s, fd))
-		break;
+	IWLIST_FOREACH (spec, s, p->specs)
+		if (path_spec_owns_inotify_fd(s, fd))
+			break;
 
 	if (!s) {
 		log_error("Got event on unknown fd.");

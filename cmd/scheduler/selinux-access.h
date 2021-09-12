@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 #pragma once
 
 /***
@@ -36,30 +34,25 @@ int mac_selinux_unit_access_check_strv(char **units, sd_bus_message *message,
 
 #ifdef HAVE_SELINUX
 
-#	define mac_selinux_access_check(message, permission, error)           \
-		mac_selinux_generic_access_check((message), true, NULL,        \
-			(permission), (error))
+#define mac_selinux_access_check(message, permission, error)                   \
+	mac_selinux_generic_access_check((message), true, NULL, (permission),  \
+		(error))
 
-#	define mac_selinux_unit_access_check(unit, message, permission,       \
-		error)                                                         \
-		({                                                             \
-			Unit *_unit = (unit);                                  \
-			mac_selinux_generic_access_check((message), false,     \
-				_unit->source_path ?: _unit->fragment_path,    \
-				(permission), (error));                        \
-		})
+#define mac_selinux_unit_access_check(unit, message, permission, error)        \
+	({                                                                     \
+		Unit *_unit = (unit);                                          \
+		mac_selinux_generic_access_check((message), false,             \
+			_unit->source_path ?: _unit->fragment_path,            \
+			(permission), (error));                                \
+	})
 
-#	define mac_selinux_runtime_unit_access_check(message, permission,     \
-		error)                                                         \
-		mac_selinux_generic_access_check((message), false, NULL,       \
-			(permission), (error))
+#define mac_selinux_runtime_unit_access_check(message, permission, error)      \
+	mac_selinux_generic_access_check((message), false, NULL, (permission), \
+		(error))
 
 #else
 
-#	define mac_selinux_access_check(message, permission, error) 0
-#	define mac_selinux_unit_access_check(unit, message, permission,       \
-		error)                                                         \
-		0
-#	define mac_selinux_runtime_unit_access_check(message, permission,     \
-		error) 0
+#define mac_selinux_access_check(message, permission, error) 0
+#define mac_selinux_unit_access_check(unit, message, permission, error) 0
+#define mac_selinux_runtime_unit_access_check(message, permission, error) 0
 #endif

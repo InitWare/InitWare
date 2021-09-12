@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -37,19 +35,19 @@
 #include <unistd.h>
 
 #ifdef HAVE_PAM
-#	include <security/pam_appl.h>
+#include <security/pam_appl.h>
 #endif
 
 #ifdef HAVE_SELINUX
-#	include <selinux/selinux.h>
+#include <selinux/selinux.h>
 #endif
 
 #ifdef HAVE_SECCOMP
-#	include <seccomp.h>
+#include <seccomp.h>
 #endif
 
 #ifdef HAVE_APPARMOR
-#	include <sys/apparmor.h>
+#include <sys/apparmor.h>
 #endif
 
 #include "af-list.h"
@@ -80,7 +78,7 @@
 #include "utmp-wtmp.h"
 
 #ifdef HAVE_SECCOMP
-#	include "seccomp-util.h"
+#include "seccomp-util.h"
 #endif
 
 #ifdef SVC_PLATFORM_Linux
@@ -2807,8 +2805,8 @@ exec_command_dump_list(ExecCommand *c, FILE *f, const char *prefix)
 
 	prefix = strempty(prefix);
 
-	IWLIST_FOREACH(command, c, c)
-	exec_command_dump(c, f, prefix);
+	IWLIST_FOREACH (command, c, c)
+		exec_command_dump(c, f, prefix);
 }
 
 void

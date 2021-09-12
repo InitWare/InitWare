@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 #pragma once
 
 /***
@@ -26,7 +24,7 @@
 #include <resolv.h>
 
 #ifndef DEPRECATED_RES_USE_INET6
-#	define DEPRECATED_RES_USE_INET6 0x00002000
+#define DEPRECATED_RES_USE_INET6 0x00002000
 #endif
 
 #define NSS_GETHOSTBYNAME_PROTOTYPES(module)                                   \

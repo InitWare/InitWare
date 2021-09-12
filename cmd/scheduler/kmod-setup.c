@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -25,7 +23,7 @@
 #include <unistd.h>
 
 #ifdef HAVE_KMOD
-#	include <libkmod.h>
+#include <libkmod.h>
 #endif
 
 #include "capability.h"

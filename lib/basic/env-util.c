@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -32,7 +30,7 @@
 #define VALID_CHARS_ENV_NAME DIGITS LETTERS "_"
 
 #ifndef ARG_MAX
-#	define ARG_MAX ((size_t)sysconf(_SC_ARG_MAX))
+#define ARG_MAX ((size_t)sysconf(_SC_ARG_MAX))
 #endif
 
 static bool

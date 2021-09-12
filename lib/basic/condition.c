@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -82,8 +80,8 @@ condition_free_list(Condition *first)
 {
 	Condition *c, *n;
 
-	IWLIST_FOREACH_SAFE(conditions, c, n, first)
-	condition_free(c);
+	IWLIST_FOREACH_SAFE (conditions, c, n, first)
+		condition_free(c);
 
 	return NULL;
 }
@@ -523,8 +521,8 @@ condition_dump_list(Condition *first, FILE *f, const char *prefix,
 {
 	Condition *c;
 
-	IWLIST_FOREACH(conditions, c, first)
-	condition_dump(c, f, prefix, to_string);
+	IWLIST_FOREACH (conditions, c, first)
+		condition_dump(c, f, prefix, to_string);
 }
 
 static const char *const condition_type_table[_CONDITION_TYPE_MAX] = {

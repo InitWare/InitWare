@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -312,12 +310,10 @@ sd_journal_add_match(sd_journal *j, const void *data, size_t size)
 
 	le_hash = htole64(hash64(data, size));
 
-	IWLIST_FOREACH(matches, l3, j->level2->matches)
-	{
+	IWLIST_FOREACH (matches, l3, j->level2->matches) {
 		assert(l3->type == MATCH_OR_TERM);
 
-		IWLIST_FOREACH(matches, l4, l3->matches)
-		{
+		IWLIST_FOREACH (matches, l4, l3->matches) {
 			assert(l4->type == MATCH_DISCRETE);
 
 			/* Exactly the same match already? Then ignore
@@ -423,8 +419,7 @@ match_make_string(Match *m)
 		return strndup(m->data, m->size);
 
 	p = NULL;
-	IWLIST_FOREACH(matches, i, m->matches)
-	{
+	IWLIST_FOREACH (matches, i, m->matches) {
 		char *t, *k;
 
 		t = match_make_string(i);
@@ -556,8 +551,7 @@ next_for_match(sd_journal *j, Match *m, JournalFile *f, uint64_t after_offset,
 
 		/* Find the earliest match beyond after_offset */
 
-		IWLIST_FOREACH(matches, i, m->matches)
-		{
+		IWLIST_FOREACH (matches, i, m->matches) {
 			uint64_t cp;
 
 			r = next_for_match(j, i, f, after_offset, direction,
@@ -680,8 +674,7 @@ find_location_for_match(sd_journal *j, Match *m, JournalFile *f,
 
 		/* Find the earliest match */
 
-		IWLIST_FOREACH(matches, i, m->matches)
-		{
+		IWLIST_FOREACH (matches, i, m->matches) {
 			uint64_t cp;
 
 			r = find_location_for_match(j, i, f, direction, NULL,
@@ -722,8 +715,7 @@ find_location_for_match(sd_journal *j, Match *m, JournalFile *f,
 		if (!m->matches)
 			return 0;
 
-		IWLIST_FOREACH(matches, i, m->matches)
-		{
+		IWLIST_FOREACH (matches, i, m->matches) {
 			uint64_t cp;
 
 			r = find_location_for_match(j, i, f, direction, NULL,

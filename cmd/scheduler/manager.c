@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -39,7 +37,7 @@
 #include <unistd.h>
 
 #ifdef HAVE_AUDIT
-#	include <libaudit.h>
+#include <libaudit.h>
 #endif
 
 #include "sd-daemon.h"
@@ -996,8 +994,7 @@ unit_gc_sweep(Unit *u, unsigned gc_marker)
 	if (u->refs_by_target) {
 		const UnitRef *ref;
 
-		IWLIST_FOREACH(refs_by_target, ref, u->refs_by_target)
-		{
+		IWLIST_FOREACH (refs_by_target, ref, u->refs_by_target) {
 			unit_gc_sweep(ref->source, gc_marker);
 
 			if (ref->source->gc_marker ==
@@ -1876,8 +1873,8 @@ manager_dispatch_cgroups_agent_fd(sd_event_source *source, int fd,
 }
 
 static void
-manager_invoke_notify_message(Manager *m, Unit *u, const struct socket_ucred *ucred,
-	const char *buf, FDSet *fds)
+manager_invoke_notify_message(Manager *m, Unit *u,
+	const struct socket_ucred *ucred, const char *buf, FDSet *fds)
 {
 	_cleanup_strv_free_ char **tags = NULL;
 
@@ -1936,7 +1933,7 @@ manager_dispatch_notify_fd(sd_event_source *source, int fd, uint32_t revents,
 	};
 
 	struct cmsghdr *cmsg;
-	struct socket_ucred ucred ={0};
+	struct socket_ucred ucred = { 0 };
 	bool ucred_gotten = false;
 	bool found = false;
 	Unit *u1, *u2, *u3;
@@ -1970,7 +1967,8 @@ manager_dispatch_notify_fd(sd_event_source *source, int fd, uint32_t revents,
 			fd_array = (int *)CMSG_DATA(cmsg);
 			n_fds = (cmsg->cmsg_len - CMSG_LEN(0)) / sizeof(int);
 
-		} else if (cmsg_readucred(cmsg, &ucred) > 0) ucred_gotten = true;
+		} else if (cmsg_readucred(cmsg, &ucred) > 0)
+			ucred_gotten = true;
 	}
 
 	if (n_fds > 0) {
@@ -2663,10 +2661,9 @@ manager_send_unit_plymouth(Manager *m, Unit *u)
 
 	if (u->type != UNIT_SERVICE
 #ifdef SVC_USE_Mount
-	 && u->type != UNIT_MOUNT &&
-		u->type != UNIT_SWAP
+		&& u->type != UNIT_MOUNT && u->type != UNIT_SWAP
 #endif
-		)
+	)
 		return;
 
 	/* We set SOCK_NONBLOCK here so that we rather drop the

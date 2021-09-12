@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -124,8 +122,7 @@ timer_add_default_dependencies(Timer *t)
 		if (r < 0)
 			return r;
 
-		IWLIST_FOREACH(value, v, t->values)
-		{
+		IWLIST_FOREACH (value, v, t->values) {
 			if (v->base == TIMER_CALENDAR) {
 				r = unit_add_dependency_by_name(UNIT(t),
 					UNIT_AFTER, SPECIAL_TIME_SYNC_TARGET,
@@ -249,8 +246,7 @@ timer_dump(Unit *u, FILE *f, const char *prefix)
 		prefix, yes_no(t->wake_system), prefix,
 		format_timespan(buf, sizeof(buf), t->accuracy_usec, 1));
 
-	IWLIST_FOREACH(value, v, t->values)
-	{
+	IWLIST_FOREACH (value, v, t->values) {
 		if (v->base == TIMER_CALENDAR) {
 			_cleanup_free_ char *p = NULL;
 
@@ -403,8 +399,7 @@ timer_enter_waiting(Timer *t)
 	ts_monotonic = now(t->wake_system ? CLOCK_BOOTTIME : CLOCK_MONOTONIC);
 	t->next_elapse_monotonic_or_boottime = t->next_elapse_realtime = 0;
 
-	IWLIST_FOREACH(value, v, t->values)
-	{
+	IWLIST_FOREACH (value, v, t->values) {
 		if (v->disabled)
 			continue;
 
@@ -664,9 +659,9 @@ timer_start(Unit *u)
 	t->last_trigger = DUAL_TIMESTAMP_NULL;
 
 	/* Reenable all timers that depend on unit activation time */
-	IWLIST_FOREACH(value, v, t->values)
-	if (v->base == TIMER_ACTIVE)
-		v->disabled = false;
+	IWLIST_FOREACH (value, v, t->values)
+		if (v->base == TIMER_ACTIVE)
+			v->disabled = false;
 
 	if (t->stamp_path) {
 		struct stat st;
@@ -831,9 +826,10 @@ timer_trigger_notify(Unit *u, Unit *other)
 		return;
 
 	/* Reenable all timers that depend on unit state */
-	IWLIST_FOREACH(value, v, t->values)
-	if (v->base == TIMER_UNIT_ACTIVE || v->base == TIMER_UNIT_INACTIVE)
-		v->disabled = false;
+	IWLIST_FOREACH (value, v, t->values)
+		if (v->base == TIMER_UNIT_ACTIVE ||
+			v->base == TIMER_UNIT_INACTIVE)
+			v->disabled = false;
 
 	switch (t->state) {
 	case TIMER_WAITING:

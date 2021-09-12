@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -50,8 +48,7 @@ property_get_listen(sd_bus *bus, const char *path, const char *interface,
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH(port, p, s->ports)
-	{
+	IWLIST_FOREACH (port, p, s->ports) {
 		_cleanup_free_ char *address = NULL;
 		const char *a;
 

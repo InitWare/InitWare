@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -2312,8 +2310,7 @@ match_job_removed(sd_bus *bus, sd_bus_message *message, void *userdata,
 			user->slice_job = NULL;
 		}
 
-		IWLIST_FOREACH(sessions_by_user, session, user->sessions)
-		{
+		IWLIST_FOREACH (sessions_by_user, session, user->sessions) {
 			session_jobs_reply(session, unit, result);
 		}
 

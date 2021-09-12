@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -121,8 +119,7 @@ device_attach(Device *d, Seat *s)
 	if (d->master || !s->devices)
 		IWLIST_PREPEND(devices, s->devices, d);
 	else {
-		IWLIST_FOREACH(devices, i, s->devices)
-		{
+		IWLIST_FOREACH (devices, i, s->devices) {
 			if (!i->devices_next || !i->master) {
 				IWLIST_INSERT_AFTER(devices, s->devices, i, d);
 				break;

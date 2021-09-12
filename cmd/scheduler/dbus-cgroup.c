@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -45,8 +43,7 @@ property_get_blockio_device_weight(sd_bus *bus, const char *path,
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH(device_weights, w, c->blockio_device_weights)
-	{
+	IWLIST_FOREACH (device_weights, w, c->blockio_device_weights) {
 		r = sd_bus_message_append(reply, "(st)", w->path, w->weight);
 		if (r < 0)
 			return r;
@@ -72,8 +69,7 @@ property_get_blockio_device_bandwidths(sd_bus *bus, const char *path,
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH(device_bandwidths, b, c->blockio_device_bandwidths)
-	{
+	IWLIST_FOREACH (device_bandwidths, b, c->blockio_device_bandwidths) {
 		if (streq(property, "BlockIOReadBandwidth") != b->read)
 			continue;
 
@@ -102,8 +98,7 @@ property_get_device_allow(sd_bus *bus, const char *path, const char *interface,
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH(device_allow, a, c->device_allow)
-	{
+	IWLIST_FOREACH (device_allow, a, c->device_allow) {
 		unsigned k = 0;
 		char rwm[4];
 
@@ -378,9 +373,8 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 			if (mode != UNIT_CHECK) {
 				CGroupBlockIODeviceBandwidth *a = NULL, *b;
 
-				IWLIST_FOREACH(device_bandwidths, b,
-					c->blockio_device_bandwidths)
-				{
+				IWLIST_FOREACH (device_bandwidths, b,
+					c->blockio_device_bandwidths) {
 					if (path_equal(path, b->path) &&
 						read == b->read) {
 						a = b;
@@ -425,11 +419,11 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 			size_t size = 0;
 
 			if (n == 0) {
-				IWLIST_FOREACH_SAFE(device_bandwidths, a, next,
+				IWLIST_FOREACH_SAFE (device_bandwidths, a, next,
 					c->blockio_device_bandwidths)
-				if (a->read == read)
-					cgroup_context_free_blockio_device_bandwidth(
-						c, a);
+					if (a->read == read)
+						cgroup_context_free_blockio_device_bandwidth(
+							c, a);
 			}
 
 			u->cgroup_realized_mask &= ~CGROUP_BLKIO;
@@ -440,22 +434,22 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 
 			if (read) {
 				fputs("BlockIOReadBandwidth=\n", f);
-				IWLIST_FOREACH(device_bandwidths, a,
+				IWLIST_FOREACH (device_bandwidths, a,
 					c->blockio_device_bandwidths)
-				if (a->read)
-					fprintf(f,
-						"BlockIOReadBandwidth=%s %" PRIu64
-						"\n",
-						a->path, a->bandwidth);
+					if (a->read)
+						fprintf(f,
+							"BlockIOReadBandwidth=%s %" PRIu64
+							"\n",
+							a->path, a->bandwidth);
 			} else {
 				fputs("BlockIOWriteBandwidth=\n", f);
-				IWLIST_FOREACH(device_bandwidths, a,
+				IWLIST_FOREACH (device_bandwidths, a,
 					c->blockio_device_bandwidths)
-				if (!a->read)
-					fprintf(f,
-						"BlockIOWriteBandwidth=%s %" PRIu64
-						"\n",
-						a->path, a->bandwidth);
+					if (!a->read)
+						fprintf(f,
+							"BlockIOWriteBandwidth=%s %" PRIu64
+							"\n",
+							a->path, a->bandwidth);
 			}
 
 			fflush(f);
@@ -483,9 +477,8 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 			if (mode != UNIT_CHECK) {
 				CGroupBlockIODeviceWeight *a = NULL, *b;
 
-				IWLIST_FOREACH(device_weights, b,
-					c->blockio_device_weights)
-				{
+				IWLIST_FOREACH (device_weights, b,
+					c->blockio_device_weights) {
 					if (path_equal(b->path, path)) {
 						a = b;
 						break;
@@ -535,10 +528,11 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 				return -ENOMEM;
 
 			fputs("BlockIODeviceWeight=\n", f);
-			IWLIST_FOREACH(device_weights, a,
+			IWLIST_FOREACH (device_weights, a,
 				c->blockio_device_weights)
-			fprintf(f, "BlockIODeviceWeight=%s %" PRIu64 "\n",
-				a->path, a->weight);
+				fprintf(f,
+					"BlockIODeviceWeight=%s %" PRIu64 "\n",
+					a->path, a->weight);
 
 			fflush(f);
 			unit_write_drop_in_private(u, mode, name, buf);
@@ -635,8 +629,8 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 			if (mode != UNIT_CHECK) {
 				CGroupDeviceAllow *a = NULL, *b;
 
-				IWLIST_FOREACH(device_allow, b, c->device_allow)
-				{
+				IWLIST_FOREACH (device_allow, b,
+					c->device_allow) {
 					if (path_equal(b->path, path)) {
 						a = b;
 						break;
@@ -691,10 +685,10 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 				return -ENOMEM;
 
 			fputs("DeviceAllow=\n", f);
-			IWLIST_FOREACH(device_allow, a, c->device_allow)
-			fprintf(f, "DeviceAllow=%s %s%s%s\n", a->path,
-				a->r ? "r" : "", a->w ? "w" : "",
-				a->m ? "m" : "");
+			IWLIST_FOREACH (device_allow, a, c->device_allow)
+				fprintf(f, "DeviceAllow=%s %s%s%s\n", a->path,
+					a->r ? "r" : "", a->w ? "w" : "",
+					a->m ? "m" : "");
 
 			fflush(f);
 			unit_write_drop_in_private(u, mode, name, buf);

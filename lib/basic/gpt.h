@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -56,17 +54,17 @@
 		98, e8)
 
 #if defined(__x86_64__)
-#	define GPT_ROOT_NATIVE GPT_ROOT_X86_64
-#	define GPT_ROOT_SECONDARY GPT_ROOT_X86
+#define GPT_ROOT_NATIVE GPT_ROOT_X86_64
+#define GPT_ROOT_SECONDARY GPT_ROOT_X86
 #elif defined(__i386__)
-#	define GPT_ROOT_NATIVE GPT_ROOT_X86
+#define GPT_ROOT_NATIVE GPT_ROOT_X86
 #endif
 
 #if defined(__aarch64__) && (__BYTE_ORDER != __BIG_ENDIAN)
-#	define GPT_ROOT_NATIVE GPT_ROOT_ARM_64
-#	define GPT_ROOT_SECONDARY GPT_ROOT_ARM
+#define GPT_ROOT_NATIVE GPT_ROOT_ARM_64
+#define GPT_ROOT_SECONDARY GPT_ROOT_ARM
 #elif defined(__arm__) && (__BYTE_ORDER != __BIG_ENDIAN)
-#	define GPT_ROOT_NATIVE GPT_ROOT_ARM
+#define GPT_ROOT_NATIVE GPT_ROOT_ARM
 #endif
 
 /* Flags we recognize on the root, swap, home and srv partitions when

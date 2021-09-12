@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -1303,7 +1301,8 @@ compare_unit_file_list(const void *a, const void *b)
 static bool
 output_show_unit_file(const UnitFileList *u, char **patterns)
 {
-	if (!strv_fnmatch_or_empty(patterns, lsb_basename(u->path), FNM_NOESCAPE))
+	if (!strv_fnmatch_or_empty(patterns, lsb_basename(u->path),
+		    FNM_NOESCAPE))
 		return false;
 
 	if (!strv_isempty(arg_types)) {
@@ -3406,7 +3405,8 @@ print_status_info(UnitStatusInfo *i, bool *ellipsized)
 			last = !(*(dropin + 1) &&
 				startswith(*(dropin + 1), dir));
 
-			printf("%s%s", lsb_basename(*dropin), last ? "\n" : ", ");
+			printf("%s%s", lsb_basename(*dropin),
+				last ? "\n" : ", ");
 		}
 	}
 
@@ -3496,8 +3496,7 @@ print_status_info(UnitStatusInfo *i, bool *ellipsized)
 		printf(" Accepted: %u; Connected: %u\n", i->n_accepted,
 			i->n_connections);
 
-	IWLIST_FOREACH(exec, p, i->exec)
-	{
+	IWLIST_FOREACH (exec, p, i->exec) {
 		_cleanup_free_ char *argv = NULL;
 		bool good;
 

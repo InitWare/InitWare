@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -20,13 +18,13 @@
 ***/
 
 #ifdef HAVE_SECCOMP
-#	include <seccomp.h>
+#include <seccomp.h>
 #endif
 
+#include "dbus-execute.h"
 #include "af-list.h"
 #include "bus-util.h"
 #include "capability.h"
-#include "dbus-execute.h"
 #include "env-util.h"
 #include "execute.h"
 #include "fileio.h"
@@ -36,7 +34,7 @@
 #include "strv.h"
 
 #ifdef HAVE_SECCOMP
-#	include "seccomp-util.h"
+#include "seccomp-util.h"
 #endif
 
 #ifdef HAVE_sys_prctl_h
@@ -828,8 +826,7 @@ bus_property_get_exec_command_list(sd_bus *bus, const char *path,
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH(command, c, c)
-	{
+	IWLIST_FOREACH (command, c, c) {
 		r = append_exec_command(reply, c);
 		if (r < 0)
 			return r;

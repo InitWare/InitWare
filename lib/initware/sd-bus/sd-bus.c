@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -2500,8 +2498,7 @@ process_filter(sd_bus *bus, sd_bus_message *m)
 	do {
 		bus->filter_callbacks_modified = false;
 
-		IWLIST_FOREACH(callbacks, l, bus->filter_callbacks)
-		{
+		IWLIST_FOREACH (callbacks, l, bus->filter_callbacks) {
 			sd_bus_slot *slot;
 
 			if (bus->filter_callbacks_modified)

@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -2868,7 +2866,7 @@ journal_file_open_reliably(const char *fname, int flags, mode_t mode,
 	if (r < 0)
 		return -errno;
 
-	/* btrfs doesn't cope well with our write pattern and
+		/* btrfs doesn't cope well with our write pattern and
          * fragments heavily. Let's defrag all files we rotate */
 
 #if 0

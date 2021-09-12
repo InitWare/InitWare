@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -49,11 +47,11 @@ manager_parse_server_string(Manager *m, ServerType type, const char *string)
 		buffer[length] = 0;
 
 		/* Filter out duplicates */
-		IWLIST_FOREACH(names, n, first)
-		if (streq_ptr(n->string, buffer)) {
-			found = true;
-			break;
-		}
+		IWLIST_FOREACH (names, n, first)
+			if (streq_ptr(n->string, buffer)) {
+				found = true;
+				break;
+			}
 
 		if (found)
 			continue;

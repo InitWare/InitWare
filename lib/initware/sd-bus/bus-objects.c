@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -20,6 +18,7 @@
 ***/
 
 #include "bus-objects.h"
+#include "bsdglibc.h"
 #include "bus-internal.h"
 #include "bus-introspect.h"
 #include "bus-message.h"
@@ -28,7 +27,6 @@
 #include "bus-type.h"
 #include "bus-util.h"
 #include "set.h"
-#include "bsdglibc.h"
 #include "strv.h"
 
 static int
@@ -107,8 +105,7 @@ add_enumerated_to_set(sd_bus *bus, const char *prefix,
 	assert(prefix);
 	assert(s);
 
-	IWLIST_FOREACH(enumerators, c, first)
-	{
+	IWLIST_FOREACH (enumerators, c, first) {
 		char **children = NULL, **k;
 		sd_bus_slot *slot;
 
@@ -176,8 +173,7 @@ add_subtree_to_set(sd_bus *bus, const char *prefix, struct node *n, Set *s,
 	if (bus->nodes_modified)
 		return 0;
 
-	IWLIST_FOREACH(siblings, i, n->child)
-	{
+	IWLIST_FOREACH (siblings, i, n->child) {
 		char *t;
 
 		if (!object_path_startswith(i->path, prefix))
@@ -238,8 +234,7 @@ node_callbacks_run(sd_bus *bus, sd_bus_message *m, struct node_callback *first,
 	assert(m);
 	assert(found_object);
 
-	IWLIST_FOREACH(callbacks, c, first)
-	{
+	IWLIST_FOREACH (callbacks, c, first) {
 		_cleanup_bus_error_free_ sd_bus_error error_buffer =
 			SD_BUS_ERROR_NULL;
 		sd_bus_slot *slot;
@@ -747,8 +742,7 @@ property_get_all_callbacks_run(sd_bus *bus, sd_bus_message *m,
 		streq(iface, "org.freedesktop.DBus.Peer") ||
 		streq(iface, "org.freedesktop.DBus.Introspectable");
 
-	IWLIST_FOREACH(vtables, c, first)
-	{
+	IWLIST_FOREACH (vtables, c, first) {
 		_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
 		void *u;
 
@@ -816,16 +810,14 @@ bus_node_exists(sd_bus *bus, struct node *n, const char *path,
 	if (!require_fallback && (n->enumerators || n->object_managers))
 		return true;
 
-	IWLIST_FOREACH(callbacks, k, n->callbacks)
-	{
+	IWLIST_FOREACH (callbacks, k, n->callbacks) {
 		if (require_fallback && !k->is_fallback)
 			continue;
 
 		return 1;
 	}
 
-	IWLIST_FOREACH(vtables, c, n->vtables)
-	{
+	IWLIST_FOREACH (vtables, c, n->vtables) {
 		_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
 
 		if (require_fallback && !c->is_fallback)
@@ -876,8 +868,7 @@ process_introspect(sd_bus *bus, sd_bus_message *m, struct node *n,
 
 	empty = set_isempty(s);
 
-	IWLIST_FOREACH(vtables, c, n->vtables)
-	{
+	IWLIST_FOREACH (vtables, c, n->vtables) {
 		if (require_fallback && !c->is_fallback)
 			continue;
 
@@ -970,8 +961,7 @@ object_manager_serialize_path(sd_bus *bus, sd_bus_message *reply,
 	if (!n)
 		return 0;
 
-	IWLIST_FOREACH(vtables, i, n->vtables)
-	{
+	IWLIST_FOREACH (vtables, i, n->vtables) {
 		void *u;
 
 		if (require_fallback && !i->is_fallback)
@@ -1598,8 +1588,7 @@ add_object_vtable_internal(sd_bus *bus, sd_bus_slot **slot, const char *path,
 	if (!n)
 		return -ENOMEM;
 
-	IWLIST_FOREACH(vtables, i, n->vtables)
-	{
+	IWLIST_FOREACH (vtables, i, n->vtables) {
 		if (i->is_fallback != fallback) {
 			r = -EPROTOTYPE;
 			goto fail;
@@ -1871,8 +1860,7 @@ emit_properties_changed_on_interface(sd_bus *bus, const char *prefix,
 	key.path = prefix;
 	key.interface = interface;
 
-	IWLIST_FOREACH(vtables, c, n->vtables)
-	{
+	IWLIST_FOREACH (vtables, c, n->vtables) {
 		if (require_fallback && !c->is_fallback)
 			continue;
 
@@ -1987,8 +1975,7 @@ emit_properties_changed_on_interface(sd_bus *bus, const char *prefix,
 		return r;
 
 	if (has_invalidating) {
-		IWLIST_FOREACH(vtables, c, n->vtables)
-		{
+		IWLIST_FOREACH (vtables, c, n->vtables) {
 			if (require_fallback && !c->is_fallback)
 				continue;
 
@@ -2156,8 +2143,7 @@ object_added_append_all_prefix(sd_bus *bus, sd_bus_message *m, Set *s,
 	if (!n)
 		return 0;
 
-	IWLIST_FOREACH(vtables, c, n->vtables)
-	{
+	IWLIST_FOREACH (vtables, c, n->vtables) {
 		_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
 		void *u = NULL;
 
@@ -2376,8 +2362,7 @@ object_removed_append_all_prefix(sd_bus *bus, sd_bus_message *m, Set *s,
 	if (!n)
 		return 0;
 
-	IWLIST_FOREACH(vtables, c, n->vtables)
-	{
+	IWLIST_FOREACH (vtables, c, n->vtables) {
 		_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
 		void *u = NULL;
 
@@ -2553,8 +2538,7 @@ interfaces_added_append_one_prefix(sd_bus *bus, sd_bus_message *m,
 	if (!n)
 		return 0;
 
-	IWLIST_FOREACH(vtables, c, n->vtables)
-	{
+	IWLIST_FOREACH (vtables, c, n->vtables) {
 		if (require_fallback && !c->is_fallback)
 			continue;
 

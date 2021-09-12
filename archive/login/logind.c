@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -796,8 +794,7 @@ manager_vt_switch(sd_event_source *src, const struct signalfd_siginfo *si,
 	if (active->vtfd >= 0) {
 		session_leave_vt(active);
 	} else {
-		IWLIST_FOREACH(sessions_by_seat, iter, m->seat0->sessions)
-		{
+		IWLIST_FOREACH (sessions_by_seat, iter, m->seat0->sessions) {
 			if (iter->vtnr == active->vtnr && iter->vtfd >= 0) {
 				session_leave_vt(iter);
 				break;

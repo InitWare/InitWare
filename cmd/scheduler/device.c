@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -550,8 +548,8 @@ device_update_found_by_sysfs(Manager *m, const char *sysfs, bool add,
 		return 0;
 
 	l = hashmap_get(m->devices_by_sysfs, sysfs);
-	IWLIST_FOREACH_SAFE(same_sysfs, d, n, l)
-	device_update_found_one(d, add, found, now);
+	IWLIST_FOREACH_SAFE (same_sysfs, d, n, l)
+		device_update_found_one(d, add, found, now);
 
 	return 0;
 }
@@ -641,15 +639,13 @@ device_following_set(Unit *u, Set **_set)
 	if (!set)
 		return -ENOMEM;
 
-	IWLIST_FOREACH_AFTER(same_sysfs, other, d)
-	{
+	IWLIST_FOREACH_AFTER (same_sysfs, other, d) {
 		r = set_put(set, other);
 		if (r < 0)
 			goto fail;
 	}
 
-	IWLIST_FOREACH_BEFORE(same_sysfs, other, d)
-	{
+	IWLIST_FOREACH_BEFORE (same_sysfs, other, d) {
 		r = set_put(set, other);
 		if (r < 0)
 			goto fail;

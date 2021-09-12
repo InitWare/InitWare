@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 #pragma once
 
 /***
@@ -143,11 +141,11 @@ void log_assert_failed_return(const char *text, const char *file, int line,
 	log_full_errno(getpid() == 1 ? LOG_EMERG : LOG_ERR, error, __VA_ARGS__)
 
 #ifdef LOG_TRACE
-#	define log_trace(...) log_debug(__VA_ARGS__)
+#define log_trace(...) log_debug(__VA_ARGS__)
 #else
-#	define log_trace(...)                                                 \
-		do {                                                           \
-		} while (0)
+#define log_trace(...)                                                         \
+	do {                                                                   \
+	} while (0)
 #endif
 
 /* Structured logging */

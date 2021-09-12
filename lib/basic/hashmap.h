@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 #pragma once
 
 /***
@@ -107,9 +105,9 @@ unsigned long devt_hash_func(const void *p,
 int devt_compare_func(const void *a, const void *b) _pure_;
 extern const struct hash_ops devt_hash_ops;
 #else
-#	define devt_hash_func uint64_hash_func
-#	define devt_compare_func uint64_compare_func
-#	define devt_hash_ops uint64_hash_ops
+#define devt_hash_func uint64_hash_func
+#define devt_compare_func uint64_compare_func
+#define devt_hash_ops uint64_hash_ops
 #endif
 
 /* Macros for type checking */
@@ -132,14 +130,13 @@ extern const struct hash_ops devt_hash_ops;
 		(Hashmap *)(h), (void)0)
 
 #ifdef ENABLE_DEBUG_HASHMAP
-#	define HASHMAP_DEBUG_PARAMS                                           \
-		, const char *func, const char *file, int line
-#	define HASHMAP_DEBUG_SRC_ARGS , __func__, __FILE__, __LINE__
-#	define HASHMAP_DEBUG_PASS_ARGS , func, file, line
+#define HASHMAP_DEBUG_PARAMS , const char *func, const char *file, int line
+#define HASHMAP_DEBUG_SRC_ARGS , __func__, __FILE__, __LINE__
+#define HASHMAP_DEBUG_PASS_ARGS , func, file, line
 #else
-#	define HASHMAP_DEBUG_PARAMS
-#	define HASHMAP_DEBUG_SRC_ARGS
-#	define HASHMAP_DEBUG_PASS_ARGS
+#define HASHMAP_DEBUG_PARAMS
+#define HASHMAP_DEBUG_SRC_ARGS
+#define HASHMAP_DEBUG_PASS_ARGS
 #endif
 
 Hashmap *internal_hashmap_new(

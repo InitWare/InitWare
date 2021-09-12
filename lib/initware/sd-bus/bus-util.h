@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 #pragma once
 
 /***
@@ -103,7 +101,7 @@ assert_cc(sizeof(unsigned) == sizeof(unsigned));
 /* On 64bit machines we can use the default serializer for size_t and
  * friends, otherwise we need to cast this manually */
 #if __SIZEOF_SIZE_T__ == 8
-#	define bus_property_get_size ((sd_bus_property_get_t)NULL)
+#define bus_property_get_size ((sd_bus_property_get_t)NULL)
 #else
 int bus_property_get_size(sd_bus *bus, const char *path, const char *interface,
 	const char *property, sd_bus_message *reply, void *userdata,
@@ -111,8 +109,8 @@ int bus_property_get_size(sd_bus *bus, const char *path, const char *interface,
 #endif
 
 #if __SIZEOF_LONG__ == 8
-#	define bus_property_get_long ((sd_bus_property_get_t)NULL)
-#	define bus_property_get_ulong ((sd_bus_property_get_t)NULL)
+#define bus_property_get_long ((sd_bus_property_get_t)NULL)
+#define bus_property_get_ulong ((sd_bus_property_get_t)NULL)
 #else
 int bus_property_get_long(sd_bus *bus, const char *path, const char *interface,
 	const char *property, sd_bus_message *reply, void *userdata,

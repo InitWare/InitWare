@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -45,11 +43,11 @@
 #include <unistd.h>
 
 #ifdef HAVE_LINUX_BTRFS_H
-#	include <linux/btrfs.h>
+#include <linux/btrfs.h>
 #endif
 
 #ifdef HAVE_FANOTIFY_INIT
-#	include <sys/fanotify.h>
+#include <sys/fanotify.h>
 #endif
 
 #include "systemd/sd-daemon.h"

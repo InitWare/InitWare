@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -398,8 +396,7 @@ service_add_fd_store(Service *s, int fd)
 	if (s->n_fd_store >= s->n_fd_store_max)
 		return 0;
 
-	IWLIST_FOREACH(fd_store, fs, s->fd_store)
-	{
+	IWLIST_FOREACH (fd_store, fs, s->fd_store) {
 		r = same_fd(fs->fd, fd);
 		if (r < 0)
 			return r;
@@ -1204,8 +1201,8 @@ service_collect_fds(Service *s, int **fds, unsigned *n_fds)
 			return -ENOMEM;
 
 		rfds = t;
-		IWLIST_FOREACH(fd_store, fs, s->fd_store)
-		rfds[rn_fds++] = fs->fd;
+		IWLIST_FOREACH (fd_store, fs, s->fd_store)
+			rfds[rn_fds++] = fs->fd;
 	}
 
 	*fds = rfds;
@@ -1351,7 +1348,6 @@ service_spawn(Service *s, ExecCommand *c, usec_t timeout, bool pass_fds,
 		cg_create(SYSTEMD_CGROUP_CONTROLLER, path);
 	} else
 		path = UNIT(s)->cgroup_path;
-
 
 	exec_params.argv = argv;
 	exec_params.fds = fds;
@@ -2309,8 +2305,7 @@ service_serialize(Unit *u, FILE *f, FDSet *fds)
 		unit_serialize_item_format(u, f, "endpoint-fd", "%i", copy);
 	}
 
-	IWLIST_FOREACH(fd_store, fs, s->fd_store)
-	{
+	IWLIST_FOREACH (fd_store, fs, s->fd_store) {
 		int copy;
 
 		copy = fdset_put_dup(fds, fs->fd);

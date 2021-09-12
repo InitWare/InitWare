@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 /***
   This file is part of systemd.
 
@@ -28,10 +26,10 @@
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/time.h>
+#include <sys/un.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
 #include <sys/xattr.h>
-#include <sys/un.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <assert.h>
@@ -63,7 +61,7 @@
 #undef basename
 
 #ifdef HAVE_SYS_AUXV_H
-#	include <sys/auxv.h>
+#include <sys/auxv.h>
 #endif
 
 #include "bsdglibc.h"
@@ -5990,8 +5988,7 @@ static const char *const sched_policy_table[] = { [SCHED_OTHER] = "other",
 DEFINE_STRING_TABLE_LOOKUP_WITH_FALLBACK(sched_policy, int, INT_MAX);
 #endif
 
-static const char *const rlimit_table[] = { [RLIMIT_CPU] =
-							       "LimitCPU",
+static const char *const rlimit_table[] = { [RLIMIT_CPU] = "LimitCPU",
 	[RLIMIT_FSIZE] = "LimitFSIZE",
 	[RLIMIT_DATA] = "LimitDATA",
 	[RLIMIT_STACK] = "LimitSTACK",
@@ -6009,7 +6006,7 @@ static const char *const rlimit_table[] = { [RLIMIT_CPU] =
 	[RLIMIT_RTPRIO] = "LimitRTPRIO",
 	[RLIMIT_RTTIME] = "LimitRTTIME"
 #endif
-	};
+};
 
 DEFINE_STRING_TABLE_LOOKUP(rlimit, int);
 
@@ -7629,11 +7626,14 @@ pid_is_alive(pid_t pid)
 	return true;
 }
 
-int cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred) {
+int
+cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred)
+{
 #ifdef CMSG_TYPE_CREDS
-        /* FIXME: Consider checking cmsg_len */
-        if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == CMSG_TYPE_CREDS) {
-		CMSG_CREDS_STRUCT *creds = (CMSG_CREDS_STRUCT *) CMSG_DATA(cmsg);
+	/* FIXME: Consider checking cmsg_len */
+	if (cmsg->cmsg_level == SOL_SOCKET &&
+		cmsg->cmsg_type == CMSG_TYPE_CREDS) {
+		CMSG_CREDS_STRUCT *creds = (CMSG_CREDS_STRUCT *)CMSG_DATA(cmsg);
 		xucred->gid = creds->CMSG_CREDS_STRUCT_gid;
 		xucred->uid = creds->CMSG_CREDS_STRUCT_uid;
 		xucred->pid = creds->CMSG_CREDS_STRUCT_pid;
@@ -7641,18 +7641,21 @@ int cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred) {
 	}
 #endif
 
-        return 0;
+	return 0;
 }
 
-int socket_passcred(int fd) {
-        int one = 1;
+int
+socket_passcred(int fd)
+{
+	int one = 1;
 
 #ifdef SOCKOPT_CREDPASS_OPT
-	if (setsockopt(fd, SOCKOPT_CREDPASS_LEVEL, SOCKOPT_CREDPASS_OPT, &one, sizeof(one)) == -1)
+	if (setsockopt(fd, SOCKOPT_CREDPASS_LEVEL, SOCKOPT_CREDPASS_OPT, &one,
+		    sizeof(one)) == -1)
 		return -errno;
 #endif
 
-                return 0;
+	return 0;
 }
 
 int
@@ -7661,30 +7664,30 @@ getpeercred(int fd, struct socket_ucred *ucred)
 	struct socket_ucred xucred;
 
 #if defined(SO_PEERCRED) && defined(SVC_PLATFORM_OpenBSD)
-        socklen_t len;
-        struct sockpeercred cred;
+	socklen_t len;
+	struct sockpeercred cred;
 
-        len = sizeof *xucred;
-        if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &len) == -1)
-                return -errno;
+	len = sizeof *xucred;
+	if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &len) == -1)
+		return -errno;
 
-        xucred.gid = cred.gid;
-        xucred.uid = cred.uid;
-        xucred.pid = cred.pid;
+	xucred.gid = cred.gid;
+	xucred.uid = cred.uid;
+	xucred.pid = cred.pid;
 #elif defined(SO_PEERCRED) && defined(SVC_PLATFORM_Linux)
-        socklen_t len;
+	socklen_t len;
 
-        len = sizeof xucred;
-        if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &xucred, &len) == -1)
-                return -errno;
+	len = sizeof xucred;
+	if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &xucred, &len) == -1)
+		return -errno;
 #elif defined(LOCAL_PEERCRED)
 	struct xucred cred;
 	socklen_t len = sizeof cred;
 
 	if (getsockopt(fd, 0, LOCAL_PEERCRED, &cred, &len) < 0)
 		return -errno;
-        xucred.gid = cred.cr_gid;
-        xucred.uid = cred.cr_uid;
+	xucred.gid = cred.cr_gid;
+	xucred.uid = cred.cr_uid;
 #if !defined(SVC_PLATFORM_DragonFlyBSD) && !defined(SVC_PLATFORM_MacOSX)
 	xucred.pid = cred.cr_pid;
 #else
@@ -7692,17 +7695,17 @@ getpeercred(int fd, struct socket_ucred *ucred)
 #endif
 
 #elif defined(LOCAL_PEEREID)
-        struct unpcbid unp;
-        socklen_t unpl = sizeof unp;
+	struct unpcbid unp;
+	socklen_t unpl = sizeof unp;
 
-        if (getsockopt(fd, 0, LOCAL_PEEREID, &unp, &unpl) < 0)
-                return -errno;
-        xucred.gid = unp.unp_egid;
-        xucred.uid = unp.unp_euid;
-        xucred.pid = unp.unp_pid;
+	if (getsockopt(fd, 0, LOCAL_PEEREID, &unp, &unpl) < 0)
+		return -errno;
+	xucred.gid = unp.unp_egid;
+	xucred.uid = unp.unp_euid;
+	xucred.pid = unp.unp_pid;
 #else
 	unimplemented();
-        return -ENOTSUP;
+	return -ENOTSUP;
 #endif
 
 	/* Check if the data is actually useful and not suppressed due
@@ -7872,13 +7875,13 @@ personality_from_string(const char *p)
 
 #elif defined(__powerpc64__)
 
-#	if defined(__BIG_ENDIAN__)
+#if defined(__BIG_ENDIAN__)
 	if (streq(p, "ppc64"))
 		return PER_LINUX;
-#	else
+#else
 	if (streq(p, "ppc64le"))
 		return PER_LINUX;
-#	endif
+#endif
 
 #elif defined(__aarch64__)
 
@@ -9765,11 +9768,11 @@ uint64_t
 system_tasks_max(void)
 {
 #if SVC_SIZEOF_PID_T == 4
-#	define TASKS_MAX ((uint64_t)(INT32_MAX - 1))
+#define TASKS_MAX ((uint64_t)(INT32_MAX - 1))
 #elif SVC_SIZEOF_PID_T == 2
-#	define TASKS_MAX ((uint64_t)(INT16_MAX - 1))
+#define TASKS_MAX ((uint64_t)(INT16_MAX - 1))
 #else
-#	error "Unknown pid_t size"
+#error "Unknown pid_t size"
 #endif
 
 	_cleanup_free_ char *value = NULL, *root = NULL;
@@ -10052,7 +10055,6 @@ wait_for_terminate_with_timeout(pid_t pid, usec_t timeout)
 
 	return -EPROTO;
 }
-
 
 #ifdef SVC_PLATFORM_Linux
 bool

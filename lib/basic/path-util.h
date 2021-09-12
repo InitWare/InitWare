@@ -1,5 +1,3 @@
-/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
-
 #pragma once
 
 /***
@@ -30,9 +28,9 @@
 #define DEFAULT_PATH_SPLIT_USR DEFAULT_PATH_NORMAL ":/sbin:/bin"
 
 #ifdef HAVE_SPLIT_USR
-#	define DEFAULT_PATH DEFAULT_PATH_SPLIT_USR
+#define DEFAULT_PATH DEFAULT_PATH_SPLIT_USR
 #else
-#	define DEFAULT_PATH DEFAULT_PATH_NORMAL
+#define DEFAULT_PATH DEFAULT_PATH_NORMAL
 #endif
 
 bool is_path(const char *p) _pure_;

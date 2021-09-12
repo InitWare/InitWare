@@ -17,9 +17,9 @@
 #include <sys/param.h>
 
 #if defined(__FreeBSD_kernel__)
-#	define INIT_FIFO "/etc/.initctl"
+#define INIT_FIFO "/etc/.initctl"
 #else
-#	define INIT_FIFO "/dev/initctl"
+#define INIT_FIFO "/dev/initctl"
 #endif
 
 #define INIT_MAGIC 0x03091969
@@ -35,9 +35,9 @@
 #define INIT_CMD_CHANGECONS 12345
 
 #ifdef MAXHOSTNAMELEN
-#	define INITRQ_HLEN MAXHOSTNAMELEN
+#define INITRQ_HLEN MAXHOSTNAMELEN
 #else
-#	define INITRQ_HLEN 64
+#define INITRQ_HLEN 64
 #endif
 
 /*

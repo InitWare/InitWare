@@ -22,13 +22,13 @@
 
 #if defined(_MSC_VER)
 
-#	define BIG_CONSTANT(x) (x)
+#define BIG_CONSTANT(x) (x)
 
 // Other compilers
 
 #else // defined(_MSC_VER)
 
-#	define BIG_CONSTANT(x) (x##LLU)
+#define BIG_CONSTANT(x) (x##LLU)
 
 #endif // !defined(_MSC_VER)
 

@@ -19,8 +19,8 @@
 
 #include "sd-path.h"
 #include "architecture.h"
-#include "missing.h"
 #include "bsdglibc.h"
+#include "missing.h"
 #include "path-util.h"
 #include "strv.h"
 #include "util.h"
