@@ -33,6 +33,8 @@
 	"sparse-endian.h": "c",
 	"bsdendian.h": "c",
 	"rtnl-util.h": "c",
-	"cstdlib": "c"
+	"cstdlib": "c",
+	"sd-event.h": "c",
+	"bsdqueue.h": "c"
 }
 }

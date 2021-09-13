@@ -39,10 +39,16 @@
 
 _SD_BEGIN_DECLARATIONS;
 
-typedef struct sd_event sd_event;
+#define sd_evloop sd_event
+
+typedef struct sd_evloop sd_evloop;
 typedef struct sd_event_source sd_event_source;
 
-enum { SD_EVENT_OFF = 0, SD_EVENT_ON = 1, SD_EVENT_ONESHOT = -1 };
+typedef enum sd_event_source_enabled {
+	SD_EVENT_OFF = 0,
+	SD_EVENT_ON = 1,
+	SD_EVENT_ONESHOT = -1
+} sd_event_source_enabled;
 
 enum {
 	SD_EVENT_PASSIVE,

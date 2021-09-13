@@ -1,3 +1,11 @@
-add_library(initware-event sd-event.c)
+#if (SVC_PLATFORM_Linux)
+#	set(EVENT_SRC sd-event.c)
+#elseif (SVC_PLATFORM_BSD)
+	set(EVENT_SRC event_kqueue.c)
+#else ()
+#	error("No event backend for this platform.")
+#endif()
+
+add_library(initware-event ${EVENT_SRC})
 target_include_directories(initware-event PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(initware-event initware-shared)
+target_link_libraries(initware-event initware-shared ${KQ_LIBS})
