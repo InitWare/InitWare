@@ -204,7 +204,7 @@ get_ntp_services(void)
 	char **i;
 	int k;
 
-	k = conf_files_list(&files, ".list", NULL, "/etc/systemd/ntp-units.d",
+	k = conf_files_list(&files, ".list", NULL, SVC_PKGSYSCONFDIR "/ntp-units.d",
 		SVC_PKGRUNSTATEDIR "/ntp-units.d",
 		"/usr/local/lib/systemd/ntp-units.d",
 		"/usr/lib/systemd/ntp-units.d", NULL);

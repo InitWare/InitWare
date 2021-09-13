@@ -3717,7 +3717,7 @@ unit_drop_in_dir(Unit *u, UnitSetPropertiesMode mode, bool transient,
 	}
 
 	if (mode == UNIT_PERSISTENT && !transient)
-		*dir = strdup("/etc/systemd/system");
+		*dir = strdup(SVC_PKGSYSCONFDIR "/system");
 	else
 		*dir = strdup(SVC_PKGRUNSTATEDIR "/system");
 	if (!*dir)

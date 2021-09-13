@@ -3343,7 +3343,7 @@ create_generator_dir(Manager *m, char **generator, const char *name)
 		s = getenv("XDG_RUNTIME_DIR");
 		if (!s)
 			return -EINVAL;
-		p = strjoin(s, "/systemd/", name, NULL);
+		p = strjoin(s, "/" SVC_PKGDIRNAME "/", name, NULL);
 		if (!p)
 			return log_oom();
 
@@ -3358,7 +3358,7 @@ create_generator_dir(Manager *m, char **generator, const char *name)
 	} else {
 		/* systemd --system --test */
 
-		p = strjoin("/tmp/systemd-", name, ".XXXXXX", NULL);
+		p = strjoin("/tmp/" SVC_PKGDIRNAME "-", name, ".XXXXXX", NULL);
 		if (!p)
 			return log_oom();
 

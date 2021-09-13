@@ -459,12 +459,20 @@ IOVEC_INCREMENT(struct iovec *i, unsigned n, size_t k)
 	"/etc/" n ".d\0"                                                       \
 	"/run/" n ".d\0"                                                       \
 	"/usr/local/lib/" n ".d\0"                                             \
-	"/usr/lib/" n ".d\0" CONF_DIR_SPLIT_USR(n)
+	"/usr/lib/" n ".d\0" CONF_DIR_SPLIT_USR(n) CONF_DIR_PREFIX(n)
 
 #ifdef HAVE_SPLIT_USR
 #define CONF_DIR_SPLIT_USR(n) "/lib/" n ".d\0"
 #else
 #define CONF_DIR_SPLIT_USR(n)
+#endif
+
+/* avoid repeating */
+#if defined(SVC_PREFIX_IS_ROOT) || defined(SVC_PREFIX_IS_USR) ||               \
+	defined(SVC_PREFIX_IS_USRLOCAL)
+#define CONF_DIR_PREFIX(n)
+#else
+#define CONF_DIR_PREFIX(n) CMAKE_INSTALL_PREFIX "/lib" n ".d\0"
 #endif
 
 /* Define C11 thread_local attribute even on older gcc compiler
@@ -498,8 +506,8 @@ IOVEC_INCREMENT(struct iovec *i, unsigned n, size_t k)
 #define GID_INVALID ((gid_t)-1)
 #define MODE_INVALID ((mode_t)-1)
 
-static inline bool
-UID_IS_INVALID(uid_t uid)
+	static inline bool
+	UID_IS_INVALID(uid_t uid)
 {
 	/* We consider both the old 16bit -1 user and the newer 32bit
          * -1 user invalid, since they are or used to be incompatible

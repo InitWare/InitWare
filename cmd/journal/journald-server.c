@@ -1597,7 +1597,7 @@ server_parse_config_file(Server *s)
 {
 	assert(s);
 
-	return config_parse_many("/etc/systemd/journald.conf",
+	return config_parse_many(SVC_PKGSYSCONFDIR "/journald.conf",
 		CONF_DIRS_NULSTR("systemd/journald.conf"), "Journal\0",
 		config_item_perf_lookup, journald_gperf_lookup, false, s);
 }

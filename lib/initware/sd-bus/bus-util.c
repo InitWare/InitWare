@@ -549,7 +549,7 @@ bus_open_user_systemd(sd_bus **_bus)
 	if (r < 0)
 		return r;
 
-	bus->address = strjoin("unix:path=", ee, "/systemd/private", NULL);
+	bus->address = strjoin("unix:path=", ee, "/" SVC_PKGDIRNAME "/private", NULL);
 	if (!bus->address)
 		return -ENOMEM;
 

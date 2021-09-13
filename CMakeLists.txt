@@ -137,7 +137,7 @@ option(SVC_USE_systemd_busnames "Use the systemd D-Bus bus and interface names")
 
 option(SVC_USE_sessiond "Build the Session Manager" ON)
 
-set(PKG_DIR_NAME
+set(SVC_PKGDIRNAME
 "InitWare"
 CACHE STRING
     "Default name of InitWare subdirectories (can be set to 'systemd' for \
@@ -149,7 +149,7 @@ CACHE STRING
     "Full path to the system runtime state directory, e.g. /var/run")
 
 set(SVC_PKGRUNSTATEDIR
-"${SVC_RUNSTATEDIR}/${PKG_DIR_NAME}"
+"${SVC_RUNSTATEDIR}/${SVC_PKGDIRNAME}"
 CACHE STRING
     "Full path to the directory in which to store the run-time state of \
 InitWare, e.g. /var/run/InitWare")
@@ -161,19 +161,19 @@ CACHE STRING
 state of each logged-in user, e.g. /var/run/user")
 
 set(SVC_PKGLIBDIR
-"${CMAKE_INSTALL_PREFIX}/lib/${PKG_DIR_NAME}"
+"${CMAKE_INSTALL_PREFIX}/lib/${SVC_PKGDIRNAME}"
 CACHE STRING
     "Full path to the directory for storing system-provided, read-only InitWare \
 configuration and unit-files (not actual libraries). ")
 
 set(SVC_PKGLIBEXECDIR
-"${CMAKE_INSTALL_FULL_LIBEXECDIR}/${PKG_DIR_NAME}"
+"${CMAKE_INSTALL_FULL_LIBEXECDIR}/${SVC_PKGDIRNAME}"
 CACHE STRING
     "Full path to the directory for storing executables not \
 intended for running by the user, e.g. agents and generators.")
 
 set(SVC_PKGSYSCONFDIR
-"${CMAKE_INSTALL_FULL_SYSCONFDIR}/${PKG_DIR_NAME}"
+"${CMAKE_INSTALL_FULL_SYSCONFDIR}/${SVC_PKGDIRNAME}"
 CACHE STRING
     "Full path to the directory for storing  \
 node-specific, administrator-modifiable configuration and unit-files.")
@@ -201,7 +201,7 @@ CACHE STRING
 
 # systemdstatedir
 set(SVC_PKGLOCALSTATEDIR
-    ${CMAKE_INSTALL_LOCALSTATEDIR}/lib/${PKG_DIR_NAME})
+    ${CMAKE_INSTALL_LOCALSTATEDIR}/lib/${SVC_PKGDIRNAME})
 
 set(SYSTEM_CONFIG_UNIT_PATH ${SVC_PKGSYSCONFDIR}/system)
 set(SYSTEM_DATA_UNIT_PATH ${SVC_PKGLIBDIR}/system)

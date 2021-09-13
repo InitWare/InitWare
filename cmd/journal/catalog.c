@@ -38,8 +38,8 @@
 #include "strxcpyx.h"
 #include "util.h"
 
-const char *const catalog_file_dirs[] = { "/usr/local/lib/systemd/catalog/",
-	"/usr/lib/systemd/catalog/", NULL };
+const char *const catalog_file_dirs[] = { "/usr/local/lib/" SVC_PKGDIRNAME "/catalog/",
+	SVC_PKGLIBDIR "/catalog/", NULL };
 
 #define CATALOG_SIGNATURE                                                      \
 	(uint8_t[])                                                            \

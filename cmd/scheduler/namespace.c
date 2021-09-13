@@ -545,7 +545,7 @@ setup_one_tmp_dir(const char *id, const char *prefix, char **path)
 	if (r < 0)
 		return r;
 
-	x = strjoin(prefix, "/systemd-private-",
+	x = strjoin(prefix, "/" SVC_PKGDIRNAME "-private-",
 		sd_id128_to_string(boot_id, bid), "-", id, "-XXXXXX", NULL);
 	if (!x)
 		return -ENOMEM;

@@ -47,15 +47,15 @@ static const char suffixes[] = "sysctl.d\0"
 			       "tmpfiles.d\0"
 			       "modules-load.d\0"
 			       "binfmt.d\0"
-			       "systemd/system\0"
-			       "systemd/user\0"
-			       "systemd/system-preset\0"
-			       "systemd/user-preset\0"
+			       SVC_PKGDIRNAME "/system\0"
+			       SVC_PKGDIRNAME "/user\0"
+			       SVC_PKGDIRNAME "/system-preset\0"
+			       SVC_PKGDIRNAME "/user-preset\0"
 			       "udev/rules.d\0"
 			       "modprobe.d\0";
 
-static const char have_dropins[] = "systemd/system\0"
-				   "systemd/user\0";
+static const char have_dropins[] = SVC_PKGDIRNAME "/system\0"
+				   SVC_PKGDIRNAME "/user\0";
 
 static bool arg_no_pager = false;
 static int arg_diff = -1;

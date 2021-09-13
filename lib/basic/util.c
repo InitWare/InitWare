@@ -7797,7 +7797,7 @@ open_tmpfile(const char *path, int flags)
 #endif
 
 	/* Fall back to unguessable name + unlinking */
-	p = strjoina(path, "/systemd-tmp-XXXXXX");
+	p = strjoina(path, "/" SVC_PKGDIRNAME "-tmp-XXXXXX");
 
 	fd = mkostemp_safe(p, flags);
 	if (fd < 0)

@@ -2094,18 +2094,23 @@ unit_file_query_preset(UnitFileScope scope, const char *root_dir,
 
 	if (scope == UNIT_FILE_SYSTEM)
 		r = conf_files_list(&files, ".preset", root_dir,
-			"/etc/systemd/system-preset",
+			SVC_PKGSYSCONFDIR "/system-preset",
+#ifdef SVC_USE_systemd_paths
 			"/usr/local/lib/systemd/system-preset",
 			"/usr/lib/systemd/system-preset",
 #ifdef HAVE_SPLIT_USR
 			"/lib/systemd/system-preset",
 #endif
+#endif
 			NULL);
 	else if (scope == UNIT_FILE_GLOBAL)
 		r = conf_files_list(&files, ".preset", root_dir,
-			"/etc/systemd/user-preset",
+			SVC_PKGSYSCONFDIR "/user-preset",
+#ifdef SVC_USE_systemd_paths
 			"/usr/local/lib/systemd/user-preset",
-			"/usr/lib/systemd/user-preset", NULL);
+			"/usr/lib/systemd/user-preset",
+#endif
+			 NULL);
 	else
 		return 1; /* Default is "enable" */
 

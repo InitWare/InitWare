@@ -39,7 +39,7 @@ user_config_home(char **config_home)
 
 	e = getenv("XDG_CONFIG_HOME");
 	if (e) {
-		r = strappend(e, "/systemd/user");
+		r = strappend(e, "/" SVC_PKGDIRNAME "/user");
 		if (!r)
 			return -ENOMEM;
 
@@ -50,7 +50,7 @@ user_config_home(char **config_home)
 
 		home = getenv("HOME");
 		if (home) {
-			r = strappend(home, "/.config/systemd/user");
+			r = strappend(home, "/.config/" SVC_PKGDIRNAME "/user");
 			if (!r)
 				return -ENOMEM;
 
@@ -70,7 +70,7 @@ user_runtime_dir(char **runtime_dir)
 
 	e = getenv("XDG_RUNTIME_DIR");
 	if (e) {
-		r = strappend(e, "/systemd/user");
+		r = strappend(e, "/" SVC_PKGDIRNAME "/user");
 		if (!r)
 			return -ENOMEM;
 
@@ -87,9 +87,9 @@ user_data_home_dir(char **dir, const char *suffix)
 	const char *e;
 	char *res;
 
-	/* We don't treat /etc/xdg/systemd here as the spec
+	/* We don't treat /etc/xdg/InitWare here as the spec
          * suggests because we assume that that is a link to
-         * /etc/systemd/ anyway. */
+         * /etc/InitWare/ anyway. */
 
 	e = getenv("XDG_DATA_HOME");
 	if (e)
@@ -115,13 +115,21 @@ user_dirs(const char *generator, const char *generator_early,
 	const char *generator_late)
 {
 	const char *const config_unit_paths[] = { USER_CONFIG_UNIT_PATH,
-		"/etc/systemd/user", NULL };
+		SVC_PKGSYSCONFDIR "/user", NULL };
 
 	const char *const runtime_unit_path = SVC_PKGRUNSTATEDIR "/user";
 
-	const char *const data_unit_paths[] = { "/usr/local/lib/systemd/user",
-		"/usr/local/share/systemd/user", USER_DATA_UNIT_PATH,
-		"/usr/lib/systemd/user", "/usr/share/systemd/user", NULL };
+	const char *const data_unit_paths[] = {
+#ifdef SVC_USE_systemd_paths
+		"/usr/local/lib/" SVC_PKGDIRNAME "/user",
+		"/usr/local/share/" SVC_PKGDIRNAME "/user",
+#endif
+		USER_DATA_UNIT_PATH,
+#ifdef SVC_USE_systemd_paths
+		"/usr/lib/" SVC_PKGDIRNAME "/user",
+		"/usr/share/" SVC_PKGDIRNAME "/user",
+#endif
+		NULL };
 
 	const char *e;
 	_cleanup_free_ char *config_home = NULL, *runtime_dir = NULL,
@@ -153,7 +161,7 @@ user_dirs(const char *generator, const char *generator_early,
 			return NULL;
 	}
 
-	r = user_data_home_dir(&data_home, "/systemd/user");
+	r = user_data_home_dir(&data_home, "/" SVC_PKGDIRNAME "/user");
 	if (r < 0)
 		return NULL;
 
@@ -176,7 +184,7 @@ user_dirs(const char *generator, const char *generator_early,
 
 	if (!strv_isempty(config_dirs))
 		if (strv_extend_strv_concat(&res, config_dirs,
-			    "/systemd/user") < 0)
+			    "/" SVC_PKGDIRNAME "/user") < 0)
 			return NULL;
 
 	if (strv_extend_strv(&res, (char **)config_unit_paths) < 0)
@@ -198,7 +206,7 @@ user_dirs(const char *generator, const char *generator_early,
 			return NULL;
 
 	if (!strv_isempty(data_dirs))
-		if (strv_extend_strv_concat(&res, data_dirs, "/systemd/user") <
+		if (strv_extend_strv_concat(&res, data_dirs, "/" SVC_PKGDIRNAME "/user") <
 			0)
 			return NULL;
 
@@ -222,13 +230,13 @@ generator_paths(SystemdRunningAs running_as)
 {
 	if (running_as == SYSTEMD_USER)
 		return strv_new(SVC_PKGRUNSTATEDIR "/user-generators",
-			"/etc/systemd/user-generators",
-			"/usr/local/lib/systemd/user-generators",
+			SVC_PKGSYSCONFDIR "/user-generators",
+			"/usr/local/lib/" SVC_PKGDIRNAME "/user-generators",
 			USER_GENERATOR_PATH, NULL);
 	else
 		return strv_new(SVC_PKGRUNSTATEDIR "/system-generators",
-			"/etc/systemd/system-generators",
-			"/usr/local/lib/systemd/system-generators",
+			SVC_PKGSYSCONFDIR "/system-generators",
+			"/usr/local/lib/" SVC_PKGDIRNAME "/system-generators",
 			SYSTEM_GENERATOR_PATH, NULL);
 }
 
@@ -284,28 +292,36 @@ lookup_paths_init(LookupPaths *p, SystemdRunningAs running_as, bool personal,
                                          * the arrays in user_dirs() above! */
 					STRV_IFNOTNULL(generator_early),
 					USER_CONFIG_UNIT_PATH,
-					"/etc/systemd/user",
+					SVC_PKGSYSCONFDIR "/user",
 					SVC_PKGRUNSTATEDIR "/user",
 					STRV_IFNOTNULL(generator),
-					"/usr/local/lib/systemd/user",
-					"/usr/local/share/systemd/user",
+#ifdef SVC_USE_systemd_paths
+					"/usr/local/lib/" SVC_PKGDIRNAME "/user",
+					"/usr/local/share/" SVC_PKGDIRNAME "/user",
+#endif
 					USER_DATA_UNIT_PATH,
-					"/usr/lib/systemd/user",
-					"/usr/share/systemd/user",
+#ifdef SVC_USE_systemd_paths
+					"/usr/lib/" SVC_PKGDIRNAME "/user",
+					"/usr/share/" SVC_PKGDIRNAME "/user",
+#endif
 					STRV_IFNOTNULL(generator_late), NULL);
 		} else
 			unit_path = strv_new(
 				/* If you modify this you also want to modify
                                  * systemdsystemunitpath= in systemd.pc.in! */
 				STRV_IFNOTNULL(generator_early),
-				SYSTEM_CONFIG_UNIT_PATH, "/etc/systemd/system",
+				SYSTEM_CONFIG_UNIT_PATH, SVC_PKGSYSCONFDIR "/system",
 				SVC_PKGRUNSTATEDIR "/system",
 				STRV_IFNOTNULL(generator),
-				"/usr/local/lib/systemd/system",
+#ifdef SVC_USE_systemd_paths
+				"/usr/local/lib/" SVC_PKGDIRNAME "/system",
+#endif
 				SYSTEM_DATA_UNIT_PATH,
-				"/usr/lib/systemd/system",
+#ifdef SVC_USE_systemd_paths
+				"/usr/lib/" SVC_PKGDIRNAME "/system",
 #ifdef HAVE_SPLIT_USR
-				"/lib/systemd/system",
+				"/lib/" SVC_PKGDIRNAME "/system",
+#endif
 #endif
 				STRV_IFNOTNULL(generator_late), NULL);
 

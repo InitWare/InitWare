@@ -39,8 +39,8 @@ main(int argc, char *argv[])
 	char *projects_directory;
 
 	int r;
-	char tmp_dir[] = "/tmp/systemd-private-XXXXXX",
-	     var_tmp_dir[] = "/var/tmp/systemd-private-XXXXXX";
+	char tmp_dir[] = "/tmp/InitWare-private-XXXXXX",
+	     var_tmp_dir[] = "/var/tmp/InitWare-private-XXXXXX";
 
 	assert_se(mkdtemp(tmp_dir));
 	assert_se(mkdtemp(var_tmp_dir));

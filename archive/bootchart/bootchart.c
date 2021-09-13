@@ -74,7 +74,7 @@ int sysfd = -1;
 #define DEFAULT_HZ 25.0
 #define DEFAULT_SCALE_X 100.0 /* 100px = 1sec */
 #define DEFAULT_SCALE_Y 20.0 /* 16px = 1 process bar */
-#define DEFAULT_INIT ROOTLIBEXECDIR "/systemd"
+#define DEFAULT_INIT SVC_PKGLIBEXECDIR "/svc.schedulerd"
 #define DEFAULT_OUTPUT "/run/log"
 
 /* graph defaults */
@@ -106,7 +106,7 @@ signal_handler(int sig)
 	exiting = 1;
 }
 
-#define BOOTCHART_CONF "/etc/systemd/bootchart.conf"
+#define BOOTCHART_CONF SVC_PKGSYSCONFDIR "/bootchart.conf"
 
 #define BOOTCHART_MAX (16 * 1024 * 1024)
 

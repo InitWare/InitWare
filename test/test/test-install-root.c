@@ -39,7 +39,7 @@ test_basic_mask_and_enable(const char *root)
 	assert_se(unit_file_get_state(UNIT_FILE_SYSTEM, root, "d.service",
 			  NULL) == -ENOENT);
 
-	p = strjoina(root, "/usr/lib/systemd/system/a.service");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/a.service");
 	assert_se(write_string_file(p,
 			  "[Install]\n"
 			  "WantedBy=multi-user.target\n") >= 0);
@@ -50,7 +50,7 @@ test_basic_mask_and_enable(const char *root)
 			  &state) >= 0 &&
 		state == UNIT_FILE_DISABLED);
 
-	p = strjoina(root, "/usr/lib/systemd/system/b.service");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/b.service");
 	assert_se(symlink("a.service", p) >= 0);
 
 	assert_se(unit_file_get_state(UNIT_FILE_SYSTEM, root, "b.service",
@@ -59,8 +59,8 @@ test_basic_mask_and_enable(const char *root)
 			  &state) >= 0 &&
 		state == UNIT_FILE_DISABLED);
 
-	p = strjoina(root, "/usr/lib/systemd/system/c.service");
-	assert_se(symlink("/usr/lib/systemd/system/a.service", p) >= 0);
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/c.service");
+	assert_se(symlink("SYSTEMD_DATA_UNIT_PATH/a.service", p) >= 0);
 
 	assert_se(unit_file_get_state(UNIT_FILE_SYSTEM, root, "c.service",
 			  NULL) >= 0);
@@ -68,7 +68,7 @@ test_basic_mask_and_enable(const char *root)
 			  &state) >= 0 &&
 		state == UNIT_FILE_DISABLED);
 
-	p = strjoina(root, "/usr/lib/systemd/system/d.service");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/d.service");
 	assert_se(symlink("c.service", p) >= 0);
 
 	/* This one is interesting, as d follows a relative, then an absolute symlink */
@@ -126,7 +126,7 @@ test_basic_mask_and_enable(const char *root)
 	assert_se(n_changes == 1);
 	assert_se(changes[0].type == UNIT_FILE_SYMLINK);
 	assert_se(
-		streq(changes[0].source, "/usr/lib/systemd/system/a.service"));
+		streq(changes[0].source, "SYSTEMD_DATA_UNIT_PATH/a.service"));
 	p = strjoina(root,
 		SYSTEM_CONFIG_UNIT_PATH "/multi-user.target.wants/a.service");
 	assert_se(streq(changes[0].path, p));
@@ -193,7 +193,7 @@ test_basic_mask_and_enable(const char *root)
 	assert_se(n_changes == 1);
 	assert_se(changes[0].type == UNIT_FILE_SYMLINK);
 	assert_se(
-		streq(changes[0].source, "/usr/lib/systemd/system/a.service"));
+		streq(changes[0].source, "SYSTEMD_DATA_UNIT_PATH/a.service"));
 	p = strjoina(root,
 		SYSTEM_CONFIG_UNIT_PATH "/multi-user.target.wants/a.service");
 	assert_se(streq(changes[0].path, p));
@@ -225,7 +225,7 @@ test_basic_mask_and_enable(const char *root)
 	assert_se(streq(changes[0].path, p));
 	assert_se(changes[1].type == UNIT_FILE_SYMLINK);
 	assert_se(
-		streq(changes[1].source, "/usr/lib/systemd/system/a.service"));
+		streq(changes[1].source, "SYSTEMD_DATA_UNIT_PATH/a.service"));
 	assert_se(streq(changes[1].path, p));
 	unit_file_changes_free(changes, n_changes);
 	changes = NULL;
@@ -260,11 +260,11 @@ test_linked_units(const char *root)
          * "systemctl enable" on to make it available to the system
          *
          * b) a unit file in /opt, that is statically linked into
-         * /usr/lib/systemd/system, that "enable" should work on
+         * SYSTEMD_DATA_UNIT_PATH, that "enable" should work on
          * correctly.
          *
          * c) a unit file in /opt, that is linked into
-         * /etc/systemd/system, and where "enable" should result in
+         * /etc/InitWare/system, and where "enable" should result in
          * -ELOOP, since using information from /etc to generate
          * information in /etc should not be allowed.
          */
@@ -291,7 +291,7 @@ test_linked_units(const char *root)
 	assert_se(unit_file_get_state(UNIT_FILE_SYSTEM, root, "linked3.service",
 			  NULL) == -ENOENT);
 
-	p = strjoina(root, "/usr/lib/systemd/system/linked2.service");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/linked2.service");
 	assert_se(symlink("/opt/linked2.service", p) >= 0);
 
 	p = strjoina(root, SYSTEM_CONFIG_UNIT_PATH "/linked3.service");
@@ -439,10 +439,10 @@ test_default(const char *root)
 	unsigned n_changes = 0;
 	const char *p;
 
-	p = strjoina(root, "/usr/lib/systemd/system/test-default-real.target");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/test-default-real.target");
 	assert_se(write_string_file(p, "# pretty much empty") >= 0);
 
-	p = strjoina(root, "/usr/lib/systemd/system/test-default.target");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/test-default.target");
 	assert_se(symlink("test-default-real.target", p) >= 0);
 
 	assert_se(
@@ -464,7 +464,7 @@ test_default(const char *root)
 	assert_se(n_changes == 1);
 	assert_se(changes[0].type == UNIT_FILE_SYMLINK);
 	assert_se(streq(changes[0].source,
-		"/usr/lib/systemd/system/test-default-real.target"));
+		"SYSTEMD_DATA_UNIT_PATH/test-default-real.target"));
 	p = strjoina(root, SYSTEM_CONFIG_UNIT_PATH "/default.target");
 	assert_se(streq(changes[0].path, p));
 	unit_file_changes_free(changes, n_changes);
@@ -483,19 +483,19 @@ test_add_dependency(const char *root)
 	const char *p;
 
 	p = strjoina(root,
-		"/usr/lib/systemd/system/real-add-dependency-test-target.target");
+		"SYSTEMD_DATA_UNIT_PATH/real-add-dependency-test-target.target");
 	assert_se(write_string_file(p, "# pretty much empty") >= 0);
 
 	p = strjoina(root,
-		"/usr/lib/systemd/system/add-dependency-test-target.target");
+		"SYSTEMD_DATA_UNIT_PATH/add-dependency-test-target.target");
 	assert_se(symlink("real-add-dependency-test-target.target", p) >= 0);
 
 	p = strjoina(root,
-		"/usr/lib/systemd/system/real-add-dependency-test-service.service");
+		"SYSTEMD_DATA_UNIT_PATH/real-add-dependency-test-service.service");
 	assert_se(write_string_file(p, "# pretty much empty") >= 0);
 
 	p = strjoina(root,
-		"/usr/lib/systemd/system/add-dependency-test-service.service");
+		"SYSTEMD_DATA_UNIT_PATH/add-dependency-test-service.service");
 	assert_se(symlink("real-add-dependency-test-service.service", p) >= 0);
 
 	assert_se(unit_file_add_dependency(UNIT_FILE_SYSTEM, 0, root,
@@ -505,7 +505,7 @@ test_add_dependency(const char *root)
 	assert_se(n_changes == 1);
 	assert_se(changes[0].type == UNIT_FILE_SYMLINK);
 	assert_se(streq(changes[0].source,
-		"/usr/lib/systemd/system/real-add-dependency-test-service.service"));
+		"SYSTEMD_DATA_UNIT_PATH/real-add-dependency-test-service.service"));
 	p = strjoina(root,
 		SYSTEM_CONFIG_UNIT_PATH
 		"/real-add-dependency-test-target.target.wants/real-add-dependency-test-service.service");
@@ -532,13 +532,13 @@ test_template_enable(const char *root)
 	assert_se(unit_file_get_state(UNIT_FILE_SYSTEM, root,
 			  "template-symlink@foo.service", &state) == -ENOENT);
 
-	p = strjoina(root, "/usr/lib/systemd/system/template@.service");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/template@.service");
 	assert_se(write_string_file(p,
 			  "[Install]\n"
 			  "DefaultInstance=def\n"
 			  "WantedBy=multi-user.target\n") >= 0);
 
-	p = strjoina(root, "/usr/lib/systemd/system/template-symlink@.service");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/template-symlink@.service");
 	assert_se(symlink("template@.service", p) >= 0);
 
 	assert_se(unit_file_get_state(UNIT_FILE_SYSTEM, root,
@@ -566,7 +566,7 @@ test_template_enable(const char *root)
 	assert_se(n_changes == 1);
 	assert_se(changes[0].type == UNIT_FILE_SYMLINK);
 	assert_se(streq(changes[0].source,
-		"/usr/lib/systemd/system/template@.service"));
+		"SYSTEMD_DATA_UNIT_PATH/template@.service"));
 	p = strjoina(root,
 		SYSTEM_CONFIG_UNIT_PATH
 		"/multi-user.target.wants/template@def.service");
@@ -628,7 +628,7 @@ test_template_enable(const char *root)
 			  &n_changes) >= 0);
 	assert_se(changes[0].type == UNIT_FILE_SYMLINK);
 	assert_se(streq(changes[0].source,
-		"/usr/lib/systemd/system/template@.service"));
+		"SYSTEMD_DATA_UNIT_PATH/template@.service"));
 	p = strjoina(root,
 		SYSTEM_CONFIG_UNIT_PATH
 		"/multi-user.target.wants/template@foo.service");
@@ -696,7 +696,7 @@ test_template_enable(const char *root)
 			  &n_changes) >= 0);
 	assert_se(changes[0].type == UNIT_FILE_SYMLINK);
 	assert_se(streq(changes[0].source,
-		"/usr/lib/systemd/system/template@.service"));
+		"SYSTEMD_DATA_UNIT_PATH/template@.service"));
 	p = strjoina(root,
 		SYSTEM_CONFIG_UNIT_PATH
 		"/multi-user.target.wants/template@quux.service");
@@ -746,17 +746,17 @@ test_indirect(const char *root)
 	assert_se(unit_file_get_state(UNIT_FILE_SYSTEM, root,
 			  "indirectc.service", &state) == -ENOENT);
 
-	p = strjoina(root, "/usr/lib/systemd/system/indirecta.service");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/indirecta.service");
 	assert_se(write_string_file(p,
 			  "[Install]\n"
 			  "Also=indirectb.service\n") >= 0);
 
-	p = strjoina(root, "/usr/lib/systemd/system/indirectb.service");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/indirectb.service");
 	assert_se(write_string_file(p,
 			  "[Install]\n"
 			  "WantedBy=multi-user.target\n") >= 0);
 
-	p = strjoina(root, "/usr/lib/systemd/system/indirectc.service");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/indirectc.service");
 	assert_se(symlink("indirecta.service", p) >= 0);
 
 	assert_se(unit_file_get_state(UNIT_FILE_SYSTEM, root,
@@ -775,7 +775,7 @@ test_indirect(const char *root)
 	assert_se(n_changes == 1);
 	assert_se(changes[0].type == UNIT_FILE_SYMLINK);
 	assert_se(streq(changes[0].source,
-		"/usr/lib/systemd/system/indirectb.service"));
+		"SYSTEMD_DATA_UNIT_PATH/indirectb.service"));
 	p = strjoina(root,
 		SYSTEM_CONFIG_UNIT_PATH
 		"/multi-user.target.wants/indirectb.service");
@@ -825,17 +825,17 @@ test_preset_and_list(const char *root)
 	assert_se(unit_file_get_state(UNIT_FILE_SYSTEM, root,
 			  "preset-no.service", &state) == -ENOENT);
 
-	p = strjoina(root, "/usr/lib/systemd/system/preset-yes.service");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/preset-yes.service");
 	assert_se(write_string_file(p,
 			  "[Install]\n"
 			  "WantedBy=multi-user.target\n") >= 0);
 
-	p = strjoina(root, "/usr/lib/systemd/system/preset-no.service");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/preset-no.service");
 	assert_se(write_string_file(p,
 			  "[Install]\n"
 			  "WantedBy=multi-user.target\n") >= 0);
 
-	p = strjoina(root, "/usr/lib/systemd/system-preset/test.preset");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH-preset/test.preset");
 	assert_se(write_string_file(p,
 			  "enable *-yes.*\n"
 			  "disable *\n") >= 0);
@@ -853,7 +853,7 @@ test_preset_and_list(const char *root)
 	assert_se(n_changes == 1);
 	assert_se(changes[0].type == UNIT_FILE_SYMLINK);
 	assert_se(streq(changes[0].source,
-		"/usr/lib/systemd/system/preset-yes.service"));
+		"SYSTEMD_DATA_UNIT_PATH/preset-yes.service"));
 	p = strjoina(root,
 		SYSTEM_CONFIG_UNIT_PATH
 		"/multi-user.target.wants/preset-yes.service");
@@ -916,7 +916,7 @@ test_preset_and_list(const char *root)
 	for (i = 0; i < n_changes; i++) {
 		if (changes[i].type == UNIT_FILE_SYMLINK) {
 			assert_se(streq(changes[i].source,
-				"/usr/lib/systemd/system/preset-yes.service"));
+				"SYSTEMD_DATA_UNIT_PATH/preset-yes.service"));
 			assert_se(streq(changes[i].path, p));
 		} else
 			assert_se(changes[i].type == UNIT_FILE_UNLINK);
@@ -936,8 +936,8 @@ test_preset_and_list(const char *root)
 	assert_se(h = hashmap_new(&string_hash_ops));
 	assert_se(unit_file_get_list(UNIT_FILE_SYSTEM, root, h) >= 0);
 
-	p = strjoina(root, "/usr/lib/systemd/system/preset-yes.service");
-	q = strjoina(root, "/usr/lib/systemd/system/preset-no.service");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/preset-yes.service");
+	q = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/preset-no.service");
 
 	HASHMAP_FOREACH (fl, h, j) {
 		assert_se(unit_file_get_state(UNIT_FILE_SYSTEM, root,
@@ -968,7 +968,7 @@ main(int argc, char *argv[])
 
 	assert_se(mkdtemp(root));
 
-	p = strjoina(root, "/usr/lib/systemd/system/");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH/");
 	assert_se(mkdir_p(p, 0755) >= 0);
 
 	p = strjoina(root, SYSTEM_CONFIG_UNIT_PATH "/");
@@ -980,7 +980,7 @@ main(int argc, char *argv[])
 	p = strjoina(root, "/opt/");
 	assert_se(mkdir_p(p, 0755) >= 0);
 
-	p = strjoina(root, "/usr/lib/systemd/system-preset/");
+	p = strjoina(root, "SYSTEMD_DATA_UNIT_PATH-preset/");
 	assert_se(mkdir_p(p, 0755) >= 0);
 
 	test_basic_mask_and_enable(root);
