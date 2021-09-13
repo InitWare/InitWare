@@ -51,7 +51,7 @@ along with systemd; If not, see <http://www.gnu.org/licenses/>.
   <refsynopsisdiv>
     <para><filename>/etc/systemd/sleep.conf</filename></para>
     <para><filename>/etc/systemd/sleep.conf.d/*.conf</filename></para>
-    <para><filename>/run/systemd/sleep.conf.d/*.conf</filename></para>
+    <para><filename>/run/InitWare/sleep.conf.d/*.conf</filename></para>
     <para><filename>/usr/lib/systemd/sleep.conf.d/*.conf</filename></para>
   </refsynopsisdiv>
 

@@ -56,7 +56,7 @@ static void close_fd_input(Uploader *u);
 
 #define SERVER_ANSWER_KEEP 2048
 
-#define STATE_FILE "/var/lib/systemd/journal-upload/state"
+#define STATE_FILE SVC_PKGLOCALSTATEDIR "/journal-upload/state"
 
 #define easy_setopt(curl, opt, value, level, cmd)                              \
 	do {                                                                   \

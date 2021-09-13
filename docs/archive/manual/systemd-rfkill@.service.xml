@@ -57,7 +57,7 @@
     <para><filename>systemd-rfkill@.service</filename> is a service
     that restores the RF kill switch state at early boot and saves it
     at shutdown. On disk, the RF kill switch state is stored in
-    <filename>/var/lib/systemd/rfkill/</filename>.</para>
+    <filename>/var/lib/InitWare/rfkill/</filename>.</para>
   </refsect1>
 
   <refsect1>

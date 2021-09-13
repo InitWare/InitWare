@@ -16,7 +16,7 @@ Before=sockets.target shutdown.target
 Conflicts=shutdown.target
 
 [Socket]
-ListenDatagram=/run/systemd/journal/syslog
+ListenDatagram=@SVC_PKGRUNSTATEDIR@/journal/syslog
 SocketMode=0666
 PassCredentials=yes
 PassSecurity=yes

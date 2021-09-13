@@ -65,7 +65,7 @@
     <filename><replaceable>scope</replaceable>.scope</filename></para>
 
     <para><literallayout><filename>/etc/systemd/system/*</filename>
-<filename>/run/systemd/system/*</filename>
+<filename>/run/InitWare/system/*</filename>
 <filename>/usr/lib/systemd/system/*</filename>
 <filename>...</filename>
     </literallayout></para>
@@ -74,7 +74,7 @@
 <filename>$HOME/.config/systemd/user/*</filename>
 <filename>/etc/systemd/user/*</filename>
 <filename>$XDG_RUNTIME_DIR/systemd/user/*</filename>
-<filename>/run/systemd/user/*</filename>
+<filename>/run/InitWare/user/*</filename>
 <filename>$XDG_DATA_HOME/systemd/user/*</filename>
 <filename>$HOME/.local/share/systemd/user/*</filename>
 <filename>/usr/lib/systemd/user/*</filename>
@@ -283,7 +283,7 @@
       <entry>Local configuration</entry>
           </row>
           <row>
-      <entry><filename>/run/systemd/system</filename></entry>
+      <entry><filename>/run/InitWare/system</filename></entry>
       <entry>Runtime units</entry>
           </row>
           <row>

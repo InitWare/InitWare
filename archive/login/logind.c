@@ -340,13 +340,13 @@ manager_enumerate_linger_users(Manager *m)
 
 	assert(m);
 
-	d = opendir("/var/lib/systemd/linger");
+	d = opendir(SVC_PKGLOCALSTATEDIR "/linger");
 	if (!d) {
 		if (errno == ENOENT)
 			return 0;
 
 		log_error_errno(errno,
-			"Failed to open /var/lib/systemd/linger/: %m");
+			"Failed to open " SVC_PKGLOCALSTATEDIR "/linger/: %m");
 		return -errno;
 	}
 

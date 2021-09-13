@@ -69,7 +69,7 @@
     <title>Description</title>
 
     <para><function>sd_journal_has_runtime_files()</function> returns a positive value
-    if runtime journal files (present in /run/systemd/journal/) have been found.
+    if runtime journal files (present in /run/InitWare/journal/) have been found.
     Otherwise returns 0.</para>
 
     <para><function>sd_journal_has_persistent_files()</function> returns a positive value

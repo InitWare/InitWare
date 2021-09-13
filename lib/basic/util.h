@@ -137,7 +137,7 @@ size_t page_size(void) _pure_;
 
 bool streq_ptr(const char *a, const char *b) _pure_;
 
-#define new (t, n) ((t *)malloc_multiply(sizeof(t), (n)))
+#define new(t, n) ((t *)malloc_multiply(sizeof(t), (n)))
 
 #define new0(t, n) ((t *)calloc((n), sizeof(t)))
 

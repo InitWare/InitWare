@@ -51,7 +51,7 @@
   <refsynopsisdiv>
     <para><filename>/etc/systemd/logind.conf</filename></para>
     <para><filename>/etc/systemd/logind.conf.d/*.conf</filename></para>
-    <para><filename>/run/systemd/logind.conf.d/*.conf</filename></para>
+    <para><filename>/run/InitWare/logind.conf.d/*.conf</filename></para>
     <para><filename>/usr/lib/systemd/logind.conf.d/*.conf</filename></para>
   </refsynopsisdiv>
 

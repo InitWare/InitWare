@@ -184,7 +184,7 @@
     <programlisting>systemd-delta systemd/system</programlisting>
 
     <para>To see all runtime "drop-in" changes for system units:</para>
-    <programlisting>systemd-delta --type=extended /run/systemd/system</programlisting>
+    <programlisting>systemd-delta --type=extended /run/InitWare/system</programlisting>
   </refsect1>
 
   <refsect1>

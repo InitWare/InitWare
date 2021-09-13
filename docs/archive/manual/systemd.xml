@@ -991,7 +991,7 @@
 
     <variablelist>
       <varlistentry>
-        <term><filename>/run/systemd/notify</filename></term>
+        <term><filename>/run/InitWare/notify</filename></term>
 
         <listitem><para>Daemon status notification socket. This is an
         <constant>AF_UNIX</constant> datagram socket and is used to
@@ -1001,7 +1001,7 @@
       </varlistentry>
 
       <varlistentry>
-        <term><filename>/run/systemd/shutdownd</filename></term>
+        <term><filename>/run/InitWare/shutdownd</filename></term>
 
         <listitem><para>Used internally by the
         <citerefentry><refentrytitle>shutdown</refentrytitle><manvolnum>8</manvolnum></citerefentry>
@@ -1011,7 +1011,7 @@
       </varlistentry>
 
       <varlistentry>
-        <term><filename>/run/systemd/private</filename></term>
+        <term><filename>/run/InitWare/private</filename></term>
 
         <listitem><para>Used internally as communication channel
         between

@@ -149,11 +149,12 @@ timer_setup_persistent(Timer *t)
 		return 0;
 
 	if (UNIT(t)->manager->running_as == SYSTEMD_SYSTEM) {
-		r = unit_require_mounts_for(UNIT(t), "/var/lib/systemd/timers");
+		r = unit_require_mounts_for(UNIT(t),
+			SVC_PKGLOCALSTATEDIR "/timers");
 		if (r < 0)
 			return r;
 
-		t->stamp_path = strappend("/var/lib/systemd/timers/stamp-",
+		t->stamp_path = strappend(SVC_PKGLOCALSTATEDIR "/timers/stamp-",
 			UNIT(t)->id);
 	} else {
 		const char *e;

@@ -1226,9 +1226,9 @@ method_set_user_linger(sd_bus *bus, sd_bus_message *message, void *userdata,
 	if (r == 0)
 		return 1; /* No authorization for now, but the async polkit stuff will call us again when it has it */
 
-	mkdir_p_label("/var/lib/systemd", 0755);
+	mkdir_p_label(SVC_PKGLOCALSTATEDIR, 0755);
 
-	r = mkdir_safe_label("/var/lib/systemd/linger", 0755, 0, 0);
+	r = mkdir_safe_label(SVC_PKGLOCALSTATEDIR "/linger", 0755, 0, 0);
 	if (r < 0)
 		return r;
 
@@ -1236,7 +1236,7 @@ method_set_user_linger(sd_bus *bus, sd_bus_message *message, void *userdata,
 	if (!cc)
 		return -ENOMEM;
 
-	path = strjoina("/var/lib/systemd/linger/", cc);
+	path = strjoina(SVC_PKGLOCALSTATEDIR "/linger/", cc);
 	if (b) {
 		User *u;
 

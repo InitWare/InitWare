@@ -19,19 +19,19 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#ifdef SVC_PLATFORM_Linux
-#include <asm/types.h>
-#include <linux/if_packet.h>
-#include <linux/netlink.h>
-#include <netinet/ether.h>
-#endif
-
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
 
 #include "macro.h"
 #include "util.h"
+
+#ifdef SVC_PLATFORM_Linux
+#include <asm/types.h>
+#include <linux/if_packet.h>
+#include <linux/netlink.h>
+#include <netinet/ether.h>
+#endif
 
 #if defined(SVC_PLATFORM_Linux)
 #define CREDPASS_IMPLICIT 1

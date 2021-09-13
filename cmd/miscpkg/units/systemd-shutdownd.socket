@@ -12,7 +12,7 @@ DefaultDependencies=no
 Before=sockets.target
 
 [Socket]
-ListenDatagram=/run/systemd/shutdownd
+ListenDatagram=@SVC_PKGRUNSTATEDIR@/shutdownd
 SocketMode=0600
 PassCredentials=yes
 PassSecurity=yes

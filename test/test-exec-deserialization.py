@@ -38,7 +38,7 @@ class UnitFileChange(Enum):
 class ExecutionResumeTest(unittest.TestCase):
     def setUp(self):
         self.unit = 'test-issue-518.service'
-        self.unitfile_path = '/run/systemd/system/{0}'.format(self.unit)
+        self.unitfile_path = '/run/InitWare/system/{0}'.format(self.unit)
         self.output_file = tempfile.mktemp()
         self.unit_files = {}
 

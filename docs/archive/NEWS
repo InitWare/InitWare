@@ -550,7 +550,7 @@ CHANGES WITH 217:
 
         * User units are now loaded also from
           $XDG_RUNTIME_DIR/systemd/user/. This is similar to the
-          /run/systemd/user directory that was already previously
+          /run/InitWare/user directory that was already previously
           supported, but is under the control of the user.
 
         * Job timeouts (i.e. time-outs on the time a job that is
@@ -1065,7 +1065,7 @@ CHANGES WITH 215:
           to the journal.
 
         * systemd-coredump may now optionally store coredumps directly
-          on disk (in /var/lib/systemd/coredump, possibly compressed),
+          on disk (in /var/lib/InitWare/coredump, possibly compressed),
           instead of storing them unconditionally in the journal. This
           mode is the new default. A new configuration file
           /etc/systemd/coredump.conf has been added to configure this
@@ -1217,7 +1217,7 @@ CHANGES WITH 214:
           the kernel modules to /etc/modules-load.d/ as a work-around.
 
         * The resolv.conf file systemd-resolved generates has been
-          moved to /run/systemd/resolve/. If you have a symlink from
+          moved to /run/InitWare/resolve/. If you have a symlink from
           /etc/resolv.conf, it might be necessary to correct it.
 
         * Two new service settings, ProtectHome= and ProtectSystem=,
@@ -2389,7 +2389,7 @@ CHANGES WITH 208:
           not delayed until next reboot.
 
         * Backlight and random seed files in /var/lib/ have moved into
-          the /var/lib/systemd/ directory, in order to centralize all
+          the /var/lib/InitWare/ directory, in order to centralize all
           systemd generated files in one directory.
 
         * Boot time performance measurements (as displayed by

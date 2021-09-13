@@ -53,11 +53,11 @@
   <refsynopsisdiv>
     <para><filename>/etc/systemd/system.conf</filename>,
     <filename>/etc/systemd/system.conf.d/*.conf</filename>,
-    <filename>/run/systemd/system.conf.d/*.conf</filename>,
+    <filename>/run/InitWare/system.conf.d/*.conf</filename>,
     <filename>/usr/lib/systemd/system.conf.d/*.conf</filename></para>
     <para><filename>/etc/systemd/user.conf</filename>,
     <filename>/etc/systemd/user.conf.d/*.conf</filename>,
-    <filename>/run/systemd/user.conf.d/*.conf</filename>,
+    <filename>/run/InitWare/user.conf.d/*.conf</filename>,
     <filename>/usr/lib/systemd/user.conf.d/*.conf</filename></para>
   </refsynopsisdiv>
 

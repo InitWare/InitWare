@@ -10,16 +10,16 @@
 d /run/user 0755 root root -
 F! /run/utmp 0664 root utmp -
 
-d /run/systemd/ask-password 0755 root root -
-d /run/systemd/seats 0755 root root -
-d /run/systemd/sessions 0755 root root -
-d /run/systemd/users 0755 root root -
-d /run/systemd/machines 0755 root root -
-d /run/systemd/shutdown 0755 root root -
+d @SVC_PKGRUNSTATEDIR@/ask-password 0755 root root -
+d @SVC_PKGRUNSTATEDIR@/seats 0755 root root -
+d @SVC_PKGRUNSTATEDIR@/sessions 0755 root root -
+d @SVC_PKGRUNSTATEDIR@/users 0755 root root -
+d @SVC_PKGRUNSTATEDIR@/machines 0755 root root -
+d @SVC_PKGRUNSTATEDIR@/shutdown 0755 root root -
 m4_ifdef(`ENABLE_NETWORKD',
-d /run/systemd/netif 0755 systemd-network systemd-network -
-d /run/systemd/netif/links 0755 systemd-network systemd-network -
-d /run/systemd/netif/leases 0755 systemd-network systemd-network -
+d @SVC_PKGRUNSTATEDIR@/netif 0755 systemd-network systemd-network -
+d @SVC_PKGRUNSTATEDIR@/netif/links 0755 systemd-network systemd-network -
+d @SVC_PKGRUNSTATEDIR@/netif/leases 0755 systemd-network systemd-network -
 )m4_dnl
 
 d /run/log 0755 root root -
@@ -42,5 +42,5 @@ a+ /var/log/journal/%m - - - - group:adm:r-x,group:wheel:r-x
 a+ /var/log/journal/%m/system.journal - - - - group:adm:r--,group:wheel:r--
 '')m4_dnl
 
-d /var/lib/systemd 0755 root root -
-d /var/lib/systemd/coredump 0755 root root 3d
+d @SVC_PKGLOCALSTATEDIR@ 0755 root root -
+d @SVC_PKGLOCALSTATEDIR@/coredump 0755 root root 3d

@@ -282,8 +282,8 @@ make_filename(const char *info[_INFO_LEN], char **ret)
 		return -ENOMEM;
 
 	if (asprintf(ret,
-		    "/var/lib/systemd/coredump/core.%s.%s." SD_ID128_FORMAT_STR
-		    ".%s.%s000000",
+		    SVC_PKGLOCALSTATEDIR
+		    "/coredump/core.%s.%s." SD_ID128_FORMAT_STR ".%s.%s000000",
 		    c, u, SD_ID128_FORMAT_VAL(boot), p, t) < 0)
 		return -ENOMEM;
 
@@ -314,7 +314,7 @@ save_external_coredump(const char *info[_INFO_LEN], uid_t uid,
 		return log_error_errno(r,
 			"Failed to determine temporary file name: %m");
 
-	mkdir_p_label("/var/lib/systemd/coredump", 0755);
+	mkdir_p_label(SVC_PKGLOCALSTATEDIR "/coredump", 0755);
 
 	fd = open(tmp,
 		O_CREAT | O_EXCL | O_RDWR | O_CLOEXEC | O_NOCTTY | O_NOFOLLOW,

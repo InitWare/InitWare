@@ -156,7 +156,7 @@ coredump_vacuum(int exclude_fd, off_t keep_free, off_t max_use)
          * because we rely on rate-limiting of the messages there,
          * to avoid being flooded. */
 
-	d = opendir("/var/lib/systemd/coredump");
+	d = opendir(SVC_PKGLOCALSTATEDIR "/coredump");
 	if (!d) {
 		if (errno == ENOENT)
 			return 0;
@@ -190,7 +190,8 @@ coredump_vacuum(int exclude_fd, off_t keep_free, off_t max_use)
 					continue;
 
 				log_warning(
-					"Failed to stat /var/lib/systemd/coredump/%s",
+					"Failed to stat " SVC_PKGLOCALSTATEDIR
+					"/coredump/%s",
 					de->d_name);
 				continue;
 			}

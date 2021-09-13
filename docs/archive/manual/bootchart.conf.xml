@@ -54,7 +54,7 @@
   <refsynopsisdiv>
     <para><filename>/etc/systemd/bootchart.conf</filename></para>
     <para><filename>/etc/systemd/bootchart.conf.d/*.conf</filename></para>
-    <para><filename>/run/systemd/bootchart.conf.d/*.conf</filename></para>
+    <para><filename>/run/InitWare/bootchart.conf.d/*.conf</filename></para>
     <para><filename>/usr/lib/systemd/bootchart.conf.d/*.conf</filename></para>
   </refsynopsisdiv>
 

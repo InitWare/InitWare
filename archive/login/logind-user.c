@@ -674,7 +674,7 @@ user_check_linger_file(User *u)
 	if (!cc)
 		return -ENOMEM;
 
-	p = strjoina("/var/lib/systemd/linger/", cc);
+	p = strjoina(SVC_PKGLOCALSTATEDIR "/linger/", cc);
 
 	return access(p, F_OK) >= 0;
 }

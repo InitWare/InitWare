@@ -673,7 +673,7 @@ Features:
 
 * make timer units go away after they elapsed
 
-* move PID 1 segfaults to /var/lib/systemd/coredump?
+* move PID 1 segfaults to /var/lib/InitWare/coredump?
 
 * create /sbin/init symlinks from the build system
 

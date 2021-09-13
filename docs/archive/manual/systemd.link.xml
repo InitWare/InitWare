@@ -58,7 +58,7 @@
     <para>The link files are read from the files located in the system
     network directory <filename>/usr/lib/systemd/network</filename>,
     the volatile runtime network directory
-    <filename>/run/systemd/network</filename>, and the local
+    <filename>/run/InitWare/network</filename>, and the local
     administration network directory
     <filename>/etc/systemd/network</filename>. Link files must have
     the extension <filename>.link</filename>; other extensions are

@@ -44,7 +44,7 @@ main(int argc, char *argv[])
 
 	umask(0022);
 
-	r = mkdir_p("/var/lib/systemd/rfkill", 0755);
+	r = mkdir_p(SVC_PKGLOCALSTATEDIR "/rfkill", 0755);
 	if (r < 0) {
 		log_error_errno(r, "Failed to create rfkill directory: %m");
 		return EXIT_FAILURE;
@@ -93,10 +93,11 @@ main(int argc, char *argv[])
 			return EXIT_FAILURE;
 		}
 
-		saved = strjoin("/var/lib/systemd/rfkill/", escaped_path_id,
-			":", escaped_type, NULL);
+		saved = strjoin(SVC_PKGLOCALSTATEDIR "/rfkill/",
+			escaped_path_id, ":", escaped_type, NULL);
 	} else
-		saved = strjoin("/var/lib/systemd/rfkill/", escaped_type, NULL);
+		saved = strjoin(SVC_PKGLOCALSTATEDIR "/rfkill/", escaped_type,
+			NULL);
 
 	if (!saved) {
 		log_oom();

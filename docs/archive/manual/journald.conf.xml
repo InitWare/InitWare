@@ -51,7 +51,7 @@
   <refsynopsisdiv>
     <para><filename>/etc/systemd/journald.conf</filename></para>
     <para><filename>/etc/systemd/journald.conf.d/*.conf</filename></para>
-    <para><filename>/run/systemd/journald.conf.d/*.conf</filename></para>
+    <para><filename>/run/InitWare/journald.conf.d/*.conf</filename></para>
     <para><filename>/usr/lib/systemd/journald.conf.d/*.conf</filename></para>
   </refsynopsisdiv>
 
@@ -383,7 +383,7 @@
       Journal events can be transferred to a different logging daemon
       in two different ways. In the first method, messages are
       immediately forwarded to a socket
-      (<filename>/run/systemd/journal/syslog</filename>), where the
+      (<filename>/run/InitWare/journal/syslog</filename>), where the
       traditional syslog daemon can read them. This method is
       controlled by <varname>ForwardToSyslog=</varname> option.  In a
       second method, a syslog daemon behaves like a normal journal

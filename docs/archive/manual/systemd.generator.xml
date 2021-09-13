@@ -58,14 +58,14 @@
     </cmdsynopsis>
 
     <para>
-      <literallayout><filename>/run/systemd/system-generators/*</filename>
+      <literallayout><filename>/run/InitWare/system-generators/*</filename>
 <filename>/etc/systemd/system-generators/*</filename>
 <filename>/usr/local/lib/systemd/system-generators/*</filename>
 <filename>&systemgeneratordir;/*</filename></literallayout>
     </para>
 
     <para>
-      <literallayout><filename>/run/systemd/user-generators/*</filename>
+      <literallayout><filename>/run/InitWare/user-generators/*</filename>
 <filename>/etc/systemd/user-generators/*</filename>
 <filename>/usr/local/lib/systemd/user-generators/*</filename>
 <filename>&usergeneratordir;/*</filename></literallayout>

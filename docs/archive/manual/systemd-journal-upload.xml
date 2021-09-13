@@ -163,7 +163,7 @@ along with systemd; If not, see <http://www.gnu.org/licenses/>.
         <listitem><para>Upload entries from the location in the
         journal <emphasis>after</emphasis> the location specified by
         the cursor saved in file at <replaceable>PATH</replaceable>
-        (<filename>/var/lib/systemd/journal-upload/state</filename> by default).
+        (<filename>/var/lib/InitWare/journal-upload/state</filename> by default).
         After an entry is successfully uploaded, update this file
         with the cursor of that entry.
         </para></listitem>
