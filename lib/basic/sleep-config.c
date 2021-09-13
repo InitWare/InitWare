@@ -57,7 +57,7 @@ parse_sleep_config(const char *verb, char ***_modes, char ***_states)
 		{}
 	};
 
-	config_parse_many(INSTALL_PKGSYSCONF_DIR "/sleep.conf",
+	config_parse_many(SVC_PKGSYSCONFDIR "/sleep.conf",
 		CONF_DIRS_NULSTR("systemd/sleep.conf"), "Sleep\0",
 		config_item_table_lookup, items, false, NULL);
 

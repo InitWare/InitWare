@@ -746,8 +746,8 @@ parse_config_file(void)
 	const char *fn, *conf_dirs_nulstr;
 
 	fn = arg_running_as == SYSTEMD_SYSTEM ?
-		      INSTALL_PKGSYSCONF_DIR "/system.conf" :
-		      INSTALL_PKGSYSCONF_DIR "/user.conf";
+		      SVC_PKGSYSCONFDIR "/system.conf" :
+		      SVC_PKGSYSCONFDIR "/user.conf";
 	conf_dirs_nulstr = arg_running_as == SYSTEMD_SYSTEM ?
 		      CONF_DIRS_NULSTR("systemd/system.conf") :
 		      CONF_DIRS_NULSTR("systemd/user.conf");

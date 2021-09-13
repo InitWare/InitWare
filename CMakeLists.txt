@@ -59,13 +59,13 @@ endfunction(build_m4)
 # These are default values for some options, but they'll be changed if
 # appropriate libraries or features are discovered during configuration.
 
-set(DEFAULT_INSTALL_RUNSTATE_DIR "/var/run")
+set(DEFAULT_SVC_RUNSTATEDIR "/var/run")
 
 set(PKGCONF_DIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
 if (CMAKE_SYSTEM_NAME MATCHES ".*Linux")
 	set(SVC_PLATFORM_Linux TRUE)
-	set(DEFAULT_INSTALL_RUNSTATE_DIR "/run")
+	set(DEFAULT_SVC_RUNSTATEDIR "/run")
 	add_definitions("-D_GNU_SOURCE")
 elseif (CMAKE_SYSTEM_NAME MATCHES "kFreeBSD.*|FreeBSD")
 	set(SVC_PLATFORM_BSD TRUE)
@@ -132,9 +132,9 @@ check_function_exists(__secure_getenv HAVE___secure_getenv)
 option(SVC_USE_CGroups "Use Control Groups" ON)
 cmake_dependent_option(SVC_USE_libcap "Use Capabilities (libcap)" ON
     "libcap_FOUND" OFF)
-option(SVC_USE_systemd_paths "Include the default systemd unit-file paths")
+option(SVC_USE_systemd_paths "Include the default systemd unit-file paths" OFF)
 
-option(SVC_USE_sessiond "Build the Session Manager")
+option(SVC_USE_sessiond "Build the Session Manager" ON)
 
 set(PKG_DIR_NAME
 "InitWare"
@@ -142,75 +142,73 @@ CACHE STRING
     "Default name of InitWare subdirectories (can be set to 'systemd' for \
 systemd compatibility.)")
 
-# Paths, either absolute ("full") or relative ("rel")
-set(INSTALL_RUNSTATE_DIR
-"${DEFAULT_INSTALL_RUNSTATE_DIR}"
+set(SVC_RUNSTATEDIR
+"${DEFAULT_SVC_RUNSTATEDIR}"
 CACHE STRING
     "Full path to the system runtime state directory, e.g. /var/run")
 
-set(INSTALL_PKGRUNSTATE_DIR
-"${INSTALL_RUNSTATE_DIR}/${PKG_DIR_NAME}"
+set(SVC_PKGRUNSTATEDIR
+"${SVC_RUNSTATEDIR}/${PKG_DIR_NAME}"
 CACHE STRING
     "Full path to the directory in which to store the run-time state of \
 InitWare, e.g. /var/run/InitWare")
 
-set(INSTALL_USERSTATE_DIR
-"${INSTALL_RUNSTATE_DIR}/user"
+set(SVC_USERRUNSTATEDIR
+"${SVC_RUNSTATEDIR}/user"
 CACHE STRING
     "Full path to the directory in which to generate subdirectories for runtime \
 state of each logged-in user, e.g. /var/run/user")
 
-set(INSTALL_PKGLIB_DIR
+set(SVC_PKGLIBDIR
 "${CMAKE_INSTALL_PREFIX}/lib/${PKG_DIR_NAME}"
 CACHE STRING
     "Full path to the directory for storing system-provided, read-only InitWare \
 configuration and unit-files (not actual libraries). ")
 
-set(INSTALL_PKGLIBEXEC_DIR
+set(SVC_PKGLIBEXECDIR
 "${CMAKE_INSTALL_FULL_LIBEXECDIR}/${PKG_DIR_NAME}"
 CACHE STRING
     "Full path to the directory for storing executables not \
 intended for running by the user, e.g. agents and generators.")
 
-set(INSTALL_PKGSYSCONF_DIR
+set(SVC_PKGSYSCONFDIR
 "${CMAKE_INSTALL_FULL_SYSCONFDIR}/${PKG_DIR_NAME}"
 CACHE STRING
     "Full path to the directory for storing  \
 node-specific, administrator-modifiable configuration and unit-files.")
 
-set(INSTALL_DBUSSERVICES_DIR
+set(SVC_DBUSSERVICESDIR
 "${CMAKE_INSTALL_FULL_DATAROOTDIR}/dbus-1/system-services"
 CACHE STRING
     "Full path to the directory for storing D-Bus system service files.")
 
-set(INSTALL_DBUSCONF_DIR
+set(SVC_DBUSCONFDIR
 "${CMAKE_INSTALL_FULL_DATAROOTDIR}/dbus-1/system.d"
 CACHE STRING
     "Full path to the directory for storing D-Bus system service configuration."
 )
 
-set(INSTALL_POLKITACTION_DIR
+set(SVC_POLKITACTIONDIR
 "${CMAKE_INSTALL_FULL_DATAROOTDIR}/polkit-1/actions"
 CACHE STRING
     "Full path to the directory for storing D-Bus system service configuration."
 )
-
 
 # -------------------------------------------------------------------------------
 # computed paths
 # -------------------------------------------------------------------------------
 
 # systemdstatedir
-set(INSTALL_PKGLOCALSTATE_DIR
+set(SVC_PKGLOCALSTATEDIR
     ${CMAKE_INSTALL_LOCALSTATEDIR}/lib/${PKG_DIR_NAME})
 
-set(SYSTEM_CONFIG_UNIT_PATH ${INSTALL_PKGSYSCONF_DIR}/system)
-set(SYSTEM_DATA_UNIT_PATH ${INSTALL_PKGLIB_DIR}/system)
-set(SYSTEM_GENERATOR_PATH ${INSTALL_PKGLIBEXEC_DIR}/system-generators)
+set(SYSTEM_CONFIG_UNIT_PATH ${SVC_PKGSYSCONFDIR}/system)
+set(SYSTEM_DATA_UNIT_PATH ${SVC_PKGLIBDIR}/system)
+set(SYSTEM_GENERATOR_PATH ${SVC_PKGLIBEXECDIR}/system-generators)
 
-set(USER_CONFIG_UNIT_PATH ${INSTALL_PKGSYSCONF_DIR}/user)
-set(USER_DATA_UNIT_PATH ${INSTALL_PKGLIB_DIR}/user)
-set(USER_GENERATOR_PATH ${INSTALL_PKGLIBEXEC_DIR}/user-generators)
+set(USER_CONFIG_UNIT_PATH ${SVC_PKGSYSCONFDIR}/user)
+set(USER_DATA_UNIT_PATH ${SVC_PKGLIBDIR}/user)
+set(USER_GENERATOR_PATH ${SVC_PKGLIBEXECDIR}/user-generators)
 
 configure_file(head/systemd/svc-config.h.in head/systemd/svc-config.h)
 
@@ -222,3 +220,30 @@ add_to_m4_params(SVC_PLATFORM_Linux SVC_PLATFORM_BSD UnsSet)
 
 add_subdirectory(cmd)
 add_subdirectory(lib)
+
+# ------------------------------------------------------------------------------
+# show options settings
+# ------------------------------------------------------------------------------
+
+function (FShow flag)
+	if (${flag})
+		message("  ${flag}: ${${flag}}")
+	else ()
+		message("  ${flag}: OFF")
+	endif ()
+endfunction (FShow)
+
+message("Feature settings (Use flags):")
+fshow(SVC_USE_CGroups)
+fshow(SVC_USE_libcap)
+fshow(SVC_USE_systemd_paths)
+fshow(SVC_USE_sessiond)
+
+message("Paths:")
+fshow(CMAKE_INSTALL_PREFIX)
+fshow(SVC_PKGLIBEXECDIR)
+fshow(SVC_PKGLIBDIR)
+fshow(SVC_PKGSYSCONFDIR)
+fshow(SVC_RUNSTATEDIR)
+fshow(SVC_USERRUNSTATEDIR)
+fshow(SVC_PKGRUNSTATEDIR)
