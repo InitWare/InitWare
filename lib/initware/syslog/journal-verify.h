@@ -1,4 +1,3 @@
-#pragma once
 
 /***
   This file is part of systemd.
@@ -19,8 +18,13 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#ifndef JOURNAL_VERIFY_H_
+#define JOURNAL_VERIFY_H_
+
 #include "journal-file.h"
 
 int journal_file_verify(JournalFile *f, const char *key,
 	usec_t *first_contained, usec_t *last_validated, usec_t *last_contained,
 	bool show_progress);
+
+#endif /* JOURNAL_VERIFY_H_ */

@@ -135,7 +135,7 @@ parse_conf(void)
 		{ NULL, NULL, NULL, 0, NULL } };
 
 	config_parse_many(BOOTCHART_CONF,
-		CONF_DIRS_NULSTR("systemd/bootchart.conf"), NULL,
+		CONF_DIRS_NULSTR(SVC_PKGDIRNAME "/bootchart.conf"), NULL,
 		config_item_table_lookup, items, true, NULL);
 
 	if (init != NULL)
