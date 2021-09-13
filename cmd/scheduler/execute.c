@@ -232,7 +232,7 @@ connect_journal_socket(int fd, uid_t uid, gid_t gid)
 {
 	union sockaddr_union sa = {
 		.un.sun_family = AF_UNIX,
-		.un.sun_path = "/run/systemd/journal/stdout",
+		.un.sun_path = SVC_PKGRUNSTATEDIR "/journal/stdout",
 	};
 	uid_t olduid = UID_INVALID;
 	gid_t oldgid = GID_INVALID;

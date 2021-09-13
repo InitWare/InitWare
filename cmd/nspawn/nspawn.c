@@ -2841,12 +2841,12 @@ setup_propagate(const char *root)
 {
 	const char *p, *q;
 
-	(void)mkdir_p("/run/systemd/nspawn/", 0755);
-	(void)mkdir_p("/run/systemd/nspawn/propagate", 0600);
-	p = strjoina("/run/systemd/nspawn/propagate/", arg_machine);
+	(void)mkdir_p(SVC_PKGRUNSTATEDIR "/nspawn/", 0755);
+	(void)mkdir_p(SVC_PKGRUNSTATEDIR "/nspawn/propagate", 0600);
+	p = strjoina(SVC_PKGRUNSTATEDIR "/nspawn/propagate/", arg_machine);
 	(void)mkdir_p(p, 0600);
 
-	q = strjoina(root, "/run/systemd/nspawn/incoming");
+	q = strjoina(root, SVC_PKGRUNSTATEDIR "/nspawn/incoming");
 	mkdir_parents(q, 0755);
 	mkdir_p(q, 0600);
 
@@ -4770,7 +4770,8 @@ finish:
 	if (arg_machine) {
 		const char *p;
 
-		p = strjoina("/run/systemd/nspawn/propagate/", arg_machine);
+		p = strjoina(SVC_PKGRUNSTATEDIR "/nspawn/propagate/",
+			arg_machine);
 		(void)rm_rf(p, false, true, false);
 	}
 

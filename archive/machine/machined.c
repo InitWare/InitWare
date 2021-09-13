@@ -105,13 +105,13 @@ manager_enumerate_machines(Manager *m)
 	assert(m);
 
 	/* Read in machine data stored on disk */
-	d = opendir("/run/systemd/machines");
+	d = opendir(SVC_PKGRUNSTATEDIR "/machines");
 	if (!d) {
 		if (errno == ENOENT)
 			return 0;
 
 		log_error_errno(errno,
-			"Failed to open /run/systemd/machines: %m");
+			"Failed to open " SVC_PKGRUNSTATEDIR "/machines: %m");
 		return -errno;
 	}
 
@@ -343,10 +343,10 @@ main(int argc, char *argv[])
 
 	/* Always create the directories people can create inotify
          * watches in. Note that some applications might check for the
-         * existence of /run/systemd/machines/ to determine whether
+         * existence of $SVC_PKGRUNSTATEDIR/machines/ to determine whether
          * machined is available, so please always make sure this
          * check stays in. */
-	mkdir_label("/run/systemd/machines", 0755);
+	mkdir_label(SVC_PKGRUNSTATEDIR "/machines", 0755);
 
 	m = manager_new();
 	if (!m) {

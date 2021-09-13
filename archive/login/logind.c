@@ -300,12 +300,13 @@ manager_enumerate_seats(Manager *m)
          * actually create any seats. Removes data of seats that no
          * longer exist. */
 
-	d = opendir("/run/systemd/seats");
+	d = opendir(SVC_PKGRUNSTATEDIR "/seats");
 	if (!d) {
 		if (errno == ENOENT)
 			return 0;
 
-		log_error_errno(errno, "Failed to open /run/systemd/seats: %m");
+		log_error_errno(errno,
+			"Failed to open " SVC_PKGRUNSTATEDIR "/seats: %m");
 		return -errno;
 	}
 
@@ -380,12 +381,13 @@ manager_enumerate_users(Manager *m)
 	r = manager_enumerate_linger_users(m);
 
 	/* Read in user data stored on disk */
-	d = opendir("/run/systemd/users");
+	d = opendir(SVC_PKGRUNSTATEDIR "/users");
 	if (!d) {
 		if (errno == ENOENT)
 			return 0;
 
-		log_error_errno(errno, "Failed to open /run/systemd/users: %m");
+		log_error_errno(errno,
+			"Failed to open " SVC_PKGRUNSTATEDIR "/users: %m");
 		return -errno;
 	}
 
@@ -425,13 +427,13 @@ manager_enumerate_sessions(Manager *m)
 	assert(m);
 
 	/* Read in session data stored on disk */
-	d = opendir("/run/systemd/sessions");
+	d = opendir(SVC_PKGRUNSTATEDIR "/sessions");
 	if (!d) {
 		if (errno == ENOENT)
 			return 0;
 
 		log_error_errno(errno,
-			"Failed to open /run/systemd/sessions: %m");
+			"Failed to open " SVC_PKGRUNSTATEDIR "/sessions: %m");
 		return -errno;
 	}
 
@@ -478,13 +480,13 @@ manager_enumerate_inhibitors(Manager *m)
 
 	assert(m);
 
-	d = opendir("/run/systemd/inhibit");
+	d = opendir(SVC_PKGRUNSTATEDIR "/inhibit");
 	if (!d) {
 		if (errno == ENOENT)
 			return 0;
 
 		log_error_errno(errno,
-			"Failed to open /run/systemd/inhibit: %m");
+			"Failed to open " SVC_PKGRUNSTATEDIR "/inhibit: %m");
 		return -errno;
 	}
 
@@ -1263,12 +1265,12 @@ main(int argc, char *argv[])
 
 	/* Always create the directories people can create inotify
          * watches in. Note that some applications might check for the
-         * existence of /run/systemd/seats/ to determine whether
+         * existence of $SVC_PKGRUNSTATEDIR/seats/ to determine whether
          * logind is available, so please always make sure this check
          * stays in. */
-	mkdir_label("/run/systemd/seats", 0755);
-	mkdir_label("/run/systemd/users", 0755);
-	mkdir_label("/run/systemd/sessions", 0755);
+	mkdir_label(SVC_PKGRUNSTATEDIR "/seats", 0755);
+	mkdir_label(SVC_PKGRUNSTATEDIR "/users", 0755);
+	mkdir_label(SVC_PKGRUNSTATEDIR "/sessions", 0755);
 
 	m = manager_new();
 	if (!m) {

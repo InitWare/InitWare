@@ -6150,12 +6150,14 @@ get_file_to_edit(const char *name, const char *user_home,
 	case UNIT_FILE_SYSTEM:
 		path = path_join(arg_root, SYSTEM_CONFIG_UNIT_PATH, name);
 		if (arg_runtime)
-			run = path_join(arg_root, "/run/systemd/system/", name);
+			run = path_join(arg_root, SVC_PKGRUNSTATEDIR "/system/",
+				name);
 		break;
 	case UNIT_FILE_GLOBAL:
 		path = path_join(arg_root, USER_CONFIG_UNIT_PATH, name);
 		if (arg_runtime)
-			run = path_join(arg_root, "/run/systemd/user/", name);
+			run = path_join(arg_root, SVC_PKGRUNSTATEDIR "/user/",
+				name);
 		break;
 	case UNIT_FILE_USER:
 		assert(user_home);
@@ -7677,7 +7679,7 @@ send_shutdownd(usec_t t, char mode, bool dry_run, bool warn,
 
 	union sockaddr_union sockaddr = {
 		.un.sun_family = AF_UNIX,
-		.un.sun_path = "/run/systemd/shutdownd",
+		.un.sun_path = SVC_PKGRUNSTATEDIR "/shutdownd",
 	};
 
 	struct iovec iovec[2] = { {
@@ -7688,7 +7690,7 @@ send_shutdownd(usec_t t, char mode, bool dry_run, bool warn,
 	struct msghdr msghdr = {
 		.msg_name = &sockaddr,
 		.msg_namelen = offsetof(struct sockaddr_un, sun_path) +
-			strlen("/run/systemd/shutdownd"),
+			strlen(SVC_PKGRUNSTATEDIR "/shutdownd"),
 		.msg_iov = iovec,
 		.msg_iovlen = 1,
 	};

@@ -89,7 +89,8 @@ get_config_path(UnitFileScope scope, bool runtime, const char *root_dir,
 	case UNIT_FILE_SYSTEM:
 
 		if (runtime)
-			p = path_join(root_dir, "/run/systemd/system", NULL);
+			p = path_join(root_dir, SVC_PKGRUNSTATEDIR "/system",
+				NULL);
 		else
 			p = path_join(root_dir, SYSTEM_CONFIG_UNIT_PATH, NULL);
 		break;
@@ -100,7 +101,7 @@ get_config_path(UnitFileScope scope, bool runtime, const char *root_dir,
 			return -EINVAL;
 
 		if (runtime)
-			p = strdup("/run/systemd/user");
+			p = strdup(SVC_PKGRUNSTATEDIR "/user");
 		else
 			p = strdup(USER_CONFIG_UNIT_PATH);
 		break;

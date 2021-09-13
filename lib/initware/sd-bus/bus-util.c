@@ -507,7 +507,7 @@ bus_open_system_systemd(sd_bus **_bus)
 	if (r < 0)
 		return r;
 
-	r = sd_bus_set_address(bus, "unix:path=/run/systemd/private");
+	r = sd_bus_set_address(bus, "unix:path=" SVC_PKGRUNSTATEDIR "/private");
 	if (r < 0)
 		return r;
 

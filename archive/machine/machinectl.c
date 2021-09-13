@@ -1181,7 +1181,7 @@ bind_mount(int argc, char *argv[], void *userdata)
 		return -EINVAL;
 	}
 
-	p = strjoina("/run/systemd/nspawn/propagate/", argv[1], "/");
+	p = strjoina(SVC_PKGRUNSTATEDIR "/nspawn/propagate/", argv[1], "/");
 	if (access(p, F_OK) < 0) {
 		log_error(
 			"Container does not allow propagation of mount points.");
@@ -1250,8 +1250,8 @@ bind_mount(int argc, char *argv[], void *userdata)
          * directory. This way it will appear there read-only
          * right-away. */
 
-	mount_outside =
-		strjoina("/run/systemd/nspawn/propagate/", argv[1], "/XXXXXX");
+	mount_outside = strjoina(SVC_PKGRUNSTATEDIR "/nspawn/propagate/",
+		argv[1], "/XXXXXX");
 	if (!mkdtemp(mount_outside)) {
 		r = log_error_errno(errno,
 			"Cannot create propagation directory: %m");
@@ -1306,7 +1306,7 @@ bind_mount(int argc, char *argv[], void *userdata)
 			mkdir_p(dest, 0755);
 
 		/* Fifth, move the mount to the right place inside */
-		mount_inside = strjoina("/run/systemd/nspawn/incoming/",
+		mount_inside = strjoina(SVC_PKGRUNSTATEDIR "/nspawn/incoming/",
 			lsb_basename(mount_outside));
 		if (mount(mount_inside, dest, NULL, MS_MOVE, NULL) < 0) {
 			log_error_errno(errno, "Failed to mount: %m");

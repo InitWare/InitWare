@@ -472,11 +472,12 @@ server_open_kernel_seqnum(Server *s)
          * way we can just use it like a variable, but it is
          * persistent and automatically flushed at reboot. */
 
-	fd = open("/run/systemd/journal/kernel-seqnum",
+	fd = open(SVC_PKGRUNSTATEDIR "/journal/kernel-seqnum",
 		O_RDWR | O_CREAT | O_CLOEXEC | O_NOCTTY | O_NOFOLLOW, 0644);
 	if (fd < 0) {
 		log_error_errno(errno,
-			"Failed to open /run/systemd/journal/kernel-seqnum, ignoring: %m");
+			"Failed to open " SVC_PKGRUNSTATEDIR
+			"/journal/kernel-seqnum, ignoring: %m");
 		return 0;
 	}
 

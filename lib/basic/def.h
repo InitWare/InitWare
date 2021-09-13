@@ -45,7 +45,7 @@
 #define LETTERS LOWERCASE_LETTERS UPPERCASE_LETTERS
 #define ALPHANUMERICAL LETTERS DIGITS
 
-#define REBOOT_PARAM_FILE "/run/systemd/reboot-param"
+#define REBOOT_PARAM_FILE SVC_PKGRUNSTATEDIR "/reboot-param"
 
 #ifdef HAVE_SPLIT_USR
 #define KBD_KEYMAP_DIRS                                                        \

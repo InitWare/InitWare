@@ -54,7 +54,8 @@ user_new(Manager *m, uid_t uid, gid_t gid, const char *name)
 	if (!u->name)
 		goto fail;
 
-	if (asprintf(&u->state_file, "/run/systemd/users/" UID_FMT, uid) < 0)
+	if (asprintf(&u->state_file, SVC_PKGRUNSTATEDIR "/users/" UID_FMT,
+		    uid) < 0)
 		goto fail;
 
 	if (hashmap_put(m->users, UID_TO_PTR(uid), u) < 0)
@@ -120,7 +121,7 @@ user_save(User *u)
 	if (!u->started)
 		return 0;
 
-	r = mkdir_safe_label("/run/systemd/users", 0755, 0, 0);
+	r = mkdir_safe_label(SVC_PKGRUNSTATEDIR "/users", 0755, 0, 0);
 	if (r < 0)
 		goto finish;
 

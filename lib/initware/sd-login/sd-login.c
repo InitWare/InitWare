@@ -186,7 +186,7 @@ file_of_uid(uid_t uid, char **p)
 {
 	assert(p);
 
-	if (asprintf(p, "/run/systemd/users/" UID_FMT, uid) < 0)
+	if (asprintf(p, SVC_PKGRUNSTATEDIR "/users/" UID_FMT, uid) < 0)
 		return -ENOMEM;
 
 	return 0;
@@ -259,7 +259,7 @@ sd_uid_is_on_seat(uid_t uid, int require_active, const char *seat)
 
 	variable = require_active ? "ACTIVE_UID" : "UIDS";
 
-	p = strappend("/run/systemd/seats/", seat);
+	p = strappend(SVC_PKGRUNSTATEDIR "/seats/", seat);
 	if (!p)
 		return -ENOMEM;
 
@@ -359,7 +359,7 @@ file_of_session(const char *session, char **_p)
 		if (!session_id_valid(session))
 			return -EINVAL;
 
-		p = strappend("/run/systemd/sessions/", session);
+		p = strappend(SVC_PKGRUNSTATEDIR "/sessions/", session);
 	} else {
 		_cleanup_free_ char *buf = NULL;
 
@@ -367,7 +367,7 @@ file_of_session(const char *session, char **_p)
 		if (r < 0)
 			return r;
 
-		p = strappend("/run/systemd/sessions/", buf);
+		p = strappend(SVC_PKGRUNSTATEDIR "/sessions/", buf);
 	}
 
 	if (!p)
@@ -584,7 +584,7 @@ file_of_seat(const char *seat, char **_p)
 	assert(_p);
 
 	if (seat)
-		p = strappend("/run/systemd/seats/", seat);
+		p = strappend(SVC_PKGRUNSTATEDIR "/seats/", seat);
 	else {
 		_cleanup_free_ char *buf = NULL;
 
@@ -592,7 +592,7 @@ file_of_seat(const char *seat, char **_p)
 		if (r < 0)
 			return r;
 
-		p = strappend("/run/systemd/seats/", buf);
+		p = strappend(SVC_PKGRUNSTATEDIR "/seats/", buf);
 	}
 
 	if (!p)
@@ -757,13 +757,14 @@ sd_seat_can_graphical(const char *seat)
 _public_ int
 sd_get_seats(char ***seats)
 {
-	return get_files_in_directory("/run/systemd/seats/", seats);
+	return get_files_in_directory(SVC_PKGRUNSTATEDIR "/seats/", seats);
 }
 
 _public_ int
 sd_get_sessions(char ***sessions)
 {
-	return get_files_in_directory("/run/systemd/sessions/", sessions);
+	return get_files_in_directory(SVC_PKGRUNSTATEDIR "/sessions/",
+		sessions);
 }
 
 _public_ int
@@ -774,7 +775,7 @@ sd_get_uids(uid_t **users)
 	unsigned n = 0;
 	_cleanup_free_ uid_t *l = NULL;
 
-	d = opendir("/run/systemd/users/");
+	d = opendir(SVC_PKGRUNSTATEDIR "/users/");
 	if (!d)
 		return -errno;
 
@@ -834,7 +835,7 @@ sd_get_machine_names(char ***machines)
 
 	assert_return(machines, -EINVAL);
 
-	r = get_files_in_directory("/run/systemd/machines/", &l);
+	r = get_files_in_directory(SVC_PKGRUNSTATEDIR "/machines/", &l);
 	if (r < 0)
 		return r;
 
@@ -869,7 +870,7 @@ sd_machine_get_class(const char *machine, char **class)
 	assert_return(machine_name_is_valid(machine), -EINVAL);
 	assert_return(class, -EINVAL);
 
-	p = strjoina("/run/systemd/machines/", machine);
+	p = strjoina(SVC_PKGRUNSTATEDIR "/machines/", machine);
 	r = parse_env_file(p, NEWLINE, "CLASS", &c, NULL);
 	if (r < 0)
 		return r;
@@ -894,7 +895,7 @@ sd_machine_get_ifindices(const char *machine, int **ifindices)
 	assert_return(machine_name_is_valid(machine), -EINVAL);
 	assert_return(ifindices, -EINVAL);
 
-	p = strjoina("/run/systemd/machines/", machine);
+	p = strjoina(SVC_PKGRUNSTATEDIR "/machines/", machine);
 	r = parse_env_file(p, NEWLINE, "NETIF", &netif, NULL);
 	if (r < 0)
 		return r;
@@ -952,7 +953,7 @@ sd_login_monitor_new(const char *category, sd_login_monitor **m)
 		return -errno;
 
 	if (!category || streq(category, "seat")) {
-		k = inotify_add_watch(fd, "/run/systemd/seats/",
+		k = inotify_add_watch(fd, SVC_PKGRUNSTATEDIR "/seats/",
 			IN_MOVED_TO | IN_DELETE);
 		if (k < 0) {
 			safe_close(fd);
@@ -963,7 +964,7 @@ sd_login_monitor_new(const char *category, sd_login_monitor **m)
 	}
 
 	if (!category || streq(category, "session")) {
-		k = inotify_add_watch(fd, "/run/systemd/sessions/",
+		k = inotify_add_watch(fd, SVC_PKGRUNSTATEDIR "/sessions/",
 			IN_MOVED_TO | IN_DELETE);
 		if (k < 0) {
 			safe_close(fd);
@@ -974,7 +975,7 @@ sd_login_monitor_new(const char *category, sd_login_monitor **m)
 	}
 
 	if (!category || streq(category, "uid")) {
-		k = inotify_add_watch(fd, "/run/systemd/users/",
+		k = inotify_add_watch(fd, SVC_PKGRUNSTATEDIR "/users/",
 			IN_MOVED_TO | IN_DELETE);
 		if (k < 0) {
 			safe_close(fd);
@@ -985,7 +986,7 @@ sd_login_monitor_new(const char *category, sd_login_monitor **m)
 	}
 
 	if (!category || streq(category, "machine")) {
-		k = inotify_add_watch(fd, "/run/systemd/machines/",
+		k = inotify_add_watch(fd, SVC_PKGRUNSTATEDIR "/machines/",
 			IN_MOVED_TO | IN_DELETE);
 		if (k < 0) {
 			safe_close(fd);

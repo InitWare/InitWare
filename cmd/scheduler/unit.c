@@ -3719,7 +3719,7 @@ unit_drop_in_dir(Unit *u, UnitSetPropertiesMode mode, bool transient,
 	if (mode == UNIT_PERSISTENT && !transient)
 		*dir = strdup("/etc/systemd/system");
 	else
-		*dir = strdup("/run/systemd/system");
+		*dir = strdup(SVC_PKGRUNSTATEDIR "/system");
 	if (!*dir)
 		return -ENOMEM;
 
@@ -3905,11 +3905,12 @@ unit_make_transient(Unit *u)
 
 		mkdir_p(c, 0755);
 	} else {
-		u->fragment_path = strappend("/run/systemd/system/", u->id);
+		u->fragment_path =
+			strappend(SVC_PKGRUNSTATEDIR "/system/", u->id);
 		if (!u->fragment_path)
 			return -ENOMEM;
 
-		mkdir_p("/run/systemd/system", 0755);
+		mkdir_p(SVC_PKGRUNSTATEDIR "/system", 0755);
 	}
 
 	return write_string_file_atomic_label(u->fragment_path,

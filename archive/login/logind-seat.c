@@ -45,7 +45,7 @@ seat_new(Manager *m, const char *id)
 	if (!s)
 		return NULL;
 
-	s->state_file = strappend("/run/systemd/seats/", id);
+	s->state_file = strappend(SVC_PKGRUNSTATEDIR "/seats/", id);
 	if (!s->state_file) {
 		free(s);
 		return NULL;
@@ -98,7 +98,7 @@ seat_save(Seat *s)
 	if (!s->started)
 		return 0;
 
-	r = mkdir_safe_label("/run/systemd/seats", 0755, 0, 0);
+	r = mkdir_safe_label(SVC_PKGRUNSTATEDIR "/seats", 0755, 0, 0);
 	if (r < 0)
 		goto finish;
 

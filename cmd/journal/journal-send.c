@@ -215,7 +215,7 @@ sd_journal_sendv(const struct iovec *iov, int n)
 	int i, j = 0;
 	struct sockaddr_un sa = {
 		.sun_family = AF_UNIX,
-		.sun_path = "/run/systemd/journal/socket",
+		.sun_path = SVC_PKGRUNSTATEDIR "/journal/socket",
 	};
 	struct msghdr mh = {
 		.msg_name = &sa,
@@ -429,7 +429,7 @@ sd_journal_stream_fd(const char *identifier, int priority, int level_prefix)
 {
 	union sockaddr_union sa = {
 		.un.sun_family = AF_UNIX,
-		.un.sun_path = "/run/systemd/journal/stdout",
+		.un.sun_path = SVC_PKGRUNSTATEDIR "/journal/stdout",
 	};
 	_cleanup_close_ int fd = -1;
 	char *header;

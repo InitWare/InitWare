@@ -117,7 +117,7 @@ user_dirs(const char *generator, const char *generator_early,
 	const char *const config_unit_paths[] = { USER_CONFIG_UNIT_PATH,
 		"/etc/systemd/user", NULL };
 
-	const char *const runtime_unit_path = "/run/systemd/user";
+	const char *const runtime_unit_path = SVC_PKGRUNSTATEDIR "/user";
 
 	const char *const data_unit_paths[] = { "/usr/local/lib/systemd/user",
 		"/usr/local/share/systemd/user", USER_DATA_UNIT_PATH,
@@ -221,12 +221,12 @@ char **
 generator_paths(SystemdRunningAs running_as)
 {
 	if (running_as == SYSTEMD_USER)
-		return strv_new("/run/systemd/user-generators",
+		return strv_new(SVC_PKGRUNSTATEDIR "/user-generators",
 			"/etc/systemd/user-generators",
 			"/usr/local/lib/systemd/user-generators",
 			USER_GENERATOR_PATH, NULL);
 	else
-		return strv_new("/run/systemd/system-generators",
+		return strv_new(SVC_PKGRUNSTATEDIR "/system-generators",
 			"/etc/systemd/system-generators",
 			"/usr/local/lib/systemd/system-generators",
 			SYSTEM_GENERATOR_PATH, NULL);
@@ -285,7 +285,7 @@ lookup_paths_init(LookupPaths *p, SystemdRunningAs running_as, bool personal,
 					STRV_IFNOTNULL(generator_early),
 					USER_CONFIG_UNIT_PATH,
 					"/etc/systemd/user",
-					"/run/systemd/user",
+					SVC_PKGRUNSTATEDIR "/user",
 					STRV_IFNOTNULL(generator),
 					"/usr/local/lib/systemd/user",
 					"/usr/local/share/systemd/user",
@@ -299,7 +299,7 @@ lookup_paths_init(LookupPaths *p, SystemdRunningAs running_as, bool personal,
                                  * systemdsystemunitpath= in systemd.pc.in! */
 				STRV_IFNOTNULL(generator_early),
 				SYSTEM_CONFIG_UNIT_PATH, "/etc/systemd/system",
-				"/run/systemd/system",
+				SVC_PKGRUNSTATEDIR "/system",
 				STRV_IFNOTNULL(generator),
 				"/usr/local/lib/systemd/system",
 				SYSTEM_DATA_UNIT_PATH,

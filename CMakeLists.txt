@@ -133,6 +133,7 @@ option(SVC_USE_CGroups "Use Control Groups" ON)
 cmake_dependent_option(SVC_USE_libcap "Use Capabilities (libcap)" ON
     "libcap_FOUND" OFF)
 option(SVC_USE_systemd_paths "Include the default systemd unit-file paths" OFF)
+option(SVC_USE_systemd_busnames "Use the systemd D-Bus bus and interface names")
 
 option(SVC_USE_sessiond "Build the Session Manager" ON)
 

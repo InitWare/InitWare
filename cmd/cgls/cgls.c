@@ -206,7 +206,7 @@ main(int argc, char *argv[])
 				_cleanup_bus_error_free_ sd_bus_error error =
 					SD_BUS_ERROR_NULL;
 
-				m = strjoina("/run/systemd/machines/",
+				m = strjoina(SVC_PKGRUNSTATEDIR "/machines/",
 					arg_machine);
 				r = parse_env_file(m, NEWLINE, "SCOPE", &scope,
 					NULL);

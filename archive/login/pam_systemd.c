@@ -215,7 +215,8 @@ pam_sm_open_session(pam_handle_t *handle, int flags, int argc,
 	if (streq_ptr(service, "systemd-user")) {
 		_cleanup_free_ char *p = NULL, *rt = NULL;
 
-		if (asprintf(&p, "/run/systemd/users/" UID_FMT, pw->pw_uid) < 0)
+		if (asprintf(&p, SVC_PKGRUNSTATEDIR "/users/" UID_FMT,
+			    pw->pw_uid) < 0)
 			return PAM_BUF_ERR;
 
 		r = parse_env_file(p, NEWLINE, "RUNTIME", &rt, NULL);

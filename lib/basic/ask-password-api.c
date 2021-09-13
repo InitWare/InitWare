@@ -258,7 +258,7 @@ create_socket(char **name)
 		return log_error_errno(errno, "socket() failed: %m");
 
 	snprintf(sa.un.sun_path, sizeof(sa.un.sun_path) - 1,
-		"/run/systemd/ask-password/sck.%" PRIx64, random_u64());
+		SVC_PKGRUNSTATEDIR "/ask-password/sck.%" PRIx64, random_u64());
 
 	RUN_WITH_UMASK(0177)
 	{
@@ -300,7 +300,7 @@ ask_password_agent(const char *message, const char *icon, const char *id,
 {
 	enum { FD_SOCKET, FD_SIGNAL, _FD_MAX };
 
-	char temp[] = "/run/systemd/ask-password/tmp.XXXXXX";
+	char temp[] = SVC_PKGRUNSTATEDIR "/ask-password/tmp.XXXXXX";
 	char final[sizeof(temp)] = "";
 	_cleanup_fclose_ FILE *f = NULL;
 	_cleanup_free_ char *socket_name = NULL;
@@ -315,7 +315,7 @@ ask_password_agent(const char *message, const char *icon, const char *id,
 	sigset_add_many(&mask, SIGINT, SIGTERM, -1);
 	assert_se(sigprocmask(SIG_BLOCK, &mask, &oldmask) == 0);
 
-	mkdir_p_label("/run/systemd/ask-password", 0755);
+	mkdir_p_label(SVC_PKGRUNSTATEDIR "/ask-password", 0755);
 
 	fd = mkostemp_safe(temp, O_WRONLY | O_CLOEXEC);
 	if (fd < 0) {

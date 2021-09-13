@@ -199,7 +199,7 @@ log_open_journal(void)
 {
 	static const union sockaddr_union sa = {
 		.un.sun_family = AF_UNIX,
-		.un.sun_path = "/run/systemd/journal/socket",
+		.un.sun_path = SVC_PKGRUNSTATEDIR "/journal/socket",
 	};
 
 	int r;

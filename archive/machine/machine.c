@@ -51,7 +51,7 @@ machine_new(Manager *manager, const char *name)
 	if (!m->name)
 		goto fail;
 
-	m->state_file = strappend("/run/systemd/machines/", m->name);
+	m->state_file = strappend(SVC_PKGRUNSTATEDIR "/machines/", m->name);
 	if (!m->state_file)
 		goto fail;
 
@@ -115,7 +115,7 @@ machine_save(Machine *m)
 	if (!m->started)
 		return 0;
 
-	r = mkdir_safe_label("/run/systemd/machines", 0755, 0, 0);
+	r = mkdir_safe_label(SVC_PKGRUNSTATEDIR "/machines", 0755, 0, 0);
 	if (r < 0)
 		goto finish;
 
@@ -217,7 +217,7 @@ machine_save(Machine *m)
 		/* Create a symlink from the unit name to the machine
                  * name, so that we can quickly find the machine for
                  * each given unit */
-		sl = strjoina("/run/systemd/machines/unit:", m->unit);
+		sl = strjoina(SVC_PKGRUNSTATEDIR "/machines/unit:", m->unit);
 		symlink(m->name, sl);
 	}
 
@@ -240,7 +240,7 @@ machine_unlink(Machine *m)
 	if (m->unit) {
 		char *sl;
 
-		sl = strjoina("/run/systemd/machines/unit:", m->unit);
+		sl = strjoina(SVC_PKGRUNSTATEDIR "/machines/unit:", m->unit);
 		unlink(sl);
 	}
 

@@ -321,7 +321,7 @@ finish:
 static bool
 flushed_flag_is_set(void)
 {
-	return access("/run/systemd/journal/flushed", F_OK) >= 0;
+	return access(SVC_PKGRUNSTATEDIR "/journal/flushed", F_OK) >= 0;
 }
 
 static int
@@ -1441,7 +1441,7 @@ dispatch_sigusr1(sd_event_source *es, const struct signalfd_siginfo *si,
 	server_sync(s);
 	server_vacuum(s);
 
-	touch("/run/systemd/journal/flushed");
+	touch(SVC_PKGRUNSTATEDIR "/journal/flushed");
 
 	return 0;
 }
@@ -1954,7 +1954,7 @@ server_init(Server *s)
 		s->rate_limit_interval = s->rate_limit_burst = 0;
 	}
 
-	mkdir_p("/run/systemd/journal", 0755);
+	mkdir_p(SVC_PKGRUNSTATEDIR "/journal", 0755);
 
 	s->user_journals = ordered_hashmap_new(NULL);
 	if (!s->user_journals)
@@ -1975,7 +1975,7 @@ server_init(Server *s)
 
 	for (fd = SD_LISTEN_FDS_START; fd < SD_LISTEN_FDS_START + n; fd++) {
 		if (sd_is_socket_unix(fd, SOCK_DGRAM, -1,
-			    "/run/systemd/journal/socket", 0) > 0) {
+			    SVC_PKGRUNSTATEDIR "/journal/socket", 0) > 0) {
 			if (s->native_fd >= 0) {
 				log_error("Too many native sockets passed.");
 				return -EINVAL;
@@ -1984,7 +1984,8 @@ server_init(Server *s)
 			s->native_fd = fd;
 
 		} else if (sd_is_socket_unix(fd, SOCK_STREAM, 1,
-				   "/run/systemd/journal/stdout", 0) > 0) {
+				   SVC_PKGRUNSTATEDIR "/journal/stdout",
+				   0) > 0) {
 			if (s->stdout_fd >= 0) {
 				log_error("Too many stdout sockets passed.");
 				return -EINVAL;

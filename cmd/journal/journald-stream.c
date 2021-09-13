@@ -161,13 +161,13 @@ stdout_stream_save(StdoutStream *s)
 
 		/* We use device and inode numbers as identifier for the stream */
 		if (asprintf(&s->state_file,
-			    "/run/systemd/journal/streams/%lu:%lu",
+			    SVC_PKGRUNSTATEDIR "/journal/streams/%lu:%lu",
 			    (unsigned long)st.st_dev,
 			    (unsigned long)st.st_ino) < 0)
 			return log_oom();
 	}
 
-	mkdir_p("/run/systemd/journal/streams", 0755);
+	mkdir_p(SVC_PKGRUNSTATEDIR "/journal/streams", 0755);
 
 	r = fopen_temporary(s->state_file, &f, &temp_path);
 	if (r < 0)
@@ -673,8 +673,8 @@ stdout_stream_load(StdoutStream *stream, const char *fname)
 	assert(fname);
 
 	if (!stream->state_file) {
-		stream->state_file =
-			strappend("/run/systemd/journal/streams/", fname);
+		stream->state_file = strappend(
+			SVC_PKGRUNSTATEDIR "/journal/streams/", fname);
 		if (!stream->state_file)
 			return log_oom();
 	}
@@ -770,13 +770,14 @@ server_restore_streams(Server *s, FDSet *fds)
 	struct dirent *de;
 	int r;
 
-	d = opendir("/run/systemd/journal/streams");
+	d = opendir(SVC_PKGRUNSTATEDIR "/journal/streams");
 	if (!d) {
 		if (errno == ENOENT)
 			return 0;
 
 		return log_warning_errno(errno,
-			"Failed to enumerate /run/systemd/journal/streams: %m");
+			"Failed to enumerate " SVC_PKGRUNSTATEDIR
+			"/journal/streams: %m");
 	}
 
 	FOREACH_DIRENT (de, d, goto fail) {
@@ -832,7 +833,7 @@ server_open_stdout_socket(Server *s, FDSet *fds)
 	if (s->stdout_fd < 0) {
 		union sockaddr_union sa = {
 			.un.sun_family = AF_UNIX,
-			.un.sun_path = "/run/systemd/journal/stdout",
+			.un.sun_path = SVC_PKGRUNSTATEDIR "/journal/stdout",
 		};
 
 		s->stdout_fd = socket(AF_UNIX,

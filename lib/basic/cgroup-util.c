@@ -1366,7 +1366,7 @@ cg_path_get_machine_name(const char *path, char **machine)
 	if (r < 0)
 		return r;
 
-	sl = strjoin("/run/systemd/machines/unit:", u, NULL);
+	sl = strjoin(SVC_PKGRUNSTATEDIR "/machines/unit:", u, NULL);
 	if (!sl)
 		return -ENOMEM;
 

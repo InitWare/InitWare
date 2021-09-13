@@ -1042,9 +1042,9 @@ bus_init_private(Manager *m)
 			return 0;
 #endif
 
-		strcpy(sa.un.sun_path, "/run/systemd/private");
+		strcpy(sa.un.sun_path, SVC_PKGRUNSTATEDIR "/private");
 		salen = offsetof(union sockaddr_union, un.sun_path) +
-			strlen("/run/systemd/private");
+			strlen(SVC_PKGRUNSTATEDIR "/private");
 	} else {
 		size_t left = sizeof(sa.un.sun_path);
 		char *p = sa.un.sun_path;

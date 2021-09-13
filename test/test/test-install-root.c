@@ -974,7 +974,7 @@ main(int argc, char *argv[])
 	p = strjoina(root, SYSTEM_CONFIG_UNIT_PATH "/");
 	assert_se(mkdir_p(p, 0755) >= 0);
 
-	p = strjoina(root, "/run/systemd/system/");
+	p = strjoina(root, SVC_PKGRUNSTATEDIR "/system/");
 	assert_se(mkdir_p(p, 0755) >= 0);
 
 	p = strjoina(root, "/opt/");

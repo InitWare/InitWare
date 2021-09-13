@@ -586,7 +586,8 @@ image_path_lock(const char *path, int operation, LockFile *global,
 		return -EINVAL;
 
 	if (stat(path, &st) >= 0) {
-		if (asprintf(&p, "/run/systemd/nspawn/locks/inode-%lu:%lu",
+		if (asprintf(&p,
+			    SVC_PKGRUNSTATEDIR "/nspawn/locks/inode-%lu:%lu",
 			    (unsigned long)st.st_dev,
 			    (unsigned long)st.st_ino) < 0)
 			return -ENOMEM;
@@ -597,7 +598,7 @@ image_path_lock(const char *path, int operation, LockFile *global,
 		return r;
 
 	if (p) {
-		mkdir_p("/run/systemd/nspawn/locks", 0700);
+		mkdir_p(SVC_PKGRUNSTATEDIR "/nspawn/locks", 0700);
 
 		r = make_lock_file(p, operation, global);
 		if (r < 0) {
@@ -626,8 +627,8 @@ image_name_lock(const char *name, int operation, LockFile *ret)
 	if (streq(name, ".host"))
 		return -EBUSY;
 
-	mkdir_p("/run/systemd/nspawn/locks", 0700);
-	p = strjoina("/run/systemd/nspawn/locks/name-", name);
+	mkdir_p(SVC_PKGRUNSTATEDIR "/nspawn/locks", 0700);
+	p = strjoina(SVC_PKGRUNSTATEDIR "/nspawn/locks/name-", name);
 
 	return make_lock_file(p, operation, ret);
 }

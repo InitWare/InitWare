@@ -458,12 +458,12 @@ static void
 test_install_printf(void)
 {
 	char name[] = "name.service",
-	     path[] = "/run/systemd/system/name.service",
+	     path[] = SVC_PKGRUNSTATEDIR "/system/name.service",
 	     user[] = "xxxx-no-such-user";
 	InstallInfo i = { name, path, user };
 	InstallInfo i2 = { name, path, NULL };
 	char name3[] = "name@inst.service",
-	     path3[] = "/run/systemd/system/name.service";
+	     path3[] = SVC_PKGRUNSTATEDIR "/system/name.service";
 	InstallInfo i3 = { name3, path3, user };
 	InstallInfo i4 = { name3, path3, NULL };
 

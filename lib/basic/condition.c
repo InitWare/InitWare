@@ -337,7 +337,7 @@ condition_test_first_boot(Condition *c)
 	if (r < 0)
 		return r;
 
-	return (access("/run/systemd/first-boot", F_OK) >= 0) == !!r;
+	return (access(SVC_PKGRUNSTATEDIR "/first-boot", F_OK) >= 0) == !!r;
 }
 
 static int

@@ -215,7 +215,7 @@ update_schedule_file(struct sd_shutdown_command *c)
 
 	assert(c);
 
-	r = mkdir_safe_label("/run/systemd/shutdown", 0755, 0, 0);
+	r = mkdir_safe_label(SVC_PKGRUNSTATEDIR "/shutdown", 0755, 0, 0);
 	if (r < 0)
 		return log_error_errno(r,
 			"Failed to create shutdown subdirectory: %m");
@@ -224,7 +224,8 @@ update_schedule_file(struct sd_shutdown_command *c)
 	if (!t)
 		return log_oom();
 
-	r = fopen_temporary("/run/systemd/shutdown/scheduled", &f, &temp_path);
+	r = fopen_temporary(SVC_PKGRUNSTATEDIR "/shutdown/scheduled", &f,
+		&temp_path);
 	if (r < 0)
 		return log_error_errno(r,
 			"Failed to save information about scheduled shutdowns: %m");
@@ -246,13 +247,14 @@ update_schedule_file(struct sd_shutdown_command *c)
 	fflush(f);
 
 	if (ferror(f) ||
-		rename(temp_path, "/run/systemd/shutdown/scheduled") < 0) {
+		rename(temp_path, SVC_PKGRUNSTATEDIR "/shutdown/scheduled") <
+			0) {
 		log_error_errno(errno,
 			"Failed to write information about scheduled shutdowns: %m");
 		r = -errno;
 
 		unlink(temp_path);
-		unlink("/run/systemd/shutdown/scheduled");
+		unlink(SVC_PKGRUNSTATEDIR "/shutdown/scheduled");
 	}
 
 	return r;
@@ -471,7 +473,7 @@ finish:
 	if (unlink_nologin)
 		unlink("/run/nologin");
 
-	unlink("/run/systemd/shutdown/scheduled");
+	unlink(SVC_PKGRUNSTATEDIR "/shutdown/scheduled");
 
 	mac_selinux_finish();
 

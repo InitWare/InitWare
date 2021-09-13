@@ -180,7 +180,7 @@ class ExecutionResumeTest(unittest.TestCase):
 
     def test_issue_6533(self):
         unit = "test-issue-6533.service"
-        unitfile_path = "/run/systemd/system/{}".format(unit)
+        unitfile_path = SVC_PKGRUNSTATEDIR "/system/{}".format(unit)
 
         content = '''
         [Service]

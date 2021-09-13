@@ -408,7 +408,7 @@ transfer_start(Transfer *t)
 		fd_cloexec(STDERR_FILENO, false);
 
 		setenv("SYSTEMD_LOG_TARGET", "console-prefixed", 1);
-		setenv("NOTIFY_SOCKET", "/run/systemd/import/notify", 1);
+		setenv("NOTIFY_SOCKET", SVC_PKGRUNSTATEDIR "/import/notify", 1);
 
 		cmd[k++] = import_verify_to_string(t->verify);
 		if (t->force_local)
@@ -582,7 +582,7 @@ manager_new(Manager **ret)
 	_cleanup_(manager_unrefp) Manager *m = NULL;
 	static const union sockaddr_union sa = {
 		.un.sun_family = AF_UNIX,
-		.un.sun_path = "/run/systemd/import/notify",
+		.un.sun_path = SVC_PKGRUNSTATEDIR "/import/notify",
 	};
 	static const int one = 1;
 	int r;

@@ -1931,7 +1931,7 @@ sd_journal_open_container(sd_journal **ret, const char *machine, int flags)
 		-EINVAL);
 	assert_return(machine_name_is_valid(machine), -EINVAL);
 
-	p = strjoina("/run/systemd/machines/", machine);
+	p = strjoina(SVC_PKGRUNSTATEDIR "/machines/", machine);
 	r = parse_env_file(p, NEWLINE, "ROOT", &root, "CLASS", &class, NULL);
 	if (r == -ENOENT)
 		return -EHOSTDOWN;

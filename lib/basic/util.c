@@ -88,15 +88,15 @@
 #include "virt.h"
 
 #ifdef SVC_PLATFORM_Linux
+#include <sys/personality.h>
+#include <sys/sysmacros.h>
+#include <sys/vfs.h>
 #include <linux/fs.h>
 #include <linux/kd.h>
 #include <linux/magic.h>
 #include <linux/sched.h>
 #include <linux/tiocl.h>
 #include <linux/vt.h>
-#include <sys/personality.h>
-#include <sys/sysmacros.h>
-#include <sys/vfs.h>
 
 #include "ioprio.h"
 #endif
@@ -7471,7 +7471,7 @@ container_get_leader(const char *machine, pid_t *pid)
 	assert(machine);
 	assert(pid);
 
-	p = strjoina("/run/systemd/machines/", machine);
+	p = strjoina(SVC_PKGRUNSTATEDIR "/machines/", machine);
 	r = parse_env_file(p, NEWLINE, "LEADER", &s, "CLASS", &class, NULL);
 	if (r == -ENOENT)
 		return -EHOSTDOWN;

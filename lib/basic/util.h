@@ -137,7 +137,7 @@ size_t page_size(void) _pure_;
 
 bool streq_ptr(const char *a, const char *b) _pure_;
 
-#define new(t, n) ((t *)malloc_multiply(sizeof(t), (n)))
+#define new (t, n) ((t *)malloc_multiply(sizeof(t), (n)))
 
 #define new0(t, n) ((t *)calloc((n), sizeof(t)))
 
@@ -1041,7 +1041,7 @@ log2u_round_up(unsigned x)
 static inline bool
 logind_running(void)
 {
-	return access("/run/systemd/seats/", F_OK) >= 0;
+	return access(SVC_PKGRUNSTATEDIR "/seats/", F_OK) >= 0;
 }
 
 #define DECIMAL_STR_WIDTH(x)                                                   \

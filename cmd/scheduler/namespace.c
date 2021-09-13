@@ -307,7 +307,7 @@ apply_mount(BindMount *m, const char *tmp_dir, const char *var_tmp_dir)
                  * inaccessible directory. */
 		umount_recursive(m->path, 0);
 
-		what = "/run/systemd/inaccessible";
+		what = SVC_PKGRUNSTATEDIR "/inaccessible";
 		break;
 
 	case READONLY:

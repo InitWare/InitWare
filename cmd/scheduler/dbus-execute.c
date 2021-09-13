@@ -21,10 +21,10 @@
 #include <seccomp.h>
 #endif
 
-#include "dbus-execute.h"
 #include "af-list.h"
 #include "bus-util.h"
 #include "capability.h"
+#include "dbus-execute.h"
 #include "env-util.h"
 #include "execute.h"
 #include "fileio.h"

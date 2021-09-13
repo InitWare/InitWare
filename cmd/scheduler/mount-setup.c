@@ -409,7 +409,7 @@ mount_setup(bool loaded_policy)
 		usec_t before_relabel, after_relabel;
 		char timespan[FORMAT_TIMESPAN_MAX];
 
-		mkdir_label("/run/systemd/policy-relabelling", 0755);
+		mkdir_label(SVC_PKGRUNSTATEDIR "/policy-relabelling", 0755);
 		before_relabel = now(CLOCK_MONOTONIC);
 
 		nftw("/dev", nftw_cb, 64,
@@ -423,7 +423,7 @@ mount_setup(bool loaded_policy)
 
 		after_relabel = now(CLOCK_MONOTONIC);
 
-		mkdir_label("/run/systemd/policy-relabelled", 0755);
+		mkdir_label(SVC_PKGRUNSTATEDIR "/policy-relabelled", 0755);
 		log_info("Relabelled /dev, /run and /sys/fs/cgroup in %s.",
 			format_timespan(timespan, sizeof(timespan),
 				after_relabel - before_relabel, 0));
@@ -447,13 +447,13 @@ mount_setup(bool loaded_policy)
 				"Failed to set up the root directory for shared mount propagation: %m");
 
 	/* Create a few directories we always want around, Note that
-         * sd_booted() checks for /run/systemd/system, so this mkdir
+         * sd_booted() checks for system, so this mkdir
          * really needs to stay for good, otherwise software that
          * copied sd-daemon.c into their sources will misdetect
          * systemd. */
-	mkdir_label("/run/systemd", 0755);
-	mkdir_label("/run/systemd/system", 0755);
-	mkdir_label("/run/systemd/inaccessible", 0000);
+	mkdir_label(SVC_PKGRUNSTATEDIR, 0755);
+	mkdir_label(SVC_PKGRUNSTATEDIR "/system", 0755);
+	mkdir_label(SVC_PKGRUNSTATEDIR "/inaccessible", 0000);
 
 	return 0;
 }

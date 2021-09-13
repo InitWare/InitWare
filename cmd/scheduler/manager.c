@@ -225,7 +225,7 @@ have_ask_password(void)
 {
 	_cleanup_closedir_ DIR *dir;
 
-	dir = opendir("/run/systemd/ask-password");
+	dir = opendir(SVC_PKGRUNSTATEDIR "/ask-password");
 	if (!dir) {
 		if (errno == ENOENT)
 			return false;
@@ -263,7 +263,8 @@ manager_dispatch_ask_password_fd(sd_event_source *source, int fd,
 		/* Log error but continue. Negative have_ask_password
                  * is treated as unknown status. */
 		log_error_errno(m->have_ask_password,
-			"Failed to list /run/systemd/ask-password: %m");
+			"Failed to list " SVC_PKGRUNSTATEDIR
+			"/ask-password: %m");
 
 	return 0;
 }
@@ -289,7 +290,7 @@ manager_check_ask_password(Manager *m)
 	if (!m->ask_password_event_source) {
 		assert(m->ask_password_inotify_fd < 0);
 
-		mkdir_p_label("/run/systemd/ask-password", 0755);
+		mkdir_p_label(SVC_PKGRUNSTATEDIR "/ask-password", 0755);
 
 		m->ask_password_inotify_fd =
 			inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
@@ -298,10 +299,11 @@ manager_check_ask_password(Manager *m)
 				"inotify_init1() failed: %m");
 
 		if (inotify_add_watch(m->ask_password_inotify_fd,
-			    "/run/systemd/ask-password",
+			    SVC_PKGRUNSTATEDIR "/ask-password",
 			    IN_CREATE | IN_DELETE | IN_MOVE) < 0) {
 			log_error_errno(errno,
-				"Failed to add watch on /run/systemd/ask-password: %m");
+				"Failed to add watch on " SVC_PKGRUNSTATEDIR
+				"/ask-password: %m");
 			manager_close_ask_password(m);
 			return -errno;
 		}
@@ -311,7 +313,8 @@ manager_check_ask_password(Manager *m)
 			manager_dispatch_ask_password_fd, m);
 		if (r < 0) {
 			log_error_errno(errno,
-				"Failed to add event source for /run/systemd/ask-password: %m");
+				"Failed to add event source for " SVC_PKGRUNSTATEDIR
+				"/ask-password: %m");
 			manager_close_ask_password(m);
 			return -errno;
 		}
@@ -726,7 +729,7 @@ manager_setup_notify(Manager *m)
 				"Failed to allocate notification socket: %m");
 
 		if (m->running_as == SYSTEMD_SYSTEM)
-			m->notify_socket = strdup("/run/systemd/notify");
+			m->notify_socket = strdup(SVC_PKGRUNSTATEDIR "/notify");
 		else {
 			const char *e;
 
@@ -787,7 +790,7 @@ manager_setup_cgroups_agent(Manager *m)
 {
 	static const union sockaddr_union sa = {
 		.un.sun_family = AF_UNIX,
-		.un.sun_path = "/run/systemd/cgroups-agent",
+		.un.sun_path = SVC_PKGRUNSTATEDIR "/cgroups-agent",
 	};
 	int r;
 
@@ -2692,7 +2695,7 @@ manager_open_serialization(Manager *m, FILE **_f)
 
 	assert(_f);
 
-	path = m->running_as == SYSTEMD_SYSTEM ? "/run/systemd" : "/tmp";
+	path = m->running_as == SYSTEMD_SYSTEM ? SVC_PKGRUNSTATEDIR : "/tmp";
 	fd = open_tmpfile(path, O_RDWR | O_CLOEXEC);
 	if (fd < 0)
 		return -errno;
@@ -3322,7 +3325,7 @@ create_generator_dir(Manager *m, char **generator, const char *name)
 	if (m->running_as == SYSTEMD_SYSTEM && getpid() == 1) {
 		/* systemd --system, not running --test */
 
-		p = strappend("/run/systemd/", name);
+		p = strappend(SVC_PKGRUNSTATEDIR "/", name);
 		if (!p)
 			return log_oom();
 
@@ -3577,9 +3580,9 @@ manager_set_show_status(Manager *m, ShowStatus mode)
 	m->show_status = mode;
 
 	if (mode > 0)
-		touch("/run/systemd/show-status");
+		touch(SVC_PKGRUNSTATEDIR "/show-status");
 	else
-		unlink("/run/systemd/show-status");
+		unlink(SVC_PKGRUNSTATEDIR "/show-status");
 }
 
 static bool
@@ -3620,9 +3623,9 @@ manager_set_first_boot(Manager *m, bool b)
 	m->first_boot = b;
 
 	if (m->first_boot)
-		touch("/run/systemd/first-boot");
+		touch(SVC_PKGRUNSTATEDIR "/first-boot");
 	else
-		unlink("/run/systemd/first-boot");
+		unlink(SVC_PKGRUNSTATEDIR "/first-boot");
 }
 
 void

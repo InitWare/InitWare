@@ -67,7 +67,7 @@ struct sd_shutdown_command {
  *
  * To schedule a shutdown, simply fill in and send a single
  * AF_UNIX/SOCK_DGRAM datagram with the structure above suffixed with
- * the wall message to the socket /run/systemd/shutdownd (leave an
+ * the wall message to the socket $SVC_PKGRUNSTATEDIR/shutdownd (leave an
  * empty wall message for the default shutdown message). To calculate
  * the size of the message, use "offsetof(struct sd_shutdown_command,
  * wall_message) + strlen(command.wall_message)".

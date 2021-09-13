@@ -371,8 +371,8 @@ wall_tty_block(void)
 	if (r < 0)
 		return r;
 
-	if (asprintf(&p, "/run/systemd/ask-password-block/%u:%u", major(devnr),
-		    minor(devnr)) < 0)
+	if (asprintf(&p, SVC_PKGRUNSTATEDIR "/ask-password-block/%u:%u",
+		    major(devnr), minor(devnr)) < 0)
 		return -ENOMEM;
 
 	mkdir_parents_label(p, 0700);
@@ -410,7 +410,7 @@ wall_tty_match(const char *path)
          * advantage that the block will automatically go away if the
          * process dies. */
 
-	if (asprintf(&p, "/run/systemd/ask-password-block/%u:%u",
+	if (asprintf(&p, SVC_PKGRUNSTATEDIR "/ask-password-block/%u:%u",
 		    major(st.st_rdev), minor(st.st_rdev)) < 0)
 		return true;
 
@@ -430,13 +430,13 @@ show_passwords(void)
 	struct dirent *de;
 	int r = 0;
 
-	d = opendir("/run/systemd/ask-password");
+	d = opendir(SVC_PKGRUNSTATEDIR "/ask-password");
 	if (!d) {
 		if (errno == ENOENT)
 			return 0;
 
 		log_error_errno(errno,
-			"opendir(/run/systemd/ask-password): %m");
+			"opendir(" SVC_PKGRUNSTATEDIR "/ask-password): %m");
 		return -errno;
 	}
 
@@ -456,7 +456,7 @@ show_passwords(void)
 		if (!startswith(de->d_name, "ask."))
 			continue;
 
-		p = strappend("/run/systemd/ask-password/", de->d_name);
+		p = strappend(SVC_PKGRUNSTATEDIR "/ask-password/", de->d_name);
 		if (!p)
 			return log_oom();
 
@@ -483,13 +483,13 @@ watch_passwords(void)
 
 	tty_block_fd = wall_tty_block();
 
-	mkdir_p_label("/run/systemd/ask-password", 0755);
+	mkdir_p_label(SVC_PKGRUNSTATEDIR "/ask-password", 0755);
 
 	notify = inotify_init1(IN_CLOEXEC);
 	if (notify < 0)
 		return -errno;
 
-	if (inotify_add_watch(notify, "/run/systemd/ask-password",
+	if (inotify_add_watch(notify, SVC_PKGRUNSTATEDIR "/ask-password",
 		    IN_CLOSE_WRITE | IN_MOVED_TO) < 0)
 		return -errno;
 

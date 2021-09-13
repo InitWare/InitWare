@@ -745,9 +745,9 @@ parse_config_file(void)
 
 	const char *fn, *conf_dirs_nulstr;
 
-	fn = arg_running_as == SYSTEMD_SYSTEM ?
-		      SVC_PKGSYSCONFDIR "/system.conf" :
-		      SVC_PKGSYSCONFDIR "/user.conf";
+	fn = arg_running_as == SYSTEMD_SYSTEM ? SVC_PKGSYSCONFDIR
+		"/system.conf" :
+						      SVC_PKGSYSCONFDIR "/user.conf";
 	conf_dirs_nulstr = arg_running_as == SYSTEMD_SYSTEM ?
 		      CONF_DIRS_NULSTR("systemd/system.conf") :
 		      CONF_DIRS_NULSTR("systemd/user.conf");
@@ -1338,7 +1338,7 @@ write_container_id(void)
 	if (isempty(c))
 		return 0;
 
-	return write_string_file("/run/systemd/container", c);
+	return write_string_file(SVC_PKGRUNSTATEDIR "/container", c);
 }
 
 static int

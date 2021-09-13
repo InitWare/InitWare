@@ -372,7 +372,7 @@ detect_container(const char **id)
                  * /proc/1/environ, since we don't need CAP_SYS_PTRACE
                  * for that. */
 
-		r = read_one_line_file("/run/systemd/container", &m);
+		r = read_one_line_file(SVC_PKGRUNSTATEDIR "/container", &m);
 		if (r == -ENOENT) {
 			/* Fallback for cases where PID 1 was not
                          * systemd (for example, cases where

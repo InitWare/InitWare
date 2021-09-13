@@ -1978,7 +1978,7 @@ flush_to_var(void)
 	int r;
 
 	/* Quick exit */
-	if (access("/run/systemd/journal/flushed", F_OK) >= 0)
+	if (access(SVC_PKGRUNSTATEDIR "/journal/flushed", F_OK) >= 0)
 		return 0;
 
 	/* OK, let's actually do the full logic, send SIGUSR1 to the
@@ -1997,26 +1997,27 @@ flush_to_var(void)
 		return r;
 	}
 
-	mkdir_p("/run/systemd/journal", 0755);
+	mkdir_p(SVC_PKGRUNSTATEDIR "/journal", 0755);
 
 	watch_fd = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
 	if (watch_fd < 0)
 		return log_error_errno(errno,
 			"Failed to create inotify watch: %m");
 
-	r = inotify_add_watch(watch_fd, "/run/systemd/journal",
+	r = inotify_add_watch(watch_fd, SVC_PKGRUNSTATEDIR "/journal",
 		IN_CREATE | IN_DONT_FOLLOW | IN_ONLYDIR);
 	if (r < 0)
 		return log_error_errno(errno,
 			"Failed to watch journal directory: %m");
 
 	for (;;) {
-		if (access("/run/systemd/journal/flushed", F_OK) >= 0)
+		if (access(SVC_PKGRUNSTATEDIR "/journal/flushed", F_OK) >= 0)
 			break;
 
 		if (errno != ENOENT)
 			return log_error_errno(errno,
-				"Failed to check for existence of /run/systemd/journal/flushed: %m");
+				"Failed to check for existence of " SVC_PKGRUNSTATEDIR
+				"/journal/flushed: %m");
 
 		r = fd_wait_for_event(watch_fd, POLLIN, USEC_INFINITY);
 		if (r < 0)

@@ -28,7 +28,7 @@ main(int argc, char *argv[])
 {
 	static const union sockaddr_union sa = {
 		.un.sun_family = AF_UNIX,
-		.un.sun_path = "/run/systemd/cgroups-agent",
+		.un.sun_path = SVC_PKGRUNSTATEDIR "/cgroups-agent",
 	};
 
 	_cleanup_close_ int fd = -1;

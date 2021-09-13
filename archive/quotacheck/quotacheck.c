@@ -97,7 +97,7 @@ main(int argc, char *argv[])
 		if (arg_skip)
 			return EXIT_SUCCESS;
 
-		if (access("/run/systemd/quotacheck", F_OK) < 0)
+		if (access(SVC_PKGRUNSTATEDIR "/quotacheck", F_OK) < 0)
 			return EXIT_SUCCESS;
 	}
 

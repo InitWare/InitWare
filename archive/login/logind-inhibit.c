@@ -39,7 +39,7 @@ inhibitor_new(Manager *m, const char *id)
 	if (!i)
 		return NULL;
 
-	i->state_file = strappend("/run/systemd/inhibit/", id);
+	i->state_file = strappend(SVC_PKGRUNSTATEDIR "/inhibit/", id);
 	if (!i->state_file) {
 		free(i);
 		return NULL;
@@ -88,7 +88,7 @@ inhibitor_save(Inhibitor *i)
 
 	assert(i);
 
-	r = mkdir_safe_label("/run/systemd/inhibit", 0755, 0, 0);
+	r = mkdir_safe_label(SVC_PKGRUNSTATEDIR "/inhibit", 0755, 0, 0);
 	if (r < 0)
 		goto finish;
 
@@ -285,12 +285,12 @@ inhibitor_create_fifo(Inhibitor *i)
 
 	/* Create FIFO */
 	if (!i->fifo_path) {
-		r = mkdir_safe_label("/run/systemd/inhibit", 0755, 0, 0);
+		r = mkdir_safe_label(SVC_PKGRUNSTATEDIR "/inhibit", 0755, 0, 0);
 		if (r < 0)
 			return r;
 
-		i->fifo_path =
-			strjoin("/run/systemd/inhibit/", i->id, ".ref", NULL);
+		i->fifo_path = strjoin(SVC_PKGRUNSTATEDIR "/inhibit/", i->id,
+			".ref", NULL);
 		if (!i->fifo_path)
 			return -ENOMEM;
 
