@@ -49,7 +49,7 @@ test_setup() {
         inst /etc/login.defs
 
         # setup the testsuite service
-        cat >$initdir/etc/systemd/system/testsuite.service <<EOF
+        cat >$initdir/usr/local/etc/InitWare/system/testsuite.service <<EOF
 [Unit]
 Description=Testsuite service
 

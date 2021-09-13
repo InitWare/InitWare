@@ -49,10 +49,10 @@ along with systemd; If not, see <http://www.gnu.org/licenses/>.
   </refnamediv>
 
   <refsynopsisdiv>
-    <para><filename>/etc/systemd/sleep.conf</filename></para>
-    <para><filename>/etc/systemd/sleep.conf.d/*.conf</filename></para>
+    <para><filename>/etc/InitWare/sleep.conf</filename></para>
+    <para><filename>/etc/InitWare/sleep.conf.d/*.conf</filename></para>
     <para><filename>/run/InitWare/sleep.conf.d/*.conf</filename></para>
-    <para><filename>/usr/lib/systemd/sleep.conf.d/*.conf</filename></para>
+    <para><filename>/usr/local/lib/InitWare/sleep.conf.d/*.conf</filename></para>
   </refsynopsisdiv>
 
   <refsect1>
@@ -119,7 +119,7 @@ along with systemd; If not, see <http://www.gnu.org/licenses/>.
 
     <para>The following options can be configured in the
     <literal>[Sleep]</literal> section of
-    <filename>/etc/systemd/sleep.conf</filename> or a
+    <filename>/etc/InitWare/sleep.conf</filename> or a
     <filename>sleep.conf.d</filename> file:</para>
 
     <variablelist class='systemd-directives'>

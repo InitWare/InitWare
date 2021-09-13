@@ -47,7 +47,7 @@ test_setup() {
         setup_basic_environment
 
         # setup the testsuite service
-        cat >$initdir/etc/systemd/system/testsuite.service <<EOF
+        cat >$initdir/usr/local/etc/InitWare/system/testsuite.service <<EOF
 [Unit]
 Description=Testsuite service
 After=multi-user.target
@@ -57,7 +57,7 @@ ExecStart=/test-journal.sh
 Type=oneshot
 EOF
 
-        cat >$initdir/etc/systemd/system/forever-print-hola.service <<EOF
+        cat >$initdir/usr/local/etc/InitWare/system/forever-print-hola.service <<EOF
 [Unit]
 Description=ForeverPrintHola service
 

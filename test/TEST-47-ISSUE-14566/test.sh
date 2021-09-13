@@ -43,14 +43,14 @@ test_setup() {
         setup_basic_environment
 
         # mask some services that we do not want to run in these tests
-        ln -s /dev/null $initdir/etc/systemd/system/systemd-hwdb-update.service
-        ln -s /dev/null $initdir/etc/systemd/system/systemd-journal-catalog-update.service
-        ln -s /dev/null $initdir/etc/systemd/system/systemd-networkd.service
-        ln -s /dev/null $initdir/etc/systemd/system/systemd-networkd.socket
-        ln -s /dev/null $initdir/etc/systemd/system/systemd-resolved.service
+        ln -s /dev/null $initdir/usr/local/etc/InitWare/system/systemd-hwdb-update.service
+        ln -s /dev/null $initdir/usr/local/etc/InitWare/system/systemd-journal-catalog-update.service
+        ln -s /dev/null $initdir/usr/local/etc/InitWare/system/systemd-networkd.service
+        ln -s /dev/null $initdir/usr/local/etc/InitWare/system/systemd-networkd.socket
+        ln -s /dev/null $initdir/usr/local/etc/InitWare/system/systemd-resolved.service
 
         # setup the testsuite service
-        cat >$initdir/etc/systemd/system/testsuite.service <<EOF
+        cat >$initdir/usr/local/etc/InitWare/system/testsuite.service <<EOF
 [Unit]
 Description=Testsuite service
 
@@ -61,7 +61,7 @@ StandardOutput=tty
 StandardError=tty
 NotifyAccess=all
 EOF
-        cat > $initdir/etc/systemd/system/issue_14566_test.service << EOF
+        cat > $initdir/usr/local/etc/InitWare/system/issue_14566_test.service << EOF
 [Unit]
 Description=Issue 14566 Repro
 

@@ -48,7 +48,7 @@
 
   <refsynopsisdiv>
     <para><filename>systemd-modules-load.service</filename></para>
-    <para><filename>/usr/lib/systemd/systemd-modules-load</filename></para>
+    <para><filename>/usr/local/libexec/InitWare/svc.modules-load</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

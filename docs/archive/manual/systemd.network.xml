@@ -64,11 +64,11 @@
 
     <para>The <filename>.network</filename> files are read from the
     files located in the system network directory
-    <filename>/usr/lib/systemd/network</filename>, the volatile
+    <filename>/usr/local/lib/InitWare/network</filename>, the volatile
     runtime network directory
     <filename>/run/InitWare/network</filename> and the local
     administration network directory
-    <filename>/etc/systemd/network</filename>. All configuration files
+    <filename>/etc/InitWare/network</filename>. All configuration files
     are collectively sorted and processed in lexical order, regardless
     of the directories in which they live. However, files with
     identical filenames replace each other. Files in
@@ -626,7 +626,7 @@
   <refsect1>
     <title>Example</title>
     <example>
-      <title>/etc/systemd/network/50-static.network</title>
+      <title>/etc/InitWare/network/50-static.network</title>
 
       <programlisting>[Match]
 Name=enp2s0
@@ -637,7 +637,7 @@ Gateway=192.168.0.1</programlisting>
     </example>
 
     <example>
-      <title>/etc/systemd/network/80-dhcp.network</title>
+      <title>/etc/InitWare/network/80-dhcp.network</title>
 
       <programlisting>[Match]
 Name=en*
@@ -647,7 +647,7 @@ DHCP=yes</programlisting>
     </example>
 
     <example>
-      <title>/etc/systemd/network/bridge-static.network</title>
+      <title>/etc/InitWare/network/bridge-static.network</title>
 
       <programlisting>[Match]
 Name=bridge0
@@ -659,7 +659,7 @@ DNS=192.168.0.1</programlisting>
     </example>
 
     <example>
-      <title>/etc/systemd/network/bridge-slave-interface.network</title>
+      <title>/etc/InitWare/network/bridge-slave-interface.network</title>
 
       <programlisting>[Match]
 Name=enp2s0
@@ -668,7 +668,7 @@ Name=enp2s0
 Bridge=bridge0</programlisting>
     </example>
     <example>
-      <title>/etc/systemd/network/ipip.network</title>
+      <title>/etc/InitWare/network/ipip.network</title>
 
       <programlisting>[Match]
 Name=em1
@@ -678,7 +678,7 @@ Tunnel=ipip-tun</programlisting>
     </example>
 
     <example>
-      <title>/etc/systemd/network/sit.network</title>
+      <title>/etc/InitWare/network/sit.network</title>
 
       <programlisting>[Match]
 Name=em1
@@ -688,7 +688,7 @@ Tunnel=sit-tun</programlisting>
     </example>
 
     <example>
-      <title>/etc/systemd/network/gre.network</title>
+      <title>/etc/InitWare/network/gre.network</title>
 
       <programlisting>[Match]
 Name=em1
@@ -698,7 +698,7 @@ Tunnel=gre-tun</programlisting>
     </example>
 
     <example>
-      <title>/etc/systemd/network/vti.network</title>
+      <title>/etc/InitWare/network/vti.network</title>
 
       <programlisting>[Match]
 Name=em1

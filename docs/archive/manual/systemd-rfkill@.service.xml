@@ -48,7 +48,7 @@
 
   <refsynopsisdiv>
     <para><filename>systemd-rfkill@.service</filename></para>
-    <para><filename>/usr/lib/systemd/systemd-rfkill</filename></para>
+    <para><filename>/usr/local/libexec/InitWare/svc.rfkill</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

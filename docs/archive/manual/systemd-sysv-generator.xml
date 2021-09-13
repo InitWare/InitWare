@@ -46,7 +46,7 @@
   </refnamediv>
 
   <refsynopsisdiv>
-    <para><filename>/usr/lib/systemd/system-generators/systemd-sysv-generator</filename></para>
+    <para><filename>/usr/local/lib/InitWare/system-generators/systemd-sysv-generator</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

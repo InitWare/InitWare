@@ -48,7 +48,7 @@
   </refnamediv>
 
   <refsynopsisdiv>
-    <para><filename>/usr/lib/systemd/system-generators/systemd-efi-boot-generator</filename></para>
+    <para><filename>/usr/local/lib/InitWare/system-generators/systemd-efi-boot-generator</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

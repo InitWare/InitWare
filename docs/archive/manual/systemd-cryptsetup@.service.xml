@@ -48,7 +48,7 @@
 
   <refsynopsisdiv>
     <para><filename>systemd-cryptsetup@.service</filename></para>
-    <para><filename>/usr/lib/systemd/systemd-cryptsetup</filename></para>
+    <para><filename>/usr/local/libexec/InitWare/svc.cryptsetup</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

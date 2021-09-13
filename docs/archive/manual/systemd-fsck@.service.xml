@@ -50,7 +50,7 @@
   <refsynopsisdiv>
     <para><filename>systemd-fsck@.service</filename></para>
     <para><filename>systemd-fsck-root.service</filename></para>
-    <para><filename>/usr/lib/systemd/systemd-fsck</filename></para>
+    <para><filename>/usr/local/libexec/InitWare/svc.fsck</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

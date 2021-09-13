@@ -46,7 +46,7 @@
   </refnamediv>
 
   <refsynopsisdiv>
-    <para><filename>/usr/lib/systemd/system-generators/systemd-hibernate-resume-generator</filename></para>
+    <para><filename>/usr/local/lib/InitWare/system-generators/systemd-hibernate-resume-generator</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

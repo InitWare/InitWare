@@ -47,7 +47,7 @@ test_setup() {
         setup_basic_environment
 
         # setup the testsuite service
-        cat >$initdir/etc/systemd/system/testsuite.service <<EOF
+        cat >$initdir/usr/local/etc/InitWare/system/testsuite.service <<EOF
 [Unit]
 Description=Testsuite service
 After=multi-user.target
@@ -59,7 +59,7 @@ EOF
 
         # copy the units used by this test
         cp $TEST_BASE_DIR/{hello.service,sleep.service,hello-after-sleep.target,unstoppable.service} \
-            $initdir/etc/systemd/system
+            $initdir/usr/local/etc/InitWare/system
         cp test-jobs.sh $initdir/
 
         setup_testsuite

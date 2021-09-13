@@ -210,7 +210,7 @@ Password: ********
 
     <programlisting>$ systemctl status chronyd.service
 chronyd.service - NTP client/server
-    Loaded: loaded (/usr/lib/systemd/system/chronyd.service; enabled)
+    Loaded: loaded (/usr/lib/InitWare/system/chronyd.service; enabled)
     Active: active (running) since Fri, 2012-11-02 09:36:25 CET; 5s ago
 ...</programlisting>
     </para>

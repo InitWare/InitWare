@@ -52,7 +52,7 @@
   <refsynopsisdiv>
     <para><filename>systemd-journald.service</filename></para>
     <para><filename>systemd-journald.socket</filename></para>
-    <para><filename>/usr/lib/systemd/systemd-journald</filename></para>
+    <para><filename>/usr/local/libexec/InitWare/svc.journald</filename></para>
   </refsynopsisdiv>
 
   <refsect1>
@@ -197,7 +197,7 @@
 
     <variablelist>
       <varlistentry>
-        <term><filename>/etc/systemd/journald.conf</filename></term>
+        <term><filename>/etc/InitWare/journald.conf</filename></term>
 
         <listitem><para>Configure
         <command>systemd-journald</command>

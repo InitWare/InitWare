@@ -4553,10 +4553,10 @@ main(int argc, char *argv[])
 				memcpy(a + 1, argv + optind,
 					l * sizeof(char *));
 
-				a[0] = (char *)"/usr/lib/systemd/systemd";
+				a[0] = (char *)"/usr/local/libexec/InitWare/svc.schedulerd";
 				execve(a[0], a, env_use);
 
-				a[0] = (char *)"/lib/systemd/systemd";
+				a[0] = (char *)"/usr/libexec/InitWare/svc.schedulerd";
 				execve(a[0], a, env_use);
 
 				a[0] = (char *)"/sbin/init";

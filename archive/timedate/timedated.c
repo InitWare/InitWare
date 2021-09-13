@@ -204,10 +204,11 @@ get_ntp_services(void)
 	char **i;
 	int k;
 
-	k = conf_files_list(&files, ".list", NULL, SVC_PKGSYSCONFDIR "/ntp-units.d",
+	k = conf_files_list(&files, ".list", NULL,
+		SVC_PKGSYSCONFDIR "/ntp-units.d",
 		SVC_PKGRUNSTATEDIR "/ntp-units.d",
-		"/usr/local/lib/systemd/ntp-units.d",
-		"/usr/lib/systemd/ntp-units.d", NULL);
+		"/usr/local/lib/" PKG_DIR_NAME "/ntp-units.d",
+		"/usr/lib/" PKG_DIR_NAME "/ntp-units.d", NULL);
 	if (k < 0)
 		return NULL;
 

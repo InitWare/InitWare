@@ -50,7 +50,7 @@
 
   <refsynopsisdiv>
     <para><filename>systemd-machined.service</filename></para>
-    <para><filename>/usr/lib/systemd/systemd-machined</filename></para>
+    <para><filename>/usr/local/libexec/InitWare/svc.machined</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

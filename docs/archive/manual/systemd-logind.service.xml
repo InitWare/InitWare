@@ -50,7 +50,7 @@
 
   <refsynopsisdiv>
     <para><filename>systemd-logind.service</filename></para>
-    <para><filename>/usr/lib/systemd/systemd-logind</filename></para>
+    <para><filename>/usr/local/libexec/InitWare/svc.logind</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

@@ -48,7 +48,7 @@
 
   <refsynopsisdiv>
     <para><filename>systemd-hibernate-resume@.service</filename></para>
-    <para><filename>/usr/lib/systemd/systemd-hibernate-resume</filename></para>
+    <para><filename>/usr/local/libexec/InitWare/svc.hibernate-resume</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

@@ -526,8 +526,8 @@
         first verified with detached GPG signature file
         <filename>SHA256SUMS.gpg</filename>. The public key for this
         verification step needs to be available in
-        <filename>/usr/lib/systemd/import-pubring.gpg</filename> or
-        <filename>/etc/systemd/import-pubring.gpg</filename>.</para>
+        <filename>/usr/local/lib/InitWare/import-pubring.gpg</filename> or
+        <filename>/etc/InitWare/import-pubring.gpg</filename>.</para>
 
         <para>The container image will be downloaded and stored in a
         read-only subvolume in

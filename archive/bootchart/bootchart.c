@@ -349,9 +349,9 @@ main(int argc, char *argv[])
 		return r == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 
 	/*
-         * If the kernel executed us through init=/usr/lib/systemd/systemd-bootchart, then
+         * If the kernel executed us through init=/usr/local/libexec/InitWare/systemd-bootchart, then
          * fork:
-         * - parent execs executable specified via init_path[] (/usr/lib/systemd/systemd by default) as pid=1
+         * - parent execs executable specified via init_path[] (/usr/local/libexec/InitWare/systemd by default) as pid=1
          * - child logs data
          */
 	if (getpid() == 1) {

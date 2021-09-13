@@ -50,7 +50,7 @@
 
   <refsynopsisdiv>
     <para><filename>systemd-resolved.service</filename></para>
-    <para><filename>/usr/lib/systemd/systemd-resolved</filename></para>
+    <para><filename>/usr/local/libexec/InitWare/svc.resolved</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

@@ -58,7 +58,7 @@ Documentation: man:journald.conf(5)
 
 Предел, после которого служба журнала начинает игнорировать сообщения,
 настраивается параметрами RateLimitInterval= и RateLimitBurst= в файле
-/etc/systemd/journald.conf. Подробности смотрите на странице руководства
+/usr/local/etc/InitWare/journald.conf. Подробности смотрите на странице руководства
 journald.conf(5).
 
 # Subject: Journal messages have been missed

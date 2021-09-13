@@ -49,7 +49,7 @@
   </refnamediv>
 
   <refsynopsisdiv>
-    <para><filename>/usr/lib/systemd/systemd-coredump</filename></para>
+    <para><filename>/usr/local/libexec/InitWare/svc.coredump</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

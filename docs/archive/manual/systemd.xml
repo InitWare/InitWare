@@ -428,7 +428,7 @@
         by <command>pkg-config systemd
         --variable=systemdsystemunitdir</command>. Other directories
         checked are <filename>/usr/local/lib/systemd/system</filename>
-        and <filename>/usr/lib/systemd/system</filename>. User
+        and <filename>/usr/local/lib/InitWare/system</filename>. User
         configuration always takes precedence. <command>pkg-config
         systemd --variable=systemdsystemconfdir</command> returns the
         path of the system configuration directory. Packages should

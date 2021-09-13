@@ -138,7 +138,7 @@ Features:
 
 * "machinectl list-images" should show os-release data, as well as machine-info data (including deployment level)
 
-* nspawn: when start a container "foobar" look for its configuration in a file "foobar.nspawn" in /etc/systemd/nspawn/ as well as next to the actualy directory or image to boot
+* nspawn: when start a container "foobar" look for its configuration in a file "foobar.nspawn" in /usr/local/etc/InitWare/nspawn/ as well as next to the actualy directory or image to boot
 
 * Port various tools to make use of verbs.[ch], where applicable
 
@@ -877,7 +877,7 @@ External:
 
 * dbus:
    - natively watch for dbus-*.service symlinks (PENDING)
-   - teach dbus to activate all services it finds in /etc/systemd/services/org-*.service
+   - teach dbus to activate all services it finds in /usr/local/etc/InitWare/services/org-*.service
 
 * fix alsa mixer restore to not print error when no config is stored
 

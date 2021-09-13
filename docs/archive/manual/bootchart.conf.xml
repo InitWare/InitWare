@@ -52,17 +52,17 @@
   </refnamediv>
 
   <refsynopsisdiv>
-    <para><filename>/etc/systemd/bootchart.conf</filename></para>
-    <para><filename>/etc/systemd/bootchart.conf.d/*.conf</filename></para>
+    <para><filename>/etc/InitWare/bootchart.conf</filename></para>
+    <para><filename>/etc/InitWare/bootchart.conf.d/*.conf</filename></para>
     <para><filename>/run/InitWare/bootchart.conf.d/*.conf</filename></para>
-    <para><filename>/usr/lib/systemd/bootchart.conf.d/*.conf</filename></para>
+    <para><filename>/usr/local/lib/InitWare/bootchart.conf.d/*.conf</filename></para>
   </refsynopsisdiv>
 
   <refsect1>
     <title>Description</title>
 
     <para>When starting, systemd-bootchart will read the configuration
-    file <filename>/etc/systemd/bootchart.conf</filename>, followed by
+    file <filename>/etc/InitWare/bootchart.conf</filename>, followed by
     the files in the <filename>bootchart.conf.d</filename>
     directories. These configuration files determine logging
     parameters and graph output.</para>
@@ -122,10 +122,10 @@
         <term><varname>Init=[path]</varname></term>
         <listitem><para>Configures bootchart to run a non-standard
         binary instead of
-        <filename>/usr/lib/systemd/systemd</filename>. This option is
+        <filename>/usr/local/libexec/InitWare/svc.schedulerd</filename>. This option is
         only relevant if bootchart was invoked from the kernel command
         line with
-        init=/usr/lib/systemd/systemd-bootchart.</para></listitem>
+        init=/usr/local/libexec/InitWare/svc.bootchart.</para></listitem>
       </varlistentry>
 
       <varlistentry>

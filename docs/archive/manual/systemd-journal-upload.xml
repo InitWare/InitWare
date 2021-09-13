@@ -243,8 +243,8 @@ openssl ca -batch -config ca.conf -notext -in $CLIENT.csr -out $CLIENT.pem
       <varname>TrustedCertificateFile=</varname>,
       <varname>ServerCertificateFile=</varname>,
       <varname>ServerKeyFile=</varname>, in
-      <filename>/etc/systemd/journal-remote.conf</filename> and
-      <filename>/etc/systemd/journal-upload.conf</filename>
+      <filename>/etc/InitWare/journal-remote.conf</filename> and
+      <filename>/etc/InitWare/journal-upload.conf</filename>
       respectively. The default locations can be queried by using
       <command>systemd-journal-remote --help</command> and
       <command>systemd-journal-upload --help</command>.</para>

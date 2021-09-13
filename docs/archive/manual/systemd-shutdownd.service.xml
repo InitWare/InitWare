@@ -52,7 +52,7 @@
   <refsynopsisdiv>
     <para><filename>systemd-shutdownd.service</filename></para>
     <para><filename>systemd-shutdownd.socket</filename></para>
-    <para><filename>/usr/lib/systemd/systemd-shutdownd</filename></para>
+    <para><filename>/usr/local/libexec/InitWare/svc.shutdownd</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

@@ -48,7 +48,7 @@
 
   <refsynopsisdiv>
     <para><filename>systemd-vconsole-setup.service</filename></para>
-    <para><filename>/usr/lib/systemd/systemd-vconsole-setup</filename></para>
+    <para><filename>/usr/local/libexec/InitWare/svc.vconsole-setup</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

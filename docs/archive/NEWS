@@ -729,7 +729,7 @@ CHANGES WITH 217:
 CHANGES WITH 216:
 
         * timedated no longer reads NTP implementation unit names from
-          /usr/lib/systemd/ntp-units.d/*.list. Alternative NTP
+          /usr/local/lib/InitWare/ntp-units.d/*.list. Alternative NTP
           implementations should add a
 
             Conflicts=systemd-timesyncd.service
@@ -1068,7 +1068,7 @@ CHANGES WITH 215:
           on disk (in /var/lib/InitWare/coredump, possibly compressed),
           instead of storing them unconditionally in the journal. This
           mode is the new default. A new configuration file
-          /etc/systemd/coredump.conf has been added to configure this
+          /usr/local/etc/InitWare/coredump.conf has been added to configure this
           and other parameters of systemd-coredump.
 
         * coredumpctl gained a new "info" verb to show details about a
@@ -1899,7 +1899,7 @@ CHANGES WITH 209:
           prepared for additional security frameworks.
 
         * udev gained a new scheme to configure link-level attributes
-          from files in /etc/systemd/network/*.link. These files can
+          from files in /usr/local/etc/InitWare/network/*.link. These files can
           match against MAC address, device path, driver name and type,
           and will apply attributes like the naming policy, link speed,
           MTU, duplex settings, Wake-on-LAN settings, MAC address, MAC
@@ -2014,7 +2014,7 @@ CHANGES WITH 209:
           --fail, --irreversible, and --ignore-dependencies, which are
           still available but not advertised anymore.
 
-        * /etc/systemd/system.conf gained new settings to configure
+        * /usr/local/etc/InitWare/system.conf gained new settings to configure
           various default timeouts of units, as well as the default
           start limit interval and burst. These may still be overridden
           within each Unit.
@@ -2723,7 +2723,7 @@ CHANGES WITH 205:
           racy due to journal file rotation.
 
         * systemd gained the new DefaultEnvironment= setting in
-          /etc/systemd/system.conf to set environment variables for
+          /usr/local/etc/InitWare/system.conf to set environment variables for
           all services.
 
         * If a privileged process logs a journal message with the
@@ -2825,7 +2825,7 @@ CHANGES WITH 203:
           are lacking checks for SMACK and IMA for this condition
           check though. Patches welcome!
 
-        * A new configuration file /etc/systemd/sleep.conf has been
+        * A new configuration file /usr/local/etc/InitWare/sleep.conf has been
           added that may be used to configure which kernel operation
           systemd is supposed to execute when "suspend", "hibernate"
           or "hybrid-sleep" is requested. This makes the new kernel
@@ -2933,7 +2933,7 @@ CHANGES WITH 201:
         * 'systemctl status' will also shown information about any
           drop-in configuration file for units. (Drop-In configuration
           files in this context are files such as
-          /etc/systemd/systemd/foobar.service.d/*.conf)
+          /usr/local/etc/InitWare/systemd/foobar.service.d/*.conf)
 
         * systemd-cgtop now optionally shows summed up CPU times of
           cgroups. Press '%' while running cgtop to switch between
@@ -3066,14 +3066,14 @@ CHANGES WITH 198:
           themselves. More specifically, if the administrator wants to
           change one value for a service file foobar.service he can
           now do so by dropping in a configuration snippet into
-          /etc/systemd/system/foobar.service.d/*.conf. The unit logic
+          /usr/local/etc/InitWare/system/foobar.service.d/*.conf. The unit logic
           will load all these snippets and apply them on top of the
           main unit configuration file, possibly extending or
           overriding its settings. Using these drop-in snippets is
           generally nicer than the two earlier options for changing
           unit files locally: copying the files from
-          /usr/lib/systemd/system/ to /etc/systemd/system/ and editing
-          them there; or creating a new file in /etc/systemd/system/
+          /usr/local/lib/InitWare/system/ to /usr/local/etc/InitWare/system/ and editing
+          them there; or creating a new file in /usr/local/etc/InitWare/system/
           that incorporates the original one via ".include". Drop-in
           snippets into these .d/ directories can be placed in any
           directory systemd looks for units in, and the usual
@@ -4088,7 +4088,7 @@ CHANGES WITH 186:
         * There's a new tool to analyze the readahead files that are
           automatically generated at boot. Use:
 
-          /usr/lib/systemd/systemd-readahead analyze /.readahead
+          /usr/local/libexec/InitWare/svc.readahead analyze /.readahead
 
         * We now provide an early debug shell on tty9 if this enabled. Use:
 
@@ -4202,7 +4202,7 @@ CHANGES WITH 186:
           additional capabilities to the container.
 
         * timedated will now read known NTP implementation unit names
-          from /usr/lib/systemd/ntp-units.d/*.list,
+          from /usr/local/lib/InitWare/ntp-units.d/*.list,
           systemd-timedated-ntp.target has been removed.
 
         * journalctl gained a new switch "-b" that lists log data of
@@ -4289,7 +4289,7 @@ CHANGES WITH 183:
           forked by udev rules.
 
         * udev: the daemon binary is called systemd-udevd now and installed
-          in /usr/lib/systemd/. Standalone builds or non-systemd systems need
+          in /usr/local/lib/InitWare/. Standalone builds or non-systemd systems need
           to adapt to that, create symlink, or rename the binary after building
           it.
 
@@ -4302,8 +4302,8 @@ CHANGES WITH 183:
         * systemd-loginctl and systemd-journalctl have been renamed
           to loginctl and journalctl to match systemctl.
 
-        * The config files: /etc/systemd/systemd-logind.conf and
-          /etc/systemd/systemd-journald.conf have been renamed to
+        * The config files: /usr/local/etc/InitWare/systemd-logind.conf and
+          /usr/local/etc/InitWare/systemd-journald.conf have been renamed to
           logind.conf and journald.conf. Package updates should rename
           the files to the new names on upgrade.
 
@@ -4532,7 +4532,7 @@ CHANGES WITH 42:
 
 CHANGES WITH 41:
 
-        * The systemd binary is installed /usr/lib/systemd/systemd now;
+        * The systemd binary is installed /usr/local/libexec/InitWare/svc.schedulerd now;
           An existing /sbin/init symlink needs to be adapted with the
           package update.
 

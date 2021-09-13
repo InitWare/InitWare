@@ -45,11 +45,11 @@ test_setup() {
         dracut_install false true env touch
 
         # mask some services that we do not want to run in these tests
-        ln -s /dev/null $initdir/etc/systemd/system/systemd-hwdb-update.service
-        ln -s /dev/null $initdir/etc/systemd/system/systemd-journal-catalog-update.service
-        ln -s /dev/null $initdir/etc/systemd/system/systemd-networkd.service
-        ln -s /dev/null $initdir/etc/systemd/system/systemd-networkd.socket
-        ln -s /dev/null $initdir/etc/systemd/system/systemd-resolved.service
+        ln -s /dev/null $initdir/usr/local/etc/InitWare/system/systemd-hwdb-update.service
+        ln -s /dev/null $initdir/usr/local/etc/InitWare/system/systemd-journal-catalog-update.service
+        ln -s /dev/null $initdir/usr/local/etc/InitWare/system/systemd-networkd.service
+        ln -s /dev/null $initdir/usr/local/etc/InitWare/system/systemd-networkd.socket
+        ln -s /dev/null $initdir/usr/local/etc/InitWare/system/systemd-resolved.service
 
         # setup policy for Type=dbus test
         mkdir -p $initdir/etc/dbus-1/system.d
@@ -65,7 +65,7 @@ test_setup() {
 EOF
 
         # setup the testsuite service
-        cat >$initdir/etc/systemd/system/testsuite.service <<EOF
+        cat >$initdir/usr/local/etc/InitWare/system/testsuite.service <<EOF
 [Unit]
 Description=Testsuite service
 

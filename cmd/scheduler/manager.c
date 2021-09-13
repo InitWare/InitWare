@@ -740,7 +740,8 @@ manager_setup_notify(Manager *m)
 				return -EINVAL;
 			}
 
-			m->notify_socket = strappend(e, "/systemd/notify");
+			m->notify_socket =
+				strappend(e, "/" SVC_PKGDIRNAME "/notify");
 		}
 		if (!m->notify_socket)
 			return log_oom();
@@ -2599,8 +2600,8 @@ manager_send_unit_audit(Manager *m, Unit *u, int type, bool success)
 	}
 
 	msg = strjoina("unit=", p);
-	if (audit_log_user_comm_message(audit_fd, type, msg, "systemd", NULL,
-		    NULL, NULL, success) < 0) {
+	if (audit_log_user_comm_message(audit_fd, type, msg, SVC_PKGDIRNAME,
+		    NULL, NULL, NULL, success) < 0) {
 		if (errno == EPERM)
 			/* We aren't allowed to send audit messages?
                          * Then let's not retry again. */

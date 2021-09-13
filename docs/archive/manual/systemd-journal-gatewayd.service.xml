@@ -54,7 +54,7 @@ along with systemd; If not, see <http://www.gnu.org/licenses/>.
     <para><filename>systemd-journal-gatewayd.service</filename></para>
     <para><filename>systemd-journal-gatewayd.socket</filename></para>
     <cmdsynopsis>
-      <command>/usr/lib/systemd/systemd-journal-gatewayd</command>
+      <command>/usr/local/libexec/InitWare/svc.journal-gatewayd</command>
       <arg choice="opt" rep="repeat">OPTIONS</arg>
     </cmdsynopsis>
   </refsynopsisdiv>

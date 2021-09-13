@@ -49,10 +49,10 @@
   </refnamediv>
 
   <refsynopsisdiv>
-    <para><filename>/etc/systemd/journald.conf</filename></para>
-    <para><filename>/etc/systemd/journald.conf.d/*.conf</filename></para>
+    <para><filename>/etc/InitWare/journald.conf</filename></para>
+    <para><filename>/etc/InitWare/journald.conf.d/*.conf</filename></para>
     <para><filename>/run/InitWare/journald.conf.d/*.conf</filename></para>
-    <para><filename>/usr/lib/systemd/journald.conf.d/*.conf</filename></para>
+    <para><filename>/usr/local/lib/InitWare/journald.conf.d/*.conf</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

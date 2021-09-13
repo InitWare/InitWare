@@ -2096,10 +2096,10 @@ unit_file_query_preset(UnitFileScope scope, const char *root_dir,
 		r = conf_files_list(&files, ".preset", root_dir,
 			SVC_PKGSYSCONFDIR "/system-preset",
 #ifdef SVC_USE_systemd_paths
-			"/usr/local/lib/systemd/system-preset",
-			"/usr/lib/systemd/system-preset",
+			"/usr/local/lib/" SVC_PKGDIRNAME "/system-preset",
+			"/usr/lib/" SVC_PKGDIRNAME "/system-preset",
 #ifdef HAVE_SPLIT_USR
-			"/lib/systemd/system-preset",
+			"/lib/" SVC_PKGDIRNAME "/system-preset",
 #endif
 #endif
 			NULL);
@@ -2107,10 +2107,10 @@ unit_file_query_preset(UnitFileScope scope, const char *root_dir,
 		r = conf_files_list(&files, ".preset", root_dir,
 			SVC_PKGSYSCONFDIR "/user-preset",
 #ifdef SVC_USE_systemd_paths
-			"/usr/local/lib/systemd/user-preset",
-			"/usr/lib/systemd/user-preset",
+			"/usr/local/lib/" SVC_PKGDIRNAME "/user-preset",
+			"/usr/lib/" SVC_PKGDIRNAME "/user-preset",
 #endif
-			 NULL);
+			NULL);
 	else
 		return 1; /* Default is "enable" */
 

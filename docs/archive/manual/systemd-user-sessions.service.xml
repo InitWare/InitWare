@@ -48,7 +48,7 @@
 
   <refsynopsisdiv>
     <para><filename>systemd-user-sessions.service</filename></para>
-    <para><filename>/usr/lib/systemd/systemd-user-sessions</filename></para>
+    <para><filename>/usr/local/libexec/InitWare/svc.user-sessions</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

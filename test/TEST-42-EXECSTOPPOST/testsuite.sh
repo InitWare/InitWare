@@ -7,7 +7,7 @@ systemd-analyze set-log-level debug
 # support for --wait and only a handful of supported properties.
 systemd-run-wait() {
     local unit="$1"
-    local unitfile=/etc/systemd/system/$unit
+    local unitfile=/usr/local/etc/InitWare/system/$unit
 
     shift
 

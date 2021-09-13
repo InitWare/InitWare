@@ -47,7 +47,7 @@
   </refnamediv>
 
   <refsynopsisdiv>
-    <para><filename>/usr/lib/systemd/system-generators/systemd-getty-generator</filename></para>
+    <para><filename>/usr/local/lib/InitWare/system-generators/systemd-getty-generator</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

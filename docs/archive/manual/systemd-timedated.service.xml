@@ -50,7 +50,7 @@
 
   <refsynopsisdiv>
     <para><filename>systemd-timedated.service</filename></para>
-    <para><filename>/usr/lib/systemd/systemd-timedated</filename></para>
+    <para><filename>/usr/local/libexec/InitWare/svc.timedated</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

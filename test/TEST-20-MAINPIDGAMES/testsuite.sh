@@ -80,7 +80,7 @@ echo \$MAINPID > /run/mainpidsh/pid
 EOF
 chmod +x /tmp/mainpid.sh
 
-cat > /etc/systemd/system/mainpidsh.service <<EOF
+cat > /usr/local/etc/InitWare/system/mainpidsh.service <<EOF
 [Unit]
 Description=MainPID test 1 service
 
@@ -119,7 +119,7 @@ chown 1001:1001 /run/mainpidsh2/pid
 EOF
 chmod +x /tmp/mainpid2.sh
 
-cat > /etc/systemd/system/mainpidsh2.service <<EOF
+cat > /usr/local/etc/InitWare/system/mainpidsh2.service <<EOF
 [Unit]
 Description=MainPID test 2 service
 
@@ -159,7 +159,7 @@ test -f /run/mainpidsh3/pid
 EOF
 chmod 755 /dev/shm/mainpid3.sh
 
-cat > /etc/systemd/system/mainpidsh3.service <<EOF
+cat > /usr/local/etc/InitWare/system/mainpidsh3.service <<EOF
 [Unit]
 Description=MainPID test 3 service
 

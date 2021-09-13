@@ -28,8 +28,8 @@ ReceiveBuffer=8M
 #
 # Examples:
 #
-# /etc/systemd/system/syslog.service -> /lib/systemd/system/rsyslog.service
-# /etc/systemd/system/syslog.service -> /lib/systemd/system/syslog-ng.service
+# /usr/local/etc/InitWare/system/syslog.service -> /lib/systemd/system/rsyslog.service
+# /usr/local/etc/InitWare/system/syslog.service -> /lib/systemd/system/syslog-ng.service
 #
 # Best way to achieve that is by adding this to your unit file
 # (i.e. to rsyslog.service or syslog-ng.service):

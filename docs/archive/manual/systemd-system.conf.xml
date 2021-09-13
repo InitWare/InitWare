@@ -51,14 +51,14 @@
   </refnamediv>
 
   <refsynopsisdiv>
-    <para><filename>/etc/systemd/system.conf</filename>,
-    <filename>/etc/systemd/system.conf.d/*.conf</filename>,
+    <para><filename>/etc/InitWare/system.conf</filename>,
+    <filename>/etc/InitWare/system.conf.d/*.conf</filename>,
     <filename>/run/InitWare/system.conf.d/*.conf</filename>,
-    <filename>/usr/lib/systemd/system.conf.d/*.conf</filename></para>
-    <para><filename>/etc/systemd/user.conf</filename>,
-    <filename>/etc/systemd/user.conf.d/*.conf</filename>,
+    <filename>/usr/local/lib/InitWare/system.conf.d/*.conf</filename></para>
+    <para><filename>/etc/InitWare/user.conf</filename>,
+    <filename>/etc/InitWare/user.conf.d/*.conf</filename>,
     <filename>/run/InitWare/user.conf.d/*.conf</filename>,
-    <filename>/usr/lib/systemd/user.conf.d/*.conf</filename></para>
+    <filename>/usr/lib/InitWare/user.conf.d/*.conf</filename></para>
   </refsynopsisdiv>
 
   <refsect1>

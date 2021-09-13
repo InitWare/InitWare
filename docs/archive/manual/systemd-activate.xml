@@ -50,7 +50,7 @@
 
   <refsynopsisdiv>
     <cmdsynopsis>
-      <command>/usr/lib/systemd/systemd-activate</command>
+      <command>/usr/local/libexec/InitWare/svc.activate</command>
       <arg choice="opt" rep="repeat">OPTIONS</arg>
       <arg choice="plain"><replaceable>daemon</replaceable></arg>
       <arg choice="opt" rep="repeat">OPTIONS</arg>
@@ -149,13 +149,13 @@
     <example>
       <title>Run an echo server on port 2000</title>
 
-      <programlisting>$ /usr/lib/systemd/systemd-activate -l 2000 -a cat</programlisting>
+      <programlisting>$ /usr/local/libexec/InitWare/svc.activate -l 2000 -a cat</programlisting>
     </example>
 
     <example>
       <title>Run a socket activated instance of <citerefentry><refentrytitle>systemd-journal-gatewayd</refentrytitle><manvolnum>8</manvolnum></citerefentry></title>
 
-      <programlisting>$ /usr/lib/systemd/systemd-activate -l 19531 /usr/lib/systemd/systemd-journal-gatewayd</programlisting>
+      <programlisting>$ /usr/local/libexec/InitWare/svc.activate -l 19531 /usr/local/libexec/InitWare/svc.journal-gatewayd</programlisting>
     </example>
   </refsect1>
 
