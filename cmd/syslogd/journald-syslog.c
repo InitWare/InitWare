@@ -35,7 +35,7 @@
 
 static void
 forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned n_iovec,
-	const struct ucred *ucred, const struct timeval *tv)
+	const struct socket_ucred *ucred, const struct timeval *tv)
 {
 	static const union sockaddr_union sa = {
 		.un.sun_family = AF_UNIX,
@@ -47,17 +47,20 @@ forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned n_iovec,
 		.msg_name = (struct sockaddr *)&sa.sa,
 		.msg_namelen = offsetof(union sockaddr_union, un.sun_path) +
 			strlen(SVC_PKGRUNSTATEDIR "/journal/syslog"),
+		.msg_control = NULL,
+		.msg_controllen = 0,
 	};
 	struct cmsghdr *cmsg;
 	union {
 		struct cmsghdr cmsghdr;
-		uint8_t buf[CMSG_SPACE(sizeof(struct ucred))];
+		uint8_t buf[CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE)];
 	} control;
 
 	assert(s);
 	assert(iovec);
 	assert(n_iovec > 0);
 
+#ifdef SVC_PLATFORM_Linux /* can't fake credentials elsewhere? */
 	if (ucred) {
 		zero(control);
 		msghdr.msg_control = &control;
@@ -66,10 +69,11 @@ forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned n_iovec,
 		cmsg = CMSG_FIRSTHDR(&msghdr);
 		cmsg->cmsg_level = SOL_SOCKET;
 		cmsg->cmsg_type = SCM_CREDENTIALS;
-		cmsg->cmsg_len = CMSG_LEN(sizeof(struct ucred));
-		memcpy(CMSG_DATA(cmsg), ucred, sizeof(struct ucred));
+		cmsg->cmsg_len = CMSG_LEN(sizeof(struct socket_ucred));
+		memcpy(CMSG_DATA(cmsg), ucred, sizeof(struct socket_ucred));
 		msghdr.msg_controllen = cmsg->cmsg_len;
 	}
+#endif
 
 	/* Forward the syslog message we received via /dev/log to
          *" SVC_PKGRUNSTATEDIR "/syslog. Unfortunately we currently can't set
@@ -86,7 +90,7 @@ forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned n_iovec,
 	}
 
 	if (ucred && (errno == ESRCH || errno == EPERM)) {
-		struct ucred u;
+		struct socket_ucred u;
 
 		/* Hmm, presumably the sender process vanished
                  * by now, or we don't have CAP_SYS_AMDIN, so
@@ -94,7 +98,7 @@ forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned n_iovec,
 
 		u = *ucred;
 		u.pid = getpid();
-		memcpy(CMSG_DATA(cmsg), &u, sizeof(struct ucred));
+		memcpy(CMSG_DATA(cmsg), &u, sizeof(struct socket_ucred));
 
 		if (sendmsg(s->syslog_fd, &msghdr, MSG_NOSIGNAL) >= 0)
 			return;
@@ -111,7 +115,7 @@ forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned n_iovec,
 
 static void
 forward_syslog_raw(Server *s, int priority, const char *buffer,
-	size_t buffer_len, const struct ucred *ucred, const struct timeval *tv)
+	size_t buffer_len, const struct socket_ucred *ucred, const struct timeval *tv)
 {
 	struct iovec iovec;
 
@@ -129,7 +133,7 @@ forward_syslog_raw(Server *s, int priority, const char *buffer,
 
 void
 server_forward_syslog(Server *s, int priority, const char *identifier,
-	const char *message, const struct ucred *ucred,
+	const char *message, const struct socket_ucred *ucred,
 	const struct timeval *tv)
 {
 	struct iovec iovec[5];
@@ -312,7 +316,7 @@ syslog_skip_date(char **buf)
 
 void
 server_process_syslog_message(Server *s, const char *buf, size_t buf_len,
-	const struct ucred *ucred, const struct timeval *tv, const char *label,
+	const struct socket_ucred *ucred, const struct timeval *tv, const char *label,
 	size_t label_len)
 {
 	char syslog_priority[sizeof("PRIORITY=") + DECIMAL_STR_MAX(int)],
@@ -420,10 +424,9 @@ server_open_syslog_socket(Server *s)
 	} else
 		fd_nonblock(s->syslog_fd, 1);
 
-	r = setsockopt(s->syslog_fd, SOL_SOCKET, SO_PASSCRED, &one,
-		sizeof(one));
+	r = socket_passcred(s->syslog_fd);
 	if (r < 0)
-		return log_error_errno(errno, "SO_PASSCRED failed: %m");
+		return log_error_errno(-r, "SO_PASSCRED failed: %m");
 
 #ifdef HAVE_SELINUX
 	if (mac_selinux_use()) {

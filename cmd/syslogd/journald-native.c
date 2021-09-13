@@ -71,14 +71,14 @@ valid_user_field(const char *p, size_t l, bool allow_protected)
 }
 
 static bool
-allow_object_pid(const struct ucred *ucred)
+allow_object_pid(const struct socket_ucred *ucred)
 {
 	return ucred && ucred->uid == 0;
 }
 
 void
 server_process_native_message(Server *s, const void *buffer, size_t buffer_size,
-	const struct ucred *ucred, const struct timeval *tv, const char *label,
+	const struct socket_ucred *ucred, const struct timeval *tv, const char *label,
 	size_t label_len)
 {
 	struct iovec *iovec = NULL;
@@ -332,11 +332,11 @@ finish:
 }
 
 void
-server_process_native_file(Server *s, int fd, const struct ucred *ucred,
+server_process_native_file(Server *s, int fd, const struct socket_ucred *ucred,
 	const struct timeval *tv, const char *label, size_t label_len)
 {
 	struct stat st;
-	bool sealed;
+	bool sealed = false;
 	int r;
 
 	/* Data is in the passed fd, since it didn't fit in a
@@ -345,10 +345,12 @@ server_process_native_file(Server *s, int fd, const struct ucred *ucred,
 	assert(s);
 	assert(fd >= 0);
 
+#ifdef SVC_PLATFORM_Linux
 	/* If it's a memfd, check if it is sealed. If so, we can just
          * use map it and use it, and do not need to copy the data
          * out. */
 	sealed = memfd_get_sealed(fd) > 0;
+#endif
 
 	if (!sealed && (!ucred || ucred->uid != 0)) {
 		_cleanup_free_ char *sl = NULL, *k = NULL;
@@ -433,6 +435,7 @@ server_process_native_file(Server *s, int fd, const struct ucred *ucred,
 			return;
 		}
 
+#ifdef ST_MANDLOCK
 		/* Refuse operating on file systems that have
                  * mandatory locking enabled, see:
                  *
@@ -443,6 +446,7 @@ server_process_native_file(Server *s, int fd, const struct ucred *ucred,
 				"Received file descriptor from file system with mandatory locking enabled, refusing.");
 			return;
 		}
+#endif
 
 		/* Make the fd non-blocking. On regular files this has
                  * the effect of bypassing mandatory locking. Of
@@ -509,10 +513,9 @@ server_open_native_socket(Server *s)
 	} else
 		fd_nonblock(s->native_fd, 1);
 
-	r = setsockopt(s->native_fd, SOL_SOCKET, SO_PASSCRED, &one,
-		sizeof(one));
+	r = socket_passcred(s->native_fd);
 	if (r < 0)
-		return log_error_errno(errno, "SO_PASSCRED failed: %m");
+		return log_error_errno(-r, "SO_PASSCRED failed: %m");
 
 #ifdef HAVE_SELINUX
 	if (mac_selinux_use()) {

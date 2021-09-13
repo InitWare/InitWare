@@ -159,7 +159,7 @@ struct Server {
 #define N_IOVEC_OBJECT_FIELDS 12
 
 void server_dispatch_message(Server *s, struct iovec *iovec, unsigned n,
-	unsigned m, const struct ucred *ucred, const struct timeval *tv,
+	unsigned m, const struct socket_ucred *ucred, const struct timeval *tv,
 	const char *label, size_t label_len, const char *unit_id, int priority,
 	pid_t object_pid);
 void server_driver_message(Server *s, sd_id128_t message_id, const char *format,
@@ -167,7 +167,7 @@ void server_driver_message(Server *s, sd_id128_t message_id, const char *format,
 
 /* gperf lookup function */
 const struct ConfigPerfItem *journald_gperf_lookup(const char *key,
-	GPERF_LEN_TYPE length);
+	register size_t length);
 
 int config_parse_storage(const char *unit, const char *filename, unsigned line,
 	const char *section, unsigned section_line, const char *lvalue,

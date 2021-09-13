@@ -23,16 +23,19 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include <libudev.h>
 #include "systemd/sd-messages.h"
 
 #include "journald-kmsg.h"
 #include "journald-server.h"
 #include "journald-syslog.h"
 
+#ifdef SVC_PLATFORM_Linux
+#include <libudev.h>
+#endif
+
 void
 server_forward_kmsg(Server *s, int priority, const char *identifier,
-	const char *message, const struct ucred *ucred)
+	const char *message, const struct socket_ucred *ucred)
 {
 	struct iovec iovec[5];
 	char header_priority[DECIMAL_STR_MAX(priority) + 3],
@@ -219,6 +222,7 @@ dev_kmsg_record(Server *s, const char *p, size_t l)
 		k = e + 1;
 	}
 
+#ifdef SVC_PLATFORM_Linux
 	if (kernel_device) {
 		struct udev_device *ud;
 
@@ -268,6 +272,7 @@ dev_kmsg_record(Server *s, const char *p, size_t l)
 			udev_device_unref(ud);
 		}
 	}
+#endif
 
 	if (asprintf(&source_time, "_SOURCE_MONOTONIC_TIMESTAMP=%llu", usec) >=
 		0)

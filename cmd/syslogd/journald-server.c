@@ -22,9 +22,6 @@
 #include <sys/signalfd.h>
 #include <sys/statvfs.h>
 #include <sys/timerfd.h>
-#include <linux/sockios.h>
-
-#include <libudev.h>
 
 #include "acl-util.h"
 #include "cgroup-util.h"
@@ -54,6 +51,11 @@
 
 #ifdef HAVE_SELINUX
 #include <selinux/selinux.h>
+#endif
+
+#ifdef SVC_PLATFORM_Linux
+#include <linux/sockios.h>
+#include <libudev.h>
 #endif
 
 #define USER_JOURNALS_MAX 1024
@@ -461,6 +463,9 @@ find_journal(Server *s, uid_t uid)
 	if (s->runtime_journal)
 		return s->runtime_journal;
 
+#ifndef SYSTEM_UID_MAX
+#define SYSTEM_UID_MAX 99
+#endif
 	if (uid <= SYSTEM_UID_MAX)
 		return s->system_journal;
 
@@ -785,7 +790,7 @@ write_to_journal(Server *s, uid_t uid, struct iovec *iovec, unsigned n,
 
 static void
 dispatch_message_real(Server *s, struct iovec *iovec, unsigned n, unsigned m,
-	const struct ucred *ucred, const struct timeval *tv, const char *label,
+	const struct socket_ucred *ucred, const struct timeval *tv, const char *label,
 	size_t label_len, const char *unit_id, int priority, pid_t object_pid)
 {
 	char pid[sizeof("_PID=") + DECIMAL_STR_MAX(pid_t)],
@@ -1091,7 +1096,7 @@ server_driver_message(Server *s, sd_id128_t message_id, const char *format, ...)
 	struct iovec iovec[N_IOVEC_META_FIELDS + 4];
 	int n = 0;
 	va_list ap;
-	struct ucred ucred = {};
+	struct socket_ucred ucred = {};
 
 	assert(s);
 	assert(format);
@@ -1120,7 +1125,7 @@ server_driver_message(Server *s, sd_id128_t message_id, const char *format, ...)
 
 void
 server_dispatch_message(Server *s, struct iovec *iovec, unsigned n, unsigned m,
-	const struct ucred *ucred, const struct timeval *tv, const char *label,
+	const struct socket_ucred *ucred, const struct timeval *tv, const char *label,
 	size_t label_len, const char *unit_id, int priority, pid_t object_pid)
 {
 	int rl, r;
@@ -1292,7 +1297,7 @@ server_process_datagram(sd_event_source *es, int fd, uint32_t revents,
 	void *userdata)
 {
 	Server *s = userdata;
-	struct ucred *ucred = NULL;
+	struct socket_ucred ucred = { 0 }, * pucred = NULL;
 	struct timeval *tv = NULL;
 	struct cmsghdr *cmsg;
 	char *label = NULL;
@@ -1342,17 +1347,23 @@ server_process_datagram(sd_event_source *es, int fd, uint32_t revents,
 		return -EIO;
 	}
 
+#ifdef SIOCINQ
 	/* Try to get the right size, if we can. (Not all
          * sockets support SIOCINQ, hence we just try, but
          * don't rely on it. */
 	(void)ioctl(fd, SIOCINQ, &v);
+#endif
 
+#ifdef SVC_PLATFORM_Linux
 	/* Fix it up, if it is too small. We use the same fixed value as auditd here. Awful! */
 	m = PAGE_ALIGN(
 		MAX3((size_t)v + 1, (size_t)LINE_MAX,
 			ALIGN(sizeof(struct nlmsghdr)) +
 				ALIGN((size_t)MAX_AUDIT_MESSAGE_LENGTH)) +
 		1);
+#else
+	m = PAGE_ALIGN(MAX((size_t) v + 1, (size_t) LINE_MAX));
+#endif
 
 	if (!GREEDY_REALLOC(s->buffer, s->buffer_size, m))
 		return log_oom();
@@ -1370,15 +1381,16 @@ server_process_datagram(sd_event_source *es, int fd, uint32_t revents,
 	}
 
 	CMSG_FOREACH (cmsg, &msghdr) {
-		if (cmsg->cmsg_level == SOL_SOCKET &&
-			cmsg->cmsg_type == SCM_CREDENTIALS &&
-			cmsg->cmsg_len == CMSG_LEN(sizeof(struct ucred)))
-			ucred = (struct ucred *)CMSG_DATA(cmsg);
+		if (cmsg_readucred(cmsg, &ucred))
+			pucred = &ucred;
+#ifdef SCM_SECURITY
 		else if (cmsg->cmsg_level == SOL_SOCKET &&
 			cmsg->cmsg_type == SCM_SECURITY) {
 			label = (char *)CMSG_DATA(cmsg);
 			label_len = cmsg->cmsg_len - CMSG_LEN(0);
-		} else if (cmsg->cmsg_level == SOL_SOCKET &&
+		}
+#endif
+		else if (cmsg->cmsg_level == SOL_SOCKET &&
 			cmsg->cmsg_type == SO_TIMESTAMP &&
 			cmsg->cmsg_len == CMSG_LEN(sizeof(struct timeval)))
 			tv = (struct timeval *)CMSG_DATA(cmsg);
@@ -1394,7 +1406,7 @@ server_process_datagram(sd_event_source *es, int fd, uint32_t revents,
 
 	if (fd == s->syslog_fd) {
 		if (n > 0 && n_fds == 0)
-			server_process_syslog_message(s, s->buffer, n, ucred,
+			server_process_syslog_message(s, s->buffer, n, pucred,
 				tv, label, label_len);
 		else if (n_fds > 0)
 			log_warning(
@@ -1402,24 +1414,29 @@ server_process_datagram(sd_event_source *es, int fd, uint32_t revents,
 
 	} else if (fd == s->native_fd) {
 		if (n > 0 && n_fds == 0)
-			server_process_native_message(s, s->buffer, n, ucred,
+			server_process_native_message(s, s->buffer, n, pucred,
 				tv, label, label_len);
 		else if (n == 0 && n_fds == 1)
-			server_process_native_file(s, fds[0], ucred, tv, label,
+			server_process_native_file(s, fds[0], pucred, tv, label,
 				label_len);
 		else if (n_fds > 0)
 			log_warning(
 				"Got too many file descriptors via native socket. Ignoring.");
 
-	} else {
+	}
+	else {
+#ifdef HAVE_AUDIT
 		assert(fd == s->audit_fd);
 
 		if (n > 0 && n_fds == 0)
-			server_process_audit_message(s, s->buffer, n, ucred,
+			server_process_audit_message(s, s->buffer, n, pucred,
 				&sa, msghdr.msg_namelen);
 		else if (n_fds > 0)
 			log_warning(
 				"Got file descriptors via audit socket. Ignoring.");
+#else
+		log_error("Data received on unknown socket.");
+#endif
 	}
 
 	close_many(fds, n_fds);
@@ -1680,6 +1697,7 @@ dispatch_hostname_change(sd_event_source *es, int fd, uint32_t revents,
 static int
 server_open_hostname(Server *s)
 {
+#ifdef SVC_PLATFORM_Linux
 	int r;
 
 	assert(s);
@@ -1712,6 +1730,7 @@ server_open_hostname(Server *s)
 	if (r < 0)
 		return log_error_errno(r,
 			"Failed to adjust priority of host name event source: %m");
+#endif
 
 	return 0;
 }
@@ -2002,7 +2021,9 @@ server_init(Server *s)
 
 			s->syslog_fd = fd;
 
-		} else if (sd_is_socket(fd, AF_NETLINK, SOCK_RAW, -1) > 0) {
+		}
+#ifdef AF_NETLINK
+		else if (sd_is_socket(fd, AF_NETLINK, SOCK_RAW, -1) > 0) {
 			if (s->audit_fd >= 0) {
 				log_error("Too many audit sockets passed.");
 				return -EINVAL;
@@ -2010,7 +2031,9 @@ server_init(Server *s)
 
 			s->audit_fd = fd;
 
-		} else {
+		}
+#endif
+		else {
 			if (!fds) {
 				fds = fdset_new();
 				if (!fds)
@@ -2057,9 +2080,11 @@ server_init(Server *s)
 	if (r < 0)
 		return r;
 
+#ifdef SVC_PLATFORM_Linux
 	s->udev = udev_new();
 	if (!s->udev)
 		return -ENOMEM;
+#endif
 
 	s->rate_limit = journal_rate_limit_new(s->rate_limit_interval,
 		s->rate_limit_burst);
@@ -2155,6 +2180,8 @@ server_done(Server *s)
 	if (s->mmap)
 		mmap_cache_unref(s->mmap);
 
+#ifdef SVC_PLATFORM_Linux
 	if (s->udev)
 		udev_unref(s->udev);
+#endif
 }

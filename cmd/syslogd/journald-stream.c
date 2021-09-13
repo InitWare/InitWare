@@ -67,7 +67,7 @@ struct StdoutStream {
 
 	int fd;
 
-	struct ucred ucred;
+	struct socket_ucred ucred;
 	char *label;
 	char *identifier;
 	char *unit_id;

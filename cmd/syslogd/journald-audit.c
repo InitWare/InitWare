@@ -438,7 +438,7 @@ finish:
 
 void
 server_process_audit_message(Server *s, const void *buffer, size_t buffer_size,
-	const struct ucred *ucred, const union sockaddr_union *sa,
+	const struct socket_ucred *ucred, const union sockaddr_union *sa,
 	socklen_t salen)
 {
 	const struct nlmsghdr *nl = buffer;

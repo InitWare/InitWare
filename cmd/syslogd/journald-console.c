@@ -45,7 +45,7 @@ prefix_timestamp(void)
 
 void
 server_forward_console(Server *s, int priority, const char *identifier,
-	const char *message, const struct ucred *ucred)
+	const char *message, const struct socket_ucred *ucred)
 {
 	struct iovec iovec[5];
 	struct timespec ts;

@@ -48,6 +48,7 @@ main(int argc, char *argv[])
 	log_set_facility(LOG_SYSLOG);
 	log_parse_environment();
 	log_open();
+	log_set_max_level(LOG_DEBUG);
 
 	umask(0022);
 
@@ -55,7 +56,10 @@ main(int argc, char *argv[])
 
 	r = server_init(&server);
 	if (r < 0)
+	{
+		log_error_errno(-r, "Failed to initialise server: %m");
 		goto finish;
+	}
 
 	server_vacuum(&server);
 	server_flush_to_var(&server, true);
