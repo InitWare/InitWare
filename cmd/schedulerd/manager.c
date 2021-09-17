@@ -461,7 +461,7 @@ manager_setup_signals(Manager *m)
 		SIGHUP, /* Reload configuration */
 		SIGUSR1, /* systemd/upstart: reconnect to D-Bus */
 		SIGUSR2, /* systemd: dump status */
-		//SIGINT, /* Kernel sends us this on control-alt-del */
+		SIGINT, /* Kernel sends us this on control-alt-del */
 		SIGWINCH, /* Kernel sends us this on kbrequest (alt-arrowup) */
 		SIGPWR, /* Some kernel drivers and upsd send us this on power failure */
 

@@ -203,6 +203,8 @@ source_free(sd_event_source *source)
 		break;
 	}
 
+	if (source->prepare_callback)
+		LIST_REMOVE(source, prepares);
 	LIST_REMOVE(source, sources);
 
 	free(source->description);
@@ -381,6 +383,9 @@ static int
 source_disable(sd_event_source *source)
 {
 	struct kevent kev;
+
+	if (source->enabled == SD_EVENT_OFF)
+		return 0;
 
 	log_trace("Disable event %s\n", source->description);
 
@@ -630,7 +635,10 @@ sd_event_add_time(sd_event *loop, sd_event_source **out, clockid_t clock,
 
 	time->timer.callback = callback;
 	time->timer.usec = usec;
-	time->timer.realtime = clock == CLOCK_REALTIME ? true : false;
+	if (clock == CLOCK_REALTIME) {
+		log_warning("REALTIME clocks not supported on this platform");
+		time->timer.realtime = true;
+	}
 
 	r = sd_event_source_set_enabled(time, SD_EVENT_ONESHOT);
 	if (!r) {
@@ -811,7 +819,7 @@ loop_kevent(sd_event *loop, usec_t timeout)
 
 	for (int i = 0; i < r; i++) {
 		struct kevent *kev = &kevs[i];
-		sd_event_source *source = kev->udata;
+		sd_event_source *source = (sd_event_source *)kev->udata;
 
 		switch (source->type) {
 		case SOURCE_IO:
@@ -979,6 +987,7 @@ sd_event_dispatch(sd_event *loop)
 	assert(loop->state == SD_EVENT_PENDING);
 
 	LIST_FOREACH_SAFE (source, &loop->pendings, pendings, tmp) {
+		sd_event_source_ref(source);
 		log_trace("Dispatching source %s/%p", source->description,
 			source);
 		r = source_dispatch(source);
@@ -988,6 +997,7 @@ sd_event_dispatch(sd_event *loop)
 			sd_event_source_set_enabled(source, SD_EVENT_OFF);
 		}
 		LIST_REMOVE(source, pendings);
+		sd_event_source_unref(source);
 	}
 
 	return r;
