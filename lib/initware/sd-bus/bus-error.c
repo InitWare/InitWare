@@ -421,15 +421,13 @@ bus_error_strerror(sd_bus_error *e, int error)
 	assert(e);
 
 	for (;;) {
-		char *x;
-
 		m = new (char, k);
 		if (!m)
 			return;
 
 		errno = 0;
-		x = strerror_r(error, m, k);
-		if (errno == ERANGE || strlen(x) >= k - 1) {
+		strerror_r(error, m, k);
+		if (errno == ERANGE || strlen(m) >= k - 1) {
 			free(m);
 			k *= 2;
 			continue;
@@ -440,43 +438,24 @@ bus_error_strerror(sd_bus_error *e, int error)
 			return;
 		}
 
-		if (x == m) {
-			if (e->_need_free > 0) {
-				/* Error is already dynamic, let's just update the message */
-				free((char *)e->message);
-				e->message = x;
+		if (e->_need_free > 0) {
+			/* Error is already dynamic, let's just update the message */
+			free((char *)e->message);
+			e->message = m;
 
-			} else {
-				char *t;
-				/* Error was const so far, let's make it dynamic, if we can */
-
-				t = strdup(e->name);
-				if (!t) {
-					free(m);
-					return;
-				}
-
-				e->_need_free = 1;
-				e->name = t;
-				e->message = x;
-			}
 		} else {
-			free(m);
+			char *t;
+			/* Error was const so far, let's make it dynamic, if we can */
 
-			if (e->_need_free > 0) {
-				char *t;
-
-				/* Error is dynamic, let's hence make the message also dynamic */
-				t = strdup(x);
-				if (!t)
-					return;
-
-				free((char *)e->message);
-				e->message = t;
-			} else {
-				/* Error is const, hence we can just override */
-				e->message = x;
+			t = strdup(e->name);
+			if (!t) {
+				free(m);
+				return;
 			}
+
+			e->_need_free = 1;
+			e->name = t;
+			e->message = m;
 		}
 
 		return;

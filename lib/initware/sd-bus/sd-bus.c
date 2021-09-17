@@ -3261,12 +3261,12 @@ prepare_callback(sd_event_source *s, void *userdata)
 
 	if (bus->output_fd != bus->input_fd) {
 		r = sd_event_source_set_io_events(bus->input_io_event_source,
-			e & POLLIN);
+			e & EPOLLIN);
 		if (r < 0)
 			goto fail;
 
 		r = sd_event_source_set_io_events(bus->output_io_event_source,
-			e & POLLOUT);
+			e & EPOLLOUT);
 	} else
 		r = sd_event_source_set_io_events(bus->input_io_event_source,
 			e);
@@ -3450,6 +3450,7 @@ sd_bus_attach_event(sd_bus *bus, sd_event *event, int priority)
 	return 0;
 
 fail:
+	log_error("Failed to attach bus I/O events");
 	sd_bus_detach_event(bus);
 	return r;
 }

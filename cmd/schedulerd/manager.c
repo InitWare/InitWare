@@ -275,8 +275,8 @@ manager_close_ask_password(Manager *m)
 	assert(m);
 
 	m->ask_password_inotify_fd = safe_close(m->ask_password_inotify_fd);
-	m->ask_password_event_source =
-		sd_event_source_unref(m->ask_password_event_source);
+	m->ask_password_event_source = sd_event_source_unref(
+		m->ask_password_event_source);
 	m->have_ask_password = -EINVAL;
 }
 
@@ -292,8 +292,8 @@ manager_check_ask_password(Manager *m)
 
 		mkdir_p_label(SVC_PKGRUNSTATEDIR "/ask-password", 0755);
 
-		m->ask_password_inotify_fd =
-			inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
+		m->ask_password_inotify_fd = inotify_init1(
+			IN_NONBLOCK | IN_CLOEXEC);
 		if (m->ask_password_inotify_fd < 0)
 			return log_error_errno(errno,
 				"inotify_init1() failed: %m");
@@ -377,8 +377,8 @@ manager_setup_time_change(Manager *m)
 	/* Uses TFD_TIMER_CANCEL_ON_SET to get notifications whenever
          * CLOCK_REALTIME makes a jump relative to CLOCK_MONOTONIC */
 
-	m->time_change_fd =
-		timerfd_create(CLOCK_REALTIME, TFD_NONBLOCK | TFD_CLOEXEC);
+	m->time_change_fd = timerfd_create(CLOCK_REALTIME,
+		TFD_NONBLOCK | TFD_CLOEXEC);
 	if (m->time_change_fd < 0)
 		return log_error_errno(errno, "Failed to create timerfd: %m");
 
@@ -461,7 +461,7 @@ manager_setup_signals(Manager *m)
 		SIGHUP, /* Reload configuration */
 		SIGUSR1, /* systemd/upstart: reconnect to D-Bus */
 		SIGUSR2, /* systemd: dump status */
-		SIGINT, /* Kernel sends us this on control-alt-del */
+		//SIGINT, /* Kernel sends us this on control-alt-del */
 		SIGWINCH, /* Kernel sends us this on kbrequest (alt-arrowup) */
 		SIGPWR, /* Some kernel drivers and upsd send us this on power failure */
 
@@ -647,13 +647,18 @@ manager_new(SystemdRunningAs running_as, bool test_run, Manager **_m)
 		goto fail;
 
 	r = sd_event_default(&m->event);
-	if (r < 0)
+	if (r < 0) {
+		log_debug_errno(-r, "Failed to setup event loop: %m");
 		goto fail;
+	}
 
 	r = sd_event_add_defer(m->event, &m->run_queue_event_source,
 		manager_dispatch_run_queue, m);
-	if (r < 0)
+	if (r < 0) {
+		log_debug_errno(-r,
+			"Failed to add defered runqueue event source: %m");
 		goto fail;
+	}
 
 	r = sd_event_source_set_priority(m->run_queue_event_source,
 		SD_EVENT_PRIORITY_IDLE);
@@ -662,12 +667,17 @@ manager_new(SystemdRunningAs running_as, bool test_run, Manager **_m)
 
 	r = sd_event_source_set_enabled(m->run_queue_event_source,
 		SD_EVENT_OFF);
-	if (r < 0)
+	if (r < 0) {
+		log_debug_errno(-r,
+			"Failed to disable runqueue event source: %m");
 		goto fail;
+	}
 
 	r = manager_setup_signals(m);
-	if (r < 0)
+	if (r < 0) {
+		log_debug_errno(-r, "Failed to setup signals: %m");
 		goto fail;
+	}
 
 	r = manager_setup_cgroup(m);
 #if 0
@@ -676,8 +686,10 @@ manager_new(SystemdRunningAs running_as, bool test_run, Manager **_m)
 #endif
 
 	r = manager_setup_time_change(m);
-	if (r < 0)
+	if (r < 0) {
+		log_debug_errno(-r, "Failed to setup time change event: %m");
 		goto fail;
+	}
 
 #ifdef SVC_USE_UDev
 	m->udev = udev_new();
@@ -719,8 +731,8 @@ manager_setup_notify(Manager *m)
 		/* First free all secondary fields */
 		free(m->notify_socket);
 		m->notify_socket = NULL;
-		m->notify_event_source =
-			sd_event_source_unref(m->notify_event_source);
+		m->notify_event_source = sd_event_source_unref(
+			m->notify_event_source);
 
 		fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK,
 			0);
@@ -740,8 +752,8 @@ manager_setup_notify(Manager *m)
 				return -EINVAL;
 			}
 
-			m->notify_socket =
-				strappend(e, "/" SVC_PKGDIRNAME "/notify");
+			m->notify_socket = strappend(e,
+				"/" SVC_PKGDIRNAME "/notify");
 		}
 		if (!m->notify_socket)
 			return log_oom();
@@ -818,8 +830,8 @@ manager_setup_cgroups_agent(Manager *m)
 		_cleanup_close_ int fd = -1;
 
 		/* First free all secondary fields */
-		m->cgroups_agent_event_source =
-			sd_event_source_unref(m->cgroups_agent_event_source);
+		m->cgroups_agent_event_source = sd_event_source_unref(
+			m->cgroups_agent_event_source);
 
 		fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK,
 			0);
@@ -1053,8 +1065,8 @@ manager_dispatch_stop_when_unneeded_queue(Manager *m)
 	assert(m);
 
 	while ((u = m->stop_when_unneeded_queue)) {
-		_cleanup_(sd_bus_error_free) sd_bus_error error =
-			SD_BUS_ERROR_NULL;
+		_cleanup_(sd_bus_error_free)
+			sd_bus_error error = SD_BUS_ERROR_NULL;
 		assert(m->stop_when_unneeded_queue);
 
 		assert(u->in_stop_when_unneeded_queue);
@@ -2153,7 +2165,9 @@ manager_dispatch_signal_fd(sd_event_source *source, int fd, uint32_t revents,
 
 	if (revents != EPOLLIN) {
 		log_warning(
-			"Got unexpected events from signal file descriptor.");
+			"Got unexpected events %x from signal file descriptor.",
+			revents);
+		abort();
 		return 0;
 	}
 
@@ -2192,6 +2206,7 @@ manager_dispatch_signal_fd(sd_event_source *source, int fd, uint32_t revents,
 			/* Fall through */
 
 		case SIGINT:
+			log_debug("Got SIGINT\n");
 			if (m->running_as == SYSTEMD_SYSTEM) {
 				manager_handle_ctrl_alt_del(m);
 				break;
@@ -2392,8 +2407,8 @@ manager_dispatch_time_change_fd(sd_event_source *source, int fd,
 		LOG_MESSAGE("Time has been changed"), NULL);
 
 	/* Restart the watch */
-	m->time_change_event_source =
-		sd_event_source_unref(m->time_change_event_source);
+	m->time_change_event_source = sd_event_source_unref(
+		m->time_change_event_source);
 	m->time_change_fd = safe_close(m->time_change_fd);
 
 	manager_setup_time_change(m);
@@ -2416,8 +2431,8 @@ manager_dispatch_idle_pipe_fd(sd_event_source *source, int fd, uint32_t revents,
 
 	m->no_console_output = m->n_on_console > 0;
 
-	m->idle_pipe_event_source =
-		sd_event_source_unref(m->idle_pipe_event_source);
+	m->idle_pipe_event_source = sd_event_source_unref(
+		m->idle_pipe_event_source);
 	manager_close_idle_pipe(m);
 
 	return 0;
@@ -3283,8 +3298,8 @@ manager_check_finished(Manager *m)
 	manager_flip_auto_status(m, false);
 
 	/* Notify Type=idle units that we are done now */
-	m->idle_pipe_event_source =
-		sd_event_source_unref(m->idle_pipe_event_source);
+	m->idle_pipe_event_source = sd_event_source_unref(
+		m->idle_pipe_event_source);
 	manager_close_idle_pipe(m);
 
 	/* Turn off confirm spawn now */

@@ -2353,7 +2353,7 @@ dispatch_exit(sd_event *e)
 
 	r = source_dispatch(p);
 
-	e->state = SD_EVENT_PASSIVE;
+	e->state = SD_EVENT_INITIAL;
 	sd_event_unref(e);
 
 	return r;
@@ -2429,7 +2429,7 @@ sd_event_prepare(sd_event *e)
 	assert_return(e, -EINVAL);
 	assert_return(!event_pid_changed(e), -ECHILD);
 	assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
-	assert_return(e->state == SD_EVENT_PASSIVE, -EBUSY);
+	assert_return(e->state == SD_EVENT_INITIAL, -EBUSY);
 
 	if (e->exit_requested)
 		goto pending;
@@ -2463,15 +2463,15 @@ sd_event_prepare(sd_event *e)
 	if (event_next_pending(e) || e->need_process_child)
 		goto pending;
 
-	e->state = SD_EVENT_PREPARED;
+	e->state = SD_EVENT_ARMED;
 
 	return 0;
 
 pending:
-	e->state = SD_EVENT_PREPARED;
+	e->state = SD_EVENT_ARMED;
 	r = sd_event_wait(e, 0);
 	if (r == 0)
-		e->state = SD_EVENT_PREPARED;
+		e->state = SD_EVENT_ARMED;
 
 	return r;
 }
@@ -2486,7 +2486,7 @@ sd_event_wait(sd_event *e, uint64_t timeout)
 	assert_return(e, -EINVAL);
 	assert_return(!event_pid_changed(e), -ECHILD);
 	assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
-	assert_return(e->state == SD_EVENT_PREPARED, -EBUSY);
+	assert_return(e->state == SD_EVENT_ARMED, -EBUSY);
 
 	if (e->exit_requested) {
 		e->state = SD_EVENT_PENDING;
@@ -2586,7 +2586,7 @@ sd_event_wait(sd_event *e, uint64_t timeout)
 	r = 0;
 
 finish:
-	e->state = SD_EVENT_PASSIVE;
+	e->state = SD_EVENT_INITIAL;
 
 	return r;
 }
@@ -2611,14 +2611,14 @@ sd_event_dispatch(sd_event *e)
 
 		e->state = SD_EVENT_RUNNING;
 		r = source_dispatch(p);
-		e->state = SD_EVENT_PASSIVE;
+		e->state = SD_EVENT_INITIAL;
 
 		sd_event_unref(e);
 
 		return r;
 	}
 
-	e->state = SD_EVENT_PASSIVE;
+	e->state = SD_EVENT_INITIAL;
 
 	return 1;
 }
@@ -2631,7 +2631,7 @@ sd_event_run(sd_event *e, uint64_t timeout)
 	assert_return(e, -EINVAL);
 	assert_return(!event_pid_changed(e), -ECHILD);
 	assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
-	assert_return(e->state == SD_EVENT_PASSIVE, -EBUSY);
+	assert_return(e->state == SD_EVENT_INITIAL, -EBUSY);
 
 	r = sd_event_prepare(e);
 	if (r > 0)
@@ -2653,7 +2653,7 @@ sd_event_loop(sd_event *e)
 
 	assert_return(e, -EINVAL);
 	assert_return(!event_pid_changed(e), -ECHILD);
-	assert_return(e->state == SD_EVENT_PASSIVE, -EBUSY);
+	assert_return(e->state == SD_EVENT_INITIAL, -EBUSY);
 
 	sd_event_ref(e);
 

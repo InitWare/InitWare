@@ -763,6 +763,8 @@ bus_on_connection(sd_event_source *s, int fd, uint32_t revents, void *userdata)
 		return 0;
 	}
 
+	asprintf(&bus->description, "Manager Private Bus %d", nfd);
+
 	r = sd_bus_set_fd(bus, nfd, nfd);
 	if (r < 0) {
 		log_warning_errno(r,
@@ -1057,7 +1059,7 @@ bus_init_private(Manager *m)
 		}
 
 		left = strpcpy(&p, left, e);
-		left = strpcpy(&p, left, "/systemd/private");
+		left = strpcpy(&p, left, "/" SVC_PKGDIRNAME "/private");
 
 		salen = sizeof(sa.un) - left;
 	}

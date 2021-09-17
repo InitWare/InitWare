@@ -1,24 +1,5 @@
-#ifndef foosdeventhfoo
-#define foosdeventhfoo
-
-/***
-  This file is part of systemd.
-
-  Copyright 2013 Lennart Poettering
-
-  systemd is free software; you can redistribute it and/or modify it
-  under the terms of the GNU Lesser General Public License as published by
-  the Free Software Foundation; either version 2.1 of the License, or
-  (at your option) any later version.
-
-  systemd is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-  Lesser General Public License for more details.
-
-  You should have received a copy of the GNU Lesser General Public License
-  along with systemd; If not, see <http://www.gnu.org/licenses/>.
-***/
+#ifndef SD_EVENT_H_
+#define SD_EVENT_H_
 
 #include <sys/types.h>
 #include <sys/epoll.h>
@@ -27,15 +8,6 @@
 #include <signal.h>
 
 #include "_sd-common.h"
-
-/*
-  Why is this better than pure epoll?
-
-  - Supports event source prioritization
-  - Scales better with a large number of time events because it does not require one timerfd each
-  - Automatically tries to coalesce timer events system-wide
-  - Handles signals and child PIDs
-*/
 
 _SD_BEGIN_DECLARATIONS;
 
@@ -48,16 +20,18 @@ typedef enum sd_event_source_enabled {
 	SD_EVENT_OFF = 0,
 	SD_EVENT_ON = 1,
 	SD_EVENT_ONESHOT = -1
-} sd_event_source_enabled;
+} sd_event_source_enabled_t;
 
-enum {
-	SD_EVENT_PASSIVE,
-	SD_EVENT_PREPARED,
-	SD_EVENT_PENDING,
-	SD_EVENT_RUNNING,
-	SD_EVENT_EXITING,
-	SD_EVENT_FINISHED
-};
+/* The state of the event loop. */
+typedef enum sd_event_loop_status {
+	SD_EVENT_INITIAL, /* newly created */
+	SD_EVENT_PREPARING, /* preparing an event source */
+	SD_EVENT_ARMED, /* waited but no events ready yet */
+	SD_EVENT_PENDING, /* waited and events are ready to dispatch */
+	SD_EVENT_RUNNING, /* dispatching event source */
+	SD_EVENT_EXITING, /* running exit callbacks */
+	SD_EVENT_FINISHED, /* event loop exited */
+} sd_event_loop_status_t;
 
 enum {
 	/* And everything in-between and outside is good too */
@@ -98,13 +72,64 @@ int sd_event_add_post(sd_event *e, sd_event_source **s,
 int sd_event_add_exit(sd_event *e, sd_event_source **s,
 	sd_event_handler_t callback, void *userdata);
 
+/**
+ * Prepare for a loop iteration and poll for events, returning immediately.
+ *
+ * \pre Loop in SD_EVENT_INITIAL state.
+ *
+ * @retval -errno an error occured.
+ * @retval 0 no events were returned; loop now in SD_EVENT_ARMED state;
+ * now call sd_event_wait().
+ * @retval >0 events were returned; loop now in SD_EVENT_PENDING state; now call
+ * sd_event_dispatch().
+ */
 int sd_event_prepare(sd_event *e);
+/**
+ * Wait up to \p timeout milliseconds for an event to be received.
+ *
+ * \pre Loop in SD_EVENT_ARMED state.
+ *
+ * @retval -errno an error occured.
+ * @retval 0 no events were returned; loop now in SD_EVENT_INITIAL state; now
+ * call sd_event_prepare().
+ * @retval >0 events were returend; loop now in SD_EVENT_PENDING state; now call
+ * sd_event_dispatch().
+ */
 int sd_event_wait(sd_event *e, uint64_t timeout);
+/**
+ * Dispatch pending loop events.
+ *
+ * \pre Loop in SD_EVENT_PENDING state.
+ *
+ * @retval -errno an error occured.
+ * @retval 0 events or at least exit callbacks dispatched; loop now in
+ * SD_EVENT_FINISHED state.
+ * @retval >0 events were dispatched; loop now in SD_EVENT_INITIAL state.
+ */
 int sd_event_dispatch(sd_event *e);
+/**
+ * Run a single iteration of the event loop.
+ *
+ * @retval <0 an error occurred.
+ * @retval 0 timeout elapsed before event dispatch.
+ * @retval >0 at least one event source dispatched; state is now SD_EVENT_INITIAL
+ */
 int sd_event_run(sd_event *e, uint64_t timeout);
+/**
+ * Run the event loop.
+ *
+ * @retval <0 an error occurred.
+ * @retval >= 0 loop finished; return code is the exit value of the loop.
+ */
 int sd_event_loop(sd_event *e);
+/**
+ * Request the event loop to exit with the given code.
+ */
 int sd_event_exit(sd_event *e, int code);
 
+/**
+ * Request the time at which the last iteration of the event loop started.
+ */
 int sd_event_now(sd_event *e, clockid_t clock, uint64_t *usec);
 
 int sd_event_get_fd(sd_event *e);
@@ -148,4 +173,4 @@ int sd_event_source_get_child_pid(sd_event_source *s, pid_t *pid);
 
 _SD_END_DECLARATIONS;
 
-#endif
+#endif /* SD_EVENT_H_ */

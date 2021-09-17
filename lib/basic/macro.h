@@ -226,6 +226,17 @@ ALIGN_POWER2(unsigned long u)
 							    UNIQ_T(X, xq);           \
 	})
 
+#define CMP(a, b) __CMP(UNIQ, (a), UNIQ, (b))
+#define __CMP(aq, a, bq, b)                                                    \
+	({                                                                     \
+		const typeof(a) UNIQ_T(A, aq) = (a);                           \
+		const typeof(b) UNIQ_T(B, bq) = (b);                           \
+		UNIQ_T(A, aq)<UNIQ_T(B, bq) ? -1 : UNIQ_T(A, aq)> UNIQ_T(B,    \
+			bq) ?                                                  \
+			      1 :                                                    \
+			      0;                                                     \
+	})
+
 /* [(x + y - 1) / y] suffers from an integer overflow, even though the
  * computation should be possible in the given type. Therefore, we use
  * [x / y + !!(x % y)]. Note that on "Real CPUs" a division returns both the
