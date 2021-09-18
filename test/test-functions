@@ -316,7 +316,7 @@ install_terminfo() {
 
 setup_testsuite() {
     cp $TEST_BASE_DIR/testsuite.target $initdir/usr/local/etc/InitWare/system/
-    sed "s#@SYSTEMCTL@#$(type -P systemctl)#g" $TEST_BASE_DIR/end.service.in > $initdir/usr/local/etc/InitWare/system/end.service
+    sed "s#@SVC_PKGBINDIR@/svcctl#$(type -P systemctl)#g" $TEST_BASE_DIR/end.service.in > $initdir/usr/local/etc/InitWare/system/end.service
 
     mkdir -p $initdir/usr/local/etc/InitWare/system/testsuite.target.wants
     ln -fs $TEST_BASE_DIR/testsuite.service $initdir/usr/local/etc/InitWare/system/testsuite.target.wants/testsuite.service

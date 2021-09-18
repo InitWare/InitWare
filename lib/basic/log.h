@@ -21,10 +21,10 @@
 
 #include <sys/types.h>
 #include <sys/signalfd.h>
+#include <sys/syslog.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include <syslog.h>
 #include <unistd.h>
 
 #include "macro.h"

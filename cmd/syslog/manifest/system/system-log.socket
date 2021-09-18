@@ -1,0 +1,29 @@
+#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+
+[Unit]
+Description=InitWare System Log Sockets
+Documentation=man:svc.syslogd(8) man:journald.conf(5)
+DefaultDependencies=no
+Before=sockets.target
+
+# Mount and swap units need this. If this socket unit is removed by an
+# isolate request the mount and swap units would be removed too,
+# hence let's exclude this from isolate requests.
+IgnoreOnIsolate=yes
+
+[Socket]
+ListenStream=@SVC_PKGRUNSTATEDIR@/journal/stdout
+ListenDatagram=@SVC_PKGRUNSTATEDIR@/journal/socket
+#ListenDatagram=/dev/log
+SocketMode=0666
+PassCredentials=yes
+PassSecurity=yes
+ReceiveBuffer=8M
+
+[Install]
+Alias=systemd-journald.socket

@@ -35,6 +35,8 @@
 	"rtnl-util.h": "c",
 	"cstdlib": "c",
 	"sd-event.h": "c",
-	"bsdqueue.h": "c"
+	"bsdqueue.h": "c",
+	"cmath": "cpp",
+	"syslog.h": "c"
 }
 }

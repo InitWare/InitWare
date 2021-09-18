@@ -21,13 +21,34 @@ add_custom_command(
 add_executable(svc.schedulerd cgroup.c dbus-cgroup.c dbus-execute.c dbus-job.c
     dbus-kill.c dbus-manager.c dbus-path.c dbus-scope.c dbus-service.c
     dbus-slice.c dbus-snapshot.c dbus-socket.c dbus-target.c dbus-timer.c
-    dbus-unit.c dbus.c emergency-action.c execute.c job.c ima-setup.c kill.c load-dropin.c
-    load-fragment.c main.c manager.c path.c scope.c selinux-access.c selinux-setup.c service.c show-status.c
-    slice.c smack-setup.c snapshot.c socket.c target.c timer.c transaction.c unit-printf.c
-    unit.c
-    hostname-setup.c  kmod-setup.c locale-setup.c loopback-setup.c machine-id-setup.c mount-setup.c
-
+    dbus-unit.c dbus.c emergency-action.c execute.c job.c ima-setup.c kill.c
+    load-dropin.c load-fragment.c main.c manager.c path.c scope.c
+    selinux-access.c selinux-setup.c service.c show-status.c slice.c
+    smack-setup.c snapshot.c socket.c target.c timer.c transaction.c
+    unit-printf.c unit.c
+    hostname-setup.c  kmod-setup.c locale-setup.c loopback-setup.c
+    machine-id-setup.c mount-setup.c
     ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.c
     ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf-nulstr.c)
 target_include_directories(svc.schedulerd PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(svc.schedulerd initware)
+
+set(MANIFESTS_IN emergency.service.in systemd-halt.service.in
+    systemd-kexec.service.in halt-local.service.in
+    systemd-hibernate-resume@.service.in systemd-reboot.service.in
+    rc-local.service.in systemd-hibernate.service.in rescue.service.in
+    systemd-hybrid-sleep.service.in user@.service.in)
+set(MANIFESTS basic.target bluetooth.target cryptsetup-pre.target
+    cryptsetup.target emergency.target final.target getty-pre.target
+    getty.target graphical.target halt.target hibernate.target
+    hybrid-sleep.target kexec.target local-fs-pre.target local-fs.target
+    machine.slice machines.target multi-user.target network-online.target
+    network-pre.target network.target nss-lookup.target nss-user-lookup.target
+    paths.target poweroff.target printer.target reboot.target
+    remote-cryptsetup.target remote-fs-pre.target remote-fs.target rescue.target
+    rpcbind.target shutdown.target sigpwr.target sleep.target -.slice
+    slices.target smartcard.target sockets.target sound.target suspend.target
+    swap.target sysinit.target system.slice system-update.target timers.target
+    time-sync.target tmp.mount umount.target user.slice)
+
+install_manifests(SYSTEM_IN ${MANIFESTS_IN} SYSTEM ${MANIFESTS})

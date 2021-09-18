@@ -21,10 +21,10 @@
 ***/
 
 #include <sys/types.h>
+#include <sys/syslog.h>
 #include <sys/uio.h>
 #include <inttypes.h>
 #include <stdarg.h>
-#include <syslog.h>
 
 #include "_sd-common.h"
 #include "sd-id128.h"

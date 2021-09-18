@@ -4,7 +4,7 @@ copy.c device-nodes.c dropin.c efivars.c env-util.c exit-status.c fdset.c
 fileio-label.c fileio.c fstab-util.c generator.c gunicode.c
 ima-util.c import-util.c in-addr-util.c install-printf.c install.c
 json.c label.c locale-util.c log.c login-shared.c
-mkdir-label.c mkdir.c pager.c path-lookup.c path-util.c 
+mkdir-label.c mkdir.c pager.c path-lookup.c path-util.c
 pty.c ratelimit.c replace-var.c ring.c selinux-util.c sigbus.c
 sleep-config.c smack-util.c socket-label.c socket-util.c
 spawn-ask-password-agent.c spawn-polkit-agent.c specifier.c

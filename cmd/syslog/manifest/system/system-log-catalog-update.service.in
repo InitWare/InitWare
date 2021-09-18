@@ -1,0 +1,24 @@
+#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+
+[Unit]
+Description=Rebuild System Log Catalog
+Documentation=man:svc.syslogd(8) man:journald.conf(5)
+DefaultDependencies=no
+Conflicts=shutdown.target
+After=local-fs.target
+Before=sysinit.target shutdown.target systemd-update-done.service
+ConditionNeedsUpdate=/etc
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=@rootbindir@/sysloglctl --update-catalog
+TimeoutSec=90s
+
+[Install]
+Alias=systemd-journal-catalog-update.service

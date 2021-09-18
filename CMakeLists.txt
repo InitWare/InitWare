@@ -20,6 +20,8 @@ include(CheckLibraryExists)
 include(CheckSymbolExists)
 include(CheckTypeSize)
 
+set(MANIFESTS_INSTALL)
+
 list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE -D__BSD_VISIBLE")
 
 macro (check_type_size_in type headers var)
@@ -50,6 +52,24 @@ function(build_m4 in out)
 	    DEPENDS ${in})
 endfunction(build_m4)
 
+function (install_manifests)
+	cmake_parse_arguments(MFST "NONE" "NO" "SYSTEM_IN;SYSTEM;USER_IN;USER"
+	    ${ARGN})
+
+	foreach (MANIFEST_IN ${MFST_SYSTEM_IN})
+		get_filename_component(MANIFEST_OUT ${MANIFEST_IN} NAME_WLE)
+		configure_file(manifest/system/${MANIFEST_IN}
+		    manifest/system/${MANIFEST_OUT})
+		install(FILES
+		    ${CMAKE_CURRENT_BINARY_DIR}/manifest/system/${MANIFEST_OUT}
+		    DESTINATION ${SYSTEM_DATA_UNIT_PATH})
+	endforeach ()
+
+	foreach (MANIFEST ${MFST_SYSTEM})
+		install(FILES manifest/system/${MANIFEST}
+		    DESTINATION ${SYSTEM_DATA_UNIT_PATH})
+	endforeach ()
+endfunction ()
 
 # ------------------------------------------------------------------------------
 # feature checks

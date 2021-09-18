@@ -38,12 +38,14 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 
 #include "bsdstatfs.h"
 #include "bsducred.h"
 #include "def.h"
+#include "log.h"
 
 #ifdef HAVE_alloca_h
 #include <alloca.h>

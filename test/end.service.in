@@ -3,4 +3,4 @@ Description=End the test
 After=testsuite.service
 
 [Service]
-ExecStart=@SYSTEMCTL@ poweroff --no-block
+ExecStart=@SVC_PKGBINDIR@/svcctl poweroff --no-block
