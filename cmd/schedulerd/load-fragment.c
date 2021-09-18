@@ -3332,7 +3332,7 @@ open_follow(char **filename, FILE **_f, Set *names, char **_final)
 		if (fd >= 0)
 			break;
 
-		if (errno != ELOOP)
+		if (errno != NOFOLLOW_SYMLINK_ERRNO)
 			return -errno;
 
 		/* Hmm, so this is a symlink. Let's read the name, and follow it manually */

@@ -2167,7 +2167,6 @@ manager_dispatch_signal_fd(sd_event_source *source, int fd, uint32_t revents,
 		log_warning(
 			"Got unexpected events %x from signal file descriptor.",
 			revents);
-		abort();
 		return 0;
 	}
 

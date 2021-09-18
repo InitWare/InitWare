@@ -1017,7 +1017,7 @@ unit_file_load_or_readlink(InstallContext *c, InstallInfo *info,
 	int r;
 
 	r = unit_file_load(c, info, path, root_dir, flags);
-	if (r != -ELOOP)
+	if (r != -NOFOLLOW_SYMLINK_ERRNO)
 		return r;
 
 	/* This is a symlink, let's read it. */

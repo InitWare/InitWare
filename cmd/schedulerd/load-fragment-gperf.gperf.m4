@@ -38,6 +38,7 @@ $1.SyslogIdentifier,             config_parse_unit_string_printf,    0,         
 $1.SyslogFacility,               config_parse_log_facility,          0,                             offsetof($1, exec_context.syslog_priority)
 $1.SyslogLevel,                  config_parse_log_level,             0,                             offsetof($1, exec_context.syslog_priority)
 $1.SyslogLevelPrefix,            config_parse_bool,                  0,                             offsetof($1, exec_context.syslog_level_prefix)
+m4_dnl
 m4_ifdef(`SVC_PLATFORM_Linux',
 `$1.OOMScoreAdjust,               config_parse_exec_oom_score_adjust, 0,                             offsetof($1, exec_context)
 $1.IOSchedulingClass,            config_parse_exec_io_class,         0,                             offsetof($1, exec_context)
@@ -51,8 +52,22 @@ $1.SecureBits,                   config_parse_exec_secure_bits,      0,         
 $1.CapabilityBoundingSet,        config_parse_capability_set,        0,                             offsetof($1, exec_context.capability_bounding_set)
 $1.AmbientCapabilities,          config_parse_capability_set,        0,                             offsetof($1, exec_context.capability_ambient_set)
 $1.TimerSlackNSec,               config_parse_nsec,                  0,                             offsetof($1, exec_context.timer_slack_nsec)
-$1.NoNewPrivileges,              config_parse_no_new_privileges,     0,                             offsetof($1, exec_context)'
+$1.NoNewPrivileges,              config_parse_no_new_privileges,     0,                             offsetof($1, exec_context)',
+`$1.OOMScoreAdjust,              config_parse_warn_compat,	DISABLED_CONFIGURATION,                             0
+$1.IOSchedulingClass,            config_parse_warn_compat,	DISABLED_CONFIGURATION,                             0
+$1.IOSchedulingPriority,         config_parse_warn_compat,	DISABLED_CONFIGURATION,                             0
+$1.CPUSchedulingPolicy,          config_parse_warn_compat,	DISABLED_CONFIGURATION,                             0
+$1.CPUSchedulingPriority,        config_parse_warn_compat,	DISABLED_CONFIGURATION,                             0
+$1.CPUSchedulingResetOnFork,     config_parse_warn_compat,	DISABLED_CONFIGURATION,                             0
+$1.CPUAffinity,                  config_parse_warn_compat,	DISABLED_CONFIGURATION,                             0
+$1.Capabilities,                 config_parse_warn_compat,	DISABLED_CONFIGURATION,                             0
+$1.SecureBits,                   config_parse_warn_compat,	DISABLED_CONFIGURATION,                             0
+$1.CapabilityBoundingSet,        config_parse_warn_compat,	DISABLED_CONFIGURATION,                             0
+$1.AmbientCapabilities,          config_parse_warn_compat,	DISABLED_CONFIGURATION,                             0
+$1.TimerSlackNSec,               config_parse_warn_compat,	DISABLED_CONFIGURATION,                             0
+$1.NoNewPrivileges,              config_parse_warn_compat,	DISABLED_CONFIGURATION,                             0'
 )m4_dnl
+m4_dnl
 m4_ifdef(`HAVE_SECCOMP',
 `$1.SystemCallFilter,            config_parse_syscall_filter,        0,                             offsetof($1, exec_context)
 $1.SystemCallArchitectures,      config_parse_syscall_archs,         0,                             offsetof($1, exec_context.syscall_archs)

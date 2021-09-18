@@ -9,6 +9,9 @@ set(SYSTEMD_VERSION 219)
 set(DISTRIBUTION "${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_VERSION}")
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+# don't let CMake stupidly strip out /usr/pkg/lib from rpath when installing to
+# /usr/local on NetBSD.
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 include(FindPkgConfig)
 include(GNUInstallDirs)

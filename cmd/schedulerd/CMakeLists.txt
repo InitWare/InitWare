@@ -52,3 +52,4 @@ set(MANIFESTS basic.target bluetooth.target cryptsetup-pre.target
     time-sync.target tmp.mount umount.target user.slice)
 
 install_manifests(SYSTEM_IN ${MANIFESTS_IN} SYSTEM ${MANIFESTS})
+install(TARGETS svc.schedulerd DESTINATION ${SVC_PKGLIBEXECDIR})

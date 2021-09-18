@@ -104,4 +104,12 @@ extern char **environ;
 int getrandom(void *buf, size_t buflen, unsigned int flags);
 #endif
 
+#ifdef SVC_PLATFORM_NetBSD
+#define NOFOLLOW_SYMLINK_ERRNO EFTYPE
+#elif defined(SVC_PLATFORM_FreeBSD)
+#define NOFOLLOW_SYMLINK_ERRNO EMLOOP
+#else
+#define NOFOLLOW_SYMLINK_ERRNO ELOOP
+#endif
+
 #endif /* BSDGLIBC_H_ */
