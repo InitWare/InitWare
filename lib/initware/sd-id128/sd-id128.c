@@ -180,7 +180,11 @@ sd_id128_get_boot(sd_id128_t *ret)
 	fd = open("/proc/sys/kernel/random/boot_id",
 		O_RDONLY | O_CLOEXEC | O_NOCTTY);
 	if (fd < 0)
-		return -errno;
+	{
+		// TODO: unique boot ID portability
+		// return -errno;
+		return sd_id128_get_machine(ret);
+	}
 
 	k = loop_read(fd, buf, 36, false);
 	if (k < 0)

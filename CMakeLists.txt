@@ -195,6 +195,27 @@ CACHE STRING
     "Full path to the directory for storing D-Bus system service configuration."
 )
 
+if (SVC_USE_systemd_paths)
+	set(DEFAULT_SVC_PERSISTENTLOGDIR 
+	    "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log/journal")
+	set(DEFAULT_SVC_RUNTIMELOGDIR "${SVC_RUNSTATEDIR}/log")
+else ()
+	set(DEFAULT_SVC_PERSISTENTLOGDIR "/var/log/iwsl")
+	set(DEFAULT_SVC_RUNTIMELOGDIR "${SVC_RUNSTATEDIR}/iwsl")
+endif ()
+
+set(SVC_PERSISTENTLOGDIR
+"${DEFAULT_SVC_PERSISTENTLOGDIR}"
+CACHE STRING
+    "Full path to the directory for storing persistentlogs in."
+)
+
+set(SVC_RUNTIMELOGDIR
+"${DEFAULT_SVC_RUNTIMELOGDIR}"
+CACHE STRING
+    "Full path to the directory for storing runtime logs in."
+)
+
 # -------------------------------------------------------------------------------
 # computed paths
 # -------------------------------------------------------------------------------

@@ -1073,7 +1073,7 @@ DEFINE_STRING_TABLE_LOOKUP(log_target, LogTarget);
 void
 log_received_signal(int level, const struct signalfd_siginfo *si)
 {
-	if (si->ssi_pid > 0) {
+	if (si != NULL && si->ssi_pid > 0) {
 		_cleanup_free_ char *p = NULL;
 
 		get_process_comm(si->ssi_pid, &p);
@@ -1082,7 +1082,7 @@ log_received_signal(int level, const struct signalfd_siginfo *si)
 			signal_to_string(si->ssi_signo), si->ssi_pid, strna(p));
 	} else
 		log_full(level, "Received SIG%s.",
-			signal_to_string(si->ssi_signo));
+			si ? signal_to_string(si->ssi_signo) : "NAL");
 }
 
 void

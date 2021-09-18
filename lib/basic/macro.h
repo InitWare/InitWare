@@ -483,7 +483,7 @@ IOVEC_INCREMENT(struct iovec *i, unsigned n, size_t k)
 	defined(SVC_PREFIX_IS_USRLOCAL)
 #define CONF_DIR_PREFIX(n)
 #else
-#define CONF_DIR_PREFIX(n) SVC_PREFIX "/lib" n ".d\0"
+#define CONF_DIR_PREFIX(n) SVC_PREFIX "/lib/" n ".d\0"
 #endif
 
 /* Define C11 thread_local attribute even on older gcc compiler

@@ -1419,10 +1419,10 @@ add_file(sd_journal *j, const char *prefix, const char *filename)
 
 	path = strjoina(prefix, "/", filename);
 
-	if (!j->has_runtime_files && path_startswith(path, "/run/log/journal"))
+	if (!j->has_runtime_files && path_startswith(path, SVC_RUNTIMELOGDIR))
 		j->has_runtime_files = true;
 	else if (!j->has_persistent_files &&
-		path_startswith(path, "/var/log/journal"))
+		path_startswith(path, SVC_PERSISTENTLOGDIR))
 		j->has_persistent_files = true;
 
 	return add_any_file(j, path);
@@ -1788,8 +1788,8 @@ remove_directory(sd_journal *j, Directory *d)
 static int
 add_search_paths(sd_journal *j)
 {
-	static const char search_paths[] = "/run/log/journal\0"
-					   "/var/log/journal\0";
+	static const char search_paths[] = SVC_RUNTIMELOGDIR "\0"
+					   SVC_PERSISTENTLOGDIR "\0";
 	const char *p;
 
 	assert(j);

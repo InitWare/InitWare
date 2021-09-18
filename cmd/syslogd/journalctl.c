@@ -1556,15 +1556,15 @@ setup_keys(void)
 	uint64_t n;
 	struct stat st;
 
-	r = stat("/var/log/journal", &st);
+	r = stat(SVC_PERSISTENTLOGDIR, &st);
 	if (r < 0 && errno != ENOENT && errno != ENOTDIR)
 		return log_error_errno(errno, "stat(\"%s\") failed: %m",
-			"/var/log/journal");
+			SVC_PERSISTENTLOGDIR);
 
 	if (r < 0 || !S_ISDIR(st.st_mode)) {
 		log_error(
 			"%s is not a directory, must be using persistent logging for FSS.",
-			"/var/log/journal");
+			SVC_PERSISTENTLOGDIR);
 		return r < 0 ? -errno : -ENOTDIR;
 	}
 
@@ -1576,7 +1576,7 @@ setup_keys(void)
 	if (r < 0)
 		return log_error_errno(r, "Failed to get boot ID: %m");
 
-	if (asprintf(&p, "/var/log/journal/" SD_ID128_FORMAT_STR "/fss",
+	if (asprintf(&p, SVC_PERSISTENTLOGDIR "/" SD_ID128_FORMAT_STR "/fss",
 		    SD_ID128_FORMAT_VAL(machine)) < 0)
 		return log_oom();
 
@@ -1599,7 +1599,7 @@ setup_keys(void)
 	}
 
 	if (asprintf(&k,
-		    "/var/log/journal/" SD_ID128_FORMAT_STR "/fss.tmp.XXXXXX",
+		    SVC_PERSISTENTLOGDIR "/" SD_ID128_FORMAT_STR "/fss.tmp.XXXXXX",
 		    SD_ID128_FORMAT_VAL(machine)) < 0) {
 		r = log_oom();
 		goto finish;
@@ -1857,10 +1857,10 @@ access_check_var_log_journal(sd_journal *j)
 		return 0;
 
 #ifdef HAVE_ACL
-	if (laccess("/run/log/journal", F_OK) >= 0)
-		dir = "/run/log/journal";
+	if (laccess(SVC_RUNTIMELOGDIR, F_OK) >= 0)
+		dir = SVC_RUNTIMELOGDIR;
 	else
-		dir = "/var/log/journal";
+		dir = SVC_PERSISTENTLOGDIR;
 
 	/* If we are in any of the groups listed in the journal ACLs,
          * then all is good, too. Let's enumerate all groups from the

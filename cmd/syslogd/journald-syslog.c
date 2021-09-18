@@ -454,6 +454,8 @@ server_open_syslog_socket(Server *s)
 		return log_error_errno(r,
 			"Failed to adjust syslog event source priority: %m");
 
+	sd_event_source_set_description(s->syslog_event_source, "BSD Syslog Socket");
+
 	return 0;
 }
 

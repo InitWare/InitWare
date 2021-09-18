@@ -180,10 +180,10 @@ available_space(Server *s, bool verbose)
 		return 0;
 
 	if (s->system_journal) {
-		f = "/var/log/journal/";
+		f = SVC_PERSISTENTLOGDIR "/";
 		m = &s->system_metrics;
 	} else {
-		f = "/run/log/journal/";
+		f = SVC_RUNTIMELOGDIR "/";
 		m = &s->runtime_metrics;
 	}
 
@@ -350,9 +350,9 @@ system_journal_open(Server *s, bool flush_requested, bool verbose)
                  * the machine path */
 
 		if (s->storage == STORAGE_PERSISTENT)
-			(void)mkdir_p("/var/log/journal/", 0755);
+			(void)mkdir_p(SVC_PERSISTENTLOGDIR "/", 0755);
 
-		fn = strjoina("/var/log/journal/", ids);
+		fn = strjoina(SVC_PERSISTENTLOGDIR "/", ids);
 		(void)mkdir(fn, 0755);
 
 		fn = strjoina(fn, "/system.journal");
@@ -385,7 +385,7 @@ system_journal_open(Server *s, bool flush_requested, bool verbose)
 	if (!s->runtime_journal && (s->storage != STORAGE_NONE)) {
 		sd_id128_to_string(machine, ids);
 
-		fn = strjoin("/run/log/journal/", ids, "/system.journal", NULL);
+		fn = strjoin(SVC_RUNTIMELOGDIR "/", ids, "/system.journal", NULL);
 		if (!fn)
 			return -ENOMEM;
 
@@ -411,8 +411,7 @@ system_journal_open(Server *s, bool flush_requested, bool verbose)
 			/* OK, we really need the runtime journal, so create
                          * it if necessary. */
 
-			(void)mkdir("/run/log", 0755);
-			(void)mkdir("/run/log/journal", 0755);
+			(void)mkdir_p(SVC_RUNTIMELOGDIR, 0755);
 			(void)mkdir_parents(fn, 0750);
 
 			r = journal_file_open_reliably(fn, O_RDWR | O_CREAT,
@@ -478,7 +477,7 @@ find_journal(Server *s, uid_t uid)
 		return f;
 
 	if (asprintf(&p,
-		    "/var/log/journal/" SD_ID128_FORMAT_STR "/user-" UID_FMT
+		    SVC_PERSISTENTLOGDIR "/" SD_ID128_FORMAT_STR "/user-" UID_FMT
 		    ".journal",
 		    SD_ID128_FORMAT_VAL(machine), uid) < 0)
 		return s->system_journal;
@@ -631,9 +630,9 @@ server_vacuum(Server *s)
 	}
 	sd_id128_to_string(machine, ids);
 
-	do_vacuum(s, ids, s->system_journal, "/var/log/journal/",
+	do_vacuum(s, ids, s->system_journal, SVC_PERSISTENTLOGDIR "/",
 		&s->system_metrics);
-	do_vacuum(s, ids, s->runtime_journal, "/run/log/journal/",
+	do_vacuum(s, ids, s->runtime_journal, SVC_RUNTIMELOGDIR "/",
 		&s->runtime_metrics);
 
 	s->cached_available_space_timestamp = 0;
@@ -1279,7 +1278,7 @@ finish:
 	s->runtime_journal = NULL;
 
 	if (r >= 0)
-		rm_rf("/run/log/journal", false, true, false);
+		rm_rf(SVC_RUNTIMELOGDIR, false, true, false);
 
 	sd_journal_close(j);
 

@@ -48,7 +48,7 @@
 #include "journal-remote-write.h"
 #include "journal-remote.h"
 
-#define REMOTE_JOURNAL_PATH "/var/log/journal/remote"
+#define REMOTE_JOURNAL_PATH SVC_PERSISTENTLOGDIR "/remote"
 
 #define PRIV_KEY_FILE CERTIFICATE_ROOT "/private/journal-remote.pem"
 #define CERT_FILE CERTIFICATE_ROOT "/certs/journal-remote.pem"

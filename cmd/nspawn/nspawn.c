@@ -1941,8 +1941,8 @@ setup_journal(const char *directory)
 		return 0;
 
 	free(p);
-	p = strappend("/var/log/journal/", id);
-	q = strjoin(directory, "/var/log/journal/", id, NULL);
+	p = strappend(SVC_PERSISTENTLOGDIR "/", id);
+	q = strjoin(directory, SVC_PERSISTENTLOGDIR "/", id, NULL);
 	if (!p || !q)
 		return log_oom();
 

@@ -41,7 +41,7 @@
 				goto done;                                     \
 			} else if (r == 0)                                     \
 				goto done; /* already present */               \
-			tmpelm = elm;                                          \
+			tmpelm = curelm;                                       \
 		}                                                              \
 		LIST_INSERT_AFTER(tmpelm, elm, field);                         \
 	done:                                                                  \
@@ -152,7 +152,14 @@ struct sd_event {
 	bool is_default;
 	sd_event_loop_status_t state;
 
+	bool should_exit;
+	int exit_code;
+
+	uint64_t ts_monotonic; /* monotonic time of last poll */
+	uint64_t ts_realtime; /* realtime time of last poll */
+
 	int kq;
+
 	LIST_HEAD(sources, sd_event_source) sources;
 	LIST_HEAD(prepares, sd_event_source) prepares;
 	LIST_HEAD(pendings, sd_event_source) pendings;
@@ -205,6 +212,7 @@ source_free(sd_event_source *source)
 
 	if (source->prepare_callback)
 		LIST_REMOVE(source, prepares);
+
 	LIST_REMOVE(source, sources);
 
 	free(source->description);
@@ -232,8 +240,9 @@ static void
 loop_free(sd_event *loop)
 {
 	sd_event_source *source, *tmp;
-	LIST_FOREACH_SAFE (source, &loop->sources, sources, tmp)
-		source_free(source);
+	LIST_FOREACH_SAFE (source, &loop->sources, sources, tmp) {
+		sd_event_source_unref(source);
+	}
 	close(loop->kq);
 	free(loop);
 }
@@ -287,6 +296,7 @@ sd_event_source *
 sd_event_source_ref(sd_event_source *source)
 {
 	source->refcnt++;
+
 	return source;
 }
 
@@ -305,7 +315,8 @@ sd_event_source_unref(sd_event_source *source)
 int
 sd_event_exit(sd_event *loop, int code)
 {
-	// TODO
+	loop->should_exit = true;
+	loop->exit_code = code;
 	return 0;
 }
 
@@ -336,6 +347,28 @@ sd_event_get_tid(sd_event *loop, pid_t *out)
 {
 	// TODO
 	*out = getpid();
+	return 0;
+}
+
+int
+sd_event_now(sd_event *loop, clockid_t clock, uint64_t *out)
+{
+	if (loop->ts_monotonic == 0)
+		return -ENODATA; /* if not set, loop yet to run */
+
+	switch (clock) {
+	case CLOCK_REALTIME:
+		*out = loop->ts_realtime;
+		break;
+
+	case CLOCK_MONOTONIC:
+		*out = loop->ts_monotonic;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -682,7 +715,7 @@ sd_event_add_signal(sd_event *loop, sd_event_source **out, int signo,
 	sig->signal.callback = callback;
 	sig->signal.signo = signo;
 
-	r = sd_event_source_set_enabled(sig, SD_EVENT_ONESHOT);
+	r = sd_event_source_set_enabled(sig, SD_EVENT_ON);
 	if (!sig) {
 		source_free(sig);
 		return r;
@@ -810,6 +843,8 @@ loop_kevent(sd_event *loop, usec_t timeout)
 	int r;
 	struct timespec ts;
 
+	loop->ts_realtime = now(CLOCK_REALTIME);
+	loop->ts_monotonic = now(CLOCK_MONOTONIC);
 	timespec_store(&ts, timeout);
 
 	r = kevent(loop->kq, NULL, 0, kevs, 16, timeout == -1 ? NULL : &ts);
@@ -864,6 +899,11 @@ sd_event_prepare(sd_event *loop)
 	sd_event_source *prepare, *defer;
 	int r, ndefers = 0;
 
+	if (loop->should_exit) {
+		loop->state = SD_EVENT_PENDING;
+		return 1;
+	}
+
 	log_trace("Running prepare callbacks");
 	LIST_FOREACH (prepare, &loop->prepares, prepares) {
 		if (prepare->enabled == SD_EVENT_OFF)
@@ -910,6 +950,11 @@ sd_event_wait(sd_event *loop, usec_t timeout)
 	sd_event_source *post;
 
 	assert(loop->state == SD_EVENT_ARMED);
+
+	if (loop->should_exit) {
+		loop->state = SD_EVENT_PENDING;
+		return 1;
+	}
 
 	r = loop_kevent(loop, timeout);
 	if (r <= 0) {
@@ -982,9 +1027,24 @@ int
 sd_event_dispatch(sd_event *loop)
 {
 	sd_event_source *source, *tmp;
-	int r;
+	int r = 0;
 
 	assert(loop->state == SD_EVENT_PENDING);
+
+	if (loop->should_exit) {
+		log_trace("Dispatching exit sources");
+
+		LIST_FOREACH (source, &loop->exits, exit.exits) {
+			if (source->enabled != SD_EVENT_OFF)
+				r = source_dispatch(source);
+			if (r < 0)
+				return r;
+		}
+		log_trace("Event loop finished");
+
+		loop->state = SD_EVENT_FINISHED;
+		return 0;
+	}
 
 	LIST_FOREACH_SAFE (source, &loop->pendings, pendings, tmp) {
 		sd_event_source_ref(source);
