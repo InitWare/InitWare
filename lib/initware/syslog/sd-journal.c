@@ -39,8 +39,6 @@
 #include "sd-journal.h"
 #include "strv.h"
 
-#define CATALOG_DATABASE "!!FIXME!!"
-
 #ifdef SVC_PLATFORM_Linux
 #include <sys/vfs.h>
 #include <linux/magic.h>

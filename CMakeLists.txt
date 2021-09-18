@@ -1,4 +1,3 @@
-  
 project(InitWare)
 cmake_minimum_required(VERSION 3.9)
 cmake_policy(VERSION 3.9)
@@ -196,7 +195,7 @@ CACHE STRING
 )
 
 if (SVC_USE_systemd_paths)
-	set(DEFAULT_SVC_PERSISTENTLOGDIR 
+	set(DEFAULT_SVC_PERSISTENTLOGDIR
 	    "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log/journal")
 	set(DEFAULT_SVC_RUNTIMELOGDIR "${SVC_RUNSTATEDIR}/log")
 else ()

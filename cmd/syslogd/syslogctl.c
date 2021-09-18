@@ -20,7 +20,6 @@
 #include <sys/inotify.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
-#include <linux/fs.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <fnmatch.h>
@@ -58,10 +57,15 @@
 #include "set.h"
 #include "sigbus.h"
 #include "strv.h"
-#include "udev-util.h"
-#include "udev.h"
 #include "unit-name.h"
 #include "util.h"
+
+#ifdef SVC_PLATFORM_Linux
+#include <linux/fs.h>
+
+#include "udev-util.h"
+#endif
+
 
 #define DEFAULT_FSS_INTERVAL_USEC (15 * USEC_PER_MINUTE)
 
@@ -138,6 +142,7 @@ typedef struct BootId {
 static int
 add_matches_for_device(sd_journal *j, const char *devpath)
 {
+#ifdef SVC_PLATFORM_Linux // FIXME: udev?
 	int r;
 	_cleanup_udev_unref_ struct udev *udev = NULL;
 	_cleanup_udev_device_unref_ struct udev_device *device = NULL;
@@ -222,6 +227,9 @@ add_matches_for_device(sd_journal *j, const char *devpath)
 			"Failed to add match for the current boot: %m");
 
 	return 0;
+#else
+	return -ENOTSUP;
+#endif
 }
 
 static void

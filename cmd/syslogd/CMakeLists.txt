@@ -8,3 +8,6 @@ add_executable(svc.syslogd journald-console.c journald-kmsg.c journald-native.c
     ${CMAKE_CURRENT_BINARY_DIR}/journald-gperf.c)
 target_include_directories(svc.syslogd PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(svc.syslogd initware)
+
+add_executable(syslogctl syslogctl.c)
+target_link_libraries(syslogctl initware)
