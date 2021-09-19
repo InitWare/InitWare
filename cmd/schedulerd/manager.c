@@ -50,6 +50,7 @@
 #include "bus-error.h"
 #include "bus-kernel.h"
 #include "bus-util.h"
+#include "bsdsigfd.h"
 #include "cgroup-util.h"
 #include "dbus-job.h"
 #include "dbus-manager.h"
@@ -436,11 +437,16 @@ enable_special_signals(Manager *m)
 	return 0;
 }
 
+static void sigchld_handler(int signo)
+{
+	assert_not_reached("This signal handler should never be invoked.");
+}
+
 static int
 manager_setup_signals(Manager *m)
 {
 	struct sigaction sa = {
-		.sa_handler = SIG_DFL,
+		.sa_handler = sigchld_handler,
 		.sa_flags = SA_NOCLDSTOP | SA_RESTART,
 	};
 	sigset_t mask;
@@ -448,6 +454,10 @@ manager_setup_signals(Manager *m)
 
 	assert(m);
 
+	/*
+	 * On NetBSD at least, one must have a handler other than SIG_DFL to
+	 * be able to receive SIGCHLD via sigwaitinfo.
+	 */
 	assert_se(sigaction(SIGCHLD, &sa, NULL) == 0);
 
 	/* We make liberal use of realtime signals here. On
@@ -510,7 +520,7 @@ manager_setup_signals(Manager *m)
 		-1);
 	assert_se(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 
-	m->signal_fd = signalfd(-1, &mask, SFD_NONBLOCK | SFD_CLOEXEC);
+	m->signal_fd = sigfd(-1, &mask, SFD_NONBLOCK | SFD_CLOEXEC);
 	if (m->signal_fd < 0)
 		return -errno;
 
@@ -2157,7 +2167,7 @@ manager_dispatch_signal_fd(sd_event_source *source, int fd, uint32_t revents,
 {
 	Manager *m = userdata;
 	ssize_t n;
-	struct signalfd_siginfo sfsi;
+	struct sigfd_siginfo sfsi;
 	bool sigchld = false;
 
 	assert(m);
@@ -2167,11 +2177,14 @@ manager_dispatch_signal_fd(sd_event_source *source, int fd, uint32_t revents,
 		log_warning(
 			"Got unexpected events %x from signal file descriptor.",
 			revents);
+#ifdef SVC_HAVE_signalfd
+		/* we are strict on GNU/Linux, but liberal on other platforms */
 		return 0;
+#endif
 	}
 
 	for (;;) {
-		n = read(m->signal_fd, &sfsi, sizeof(sfsi));
+		n = sigfd_read(m->signal_fd, &sfsi, sizeof(sfsi));
 		if (n != sizeof(sfsi)) {
 			if (n >= 0)
 				return -EIO;

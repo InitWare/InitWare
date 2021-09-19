@@ -1071,7 +1071,7 @@ static const char *const log_target_table[_LOG_TARGET_MAX] = {
 DEFINE_STRING_TABLE_LOOKUP(log_target, LogTarget);
 
 void
-log_received_signal(int level, const struct signalfd_siginfo *si)
+log_received_signal(int level, const struct sigfd_siginfo *si)
 {
 	if (si != NULL && si->ssi_pid > 0) {
 		_cleanup_free_ char *p = NULL;

@@ -20,13 +20,14 @@
 ***/
 
 #include <sys/types.h>
-#include <sys/signalfd.h>
 #include <sys/syslog.h>
+#include <sys/signalfd.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <unistd.h>
 
+#include "bsdsigfd.h"
 #include "macro.h"
 #include "sd-id128.h"
 
@@ -172,7 +173,7 @@ LogTarget log_target_from_string(const char *s) _pure_;
 	"MESSAGE_ID=" SD_ID128_FORMAT_STR, SD_ID128_FORMAT_VAL(x)
 #define LOG_ERRNO(error) "ERRNO=%i", abs(error)
 
-void log_received_signal(int level, const struct signalfd_siginfo *si);
+void log_received_signal(int level, const struct sigfd_siginfo *si);
 
 void log_set_upgrade_syslog_to_journal(bool b);
 void log_set_always_reopen_console(bool b);
