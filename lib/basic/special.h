@@ -99,8 +99,8 @@
 /* Services systemd relies on */
 #define SPECIAL_DBUS_SERVICE "dbus.service"
 #define SPECIAL_DBUS_SOCKET "dbus.socket"
-#define SPECIAL_JOURNALD_SOCKET "systemd-journald.socket"
-#define SPECIAL_JOURNALD_SERVICE "systemd-journald.service"
+#define SPECIAL_JOURNALD_SOCKET "system-log.socket"
+#define SPECIAL_JOURNALD_SERVICE "system-log.service"
 
 /* Magic init signals */
 #define SPECIAL_KBREQUEST_TARGET "kbrequest.target"

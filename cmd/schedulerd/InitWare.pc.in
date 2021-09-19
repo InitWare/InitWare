@@ -1,0 +1,35 @@
+prefix=@SVC_PREFIX@
+libdir=@SVC_PKGLIBDIR@
+systemdutildir=@SVC_PKGLIBEXECDIR@
+
+systemdsystemunitdir=@SYSTEM_DATA_UNIT_PATH@
+systemdsystempresetdir=@systempresetdir@ # FIXME
+
+systemduserunitdir=@USER_DATA_UNIT_PATH@
+systemduserpresetdir=@userpresetdir@ # FIXME
+
+systemdsystemconfdir=@SYSTEM_CONFIG_UNIT_PATH@
+systemduserconfdir=@USER_CONFIG_UNIT_PATH@
+
+systemdsystemunitpath=${systemdsystemconfdir}:/etc/@SVC_PKGDIRNAME@/system:@SVC_PKGRUNSTATEDIR@/system:/usr/local/lib/@SVC_PKGDIRNAME@/system:${systemdsystemunitdir}:/usr/lib/@SVC_PKGDIRNAME@/system:/lib/@SVC_PKGDIRNAME@/system
+systemduserunitpath=${systemduserconfdir}:/etc/@SVC_PKGDIRNAME@/user:@SVC_PKGRUNSTATEDIR@/user:/usr/local/lib/@SVC_PKGDIRNAME@/user:/usr/local/share/@SVC_PKGDIRNAME@/user:${systemduserunitdir}:/usr/lib/@SVC_PKGDIRNAME@/user:/usr/share/@SVC_PKGDIRNAME@/user
+
+systemdsystemgeneratordir=@SYSTEM_GENERATOR_PATH@
+systemdusergeneratordir=@USER_GENERATOR_PATH@
+
+systemdsleepdir=@systemsleepdir@
+systemdshutdowndir=@systemshutdowndir@
+tmpfilesdir=@tmpfilesdir@
+sysusersdir=@sysusersdir@
+sysctldir=@sysctldir@
+binfmtdir=@binfmtdir@
+modulesloaddir=@modulesloaddir@
+catalogdir=@SVC_PKGLIBDIR@/catalog
+
+systemuidmax=@systemuidmax@
+systemgidmax=@systemgidmax@
+
+Name: InitWare
+Description: The InitWare Suite of Middleware
+URL: @PACKAGE_URL@
+Version: @PACKAGE_VERSION@

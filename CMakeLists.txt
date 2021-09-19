@@ -154,8 +154,14 @@ check_function_exists(__secure_getenv HAVE___secure_getenv)
 option(SVC_USE_CGroups "Use Control Groups" ON)
 cmake_dependent_option(SVC_USE_libcap "Use Capabilities (libcap)" ON
     "libcap_FOUND" OFF)
-option(SVC_USE_systemd_paths "Include the default systemd unit-file paths" OFF)
-option(SVC_USE_systemd_busnames "Use the systemd D-Bus bus and interface names")
+option(SVC_USE_systemd_compat "Try to be as compatible with systemd as possible"
+    OFF)
+cmake_dependent_option(SVC_USE_systemd_paths
+    "Include the default systemd unit-file paths" ON "SVC_USE_systemd_compat"
+    OFF)
+cmake_dependent_option(SVC_USE_systemd_busnames
+    "Use the systemd D-Bus bus and interface names" ON "SVC_USE_systemd_compat"
+    OFF)
 
 option(SVC_USE_sessiond "Build the Session Manager" ON)
 
@@ -242,6 +248,9 @@ CACHE STRING
 # computed paths
 # -------------------------------------------------------------------------------
 
+set(SVC_PREFIX ${CMAKE_INSTALL_PREFIX})
+set(SVC_PKGBINDIR ${CMAKE_INSTALL_FULL_BINDIR})
+
 # systemdstatedir
 set(SVC_PKGLOCALSTATEDIR
     ${CMAKE_INSTALL_LOCALSTATEDIR}/lib/${SVC_PKGDIRNAME})
@@ -280,6 +289,8 @@ endfunction (FShow)
 message("Feature settings (Use flags):")
 fshow(SVC_USE_CGroups)
 fshow(SVC_USE_libcap)
+fshow(SVC_USE_systemd_compat)
+fshow(SVC_USE_systemd_busnames)
 fshow(SVC_USE_systemd_paths)
 fshow(SVC_USE_sessiond)
 

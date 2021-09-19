@@ -23,7 +23,7 @@ ListenDatagram=@SVC_PKGRUNSTATEDIR@/journal/socket
 SocketMode=0666
 PassCredentials=yes
 PassSecurity=yes
-ReceiveBuffer=8M
+#ReceiveBuffer=1M
 
 [Install]
 Alias=systemd-journald.socket

@@ -53,3 +53,7 @@ set(MANIFESTS basic.target bluetooth.target cryptsetup-pre.target
 
 install_manifests(SYSTEM_IN ${MANIFESTS_IN} SYSTEM ${MANIFESTS})
 install(TARGETS svc.schedulerd DESTINATION ${SVC_PKGLIBEXECDIR})
+
+configure_file(InitWare.pc.in InitWare.pc @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/InitWare.pc
+    DESTINATION ${PKGCONF_DIR})

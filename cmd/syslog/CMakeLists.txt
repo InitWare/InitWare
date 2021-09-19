@@ -1,8 +1,7 @@
 add_subdirectory(syslogd)
 
-set(MANIFESTS_IN system-log-catalog-update.service.in
-  system-log-flush.service.in system-log.service.in)
-set(MANIFESTS system-log.socket)
+set(MANIFESTS_IN syslog.socket.in system-log-catalog-update.service.in
+    system-log-flush.service.in system-log.service.in system-log.socket.in)
 
 # if use microhttpd
 list(APPEND MANIFESTS_IN system-log-webserver.service.in)

@@ -80,6 +80,7 @@
 #include "missing.h"
 #include "mkdir.h"
 #include "path-util.h"
+#include "socket-util.h"
 #include "sparse-endian.h"
 #include "strv.h"
 #include "utf8.h"
@@ -7635,6 +7636,8 @@ cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred)
 		xucred->pid = creds->CMSG_CREDS_STRUCT_pid;
 		return 1;
 	}
+#else
+	log_warning("No datagram credential control message on this platform.");
 #endif
 
 	return 0;
@@ -7649,6 +7652,8 @@ socket_passcred(int fd)
 	if (setsockopt(fd, SOCKOPT_CREDPASS_LEVEL, SOCKOPT_CREDPASS_OPT, &one,
 		    sizeof(one)) == -1)
 		return -errno;
+#else
+	log_warning("No credential-passing option on this platform.");
 #endif
 
 	return 0;

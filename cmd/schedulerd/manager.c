@@ -3588,12 +3588,16 @@ manager_recheck_journal(Manager *m)
 		return;
 
 	u = manager_get_unit(m, SPECIAL_JOURNALD_SOCKET);
+	if (!u)
+		return;
 	if (u && SOCKET(u)->state != SOCKET_RUNNING) {
 		log_close_journal();
 		return;
 	}
 
 	u = manager_get_unit(m, SPECIAL_JOURNALD_SERVICE);
+	if (!u)
+		return;
 	if (u && SERVICE(u)->state != SERVICE_RUNNING) {
 		log_close_journal();
 		return;
