@@ -12,5 +12,8 @@ list(APPEND MANIFESTS system-log-webserver.socket)
 add_executable(syslogctl syslogctl.c)
 target_link_libraries(syslogctl initware)
 
+add_executable(syslogcat syslogcat.c)
+target_link_libraries(syslogcat initware)
+
 install(TARGETS syslogctl DESTINATION ${CMAKE_INSTALL_BINDIR})
 install_manifests(SYSTEM_IN ${MANIFESTS_IN} SYSTEM ${MANIFESTS})

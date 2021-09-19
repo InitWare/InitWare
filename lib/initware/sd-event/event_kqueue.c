@@ -858,6 +858,9 @@ loop_kevent(sd_event *loop, usec_t timeout)
 
 		switch (source->type) {
 		case SOURCE_IO:
+		{
+			int rdhup = source->io.events & EPOLLRDHUP? EPOLLRDHUP : 0;
+
 			if (kev->filter == EVFILT_WRITE) {
 				if (kev->data)
 					source->io.revents |= EPOLLOUT;
@@ -868,7 +871,7 @@ loop_kevent(sd_event *loop, usec_t timeout)
 					source->io.revents |= EPOLLIN;
 				if (kev->flags & EV_EOF)
 					source->io.revents |= EPOLLHUP |
-						EPOLLRDHUP;
+						rdhup;
 			}
 #ifdef EVFILT_EXCEPT
 			else if (kev->filter == EVFILT_EXCEPT)
@@ -877,6 +880,7 @@ loop_kevent(sd_event *loop, usec_t timeout)
 #endif
 
 			break;
+		}
 
 		case SOURCE_SUBPROCESS:
 			source->subproc.status = kev->data;

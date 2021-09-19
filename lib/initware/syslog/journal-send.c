@@ -326,6 +326,7 @@ sd_journal_sendv(const struct iovec *iov, int n)
          * here, since we want this to be a tmpfs, and one that is
          * available from early boot on and where unprivileged users
          * can create files. */
+#ifdef SVC_HAVE_memfd
 	buffer_fd = memfd_new(NULL);
 	if (buffer_fd < 0) {
 		if (buffer_fd == -ENOSYS) {
@@ -338,6 +339,9 @@ sd_journal_sendv(const struct iovec *iov, int n)
 		} else
 			return buffer_fd;
 	}
+#else
+	return -EFBIG;
+#endif
 
 	n = writev(buffer_fd, w, j);
 	if (n < 0)

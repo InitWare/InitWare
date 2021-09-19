@@ -25,3 +25,12 @@ getrandom(void *buf, size_t buflen, unsigned int flags)
 	return read(fd, buf, buflen);
 }
 #endif
+
+#ifndef SVC_HAVE_lsb_basename
+char *
+lsb_basename(const char *filename)
+{
+	char *p = strrchr(filename, '/');
+	return p ? p + 1 : (char *)filename;
+}
+#endif

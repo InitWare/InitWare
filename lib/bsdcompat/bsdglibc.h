@@ -4,6 +4,7 @@
 #include <sys/types.h>
 
 #include <libgen.h>
+#undef basename
 #include <stdint.h>
 
 #include "svc-config.h"
@@ -95,7 +96,7 @@ extern char **environ;
 #endif
 
 #ifndef SVC_HAVE_lsb_basename
-#define lsb_basename(path) basename((char *)path)
+char *lsb_basename(const char *path);
 #else
 #define lsb_basename(path) basename(path)
 #endif

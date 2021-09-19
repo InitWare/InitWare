@@ -5167,7 +5167,7 @@ fopen_temporary(const char *path, FILE **_f, char **_temp_path)
 	if (r < 0)
 		return r;
 
-	fd = mkostemp_safe(t, O_WRONLY | O_CLOEXEC);
+	fd = mkostemp_safe(t, O_CLOEXEC);
 	if (fd < 0) {
 		free(t);
 		return -errno;

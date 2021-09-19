@@ -1444,7 +1444,7 @@ server_process_datagram(sd_event_source *es, int fd, uint32_t revents,
 }
 
 static int
-dispatch_sigusr1(sd_event_source *es, const struct signalfd_siginfo *si,
+dispatch_sigusr1(sd_event_source *es, const struct sigfd_siginfo *si,
 	void *userdata)
 {
 	Server *s = userdata;
@@ -1464,7 +1464,7 @@ dispatch_sigusr1(sd_event_source *es, const struct signalfd_siginfo *si,
 }
 
 static int
-dispatch_sigusr2(sd_event_source *es, const struct signalfd_siginfo *si,
+dispatch_sigusr2(sd_event_source *es, const struct sigfd_siginfo *si,
 	void *userdata)
 {
 	Server *s = userdata;
@@ -1480,7 +1480,7 @@ dispatch_sigusr2(sd_event_source *es, const struct signalfd_siginfo *si,
 }
 
 static int
-dispatch_sigterm(sd_event_source *es, const struct signalfd_siginfo *si,
+dispatch_sigterm(sd_event_source *es, const struct sigfd_siginfo *si,
 	void *userdata)
 {
 	Server *s = userdata;
