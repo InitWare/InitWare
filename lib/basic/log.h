@@ -21,7 +21,6 @@
 
 #include <sys/types.h>
 #include <sys/syslog.h>
-#include <sys/signalfd.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>

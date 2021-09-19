@@ -19,12 +19,11 @@
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <sys/signalfd.h>
 #include <sys/statvfs.h>
-#include <sys/timerfd.h>
 
 #include "acl-util.h"
 #include "audit.h"
+#include "bsdsigfd.h"
 #include "cgroup-util.h"
 #include "conf-parser.h"
 #include "console.h"

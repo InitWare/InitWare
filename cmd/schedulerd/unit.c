@@ -17,9 +17,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/epoll.h>
 #include <sys/stat.h>
-#include <sys/timerfd.h>
 #include <assert.h>
 #include <errno.h>
 #include <poll.h>

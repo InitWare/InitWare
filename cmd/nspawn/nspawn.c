@@ -22,7 +22,6 @@
 #include <sys/mount.h>
 #include <sys/personality.h>
 #include <sys/prctl.h>
-#include <sys/signalfd.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
 #include <sys/un.h>
@@ -60,6 +59,7 @@
 #include "barrier.h"
 #include "base-filesystem.h"
 #include "blkid-util.h"
+#include "bsdsigfd.h"
 #include "btrfs-util.h"
 #include "build.h"
 #include "bus-error.h"

@@ -18,12 +18,11 @@
 ***/
 
 #include <sys/types.h>
-#include <sys/epoll.h>
+
 #include <sys/inotify.h>
 #include <sys/ioctl.h>
 #include <sys/reboot.h>
 #include <sys/stat.h>
-#include <sys/timerfd.h>
 #include <sys/wait.h>
 #include <assert.h>
 #include <dirent.h>
@@ -80,6 +79,10 @@
 
 #ifdef SVC_PLATFORM_Linux
 #include <linux/kd.h>
+#endif
+
+#ifdef SVC_HAVE_timerfd
+#include <sys/timerfd.h>
 #endif
 
 /* Initial delay and the interval for printing status messages about running jobs */
@@ -361,6 +364,7 @@ manager_close_idle_pipe(Manager *m)
 static int
 manager_setup_time_change(Manager *m)
 {
+#ifdef SVC_HAVE_timerfd
 	int r;
 
 	/* We only care for the cancellation event, hence we set the
@@ -399,6 +403,9 @@ manager_setup_time_change(Manager *m)
 			"Failed to create time change event source: %m");
 
 	log_debug("Set up TFD_TIMER_CANCEL_ON_SET timerfd.");
+#else
+	log_warning("No timerfd, TFD_TIMER_CANCEL_ON_SET not set up.");
+#endif
 
 	return 0;
 }
@@ -520,7 +527,7 @@ manager_setup_signals(Manager *m)
 		-1);
 	assert_se(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 
-	m->signal_fd = sigfd(-1, &mask, SFD_NONBLOCK | SFD_CLOEXEC);
+	m->signal_fd = sigfd(-1, &mask, SIGFD_NONBLOCK | SIGFD_CLOEXEC);
 	if (m->signal_fd < 0)
 		return -errno;
 
@@ -2404,6 +2411,7 @@ manager_dispatch_signal_fd(sd_event_source *source, int fd, uint32_t revents,
 	return 0;
 }
 
+#ifdef SVC_HAVE_timerfd
 static int
 manager_dispatch_time_change_fd(sd_event_source *source, int fd,
 	uint32_t revents, void *userdata)
@@ -2431,6 +2439,7 @@ manager_dispatch_time_change_fd(sd_event_source *source, int fd,
 
 	return 0;
 }
+#endif
 
 static int
 manager_dispatch_idle_pipe_fd(sd_event_source *source, int fd, uint32_t revents,

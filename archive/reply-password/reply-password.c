@@ -18,7 +18,6 @@
 ***/
 
 #include <sys/types.h>
-#include <sys/signalfd.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -31,6 +30,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "bsdsigfd.h"
 #include "log.h"
 #include "macro.h"
 #include "util.h"

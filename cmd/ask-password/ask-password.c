@@ -18,7 +18,6 @@
 ***/
 
 #include <sys/types.h>
-#include <sys/signalfd.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -34,6 +33,7 @@
 #include <unistd.h>
 
 #include "ask-password-api.h"
+#include "bsdsigfd.h"
 #include "def.h"
 #include "log.h"
 #include "macro.h"

@@ -2,12 +2,29 @@
 #define SD_EVENT_H_
 
 #include <sys/types.h>
-#include <sys/epoll.h>
-#include <sys/signalfd.h>
+#include <sys/poll.h>
 #include <inttypes.h>
 #include <signal.h>
 
 #include "_sd-common.h"
+#include "svc-config.h"
+
+#ifdef SVC_HAVE_epoll
+
+#else
+#define EPOLLIN POLLIN
+#define EPOLLPRI POLLPRI
+#define EPOLLOUT POLLOUT
+#define EPOLLERR POLLERR
+#define EPOLLHUP POLLHUP
+#ifdef POLLRDHUP
+#define EPOLLRDHUP POLLRDHUP
+#else
+#define EPOLLRDHUP 0x8000 /* hopefully high enough! */
+#endif
+#endif
+
+#include "bsdsigfd.h"
 
 _SD_BEGIN_DECLARATIONS;
 
@@ -46,7 +63,7 @@ typedef int (*sd_event_io_handler_t)(sd_event_source *s, int fd,
 typedef int (*sd_event_time_handler_t)(sd_event_source *s, uint64_t usec,
 	void *userdata);
 typedef int (*sd_event_signal_handler_t)(sd_event_source *s,
-	const struct signalfd_siginfo *si, void *userdata);
+	const struct sigfd_siginfo *si, void *userdata);
 typedef int (*sd_event_child_handler_t)(sd_event_source *s, const siginfo_t *si,
 	void *userdata);
 

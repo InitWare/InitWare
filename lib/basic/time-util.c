@@ -17,7 +17,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/timerfd.h>
+#include <sys/time.h>
 #include <sys/timex.h>
 #include <string.h>
 #include <time.h>
@@ -26,6 +26,10 @@
 #include "strv.h"
 #include "time-util.h"
 #include "util.h"
+
+#ifdef SVC_HAVE_timerfd
+#include <sys/timerfd.h>
+#endif
 
 usec_t
 now(clockid_t clock_id)
@@ -1005,6 +1009,7 @@ timezone_is_valid(const char *name)
 clockid_t
 clock_boottime_or_monotonic(void)
 {
+#ifdef SVC_HAVE_timerfd
 	static clockid_t clock = -1;
 	int fd;
 
@@ -1020,4 +1025,7 @@ clock_boottime_or_monotonic(void)
 	}
 
 	return clock;
+#else
+	return CLOCK_MONOTONIC;
+#endif
 }

@@ -18,7 +18,7 @@
 ***/
 
 #include <sys/types.h>
-#include <sys/epoll.h>
+
 #include <sys/stat.h>
 #include <sys/xattr.h>
 #include <netinet/tcp.h>

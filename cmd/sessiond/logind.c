@@ -17,7 +17,6 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/timerfd.h>
 #include <linux/vt.h>
 #include <errno.h>
 #include <fcntl.h>

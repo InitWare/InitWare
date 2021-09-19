@@ -16,8 +16,8 @@
   You should have received a copy of the GNU Lesser General Public License
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
+
 #include <sys/inotify.h>
-#include <sys/signalfd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <errno.h>
@@ -29,6 +29,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "bsdsigfd.h"
 #include "mkdir.h"
 #include "strv.h"
 #include "util.h"
@@ -335,7 +336,7 @@ ask_password_agent(const char *message, const char *icon, const char *id,
 
 	fd = -1;
 
-	signal_fd = signalfd(-1, &mask, SFD_NONBLOCK | SFD_CLOEXEC);
+	signal_fd = signalfd(-1, &mask, SIGFD_NONBLOCK | SIGFD_CLOEXEC);
 	if (signal_fd < 0) {
 		log_error_errno(errno, "signalfd(): %m");
 		r = -errno;

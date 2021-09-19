@@ -17,7 +17,6 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/epoll.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <linux/auto_dev-ioctl.h>

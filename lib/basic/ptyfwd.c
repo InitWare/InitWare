@@ -17,12 +17,11 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/epoll.h>
 #include <sys/ioctl.h>
-#include <sys/signalfd.h>
 #include <limits.h>
 #include <termios.h>
 
+#include "bsdsigfd.h"
 #include "ptyfwd.h"
 #include "util.h"
 

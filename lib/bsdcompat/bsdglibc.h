@@ -112,4 +112,8 @@ int getrandom(void *buf, size_t buflen, unsigned int flags);
 #define NOFOLLOW_SYMLINK_ERRNO ELOOP
 #endif
 
+#ifdef SVC_PLATFORM_NetBSD
+#define ppoll pollts
+#endif
+
 #endif /* BSDGLIBC_H_ */

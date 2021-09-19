@@ -18,7 +18,6 @@
 ***/
 
 #include <sys/inotify.h>
-#include <sys/signalfd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <errno.h>
@@ -31,6 +30,7 @@
 #include <unistd.h>
 
 #include "ask-password-api.h"
+#include "bsdsigfd.h"
 #include "build.h"
 #include "conf-parser.h"
 #include "def.h"
@@ -497,7 +497,7 @@ watch_passwords(void)
 	sigset_add_many(&mask, SIGINT, SIGTERM, -1);
 	assert_se(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 
-	signal_fd = signalfd(-1, &mask, SFD_NONBLOCK | SFD_CLOEXEC);
+	signal_fd = signalfd(-1, &mask, SIGFD_NONBLOCK | SIGFD_CLOEXEC);
 	if (signal_fd < 0)
 		return -errno;
 
