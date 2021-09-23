@@ -2,12 +2,12 @@
 
 ***InitWare isn't ready to use yet!!***
 Unless you are doing so for fun, to experiment, or to contribute, you most
-likely do **not** want to try to install InitWare until a first stable 
-release is made!
+likely do **not** want to try to install InitWare until a first stable release
+is made!
 
 The InitWare Suite of Middleware allows you to manage services and system
-resources as logical entities called units. It runs on GNU/Linux and all modern
-BSDs, including macOS.
+resources as logical entities called units. It runs on NetBSD, GNU/Linux, and
+several other BSD systems.
 
 Units are automatically scheduled by a job scheduler according to their
 dependency specifications. A user session manager facilitates tracking of users'
@@ -45,8 +45,9 @@ Some details differ by port. See [Systemd compatibility].
 
 #### On what platforms does InitWare run?
 
-On NetBSD, FreeBSD, and GNU/Linux as an init system and on macOS, DragonFly BSD and
-OpenBSD as an auxiliary service manager. See [Support matrix].
+On NetBSD, FreeBSD, and GNU/Linux - its first-class targets- as an init system;
+on macOS, DragonFly BSD and OpenBSD as an auxiliary service manager. See
+[Support matrix].
 
 [Support Matrix]: https://github.com/InitWare/InitWare/wiki/Support-Matrix
 
@@ -56,8 +57,8 @@ Most code is under the GNU Library GPL v2.1, some of it is under liberal licence
 
 #### How does one build InitWare?
 
-Install the dependencies first: these are a C toolchain, CMake, GPerf, M4, Awk,
-Pkg-Config or pkgconf, DBus, and on BSD platforms, libinotify. Then run:
+Install the dependencies first: these are a C toolchain, cmake, gperf, m4, awk,
+pkg-config or pkgconf, and on BSD platforms, libinotify. Then run:
 
 ```git submodule update --init --recursive && cmake && make && make install```
 
@@ -69,10 +70,6 @@ See [Building] for further details.
 
 Check the Issues and Projects tabs, or the
 [Roadmap](https://github.com/InitWare/InitWare/wiki/Roadmap).
-
-[The InitWare Vision] describes longer-term goals for InitWare.
-
-[The InitWare Vision]: https://github.com/InitWare/InitWare/wiki/The-InitWare-Vision
 
 #### How can I contribute?
 
