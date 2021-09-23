@@ -102,6 +102,8 @@ pager_open(bool jump_to_end)
 		if (jump_to_end)
 			less_opts = strjoina(less_opts, " +G");
 		setenv("LESS", less_opts, 1);
+		/* set to UTF-8 for nice output */
+		setenv("LESSCHARSET", "utf-8", 0);
 
 #ifdef SVC_HAVE_sys_prctl_h
 		/* Make sure the pager goes away when the parent dies */
