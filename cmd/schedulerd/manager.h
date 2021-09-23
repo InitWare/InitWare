@@ -68,6 +68,36 @@ typedef enum StatusType {
 	STATUS_TYPE_EMERGENCY,
 } StatusType;
 
+/** Additional flags beyond RunningAs. */
+typedef enum SchedulerFlags {
+	/**
+         * Running as PID 1? Only valid for system instances.
+         *
+         * If so, we have special signal disposition and carry out special tasks
+         * (like mounting API filesystems).
+         */
+	SYSTEM_PID1 = 1,
+	/**
+         * Running in a container?
+         *
+         * If so, and running as PID1, we skip things like setting up the clock
+         * and timezone, SELinux, etc.
+         *
+         */
+	SYSTEM_CONTAINER = 2,
+	/**
+         * Running as an auxiliary service manager?
+         *
+         * Formally speaking: whether the D-Bus API bus (system or session bus)
+	 * is *not* under our control.
+         *
+	 * If true, then the scheduler will quit if it fails to connect to the
+         * API D-Bus.
+         */
+	SCHEDULER_AUXILIARY = 4,
+} SchedulerFlags;
+
+
 #include "emergency-action.h"
 #include "execute.h"
 #include "exit-status.h"
@@ -242,6 +272,7 @@ struct Manager {
 
 	/* Flags */
 	SystemdRunningAs running_as;
+	SchedulerFlags scheduler_flags; /* optional additional flags */
 	ManagerExitCode exit_code: 5;
 
 	bool dispatching_load_queue: 1;

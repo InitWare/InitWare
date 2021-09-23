@@ -91,6 +91,7 @@ static enum {
 	ACTION_DUMP_CONFIGURATION_ITEMS,
 	ACTION_DONE
 } arg_action = ACTION_RUN;
+static bool arg_auxiliary = false;
 static char *arg_default_unit = NULL;
 static SystemdRunningAs arg_running_as = _SYSTEMD_RUNNING_AS_INVALID;
 static bool arg_dump_core = true;
@@ -767,6 +768,7 @@ parse_argv(int argc, char *argv[])
 		ARG_LOG_LOCATION,
 		ARG_UNIT,
 		ARG_SYSTEM,
+		ARG_AUXILIARY,
 		ARG_USER,
 		ARG_TEST,
 		ARG_NO_PAGER,
@@ -788,6 +790,7 @@ parse_argv(int argc, char *argv[])
 		{ "log-color", optional_argument, NULL, ARG_LOG_COLOR },
 		{ "log-location", optional_argument, NULL, ARG_LOG_LOCATION },
 		{ "unit", required_argument, NULL, ARG_UNIT },
+		{ "auxiliary", no_argument, NULL, ARG_AUXILIARY },
 		{ "system", no_argument, NULL, ARG_SYSTEM },
 		{ "user", no_argument, NULL, ARG_USER },
 		{ "test", no_argument, NULL, ARG_TEST },
@@ -907,6 +910,11 @@ parse_argv(int argc, char *argv[])
 					"Failed to set default unit %s: %m",
 					optarg);
 
+			break;
+
+		case ARG_AUXILIARY:
+			/* should've been already set due to early strv_find */
+			arg_auxiliary = true;
 			break;
 
 		case ARG_SYSTEM:
@@ -1407,6 +1415,7 @@ main(int argc, char *argv[])
 	char *switch_root_dir = NULL, *switch_root_init = NULL;
 	struct rlimit saved_rlimit_nofile = RLIMIT_MAKE_CONST(0);
 	const char *error_message = NULL;
+	bool is_pid1 = getpid() == 1;
 
 #ifdef HAVE_SYSV_COMPAT
 	if (getpid() != 1 && strstr(program_invocation_short_name, "init")) {
@@ -1435,6 +1444,25 @@ main(int argc, char *argv[])
 	if (strv_find(argv + 1, "--switched-root"))
 		skip_setup = false;
 
+	if (strv_find(argv + 1, "--system") || is_pid1)
+		arg_running_as = SYSTEMD_SYSTEM;
+	else if (!is_pid1) /* no explicit argument means run as user manager */
+		arg_running_as = SYSTEMD_USER;
+
+	if (strv_find(argv + 1, "--auxiliary")) {
+		skip_setup = 1;
+		arg_auxiliary = true;
+		if (is_pid1) {
+			log_error("Cannot be both PID 1 and auxiliary.\n");
+			retval = EXIT_FAILURE;
+			goto finish;
+		} else if (arg_running_as != SYSTEMD_SYSTEM) {
+			log_error("Only system instances can be auxiliary.\n");
+			retval = EXIT_FAILURE;
+			goto finish;
+		}
+	}
+
 #ifdef SVC_PLATFORM_Linux
 	/* If we get started via the /sbin/init symlink then we are
            called 'init'. After a subsequent reexecution we are then
@@ -1450,7 +1478,7 @@ main(int argc, char *argv[])
 	log_show_color(isatty(STDERR_FILENO) > 0);
 	log_set_upgrade_syslog_to_journal(true);
 
-	if (getpid() == 1) {
+	if (is_pid1) {
 		/* Disable the umask logic */
 		umask(0);
 
@@ -1461,10 +1489,12 @@ main(int argc, char *argv[])
 		log_set_always_reopen_console(true);
 	}
 
-	if (getpid() == 1 && detect_container(NULL) <= 0) {
+	if (arg_running_as == SYSTEMD_SYSTEM && detect_container(NULL) <= 0) {
 		/* Running outside of a container as PID 1 */
 		arg_running_as = SYSTEMD_SYSTEM;
+#if 0 // FIXME:
 		make_null_stdio();
+#endif
 		log_set_target(LOG_TARGET_KMSG);
 		log_open();
 
@@ -1540,9 +1570,8 @@ main(int argc, char *argv[])
                  * might redirect output elsewhere. */
 		log_set_target(LOG_TARGET_JOURNAL_OR_KMSG);
 
-	} else if (getpid() == 1) {
-		/* Running inside a container, as PID 1 */
-		arg_running_as = SYSTEMD_SYSTEM;
+	} else if (arg_running_as == SYSTEMD_SYSTEM) {
+		/* Running inside a container, as system manager */
 		log_set_target(LOG_TARGET_CONSOLE);
 		log_close_console(); /* force reopen of /dev/console */
 		log_open();
@@ -1584,7 +1613,7 @@ main(int argc, char *argv[])
 
 	/* Mount /proc, /sys and friends, so that /proc/cmdline and
          * /proc/$PID/fd is available. */
-	if (getpid() == 1) {
+	if (is_pid1) {
 		/* Load the kernel modules early, so that we kdbus.ko is loaded before kdbusfs shall be mounted */
 		if (!skip_setup)
 			kmod_setup();
@@ -1691,13 +1720,14 @@ main(int argc, char *argv[])
 
 	/* Reset the console, but only if this is really init and we
          * are freshly booted */
-	if (arg_running_as == SYSTEMD_SYSTEM && arg_action == ACTION_RUN) {
+	if (arg_running_as == SYSTEMD_SYSTEM && arg_action == ACTION_RUN &&
+		is_pid1) {
 		/* If we are init, we connect stdin/stdout/stderr to
                  * /dev/null and make sure we don't have a controlling
                  * tty. */
 		release_terminal();
 
-		if (getpid() == 1 && !skip_setup)
+		if (!skip_setup)
 			console_setup();
 	}
 
@@ -1709,7 +1739,7 @@ main(int argc, char *argv[])
 
 	/* Make sure we leave a core dump without panicing the
          * kernel. */
-	if (getpid() == 1) {
+	if (is_pid1) {
 		install_crash_handler();
 
 		r = mount_cgroup_controllers(arg_join_controllers);
@@ -1763,9 +1793,11 @@ main(int argc, char *argv[])
 		if (arg_show_status > 0 || plymouth_running())
 			status_welcome();
 
-		hostname_setup();
-		machine_id_setup(NULL);
-		loopback_setup();
+		if (!skip_setup) {
+			hostname_setup();
+			machine_id_setup(NULL);
+			loopback_setup();
+		}
 		bump_unix_max_dgram_qlen();
 
 		test_mtab();
@@ -1845,6 +1877,13 @@ main(int argc, char *argv[])
 		error_message = "Failed to allocate manager object";
 		goto finish;
 	}
+
+	if (is_pid1)
+		m->scheduler_flags |= SYSTEM_PID1;
+	if (arg_auxiliary)
+		m->scheduler_flags |= SCHEDULER_AUXILIARY;
+	if (detect_container(NULL))
+		m->scheduler_flags |= SYSTEM_CONTAINER;
 
 	m->confirm_spawn = arg_confirm_spawn;
 	m->default_timer_accuracy_usec = arg_default_timer_accuracy_usec;
@@ -2116,7 +2155,7 @@ finish:
 		}
 #endif
 
-		args_size = MAX(6, argc + 1);
+		args_size = MAX(7, argc + 1);
 		args = newa(const char *, args_size);
 
 		if (!switch_root_init) {
@@ -2139,6 +2178,8 @@ finish:
 			args[i++] = arg_running_as == SYSTEMD_SYSTEM ?
 				      "--system" :
 				      "--user";
+			if (m->scheduler_flags & SCHEDULER_AUXILIARY)
+				args[i++] = "--auxiliary";
 			args[i++] = "--deserialize";
 			args[i++] = sfd;
 			args[i++] = NULL;
@@ -2292,10 +2333,10 @@ finish:
 			env_block);
 		log_error_errno(errno,
 			"Failed to execute shutdown binary, %s: %m",
-			getpid() == 1 ? "freezing" : "quitting");
+			is_pid1 ? "freezing" : "quitting");
 	}
 
-	if (getpid() == 1) {
+	if (is_pid1) {
 		if (error_message)
 			manager_status_printf(NULL, STATUS_TYPE_EMERGENCY,
 				ANSI_HIGHLIGHT_RED_ON
