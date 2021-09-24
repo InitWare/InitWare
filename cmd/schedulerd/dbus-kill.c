@@ -18,6 +18,7 @@
 ***/
 
 #include "dbus-kill.h"
+#include "bsdsignal.h"
 #include "bus-util.h"
 #include "kill.h"
 

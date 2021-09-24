@@ -1194,6 +1194,18 @@ bus_property_get_ulong(sd_bus *bus, const char *path, const char *interface,
 }
 #endif
 
+#if SVC_SIZEOF_MODE_T != 4
+int
+bus_property_get_mode(sd_bus *bus, const char *path, const char *interface,
+	const char *property, sd_bus_message *reply, void *userdata,
+	sd_bus_error *error)
+{
+	uint64_t ul = *(unsigned long *)userdata;
+
+	return sd_bus_message_append_basic(reply, 'q', &ul);
+}
+#endif
+
 int
 bus_log_parse_error(int r)
 {

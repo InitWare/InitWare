@@ -122,12 +122,14 @@ find_package(Python COMPONENTS Interpreter)
 find_program(GPERF gperf REQUIRED)
 
 check_include_file(sys/endian.h HAVE_sys_endian_h)
+check_include_file(sys/xattr.h HAVE_sys_xattr_h)
 check_include_file(endian.h HAVE_endian_h)
 check_include_file(mntent.h HAVE_mntent_h)
 
 check_type_size(pid_t SVC_SIZEOF_PID_T)
 check_type_size(uid_t SVC_SIZEOF_UID_T)
 check_type_size(gid_t SVC_SIZEOF_GID_T)
+check_type_size(mode_t SVC_SIZEOF_MODE_T)
 check_type_size_in(time_t "sys/time.h" SVC_SIZEOF_TIME_T)
 check_type_size_in(rlim_t "sys/resource.h" SVC_SIZEOF_RLIM_T)
 

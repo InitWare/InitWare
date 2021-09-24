@@ -33,6 +33,10 @@
 #include "mmap-cache.h"
 #include "sparse-endian.h"
 
+#ifdef __clang__
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+#endif
+
 typedef struct JournalMetrics {
 	uint64_t max_use;
 	uint64_t use;

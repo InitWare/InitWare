@@ -15,6 +15,8 @@
 #ifndef BSDSIGFD_H_
 #define BSDSIGFD_H_
 
+#include <sys/types.h>
+
 #include <signal.h>
 
 #include "svc-config.h"

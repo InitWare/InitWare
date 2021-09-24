@@ -21,7 +21,6 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/xattr.h>
 #include <linux/fs.h>
 #include <dirent.h>
 #include <errno.h>
@@ -41,6 +40,7 @@
 #include <unistd.h>
 
 #include "acl-util.h"
+#include "bsdxattr.h"
 #include "btrfs-util.h"
 #include "build.h"
 #include "capability.h"

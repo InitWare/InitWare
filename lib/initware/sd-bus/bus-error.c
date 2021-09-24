@@ -177,7 +177,9 @@ errno_to_bus_error_const(int error)
 			"File exists");
 
 	case ETIMEDOUT:
+#ifdef HAVE_ETIME
 	case ETIME:
+#endif
 		return SD_BUS_ERROR_MAKE_CONST(SD_BUS_ERROR_TIMEOUT,
 			"Timed out");
 

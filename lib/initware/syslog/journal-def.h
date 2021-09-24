@@ -32,6 +32,10 @@
  *
  */
 
+#ifdef __clang__
+#pragma GCC diagnostic ignored "-Wgnu-variable-sized-type-not-at-end"
+#endif
+
 typedef struct Header Header;
 
 typedef struct ObjectHeader ObjectHeader;

@@ -20,10 +20,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
-#include <sys/xattr.h>
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "bsdxattr.h"
 #include "journal-def.h"
 #include "journal-file.h"
 #include "journal-vacuum.h"

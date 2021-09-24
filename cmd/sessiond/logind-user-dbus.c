@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include "bsdsignal.h"
 #include "bus-util.h"
 #include "logind-user.h"
 #include "logind.h"

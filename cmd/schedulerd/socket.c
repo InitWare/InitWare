@@ -20,7 +20,6 @@
 #include <sys/types.h>
 
 #include <sys/stat.h>
-#include <sys/xattr.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -29,6 +28,7 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include "bsdxattr.h"
 #include "bus-error.h"
 #include "bus-util.h"
 #include "dbus-socket.h"
@@ -960,7 +960,7 @@ socket_apply_socket_options(Socket *s, int fd)
 				"IP_TTL/IPV6_UNICAST_HOPS failed: %m");
 	}
 
-#ifdef TCP_CONGESTION
+#if defined(SOL_TCP) && defined(TCP_CONGESTION)
 	if (s->tcp_congestion)
 		if (setsockopt(fd, SOL_TCP, TCP_CONGESTION, s->tcp_congestion,
 			    strlen(s->tcp_congestion) + 1) < 0)

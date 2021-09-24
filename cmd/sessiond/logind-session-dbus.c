@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include "bsdsignal.h"
 #include "bus-common-errors.h"
 #include "bus-label.h"
 #include "bus-util.h"

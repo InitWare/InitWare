@@ -17,10 +17,10 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/xattr.h>
 #include <linux/fs.h>
 #include <curl/curl.h>
 
+#include "bsdxattr.h"
 #include "btrfs-util.h"
 #include "copy.h"
 #include "curl-util.h"

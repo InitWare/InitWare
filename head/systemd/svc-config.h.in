@@ -15,11 +15,13 @@
 #define SVC_SIZEOF_PID_T @SVC_SIZEOF_PID_T@
 #define SVC_SIZEOF_UID_T @SVC_SIZEOF_UID_T@
 #define SVC_SIZEOF_GID_T @SVC_SIZEOF_GID_T@
+#define SVC_SIZEOF_MODE_T @SVC_SIZEOF_MODE_T@
 #define SVC_SIZEOF_TIME_T @SVC_SIZEOF_TIME_T@
 #define SVC_SIZEOF_RLIM_T @SVC_SIZEOF_RLIM_T@
 
 /* header files */
 #cmakedefine HAVE_sys_endian_h
+#cmakedefine HAVE_sys_xattr_h
 #cmakedefine HAVE_endian_h
 #cmakedefine HAVE_mntent_h
 

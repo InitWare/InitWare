@@ -18,6 +18,7 @@
 ***/
 
 #include "dbus-unit.h"
+#include "bsdsignal.h"
 #include "bus-common-errors.h"
 #include "cgroup-util.h"
 #include "dbus-manager.h"

@@ -17,7 +17,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/xattr.h>
+#include "bsdxattr.h"
 
 #include "copy.h"
 #include "util.h"
@@ -470,6 +470,7 @@ copy_times(int fdf, int fdt)
 int
 copy_xattr(int fdf, int fdt)
 {
+#ifdef HAVE_sys_xattr_h
 	_cleanup_free_ char *bufa = NULL, *bufb = NULL;
 	size_t sza = 100, szb = 100;
 	ssize_t n;
@@ -532,4 +533,7 @@ copy_xattr(int fdf, int fdt)
 	}
 
 	return ret;
+#else
+	return 0;
+#endif
 }

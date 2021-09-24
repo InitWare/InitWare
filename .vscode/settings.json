@@ -37,6 +37,7 @@
 	"sd-event.h": "c",
 	"bsdqueue.h": "c",
 	"cmath": "cpp",
-	"syslog.h": "c"
+	"syslog.h": "c",
+	"in-addr-util.h": "c"
 }
 }

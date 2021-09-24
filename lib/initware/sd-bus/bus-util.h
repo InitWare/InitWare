@@ -132,8 +132,16 @@ assert_cc(sizeof(gid_t) == sizeof(uint32_t));
 assert_cc(sizeof(pid_t) == sizeof(uint32_t));
 #define bus_property_get_pid ((sd_bus_property_get_t)NULL)
 
+#if SVC_SIZEOF_MODE_T == 4
 assert_cc(sizeof(mode_t) == sizeof(uint32_t));
 #define bus_property_get_mode ((sd_bus_property_get_t)NULL)
+#elif SVC_SIZEOF_MODE_T == 2
+int bus_property_get_mode(sd_bus *bus, const char *path, const char *interface,
+	const char *property, sd_bus_message *reply, void *userdata,
+	sd_bus_error *error);
+#else
+#error Odd mode_t size
+#endif
 
 int bus_log_parse_error(int r);
 int bus_log_create_error(int r);

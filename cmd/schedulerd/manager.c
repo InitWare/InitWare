@@ -480,7 +480,9 @@ manager_setup_signals(Manager *m)
 		SIGUSR2, /* systemd: dump status */
 		SIGINT, /* Kernel sends us this on control-alt-del */
 		SIGWINCH, /* Kernel sends us this on kbrequest (alt-arrowup) */
+#ifdef SIGPWR
 		SIGPWR, /* Some kernel drivers and upsd send us this on power failure */
+#endif
 
 		SIGRTMIN + 0, /* systemd: start default.target */
 		SIGRTMIN + 1, /* systemd: isolate rescue.target */
@@ -840,7 +842,7 @@ manager_setup_cgroups_agent(Manager *m)
 	if (m->test_run)
 		return 0;
 
-	if (!m->running_as == SYSTEMD_SYSTEM)
+	if (m->running_as != SYSTEMD_SYSTEM)
 		return 0;
 
 	if (m->cgroups_agent_fd < 0) {
@@ -2248,6 +2250,7 @@ manager_dispatch_signal_fd(sd_event_source *source, int fd, uint32_t revents,
 			/* This is a nop on non-init */
 			break;
 
+#ifdef SIGPWR
 		case SIGPWR:
 			if (m->running_as == SYSTEMD_SYSTEM)
 				manager_start_target(m, SPECIAL_SIGPWR_TARGET,
@@ -2255,6 +2258,7 @@ manager_dispatch_signal_fd(sd_event_source *source, int fd, uint32_t revents,
 
 			/* This is a nop on non-init */
 			break;
+#endif
 
 		case SIGUSR1: {
 			Unit *u;

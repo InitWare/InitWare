@@ -29,7 +29,6 @@
 #include <sys/un.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
-#include <sys/xattr.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <assert.h>
@@ -64,6 +63,8 @@
 #endif
 
 #include "bsdglibc.h"
+#include "bsdsignal.h"
+#include "bsdxattr.h"
 #include "cgroup-util.h"
 #include "conf-parser.h"
 #include "def.h"
@@ -6051,7 +6052,9 @@ static const char *const __signal_table[] = { [SIGHUP] = "HUP",
 	[SIGPROF] = "PROF",
 	[SIGWINCH] = "WINCH",
 	[SIGIO] = "IO",
+#ifdef SIGPWR
 	[SIGPWR] = "PWR",
+#endif
 	[SIGSYS] = "SYS" };
 
 DEFINE_PRIVATE_STRING_TABLE_LOOKUP(__signal, int);
@@ -8856,6 +8859,7 @@ ssize_t
 fgetxattrat_fake(int dirfd, const char *filename, const char *attribute,
 	void *value, size_t size, int flags)
 {
+#ifdef HAVE_sys_xattr_h
 	_cleanup_close_ int fd = -1;
 	ssize_t l;
 
@@ -8872,6 +8876,10 @@ fgetxattrat_fake(int dirfd, const char *filename, const char *attribute,
 		return -errno;
 
 	return l;
+
+#else
+	return -ENOTSUP;
+#endif
 }
 
 static int
@@ -8892,6 +8900,7 @@ parse_crtime(le64_t le, usec_t *usec)
 int
 fd_getcrtime(int fd, usec_t *usec)
 {
+#ifdef HAVE_sys_xattr_h
 	le64_t le;
 	ssize_t n;
 
@@ -8908,11 +8917,15 @@ fd_getcrtime(int fd, usec_t *usec)
 		return -EIO;
 
 	return parse_crtime(le, usec);
+#else
+	return -ENOTSUP;
+#endif
 }
 
 int
 fd_getcrtime_at(int dirfd, const char *name, usec_t *usec, int flags)
 {
+#ifdef HAVE_sys_xattr_h
 	le64_t le;
 	ssize_t n;
 
@@ -8924,11 +8937,15 @@ fd_getcrtime_at(int dirfd, const char *name, usec_t *usec, int flags)
 		return -EIO;
 
 	return parse_crtime(le, usec);
+#else
+	return -ENOTSUP;
+#endif
 }
 
 int
 path_getcrtime(const char *p, usec_t *usec)
 {
+#ifdef HAVE_sys_xattr_h
 	le64_t le;
 	ssize_t n;
 
@@ -8942,11 +8959,15 @@ path_getcrtime(const char *p, usec_t *usec)
 		return -EIO;
 
 	return parse_crtime(le, usec);
+#else
+	return -ENOTSUP;
+#endif
 }
 
 int
 fd_setcrtime(int fd, usec_t usec)
 {
+#ifdef HAVE_sys_xattr_h
 	le64_t le;
 
 	assert(fd >= 0);
@@ -8959,6 +8980,9 @@ fd_setcrtime(int fd, usec_t usec)
 		return -errno;
 
 	return 0;
+#else
+	return -ENOTSUP;
+#endif
 }
 
 int

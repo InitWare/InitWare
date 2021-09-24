@@ -17,9 +17,8 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/xattr.h>
-
 #include "import-job.h"
+#include "bsdxattr.h"
 #include "strv.h"
 
 ImportJob *

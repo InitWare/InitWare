@@ -18,6 +18,7 @@
 ***/
 
 #include "bus-gvariant.h"
+#include "bsdendian.h"
 #include "bus-signature.h"
 #include "bus-type.h"
 #include "util.h"

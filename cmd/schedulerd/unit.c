@@ -25,6 +25,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "bsdsignal.h"
 #include "bus-common-errors.h"
 #include "cgroup-util.h"
 #include "dbus-unit.h"

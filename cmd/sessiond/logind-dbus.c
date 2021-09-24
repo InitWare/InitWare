@@ -23,6 +23,7 @@
 #include <unistd.h>
 
 #include "audit.h"
+#include "bsdsignal.h"
 #include "bus-common-errors.h"
 #include "bus-error.h"
 #include "bus-util.h"

@@ -19,10 +19,10 @@
 
 #include <sys/types.h>
 #include <sys/prctl.h>
-#include <sys/xattr.h>
 #include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
+#include "bsdxattr.h"
 
 #ifdef HAVE_ELFUTILS
 #include <elfutils/libdwfl.h>

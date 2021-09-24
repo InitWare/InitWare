@@ -19,11 +19,10 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/xattr.h>
-
+#include "smack-util.h"
+#include "bsdxattr.h"
 #include "fileio.h"
 #include "path-util.h"
-#include "smack-util.h"
 #include "util.h"
 
 #define SMACK_FLOOR_LABEL "_"

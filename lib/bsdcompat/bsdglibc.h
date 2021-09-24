@@ -7,6 +7,7 @@
 #undef basename
 #include <stdint.h>
 
+#include "bsderrno.h"
 #include "svc-config.h"
 
 #ifndef Have___compar_fn_t
@@ -59,22 +60,6 @@ typedef int (*__compar_fn_t)(const void *, const void *);
 #define HOST_NAME_MAX 255
 #endif
 
-#ifndef EREMOTEIO
-#define EREMOTEIO EIO
-#endif
-
-#ifndef EDEADLOCK
-#define EDEADLOCK ELOOP
-#endif
-
-#ifndef EBADR
-#define EBADR EBADF
-#endif
-
-#ifndef ENONET
-#define ENONET ENOTCONN
-#endif
-
 #ifndef HAVE_mempcpy
 void *mempcpy(void *dest, const void *src, size_t n);
 #endif
@@ -108,7 +93,7 @@ int getrandom(void *buf, size_t buflen, unsigned int flags);
 #ifdef SVC_PLATFORM_NetBSD
 #define NOFOLLOW_SYMLINK_ERRNO EFTYPE
 #elif defined(SVC_PLATFORM_FreeBSD)
-#define NOFOLLOW_SYMLINK_ERRNO EMLOOP
+#define NOFOLLOW_SYMLINK_ERRNO EMLINK
 #else
 #define NOFOLLOW_SYMLINK_ERRNO ELOOP
 #endif
