@@ -390,6 +390,7 @@ fill_iovec_perror_and_send(const char *message, int skip, struct iovec iov[])
 		char *j;
 
 		errno = 0;
+		// FIXME: strerror_r returns int on FreeBSD
 		j = strerror_r(_saved_errno_, buffer + 8 + k, n - 8 - k);
 		if (errno == 0) {
 			char error[sizeof("ERRNO=") - 1 + DECIMAL_STR_MAX(int) +

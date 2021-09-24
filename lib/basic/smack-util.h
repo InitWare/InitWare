@@ -21,6 +21,8 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/types.h>
+
 #include <stdbool.h>
 
 bool mac_smack_use(void);

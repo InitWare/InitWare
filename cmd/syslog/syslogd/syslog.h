@@ -21,6 +21,12 @@
 
 #include "server.h"
 
+#ifdef SVC_REPLACE_SYSLOG
+#define DEV_LOG "/dev/log"
+#else
+#define DEV_LOG SVC_PKGRUNSTATEDIR "/journal/syslog_in"
+#endif
+
 int syslog_fixup_facility(int priority) _const_;
 
 size_t syslog_parse_identifier(const char **buf, char **identifier, char **pid);

@@ -1200,9 +1200,9 @@ bus_property_get_mode(sd_bus *bus, const char *path, const char *interface,
 	const char *property, sd_bus_message *reply, void *userdata,
 	sd_bus_error *error)
 {
-	uint64_t ul = *(unsigned long *)userdata;
+	uint32_t ul = *(mode_t *)userdata;
 
-	return sd_bus_message_append_basic(reply, 'q', &ul);
+	return sd_bus_message_append_basic(reply, 'u', &ul);
 }
 #endif
 

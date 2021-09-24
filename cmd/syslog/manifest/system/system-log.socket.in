@@ -19,7 +19,7 @@ IgnoreOnIsolate=yes
 [Socket]
 ListenStream=@SVC_PKGRUNSTATEDIR@/journal/stdout
 ListenDatagram=@SVC_PKGRUNSTATEDIR@/journal/socket
-#ListenDatagram=/dev/log
+#ListenDatagram=/dev/log # maybe @SVC_PKGRUNSTATEDIR@/journal/syslog_in
 SocketMode=0666
 PassCredentials=yes
 PassSecurity=yes

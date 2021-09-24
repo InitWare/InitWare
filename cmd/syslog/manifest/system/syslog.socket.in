@@ -6,7 +6,7 @@
 #  (at your option) any later version.
 
 [Unit]
-Description=Syslog Socket
+Description=System Log socket for forwarding to from InitWare syslogd
 Documentation=man:systemd.special(7)
 Documentation=http://www.freedesktop.org/wiki/Software/systemd/syslog
 DefaultDependencies=no

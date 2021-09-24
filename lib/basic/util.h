@@ -1216,8 +1216,13 @@ union inotify_event_buffer {
 	uint8_t raw[INOTIFY_EVENT_MAX];
 };
 
+#if defined(SVC_PLATFORM_NetBSD) || defined(SVC_PLATFORM_Linux)
 #define laccess(path, mode)                                                    \
 	faccessat(AT_FDCWD, (path), (mode), AT_SYMLINK_NOFOLLOW)
+#else
+/* AT_SYMLINK_NOFOLLOW doesn't work with faccessat() on at least FreeBSD */
+#define laccess(path, mode) faccessat(AT_FDCWD, (path), (mode), 0)
+#endif
 
 int ptsname_malloc(int fd, char **ret);
 

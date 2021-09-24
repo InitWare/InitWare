@@ -1702,9 +1702,8 @@ main(int argc, char *argv[])
 	/* Remember open file descriptors for later deserialization */
 	r = fdset_new_fill(&fds);
 	if (r < 0) {
-		log_emergency_errno(r, "Failed to allocate fd set: %m");
-		error_message = "Failed to allocate fd set";
-		goto finish;
+		log_error_errno(r, "Failed to allocate fd set: %m");
+		log_error("Reexecution and daemon-reload will not work!");
 	} else
 		fdset_cloexec(fds, true);
 

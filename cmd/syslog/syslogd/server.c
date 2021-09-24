@@ -2012,10 +2012,11 @@ server_init(Server *s)
 
 			s->stdout_fd = fd;
 
-		} else if (sd_is_socket_unix(fd, SOCK_DGRAM, -1, "/dev/log",
-				   0) > 0) {
+		} else if (sd_is_socket_unix(fd, SOCK_DGRAM, -1, DEV_LOG, 0) >
+			0) {
 			if (s->syslog_fd >= 0) {
-				log_error("Too many /dev/log sockets passed.");
+				log_error(
+					"Too many BSD syslog sockets passed.");
 				return -EINVAL;
 			}
 
