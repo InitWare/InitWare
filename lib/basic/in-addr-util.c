@@ -26,6 +26,7 @@
 #define _KERNEL
 #include <netinet/in.h>
 #undef _KERNEL
+#include <arpa/inet.h>
 
 #include "bsdendian.h"
 #include "in-addr-util.h"

@@ -583,9 +583,11 @@ const sd_bus_vtable bus_exec_vtable[] = { SD_BUS_VTABLE_START(0),
 	SD_BUS_PROPERTY("LimitNOFILE", "t", property_get_rlimit,
 		offsetof(ExecContext, rlimit[RLIMIT_NOFILE]),
 		SD_BUS_VTABLE_PROPERTY_CONST),
+#ifdef RLIMIT_AS
 	SD_BUS_PROPERTY("LimitAS", "t", property_get_rlimit,
 		offsetof(ExecContext, rlimit[RLIMIT_AS]),
 		SD_BUS_VTABLE_PROPERTY_CONST),
+#endif
 	SD_BUS_PROPERTY("LimitNPROC", "t", property_get_rlimit,
 		offsetof(ExecContext, rlimit[RLIMIT_NPROC]),
 		SD_BUS_VTABLE_PROPERTY_CONST),

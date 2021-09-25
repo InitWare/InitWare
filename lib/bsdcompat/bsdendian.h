@@ -17,6 +17,12 @@
 #include "macos/macendian.h"
 #endif
 
+#ifdef SVC_PLATFORM_OpenBSD
+#define bswap16 swap16
+#define bswap32 swap32
+#define bswap64 swap64
+#endif
+
 #ifndef __BYTE_ORDER
 #define __BYTE_ORDER _BYTE_ORDER
 #define __BIG_ENDIAN _BIG_ENDIAN

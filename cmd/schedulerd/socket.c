@@ -24,7 +24,6 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <mqueue.h>
 #include <signal.h>
 #include <unistd.h>
 
@@ -50,6 +49,10 @@
 #include "unit-name.h"
 #include "unit-printf.h"
 #include "unit.h"
+
+#ifdef HAVE_mqueue_h
+#include <mqueue.h>
+#endif
 
 static const UnitActiveState state_translation_table[_SOCKET_STATE_MAX] = {
 	[SOCKET_DEAD] = UNIT_INACTIVE,

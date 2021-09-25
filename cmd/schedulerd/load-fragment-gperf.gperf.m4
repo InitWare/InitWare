@@ -84,7 +84,9 @@ $1.LimitSTACK,                   config_parse_bytes_limit,           RLIMIT_STAC
 $1.LimitCORE,                    config_parse_bytes_limit,           RLIMIT_CORE,                   offsetof($1, exec_context.rlimit)
 $1.LimitRSS,                     config_parse_bytes_limit,           RLIMIT_RSS,                    offsetof($1, exec_context.rlimit)
 $1.LimitNOFILE,                  config_parse_limit,                 RLIMIT_NOFILE,                 offsetof($1, exec_context.rlimit)
-$1.LimitAS,                      config_parse_bytes_limit,           RLIMIT_AS,                     offsetof($1, exec_context.rlimit)
+m4_ifdef(`HAVE_RLIMIT_AS',
+`$1.LimitAS,                      config_parse_bytes_limit,           RLIMIT_AS,                     offsetof($1, exec_context.rlimit)'
+)m4_dnl
 $1.LimitNPROC,                   config_parse_limit,                 RLIMIT_NPROC,                  offsetof($1, exec_context.rlimit)
 $1.LimitMEMLOCK,                 config_parse_bytes_limit,           RLIMIT_MEMLOCK,                offsetof($1, exec_context.rlimit)
 m4_ifdef(`SVC_PLATFORM_Linux',

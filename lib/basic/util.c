@@ -5993,7 +5993,9 @@ static const char *const rlimit_table[] = { [RLIMIT_CPU] = "LimitCPU",
 	[RLIMIT_CORE] = "LimitCORE",
 	[RLIMIT_RSS] = "LimitRSS",
 	[RLIMIT_NOFILE] = "LimitNOFILE",
+#ifdef RLIMIT_AS
 	[RLIMIT_AS] = "LimitAS",
+#endif
 	[RLIMIT_NPROC] = "LimitNPROC",
 	[RLIMIT_MEMLOCK] = "LimitMEMLOCK",
 #ifdef SVC_PLATFORM_Linux
@@ -6070,9 +6072,11 @@ signal_to_string(int signo)
 	if (name)
 		return name;
 
+#ifdef SIGRTMAX
 	if (signo >= SIGRTMIN && signo <= SIGRTMAX)
 		snprintf(buf, sizeof(buf), "RTMIN+%d", signo - SIGRTMIN);
 	else
+#endif
 		snprintf(buf, sizeof(buf), "%d", signo);
 
 	return buf;
@@ -6089,10 +6093,12 @@ signal_from_string(const char *s)
 	if (signo > 0)
 		return signo;
 
+#ifdef SIGRTMIN
 	if (startswith(s, "RTMIN+")) {
 		s += 6;
 		offset = SIGRTMIN;
 	}
+#endif
 	if (safe_atou(s, &u) >= 0) {
 		signo = (int)u + offset;
 		if (signo > 0 && signo < _NSIG)
@@ -7671,7 +7677,7 @@ getpeercred(int fd, struct socket_ucred *ucred)
 	socklen_t len;
 	struct sockpeercred cred;
 
-	len = sizeof *xucred;
+	len = sizeof cred;
 	if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &len) == -1)
 		return -errno;
 
@@ -8740,6 +8746,7 @@ sethostname_idempotent(const char *s)
 int
 ptsname_malloc(int fd, char **ret)
 {
+#ifdef HAVE_ptsname_r
 	size_t l = 100;
 
 	assert(fd >= 0);
@@ -8764,6 +8771,20 @@ ptsname_malloc(int fd, char **ret)
 		free(c);
 		l *= 2;
 	}
+#else
+	char *name = ptsname(fd), *res;
+
+	if (!name)
+		return -errno;
+
+	res = strdup(name);
+	if (!res)
+		return -ENOMEM;
+
+	*ret = res;
+
+	return 0;
+#endif
 }
 
 int

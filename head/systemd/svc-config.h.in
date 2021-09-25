@@ -21,9 +21,11 @@
 
 /* header files */
 #cmakedefine HAVE_sys_endian_h
+#cmakedefine HAVE_sys_timex_h
 #cmakedefine HAVE_sys_xattr_h
 #cmakedefine HAVE_endian_h
 #cmakedefine HAVE_mntent_h
+#cmakedefine HAVE_mqueue_h
 
 /* data types */
 #cmakedefine HAVE_socket_struct_ucred
@@ -33,13 +35,19 @@
 /* functions and symbols */
 #cmakedefine HAVE_canonicalize_file_name
 #cmakedefine HAVE_environ
+#cmakedefine SVC_HAVE_epoll
 #cmakedefine SVC_HAVE_get_current_dir_name
 #cmakedefine SVC_HAVE_program_invocation_short_name
 #cmakedefine HAVE_gettid
 #cmakedefine HAVE_name_to_handle_at
 #cmakedefine HAVE_mempcpy
+#cmakedefine HAVE_ptsname_r
 #cmakedefine HAVE___secure_getenv
 #cmakedefine HAVE_secure_getenv
+#cmakedefine SVC_HAVE_signalfd
+#cmakedefine HAVE_strchrnul
+#cmakedefine HAVE_strtod_l
+#cmakedefine HAVE_waitid
 
 /* paths */
 #define SVC_PKGDIRNAME "@SVC_PKGDIRNAME@"
@@ -66,6 +74,8 @@
 #define PACKAGE_STRING "@PACKAGE_STRING@"
 #define PACKAGE_NAME "@PACKAGE_NAME@"
 #define PACKAGE_VERSION "@PACKAGE_VERSION@"
+
+#define SVC_DISTRIBUTION "@DISTRIBUTION@"
 
 #define SVC_PERSISTENTLOGDIR "@SVC_PERSISTENTLOGDIR@"
 #define SVC_RUNTIMELOGDIR "@SVC_RUNTIMELOGDIR@"

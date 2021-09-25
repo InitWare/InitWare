@@ -10,6 +10,10 @@
 #include "bsderrno.h"
 #include "svc-config.h"
 
+#ifndef HAVE_strtod_l
+#define strtod_l(nptr, endptr, locale) strtod(nptr, endptr)
+#endif
+
 #ifndef Have___compar_fn_t
 typedef int (*__compar_fn_t)(const void *, const void *);
 #endif
@@ -52,7 +56,10 @@ typedef int (*__compar_fn_t)(const void *, const void *);
 
 #ifndef CLOCK_BOOTTIME
 #define CLOCK_BOOTTIME CLOCK_MONOTONIC
-#define CLOCK_BOOTTIME_ALARM CLOCK_MONOTONIC
+#endif
+
+#ifndef CLOCK_BOOTTIME_ALARM
+#define CLOCK_BOOTTIME_ALARM CLOCK_BOOTTIME
 #define CLOCK_REALTIME_ALARM CLOCK_REALTIME
 #endif
 
@@ -100,6 +107,10 @@ int getrandom(void *buf, size_t buflen, unsigned int flags);
 
 #ifdef SVC_PLATFORM_NetBSD
 #define ppoll pollts
+#endif
+
+#ifndef HAVE_strchrnul
+char *strchrnul(const char *s, int c);
 #endif
 
 #endif /* BSDGLIBC_H_ */

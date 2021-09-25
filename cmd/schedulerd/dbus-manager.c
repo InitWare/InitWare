@@ -2361,9 +2361,11 @@ const sd_bus_vtable bus_manager_vtable[] = { SD_BUS_VTABLE_START(0),
 	SD_BUS_PROPERTY("DefaultLimitNOFILE", "t", bus_property_get_rlimit,
 		offsetof(Manager, rlimit[RLIMIT_NOFILE]),
 		SD_BUS_VTABLE_PROPERTY_CONST),
+#ifdef RLIMIT_AS
 	SD_BUS_PROPERTY("DefaultLimitAS", "t", bus_property_get_rlimit,
 		offsetof(Manager, rlimit[RLIMIT_AS]),
 		SD_BUS_VTABLE_PROPERTY_CONST),
+#endif
 	SD_BUS_PROPERTY("DefaultLimitNPROC", "t", bus_property_get_rlimit,
 		offsetof(Manager, rlimit[RLIMIT_NPROC]),
 		SD_BUS_VTABLE_PROPERTY_CONST),

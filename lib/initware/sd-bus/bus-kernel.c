@@ -23,7 +23,7 @@
 
 #include <sys/mman.h>
 #include <fcntl.h>
-#include <malloc.h>
+#include <stdlib.h>
 
 /* When we include libgen.h because we need dirname() we immediately
  * undefine lsb_basename() since libgen.h defines it as a macro to the XDG

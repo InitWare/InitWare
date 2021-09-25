@@ -5,7 +5,7 @@
 
 /* missing errnos */
 
-#ifndef ENDOATA
+#ifndef ENODATA
 #define ENODATA EBADF
 #endif
 
@@ -29,6 +29,12 @@
 #define ETIME ETIMEDOUT
 #else
 #define HAVE_ETIME
+#endif
+
+#ifndef ENOLINK
+#define ENOLINK ENOENT
+#else
+#define HAVE_ENOLINK
 #endif
 
 #endif /* BSDERRNO_H_ */

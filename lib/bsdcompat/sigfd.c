@@ -13,6 +13,8 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include "bsdsignal.h"
+
 static int sigfd_fd = -1;
 static sigset_t sset;
 
@@ -31,7 +33,7 @@ sigfd(int fd, const sigset_t *set, int flags)
 	if (sigfd_fd == -1)
 		return -1;
 
-	for (int i = 0; i < SIGRTMAX; i++) {
+	for (int i = 0; i < _NSIG; i++) {
 		if (sigismember(set, i)) {
 			EV_SET(&kev, i, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
 			if (kevent(sigfd_fd, &kev, 1, NULL, 0, NULL) < 0) {

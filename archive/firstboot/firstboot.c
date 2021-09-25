@@ -98,7 +98,7 @@ print_welcome(void)
 		log_warning_errno(r, "Failed to read os-release file: %m");
 
 	printf("\nWelcome to your new installation of %s!\nPlease configure a few basic system settings:\n\n",
-		isempty(pretty_name) ? "Linux" : pretty_name);
+		isempty(pretty_name) ? SVC_DISTRIBUTION : pretty_name);
 
 	press_any_key();
 

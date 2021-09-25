@@ -45,11 +45,12 @@
 
 #include "audit-fd.h"
 #include "boot-timestamps.h"
+#include "bsdsigfd.h"
+#include "bsdsignal.h"
 #include "bus-common-errors.h"
 #include "bus-error.h"
 #include "bus-kernel.h"
 #include "bus-util.h"
-#include "bsdsigfd.h"
 #include "cgroup-util.h"
 #include "dbus-job.h"
 #include "dbus-manager.h"
@@ -483,7 +484,7 @@ manager_setup_signals(Manager *m)
 #ifdef SIGPWR
 		SIGPWR, /* Some kernel drivers and upsd send us this on power failure */
 #endif
-
+#ifdef SIGRTMIN
 		SIGRTMIN + 0, /* systemd: start default.target */
 		SIGRTMIN + 1, /* systemd: isolate rescue.target */
 		SIGRTMIN + 2, /* systemd: isolate emergency.target */
@@ -526,6 +527,7 @@ manager_setup_signals(Manager *m)
 
 	/* ... one free signal here SIGRTMIN+30 ... */
 #endif
+#endif /* SIGRTMIN */
 		-1);
 	assert_se(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 
@@ -2075,10 +2077,16 @@ manager_dispatch_sigchld(Manager *m)
 	for (;;) {
 		siginfo_t si = {};
 
+#ifdef HAVE_waitid
 		/* First we call waitd() for a PID and do not reap the
                  * zombie. That way we can still access /proc/$PID for
                  * it while it is a zombie. */
-		if (waitid(P_ALL, 0, &si, WEXITED | WNOHANG | WNOWAIT) < 0) {
+		if (waitid(P_ALL, 0, &si, WEXITED | WNOHANG | WNOWAIT) < 0)
+#else
+		/* no WNOHANG in compatibility waitid */
+		if (waitid(P_ALL, 0, &si, WEXITED | WNOHANG) < 0)
+#endif
+		{
 			if (errno == ECHILD)
 				break;
 
@@ -2096,7 +2104,9 @@ manager_dispatch_sigchld(Manager *m)
 			_cleanup_free_ char *name = NULL;
 			Unit *u1, *u2, *u3;
 
+#ifdef HAVE_waitid
 			get_process_comm(si.si_pid, &name);
+#endif
 
 			log_debug("Child " PID_FMT
 				  " (%s) died (code=%s, status=%i/%s)",
@@ -2125,6 +2135,7 @@ manager_dispatch_sigchld(Manager *m)
 				invoke_sigchld_event(m, u3, &si);
 		}
 
+#ifdef HAVE_waitid
 		/* And now, we actually reap the zombie. */
 		if (waitid(P_PID, si.si_pid, &si, WEXITED) < 0) {
 			if (errno == EINTR)
@@ -2132,6 +2143,7 @@ manager_dispatch_sigchld(Manager *m)
 
 			return -errno;
 		}
+#endif
 	}
 
 	return 0;
@@ -2336,6 +2348,7 @@ manager_dispatch_signal_fd(sd_event_source *source, int fd, uint32_t revents,
 				[3] = MANAGER_KEXEC
 			};
 
+#ifdef SIGRTMIN
 			if ((int)sfsi.ssi_signo >= SIGRTMIN + 0 &&
 				(int)sfsi.ssi_signo < SIGRTMIN +
 						(int)ELEMENTSOF(target_table)) {
@@ -2405,6 +2418,7 @@ manager_dispatch_signal_fd(sd_event_source *source, int fd, uint32_t revents,
 				log_warning("Got unhandled signal <%s>.",
 					signal_to_string(sfsi.ssi_signo));
 			}
+#endif
 		}
 		}
 	}

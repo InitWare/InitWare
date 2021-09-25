@@ -122,9 +122,11 @@ find_package(Python COMPONENTS Interpreter)
 find_program(GPERF gperf REQUIRED)
 
 check_include_file(sys/endian.h HAVE_sys_endian_h)
+check_include_file(sys/timex.h HAVE_sys_timex_h)
 check_include_file(sys/xattr.h HAVE_sys_xattr_h)
 check_include_file(endian.h HAVE_endian_h)
 check_include_file(mntent.h HAVE_mntent_h)
+check_include_file(mqueue.h HAVE_mqueue.h)
 
 check_type_size(pid_t SVC_SIZEOF_PID_T)
 check_type_size(uid_t SVC_SIZEOF_UID_T)
@@ -138,16 +140,26 @@ check_type_size_in("struct statfs" "sys/statfs.h;sys/statvfs.h" SVC_HAVE_statfs)
 check_type_size_in("struct statvfs" "sys/statvfs.h" SVC_HAVE_statvfs)
 check_type_size_in("struct ucred" "sys/socket.h" HAVE_socket_struct_ucred)
 
+# macros
+check_symbol_exists(RLIMIT_AS "sys/resource.h" HAVE_RLIMIT_AS)
+
+# functions/symbols
 check_symbol_exists(canonicalize_file_name "stdlib.h" HAVE_canonicalize_file_name)
 check_symbol_exists(environ "unistd.h" HAVE_environ)
+check_function_exists(epoll_create SVC_HAVE_epoll)
 check_symbol_exists(get_current_dir_name "unistd.h" SVC_HAVE_get_current_dir_name)
 check_symbol_exists(gettid "unistd.h" HAVE_gettid)
 check_symbol_exists(name_to_handle_at "fcntl.h" HAVE_name_to_handle_at)
 check_function_exists(mempcpy HAVE_mempcpy)
 check_symbol_exists(program_invocation_short_name "errno.h"
 		    SVC_HAVE_program_invocation_short_name)
+check_function_exists(ptsname_r HAVE_ptsname_r)
 check_function_exists(secure_getenv HAVE_secure_getenv)
 check_function_exists(__secure_getenv HAVE___secure_getenv)
+check_function_exists(signalfd SVC_HAVE_signalfd)
+check_function_exists(strchrnul HAVE_strchrnul)
+check_function_exists(strtod_l HAVE_strtod_l)
+check_symbol_exists(waitid "sys/wait.h" HAVE_waitid)
 
 # ------------------------------------------------------------------------------
 # options configurable by the user
@@ -271,7 +283,7 @@ configure_file(head/systemd/svc-config.h.in head/systemd/svc-config.h)
 # the build proper
 # ------------------------------------------------------------------------------
 
-add_to_m4_params(SVC_PLATFORM_Linux SVC_PLATFORM_BSD UnsSet)
+add_to_m4_params(SVC_PLATFORM_Linux SVC_PLATFORM_BSD HAVE_RLIMIT_AS)
 
 add_subdirectory(cmd)
 add_subdirectory(lib)

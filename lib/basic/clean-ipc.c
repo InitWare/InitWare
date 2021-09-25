@@ -25,11 +25,14 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <fcntl.h>
-#include <mqueue.h>
 
 #include "clean-ipc.h"
 #include "strv.h"
 #include "util.h"
+
+#ifdef HAVE_mqueue_h
+#include <mqueue.h>
+#endif
 
 static int
 clean_sysvipc_shm(uid_t delete_uid)

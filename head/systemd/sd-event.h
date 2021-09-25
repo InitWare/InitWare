@@ -10,7 +10,7 @@
 #include "svc-config.h"
 
 #ifdef SVC_HAVE_epoll
-
+#include <sys/epoll.h>
 #else
 #define EPOLLIN POLLIN
 #define EPOLLPRI POLLPRI

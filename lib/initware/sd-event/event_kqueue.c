@@ -17,12 +17,14 @@
  *  - only FreeBSD and Mac OS X reset timers properly when changed
  */
 
+#include <sys/types.h>
 #include <sys/event.h>
 #include <sys/wait.h>
 
 #include <stdbool.h>
 
 #include "bsdqueue.h"
+#include "bsdsignal.h"
 #include "sd-event.h"
 #include "util.h"
 
@@ -875,7 +877,7 @@ loop_kevent(sd_event *loop, usec_t timeout)
 			}
 #ifdef EVFILT_EXCEPT
 			else if (kev->filter == EVFILT_EXCEPT)
-				if (kev.fflags & NOTE_OOB)
+				if (kev->fflags & NOTE_OOB)
 					source->io.revents |= EPOLLPRI;
 #endif
 
@@ -1001,9 +1003,12 @@ source_dispatch(sd_event_source *source)
 		break;
 
 	case SOURCE_SUBPROCESS: {
-		siginfo_t siginfo;
+		siginfo_t siginfo = waitstat_to_siginfo(source->subproc.pid,
+			source->subproc.status);
 
+#if 0
 		waitid(P_PID, source->subproc.pid, &siginfo, WNOWAIT);
+#endif
 		r = source->subproc.callback(source, &siginfo,
 			source->userdata);
 		waitid(P_PID, source->subproc.pid, NULL, 0);

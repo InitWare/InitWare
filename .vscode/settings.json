@@ -38,6 +38,8 @@
 	"bsdqueue.h": "c",
 	"cmath": "cpp",
 	"syslog.h": "c",
-	"in-addr-util.h": "c"
+	"in-addr-util.h": "c",
+	"bsdsigfd.h": "c",
+	"svc-config.h": "c"
 }
 }

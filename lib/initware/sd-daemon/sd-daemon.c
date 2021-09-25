@@ -25,7 +25,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <mqueue.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -37,6 +36,10 @@
 #include "sd-daemon.h"
 #include "socket-util.h"
 #include "util.h"
+
+#ifdef HAVE_mqueue_h
+#include <mqueue.h>
+#endif
 
 #define SNDBUF_SIZE (8 * 1024 * 1024)
 

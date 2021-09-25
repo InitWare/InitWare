@@ -805,8 +805,9 @@ request_handler_machine(struct MHD_Connection *connection, void *connection_cls)
 		"\"cutoff_from_realtime\" : \"%" PRIu64 "\","
 		"\"cutoff_to_realtime\" : \"%" PRIu64 "\" }\n",
 		SD_ID128_FORMAT_VAL(mid), SD_ID128_FORMAT_VAL(bid),
-		hostname_cleanup(hostname, false), os_name ? os_name : "Linux",
-		v ? v : "bare", usage, cutoff_from, cutoff_to);
+		hostname_cleanup(hostname, false),
+		os_name ? os_name : SVC_DISTRIBUTION, v ? v : "bare", usage,
+		cutoff_from, cutoff_to);
 
 	if (r < 0)
 		return respond_oom(connection);

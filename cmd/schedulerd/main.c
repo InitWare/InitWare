@@ -708,8 +708,10 @@ parse_config_file(void)
 			&arg_default_rlimit[RLIMIT_RSS] },
 		{ "Manager", "DefaultLimitNOFILE", config_parse_limit, 0,
 			&arg_default_rlimit[RLIMIT_NOFILE] },
+#ifdef RLIMIT_AS
 		{ "Manager", "DefaultLimitAS", config_parse_bytes_limit, 0,
 			&arg_default_rlimit[RLIMIT_AS] },
+#endif
 		{ "Manager", "DefaultLimitNPROC", config_parse_limit, 0,
 			&arg_default_rlimit[RLIMIT_NPROC] },
 		{ "Manager", "DefaultLimitMEMLOCK", config_parse_bytes_limit, 0,
@@ -1334,7 +1336,7 @@ status_welcome(void)
 	return status_printf(NULL, false, false,
 		"\nWelcome to \x1B[%sm%s\x1B[0m!\n",
 		isempty(ansi_color) ? "1" : ansi_color,
-		isempty(pretty_name) ? "Linux" : pretty_name);
+		isempty(pretty_name) ? SVC_DISTRIBUTION : pretty_name);
 }
 
 static int

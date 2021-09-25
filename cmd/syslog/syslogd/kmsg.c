@@ -485,7 +485,13 @@ server_open_kernel_seqnum(Server *s)
 		return 0;
 	}
 
-	if (posix_fallocate(fd, 0, sizeof(uint64_t)) < 0) {
+#ifdef SVC_PLATFORM_OpenBSD
+	// TODO: should be a feature check
+	if (ftruncate(fd, sizeof(uint64_t)) < 0)
+#else
+	if (posix_fallocate(fd, 0, sizeof(uint64_t)) < 0)
+#endif
+	{
 		log_error_errno(errno,
 			"Failed to allocate sequential number file, ignoring: %m");
 		return 0;

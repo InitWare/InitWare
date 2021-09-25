@@ -19,6 +19,7 @@
 
 #include <errno.h>
 
+#include "bsdglibc.h"
 #include "bus-error.h"
 #include "bus-util.h"
 #include "dbus-timer.h"

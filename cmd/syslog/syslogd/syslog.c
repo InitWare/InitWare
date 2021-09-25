@@ -52,7 +52,9 @@ forward_syslog_iovec(Server *s, const struct iovec *iovec, unsigned n_iovec,
 	struct cmsghdr *cmsg;
 	union {
 		struct cmsghdr cmsghdr;
+#ifdef CMSG_CREDS_STRUCT_SIZE
 		uint8_t buf[CMSG_SPACE(CMSG_CREDS_STRUCT_SIZE)];
+#endif
 	} control;
 
 	assert(s);

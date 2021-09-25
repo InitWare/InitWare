@@ -38,6 +38,8 @@ typedef uint32_t __sd_bitwise be32_t;
 typedef uint64_t __sd_bitwise le64_t;
 typedef uint64_t __sd_bitwise be64_t;
 
+#if 0
+
 #undef htobe16
 #undef htole16
 #undef be16toh
@@ -133,5 +135,6 @@ be64toh(be64_t value)
 
 #undef __sd_bitwise
 #undef __sd_force
+#endif
 
 #endif /* SPARSE_ENDIAN_H_ */

@@ -18,7 +18,6 @@
 ***/
 
 #include <sys/time.h>
-#include <sys/timex.h>
 #include <string.h>
 #include <time.h>
 
@@ -29,6 +28,10 @@
 
 #ifdef SVC_HAVE_timerfd
 #include <sys/timerfd.h>
+#endif
+
+#ifdef HAVE_sys_timex_h
+#include <sys/timex.h>
 #endif
 
 usec_t
