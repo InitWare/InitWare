@@ -1,0 +1,17 @@
+image: freebsd/latest
+sources:
+  - https://github.com/InitWare/InitWare
+packages:
+  - cmake
+  - fusefs-libs
+  - gperf
+  - libinotify
+  - pkgconf
+tasks:
+  - setup: |
+      mkdir InitWare/build
+      cd InitWare/build
+      cmake ..
+  - build: |
+      cd InitWare/build
+      make

@@ -22,3 +22,4 @@
 /*.tar.xz
 /tags
 __pycache__/
+.vscode/

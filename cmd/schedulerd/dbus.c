@@ -1030,8 +1030,6 @@ bus_init_private(Manager *m)
 
 	assert(m);
 
-	log_error("Shall we create private socket?");
-
 	if (m->private_listen_fd >= 0)
 		return 0;
 

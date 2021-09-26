@@ -1,0 +1,17 @@
+image: netbsd/latest
+sources:
+  - https://github.com/InitWare/InitWare
+packages:
+  - cmake
+  - fuse
+  - gperf
+  - libinotify
+  - pkgconf
+tasks:
+  - setup: |
+      mkdir InitWare/build
+      cd InitWare/build
+      cmake ..
+  - build: |
+      cd InitWare/build
+      make
