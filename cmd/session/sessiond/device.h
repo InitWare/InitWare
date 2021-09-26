@@ -19,31 +19,27 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <sys/types.h>
-#include <libudev.h>
-#include <stdbool.h>
+typedef struct Device Device;
 
-#ifdef HAVE_ACL
+#include "list.h"
+#include "logind.h"
+#include "seat.h"
+#include "session-device.h"
+#include "util.h"
 
-int devnode_acl(const char *path, bool flush, bool del, uid_t old_uid, bool add,
-	uid_t new_uid);
+struct Device {
+	Manager *manager;
 
-int devnode_acl_all(struct udev *udev, const char *seat, bool flush, bool del,
-	uid_t old_uid, bool add, uid_t new_uid);
-#else
+	char *sysfs;
+	Seat *seat;
+	bool master;
 
-static inline int
-devnode_acl(const char *path, bool flush, bool del, uid_t old_uid, bool add,
-	uid_t new_uid)
-{
-	return 0;
-}
+	dual_timestamp timestamp;
 
-static inline int
-devnode_acl_all(struct udev *udev, const char *seat, bool flush, bool del,
-	uid_t old_uid, bool add, uid_t new_uid)
-{
-	return 0;
-}
+	IWLIST_FIELDS(struct Device, devices);
+	IWLIST_HEAD(SessionDevice, session_devices);
+};
 
-#endif
+Device *device_new(Manager *m, const char *sysfs, bool master);
+void device_free(Device *d);
+void device_attach(Device *d, Seat *s);

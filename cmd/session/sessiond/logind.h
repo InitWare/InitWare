@@ -20,7 +20,6 @@
 ***/
 
 #include <inttypes.h>
-#include <libudev.h>
 #include <stdbool.h>
 
 #include "hashmap.h"
@@ -32,13 +31,25 @@
 
 typedef struct Manager Manager;
 
-#include "logind-action.h"
-#include "logind-button.h"
-#include "logind-device.h"
-#include "logind-inhibit.h"
-#include "logind-seat.h"
-#include "logind-session.h"
-#include "logind-user.h"
+#include "action.h"
+#include "button.h"
+#include "device.h"
+#include "inhibit.h"
+#include "seat.h"
+#include "session.h"
+#include "user.h"
+
+#ifndef CAP_SYS_ADMIN
+#define CAP_SYS_ADMIN 0
+#define CAP_SYS_BOOT 0
+#define CAP_KILL 0
+#endif
+
+#ifdef SVC_USE_libudev
+#include <libudev.h>
+#else
+struct udev_device;
+#endif
 
 #define IGNORE_LID_SWITCH_STARTUP_USEC (3 * USEC_PER_MINUTE)
 #define IGNORE_LID_SWITCH_SUSPEND_USEC (30 * USEC_PER_SEC)
@@ -60,16 +71,18 @@ struct Manager {
 	IWLIST_HEAD(Session, session_gc_queue);
 	IWLIST_HEAD(User, user_gc_queue);
 
+#ifdef SVC_USE_libudev
 	struct udev *udev;
 	struct udev_monitor *udev_seat_monitor, *udev_device_monitor,
 		*udev_vcsa_monitor, *udev_button_monitor;
 
-	sd_event_source *console_active_event_source;
 	sd_event_source *udev_seat_event_source;
 	sd_event_source *udev_device_event_source;
 	sd_event_source *udev_vcsa_event_source;
 	sd_event_source *udev_button_event_source;
+#endif
 
+	sd_event_source *console_active_event_source;
 	int console_active_fd;
 
 	unsigned n_autovts;

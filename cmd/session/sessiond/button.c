@@ -25,8 +25,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "button.h"
 #include "conf-parser.h"
-#include "logind-button.h"
 #include "sd-messages.h"
 #include "special.h"
 #include "util.h"
@@ -232,8 +232,8 @@ button_dispatch(sd_event_source *s, int fd, uint32_t revents, void *userdata)
 				LOG_MESSAGE_ID(SD_MESSAGE_LID_OPENED), NULL);
 
 			b->lid_closed = false;
-			b->check_event_source =
-				sd_event_source_unref(b->check_event_source);
+			b->check_event_source = sd_event_source_unref(
+				b->check_event_source);
 
 		} else if (ev.code == SW_DOCK) {
 			log_struct(LOG_INFO, LOG_MESSAGE("System undocked."),

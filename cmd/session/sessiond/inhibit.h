@@ -43,8 +43,8 @@ typedef enum InhibitMode {
 	_INHIBIT_MODE_INVALID = -1
 } InhibitMode;
 
-#include "logind-seat.h"
 #include "logind.h"
+#include "seat.h"
 
 struct Inhibitor {
 	Manager *manager;

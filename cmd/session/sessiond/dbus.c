@@ -1266,6 +1266,7 @@ method_set_user_linger(sd_bus *bus, sd_bus_message *message, void *userdata,
 static int
 trigger_device(Manager *m, struct udev_device *d)
 {
+#ifdef SVC_HAVE_libudev
 	_cleanup_udev_enumerate_unref_ struct udev_enumerate *e = NULL;
 	struct udev_list_entry *first, *item;
 	int r;
@@ -1302,11 +1303,16 @@ trigger_device(Manager *m, struct udev_device *d)
 	}
 
 	return 0;
+
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 static int
 attach_device(Manager *m, const char *seat, const char *sysfs)
 {
+#ifdef SVC_HAVE_libudev
 	_cleanup_udev_device_unref_ struct udev_device *d = NULL;
 	_cleanup_free_ char *rule = NULL, *file = NULL;
 	const char *id_for_seat;
@@ -1343,11 +1349,17 @@ attach_device(Manager *m, const char *seat, const char *sysfs)
 		return r;
 
 	return trigger_device(m, d);
+
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 static int
 flush_devices(Manager *m)
 {
+#ifdef SVC_HAVE_libudev
 	_cleanup_closedir_ DIR *d;
 
 	assert(m);
@@ -1377,6 +1389,11 @@ flush_devices(Manager *m)
 	}
 
 	return trigger_device(m, NULL);
+
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 static int
@@ -1505,8 +1522,8 @@ lid_switch_ignore_handler(sd_event_source *e, uint64_t usec, void *userdata)
 	assert(e);
 	assert(m);
 
-	m->lid_switch_ignore_event_source =
-		sd_event_source_unref(m->lid_switch_ignore_event_source);
+	m->lid_switch_ignore_event_source = sd_event_source_unref(
+		m->lid_switch_ignore_event_source);
 	return 0;
 }
 

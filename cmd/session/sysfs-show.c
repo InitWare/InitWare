@@ -18,7 +18,6 @@
 ***/
 
 #include <errno.h>
-#include <libudev.h>
 #include <string.h>
 
 #include "path-util.h"
@@ -26,11 +25,16 @@
 #include "udev-util.h"
 #include "util.h"
 
+#ifdef SVC_USE_libudev
+#include <libudev.h>
+#endif
+
 static int
 show_sysfs_one(struct udev *udev, const char *seat,
 	struct udev_list_entry **item, const char *sub, const char *prefix,
 	unsigned n_columns)
 {
+#ifdef SVC_USE_libudev
 	assert(udev);
 	assert(seat);
 	assert(item);
@@ -143,6 +147,7 @@ show_sysfs_one(struct udev *udev, const char *seat,
 				n_columns - 2);
 		}
 	}
+#endif
 
 	return 0;
 }
@@ -150,10 +155,12 @@ show_sysfs_one(struct udev *udev, const char *seat,
 int
 show_sysfs(const char *seat, const char *prefix, unsigned n_columns)
 {
+	int r = 0;
+
+#ifdef SVC_USE_libudev
 	_cleanup_udev_enumerate_unref_ struct udev_enumerate *e = NULL;
 	_cleanup_udev_unref_ struct udev *udev = NULL;
 	struct udev_list_entry *first = NULL;
-	int r;
 
 	if (n_columns <= 0)
 		n_columns = columns();
@@ -191,6 +198,7 @@ show_sysfs(const char *seat, const char *prefix, unsigned n_columns)
 	if (first)
 		show_sysfs_one(udev, seat, &first, "/", prefix, n_columns);
 	else
+#endif
 		printf("%s%s%s\n", prefix, draw_special_char(DRAW_TREE_RIGHT),
 			"(none)");
 

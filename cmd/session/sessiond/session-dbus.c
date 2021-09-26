@@ -27,9 +27,9 @@
 #include "strv.h"
 #include "util.h"
 
-#include "logind-session-device.h"
-#include "logind-session.h"
 #include "logind.h"
+#include "session-device.h"
+#include "session.h"
 
 static int
 property_get_user(sd_bus *bus, const char *path, const char *interface,
@@ -401,6 +401,7 @@ static int
 method_take_device(sd_bus *bus, sd_bus_message *message, void *userdata,
 	sd_bus_error *error)
 {
+#ifdef SVC_HAVE_libudev
 	Session *s = userdata;
 	uint32_t major, minor;
 	SessionDevice *sd;
@@ -439,12 +440,16 @@ method_take_device(sd_bus *bus, sd_bus_message *message, void *userdata,
 		session_device_free(sd);
 
 	return r;
+#else
+	return -ENOTSUP;
+#endif
 }
 
 static int
 method_release_device(sd_bus *bus, sd_bus_message *message, void *userdata,
 	sd_bus_error *error)
 {
+#ifdef SVC_HAVE_libudev
 	Session *s = userdata;
 	uint32_t major, minor;
 	SessionDevice *sd;
@@ -471,12 +476,17 @@ method_release_device(sd_bus *bus, sd_bus_message *message, void *userdata,
 
 	session_device_free(sd);
 	return sd_bus_reply_method_return(message, NULL);
+#else
+	return sd_bus_error_setf(error, BUS_ERROR_DEVICE_NOT_TAKEN,
+		"Not supported without udev.");
+#endif
 }
 
 static int
 method_pause_device_complete(sd_bus *bus, sd_bus_message *message,
 	void *userdata, sd_bus_error *error)
 {
+#ifdef SVC_HAVE_libudev
 	Session *s = userdata;
 	uint32_t major, minor;
 	SessionDevice *sd;
@@ -504,6 +514,10 @@ method_pause_device_complete(sd_bus *bus, sd_bus_message *message,
 	session_device_complete_pause(sd);
 
 	return sd_bus_reply_method_return(message, NULL);
+#else
+	return sd_bus_error_setf(error, BUS_ERROR_DEVICE_NOT_TAKEN,
+		"Not supported without udev.");
+#endif
 }
 
 const sd_bus_vtable session_vtable[] = { SD_BUS_VTABLE_START(0),

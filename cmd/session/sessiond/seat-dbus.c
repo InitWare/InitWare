@@ -23,8 +23,8 @@
 #include "bus-common-errors.h"
 #include "bus-label.h"
 #include "bus-util.h"
-#include "logind-seat.h"
 #include "logind.h"
+#include "seat.h"
 #include "strv.h"
 #include "util.h"
 

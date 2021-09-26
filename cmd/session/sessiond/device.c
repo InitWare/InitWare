@@ -20,7 +20,7 @@
 #include <assert.h>
 #include <string.h>
 
-#include "logind-device.h"
+#include "device.h"
 #include "util.h"
 
 Device *

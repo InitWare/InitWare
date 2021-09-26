@@ -22,7 +22,7 @@
 #include <string.h>
 
 #include "acl-util.h"
-#include "logind-acl.h"
+#include "acl.h"
 #include "set.h"
 #include "udev-util.h"
 #include "util.h"

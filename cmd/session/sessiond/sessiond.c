@@ -17,10 +17,8 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <linux/vt.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <libudev.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -32,6 +30,14 @@
 #include "sd-daemon.h"
 #include "strv.h"
 #include "udev-util.h"
+
+#ifdef SVC_HAVE_evdev
+#include <linux/vt.h>
+#endif
+
+#ifdef SVC_HAVE_libudev
+#include <libudev.h>
+#endif
 
 Manager *
 manager_new(void)
@@ -61,8 +67,8 @@ manager_new(void)
 	m->idle_action = HANDLE_IGNORE;
 	m->idle_action_not_before_usec = now(CLOCK_MONOTONIC);
 
-	m->runtime_dir_size =
-		PAGE_ALIGN((size_t)(physical_memory() / 10)); /* 10% */
+	m->runtime_dir_size = PAGE_ALIGN(
+		(size_t)(physical_memory() / 10)); /* 10% */
 	m->user_tasks_max = (uint64_t)-1;
 
 	m->devices = hashmap_new(&string_hash_ops);
@@ -86,15 +92,19 @@ manager_new(void)
 	if (!m->kill_exclude_users)
 		goto fail;
 
+#ifdef SVC_HAVE_libudev
 	m->udev = udev_new();
 	if (!m->udev)
 		goto fail;
+#endif
 
 	r = sd_event_default(&m->event);
 	if (r < 0)
 		goto fail;
 
+#ifdef SVC_PLATFORM_Linux
 	sd_event_set_watchdog(m->event, true);
+#endif
 
 	return m;
 
@@ -121,8 +131,10 @@ manager_free(Manager *m)
 	while ((u = hashmap_first(m->users)))
 		user_free(u);
 
+#ifdef SVC_HAVE_libudev
 	while ((d = hashmap_first(m->devices)))
 		device_free(d);
+#endif
 
 	while ((s = hashmap_first(m->seats)))
 		seat_free(s);
@@ -130,8 +142,10 @@ manager_free(Manager *m)
 	while ((i = hashmap_first(m->inhibitors)))
 		inhibitor_free(i);
 
+#ifdef SVC_HAVE_libudev
 	while ((b = hashmap_first(m->buttons)))
 		button_free(b);
+#endif
 
 	hashmap_free(m->devices);
 	hashmap_free(m->seats);
@@ -148,14 +162,17 @@ manager_free(Manager *m)
 	sd_event_source_unref(m->idle_action_event_source);
 
 	sd_event_source_unref(m->console_active_event_source);
+#ifdef SVC_HAVE_libudev
 	sd_event_source_unref(m->udev_seat_event_source);
 	sd_event_source_unref(m->udev_device_event_source);
 	sd_event_source_unref(m->udev_vcsa_event_source);
 	sd_event_source_unref(m->udev_button_event_source);
+#endif
 	sd_event_source_unref(m->lid_switch_ignore_event_source);
 
 	safe_close(m->console_active_fd);
 
+#ifdef SVC_HAVE_libudev
 	if (m->udev_seat_monitor)
 		udev_monitor_unref(m->udev_seat_monitor);
 	if (m->udev_device_monitor)
@@ -167,6 +184,7 @@ manager_free(Manager *m)
 
 	if (m->udev)
 		udev_unref(m->udev);
+#endif
 
 	bus_verify_polkit_async_registry_free(m->polkit_registry);
 
@@ -185,6 +203,7 @@ manager_free(Manager *m)
 static int
 manager_enumerate_devices(Manager *m)
 {
+#ifdef SVC_HAVE_libudev
 	struct udev_list_entry *item = NULL, *first = NULL;
 	_cleanup_udev_enumerate_unref_ struct udev_enumerate *e = NULL;
 	int r;
@@ -227,11 +246,15 @@ manager_enumerate_devices(Manager *m)
 	}
 
 	return r;
+#else
+	return 0;
+#endif
 }
 
 static int
 manager_enumerate_buttons(Manager *m)
 {
+#if defined(SVC_HAVE_libudev) && defined(SVC_HAVE_evdev)
 	_cleanup_udev_enumerate_unref_ struct udev_enumerate *e = NULL;
 	struct udev_list_entry *item = NULL, *first = NULL;
 	int r;
@@ -284,6 +307,7 @@ manager_enumerate_buttons(Manager *m)
 	}
 
 	return r;
+#endif
 }
 
 static int
@@ -512,6 +536,7 @@ manager_enumerate_inhibitors(Manager *m)
 	return r;
 }
 
+#ifdef SVC_HAVE_libudev
 static int
 manager_dispatch_seat_udev(sd_event_source *s, int fd, uint32_t revents,
 	void *userdata)
@@ -588,6 +613,7 @@ manager_dispatch_button_udev(sd_event_source *s, int fd, uint32_t revents,
 	manager_process_button_device(m, d);
 	return 0;
 }
+#endif
 
 static int
 manager_dispatch_console(sd_event_source *s, int fd, uint32_t revents,
@@ -762,7 +788,7 @@ manager_connect_bus(Manager *m)
 }
 
 static int
-manager_vt_switch(sd_event_source *src, const struct signalfd_siginfo *si,
+manager_vt_switch(sd_event_source *src, const struct sigfd_siginfo *si,
 	void *data)
 {
 	Manager *m = data;
@@ -871,6 +897,7 @@ manager_connect_console(Manager *m)
 static int
 manager_connect_udev(Manager *m)
 {
+#ifdef SVC_HAVE_libudev
 	int r;
 
 	assert(m);
@@ -933,8 +960,8 @@ manager_connect_udev(Manager *m)
 		m->handle_hibernate_key != HANDLE_IGNORE ||
 		m->handle_lid_switch != HANDLE_IGNORE ||
 		m->handle_lid_switch_docked != HANDLE_IGNORE) {
-		m->udev_button_monitor =
-			udev_monitor_new_from_netlink(m->udev, "udev");
+		m->udev_button_monitor = udev_monitor_new_from_netlink(m->udev,
+			"udev");
 		if (!m->udev_button_monitor)
 			return -ENOMEM;
 
@@ -961,8 +988,8 @@ manager_connect_udev(Manager *m)
 
 	/* Don't bother watching VCSA devices, if nobody cares */
 	if (m->n_autovts > 0 && m->console_active_fd >= 0) {
-		m->udev_vcsa_monitor =
-			udev_monitor_new_from_netlink(m->udev, "udev");
+		m->udev_vcsa_monitor = udev_monitor_new_from_netlink(m->udev,
+			"udev");
 		if (!m->udev_vcsa_monitor)
 			return -ENOMEM;
 
@@ -983,6 +1010,9 @@ manager_connect_udev(Manager *m)
 	}
 
 	return 0;
+#else
+	return 0;
+#endif
 }
 
 void
@@ -1189,8 +1219,10 @@ manager_startup(Manager *m)
 	HASHMAP_FOREACH (inhibitor, m->inhibitors, i)
 		inhibitor_start(inhibitor);
 
+#ifdef SVC_HAVE_evdev
 	HASHMAP_FOREACH (button, m->buttons, i)
 		button_check_switches(button);
+#endif
 
 	manager_dispatch_idle_action(NULL, 0, m);
 

@@ -18,8 +18,6 @@
 ***/
 
 #include <sys/ioctl.h>
-#include <linux/kd.h>
-#include <linux/vt.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -30,13 +28,18 @@
 #include "bus-error.h"
 #include "bus-util.h"
 #include "fileio.h"
-#include "logind-session.h"
 #include "mkdir.h"
 #include "path-util.h"
 #include "sd-id128.h"
 #include "sd-messages.h"
+#include "session.h"
 #include "strv.h"
 #include "util.h"
+
+#ifdef SVC_PLATFORM_Linux
+#include <linux/kd.h>
+#include <linux/vt.h>
+#endif
 
 #define RELEASE_USEC (20 * USEC_PER_SEC)
 
@@ -100,8 +103,10 @@ session_free(Session *s)
 
 	session_drop_controller(s);
 
+#ifdef SVC_HAVE_libudev
 	while ((sd = hashmap_first(s->devices)))
 		session_device_free(sd);
+#endif
 
 	hashmap_free(s->devices);
 
@@ -481,8 +486,12 @@ session_activate(Session *s)
 
 	s->seat->pending_switch = s;
 
+#ifdef SVC_HAVE_libudev
 	/* if no devices are running, immediately perform the session switch */
 	num_pending = session_device_try_pause_all(s);
+#else
+	num_pending = 0;
+#endif
 	if (!num_pending)
 		seat_complete_switch(s->seat);
 
@@ -676,9 +685,11 @@ session_finalize(Session *s)
 
 	s->timer_event_source = sd_event_source_unref(s->timer_event_source);
 
+#ifdef SVC_HAVE_libudev
 	/* Kill session devices */
 	while ((sd = hashmap_first(s->devices)))
 		session_device_free(sd);
+#endif
 
 	unlink(s->state_file);
 	session_add_to_gc_queue(s);
@@ -922,8 +933,8 @@ session_create_fifo(Session *s)
 
 	/* Open reading side */
 	if (s->fifo_fd < 0) {
-		s->fifo_fd =
-			open(s->fifo_path, O_RDONLY | O_CLOEXEC | O_NDELAY);
+		s->fifo_fd = open(s->fifo_path,
+			O_RDONLY | O_CLOEXEC | O_NDELAY);
 		if (s->fifo_fd < 0)
 			return -errno;
 	}
@@ -1054,6 +1065,7 @@ session_open_vt(Session *s)
 int
 session_prepare_vt(Session *s)
 {
+#ifdef SVC_PLATFORM_Linux
 	int vt, r;
 	struct vt_mode mode = { 0 };
 
@@ -1107,11 +1119,16 @@ session_prepare_vt(Session *s)
 error:
 	session_restore_vt(s);
 	return r;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 void
 session_restore_vt(Session *s)
 {
+#ifdef SVC_PLATFORM_Linux
 	_cleanup_free_ char *utf8 = NULL;
 	int vt, kb = K_XLATE;
 	struct vt_mode mode = { 0 };
@@ -1135,6 +1152,9 @@ session_restore_vt(Session *s)
 	fchown(vt, 0, -1);
 
 	s->vtfd = safe_close(s->vtfd);
+#else
+	unimplemented();
+#endif
 }
 
 void
@@ -1144,6 +1164,7 @@ session_leave_vt(Session *s)
 
 	assert(s);
 
+#ifdef SVC_PLATFORM_Linux
 	/* This is called whenever we get a VT-switch signal from the kernel.
          * We acknowledge all of them unconditionally. Note that session are
          * free to overwrite those handlers and we only register them for
@@ -1158,8 +1179,14 @@ session_leave_vt(Session *s)
 	if (s->vtfd < 0)
 		return;
 
+#ifdef SVC_USE_libudev
 	session_device_pause_all(s);
+#endif
 	r = ioctl(s->vtfd, VT_RELDISP, 1);
+#else
+	unimplemented();
+	r = -ENOTSUP;
+#endif
 	if (r < 0)
 		log_debug_errno(errno, "Cannot release VT of session %s: %m",
 			s->id);
@@ -1190,8 +1217,10 @@ session_release_controller(Session *s, bool notify)
 	if (!notify)
 		s->controller = NULL;
 
+#ifdef SVC_HAVE_libudev
 	while ((sd = hashmap_first(s->devices)))
 		session_device_free(sd);
+#endif
 
 	s->controller = NULL;
 	manager_drop_busname(s->manager, name);

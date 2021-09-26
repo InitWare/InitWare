@@ -29,13 +29,13 @@
 #include "conf-parser.h"
 #include "fileio.h"
 #include "hashmap.h"
-#include "logind-user.h"
 #include "mkdir.h"
 #include "path-util.h"
 #include "smack-util.h"
 #include "special.h"
 #include "strv.h"
 #include "unit-name.h"
+#include "user.h"
 #include "util.h"
 
 User *
@@ -343,6 +343,7 @@ user_mkdir_runtime_path(User *u)
 			goto fail;
 		}
 
+#ifdef SVC_PLATFORM_Linux // FIXME: mount per-user tmpfs
 		r = mount("tmpfs", p, "tmpfs", MS_NODEV | MS_NOSUID, t);
 		if (r < 0) {
 			if (errno != EPERM) {
@@ -363,6 +364,7 @@ user_mkdir_runtime_path(User *u)
 				goto fail;
 			}
 		}
+#endif
 	}
 
 	u->runtime_path = p;
@@ -531,6 +533,7 @@ user_remove_runtime_path(User *u)
 		log_error_errno(r, "Failed to remove runtime directory %s: %m",
 			u->runtime_path);
 
+#ifdef SVC_PLATFORM_Linux // FIXME: unmount per-user tmpfs
 	/* Ignore cases where the directory isn't mounted, as that's
          * quite possible, if we lacked the permissions to mount
          * something */
@@ -539,6 +542,7 @@ user_remove_runtime_path(User *u)
 		log_error_errno(errno,
 			"Failed to unmount user runtime directory %s: %m",
 			u->runtime_path);
+#endif
 
 	r = rm_rf(u->runtime_path, false, true, false);
 	if (r < 0)
@@ -609,12 +613,14 @@ user_finalize(User *u)
 	if (k < 0)
 		r = k;
 
+#if 0 // TODO:
 	/* Clean SysV + POSIX IPC objects */
 	if (u->manager->remove_ipc) {
 		k = clean_ipc(u->uid);
 		if (k < 0)
 			r = k;
 	}
+#endif
 
 	unlink(u->state_file);
 	user_add_to_gc_queue(u);

@@ -22,9 +22,9 @@
 
 #include "bsdsignal.h"
 #include "bus-util.h"
-#include "logind-user.h"
 #include "logind.h"
 #include "strv.h"
+#include "user.h"
 
 static int
 property_get_display(sd_bus *bus, const char *path, const char *interface,

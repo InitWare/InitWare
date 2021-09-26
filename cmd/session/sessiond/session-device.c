@@ -29,8 +29,8 @@
 #include <unistd.h>
 
 #include "bus-util.h"
-#include "logind-session-device.h"
 #include "missing.h"
+#include "session-device.h"
 #include "util.h"
 
 enum SessionDeviceNotifications {

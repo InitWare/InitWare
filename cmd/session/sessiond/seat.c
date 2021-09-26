@@ -18,20 +18,23 @@
 ***/
 
 #include <sys/ioctl.h>
-#include <linux/vt.h>
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
 
-#include "logind-acl.h"
-#include "logind-seat.h"
+#include "acl.h"
 #include "mkdir.h"
 #include "path-util.h"
 #include "sd-id128.h"
 #include "sd-messages.h"
+#include "seat.h"
 #include "util.h"
+
+#ifdef SVC_PLATFORM_Linux
+#include <linux/vt.h>
+#endif
 
 Seat *
 seat_new(Manager *m, const char *id)
@@ -76,8 +79,10 @@ seat_free(Seat *s)
 
 	assert(!s->active);
 
+#ifdef SVC_HAVE_libudev
 	while (s->devices)
 		device_free(s->devices);
+#endif
 
 	hashmap_remove(s->manager->seats, s->id);
 
@@ -221,9 +226,13 @@ seat_apply_acls(Seat *s, Session *old_active)
 
 	assert(s);
 
+#ifdef SVC_HAVE_libudev
 	r = devnode_acl_all(s->manager->udev, s->id, false, !!old_active,
 		old_active ? old_active->user->uid : 0, !!s->active,
 		s->active ? s->active->user->uid : 0);
+#else
+	r = -ENOTSUP;
+#endif
 
 	if (r < 0)
 		log_error_errno(r, "Failed to apply ACLs: %m");
@@ -246,7 +255,9 @@ seat_set_active(Seat *s, Session *session)
 	s->active = session;
 
 	if (old_active) {
+#ifdef SVC_HAVE_libudev
 		session_device_pause_all(old_active);
+#endif
 		session_send_changed(old_active, "Active", NULL);
 	}
 
@@ -254,7 +265,9 @@ seat_set_active(Seat *s, Session *session)
 
 	if (session && session->started) {
 		session_send_changed(session, "Active", NULL);
+#ifdef SVC_HAVE_libudev
 		session_device_resume_all(session);
+#endif
 	}
 
 	if (!session || session->started)

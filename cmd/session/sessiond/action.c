@@ -19,10 +19,10 @@
 
 #include <unistd.h>
 
+#include "action.h"
 #include "bus-error.h"
 #include "bus-util.h"
 #include "conf-parser.h"
-#include "logind-action.h"
 #include "sd-messages.h"
 #include "sleep-config.h"
 #include "special.h"
@@ -103,8 +103,10 @@ manager_handle_action(Manager *m, InhibitWhat inhibit_key, HandleAction handle,
 		supported = can_sleep("hibernate") > 0;
 	else if (handle == HANDLE_HYBRID_SLEEP)
 		supported = can_sleep("hybrid-sleep") > 0;
+#ifdef KEXEC
 	else if (handle == HANDLE_KEXEC)
 		supported = access(KEXEC, X_OK) >= 0;
+#endif
 	else
 		supported = true;
 

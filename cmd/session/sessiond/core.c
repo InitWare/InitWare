@@ -20,7 +20,6 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
-#include <linux/vt.h>
 #include <fcntl.h>
 #include <pwd.h>
 #include <unistd.h>
@@ -33,9 +32,14 @@
 #include "strv.h"
 #include "udev-util.h"
 
+#ifdef SVC_PLATFORM_Linux
+#include <linux/vt.h>
+#endif
+
 int
 manager_add_device(Manager *m, const char *sysfs, bool master, Device **_device)
 {
+#ifdef SVC_HAVE_libudev
 	Device *d;
 
 	assert(m);
@@ -55,6 +59,9 @@ manager_add_device(Manager *m, const char *sysfs, bool master, Device **_device)
 		*_device = d;
 
 	return 0;
+#else
+	return -ENOTSUP;
+#endif
 }
 
 int
@@ -182,6 +189,7 @@ manager_add_inhibitor(Manager *m, const char *id, Inhibitor **_inhibitor)
 int
 manager_add_button(Manager *m, const char *name, Button **_button)
 {
+#ifdef SVC_HAVE_libudev
 	Button *b;
 
 	assert(m);
@@ -198,6 +206,9 @@ manager_add_button(Manager *m, const char *name, Button **_button)
 		*_button = b;
 
 	return 0;
+#else
+	return -ENOTSUP;
+#endif
 }
 
 int
@@ -245,6 +256,7 @@ manager_drop_busname(Manager *m, const char *name)
 int
 manager_process_seat_device(Manager *m, struct udev_device *d)
 {
+#ifdef SVC_HAVE_libudev
 	Device *device;
 	int r;
 
@@ -301,11 +313,16 @@ manager_process_seat_device(Manager *m, struct udev_device *d)
 	}
 
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 int
 manager_process_button_device(Manager *m, struct udev_device *d)
 {
+#if defined(SVC_HAVE_libudev) && defined(SVC_HAVE_evdev)
 	Button *b;
 
 	int r;
@@ -335,6 +352,10 @@ manager_process_button_device(Manager *m, struct udev_device *d)
 	}
 
 	return 0;
+#else
+	unimplemented();
+	return -EINVAL;
+#endif
 }
 
 int
@@ -449,6 +470,7 @@ manager_shall_kill(Manager *m, const char *user)
 static int
 vt_is_busy(unsigned int vtnr)
 {
+#ifdef SVC_PLATFORM_Linux // TODO: VTs
 	struct vt_stat vt_stat;
 	int r = 0;
 	_cleanup_close_ int fd;
@@ -471,6 +493,9 @@ vt_is_busy(unsigned int vtnr)
 		r = !!(vt_stat.v_state & (1 << vtnr));
 
 	return r;
+#else
+	return -ENOTSUP;
+#endif
 }
 
 int
@@ -525,6 +550,7 @@ manager_is_docked(Manager *m)
 int
 manager_count_displays(Manager *m)
 {
+#ifdef SVC_HAVE_libudev
 	_cleanup_udev_enumerate_unref_ struct udev_enumerate *e = NULL;
 	struct udev_list_entry *item = NULL, *first = NULL;
 	int r;
@@ -572,6 +598,10 @@ manager_count_displays(Manager *m)
 	}
 
 	return n;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }
 
 bool

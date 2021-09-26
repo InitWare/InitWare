@@ -24,10 +24,10 @@ typedef enum KillWho KillWho;
 
 #include "list.h"
 #include "login-shared.h"
-#include "logind-seat.h"
-#include "logind-session-device.h"
-#include "logind-user.h"
 #include "logind.h"
+#include "seat.h"
+#include "session-device.h"
+#include "user.h"
 #include "util.h"
 
 typedef enum SessionState {

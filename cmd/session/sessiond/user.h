@@ -22,8 +22,8 @@
 typedef struct User User;
 
 #include "list.h"
-#include "logind-session.h"
 #include "logind.h"
+#include "session.h"
 #include "util.h"
 
 typedef enum UserState {

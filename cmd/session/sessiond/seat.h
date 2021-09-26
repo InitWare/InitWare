@@ -21,10 +21,10 @@
 
 typedef struct Seat Seat;
 
+#include "device.h"
 #include "list.h"
-#include "logind-device.h"
-#include "logind-session.h"
 #include "logind.h"
+#include "session.h"
 #include "util.h"
 
 struct Seat {
