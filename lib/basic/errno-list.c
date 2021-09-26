@@ -23,8 +23,7 @@
 #include "errno-list.h"
 #include "util.h"
 
-static const struct errno_name *lookup_errno(register const char *str,
-	register GPERF_LEN_TYPE len);
+struct errno_name *lookup_errno(register const char *str, register size_t len);
 
 #include "errno-from-name.h"
 #include "errno-to-name.h"

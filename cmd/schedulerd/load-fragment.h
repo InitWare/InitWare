@@ -21,8 +21,6 @@
 
 #include "unit.h"
 
-#define GPERF_LEN_TYPE register size_t
-
 /* Read service data from .desktop file style configuration fragments */
 
 int unit_load_fragment(Unit *u);

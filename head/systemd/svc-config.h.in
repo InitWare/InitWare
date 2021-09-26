@@ -18,6 +18,7 @@
 #define SVC_SIZEOF_MODE_T @SVC_SIZEOF_MODE_T@
 #define SVC_SIZEOF_TIME_T @SVC_SIZEOF_TIME_T@
 #define SVC_SIZEOF_RLIM_T @SVC_SIZEOF_RLIM_T@
+#define GPERF_LEN_TYPE register size_t
 
 /* header files */
 #cmakedefine HAVE_sys_endian_h
