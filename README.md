@@ -19,6 +19,12 @@ The Suite may run either as an init system or as an auxiliary service management
 system under another init system. InitWare originates as a fork of systemd and
 retains compatibility with many systemd interfaces, even on non-Linux platforms.
 
+| Platform | Build Status |
+|----------|--------------|
+|FreeBSD   |[![builds.sr.ht status](https://builds.sr.ht/~netbsduser/initware/commits/freebsd.yaml.svg)](https://builds.sr.ht/~netbsduser/initware/commits/freebsd.yaml?)|
+|NetBSD    |[![builds.sr.ht status](https://builds.sr.ht/~netbsduser/initware/commits/netbsd.yaml.svg)](https://builds.sr.ht/~netbsduser/initware/commits/netbsd.yaml?)|
+|OpenBSD   |[![builds.sr.ht status](https://builds.sr.ht/~netbsduser/initware/commits/openbsd.yaml.svg)](https://builds.sr.ht/~netbsduser/initware/commits/openbsd.yaml?)|
+
 ## Frequently Asked Questions
 
 #### How does InitWare differ from systemd?
