@@ -313,12 +313,13 @@ user_mkdir_runtime_path(User *u)
 
 	assert(u);
 
-	r = mkdir_safe_label("/run/user", 0755, 0, 0);
+	r = mkdir_safe_label(SVC_USERRUNSTATEDIR, 0755, 0, 0);
 	if (r < 0)
-		return log_error_errno(r, "Failed to create /run/user: %m");
+		return log_error_errno(r,
+			"Failed to create " SVC_USERRUNSTATEDIR ": %m");
 
 	if (!u->runtime_path) {
-		if (asprintf(&p, "/run/user/" UID_FMT, u->uid) < 0)
+		if (asprintf(&p, SVC_USERRUNSTATEDIR "/" UID_FMT, u->uid) < 0)
 			return log_oom();
 	} else
 		p = u->runtime_path;

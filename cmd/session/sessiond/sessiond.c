@@ -25,6 +25,7 @@
 #include "bus-error.h"
 #include "bus-util.h"
 #include "conf-parser.h"
+#include "label.h"
 #include "logind.h"
 #include "mkdir.h"
 #include "sd-daemon.h"
@@ -866,6 +867,7 @@ manager_connect_console(Manager *m)
 		return r;
 	}
 
+#ifdef SIGRTMIN // FIXME: see comment
 	/*
          * SIGRTMIN is used as global VT-release signal, SIGRTMIN + 1 is used
          * as VT-acquire signal. We ignore any acquire-events (yes, we still
@@ -890,6 +892,7 @@ manager_connect_console(Manager *m)
 	r = sd_event_add_signal(m->event, NULL, SIGRTMIN, manager_vt_switch, m);
 	if (r < 0)
 		return r;
+#endif
 
 	return 0;
 }
