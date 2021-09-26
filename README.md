@@ -21,6 +21,7 @@ retains compatibility with many systemd interfaces, even on non-Linux platforms.
 
 | Platform | Build Status |
 |----------|--------------|
+|GNU/Linux (Alpine)   |[![builds.sr.ht status](https://builds.sr.ht/~netbsduser/initware/commits/alpine.yaml.svg)](https://builds.sr.ht/~netbsduser/initware/commits/alpine.yaml?)|
 |FreeBSD   |[![builds.sr.ht status](https://builds.sr.ht/~netbsduser/initware/commits/freebsd.yaml.svg)](https://builds.sr.ht/~netbsduser/initware/commits/freebsd.yaml?)|
 |NetBSD    |[![builds.sr.ht status](https://builds.sr.ht/~netbsduser/initware/commits/netbsd.yaml.svg)](https://builds.sr.ht/~netbsduser/initware/commits/netbsd.yaml?)|
 |OpenBSD   |[![builds.sr.ht status](https://builds.sr.ht/~netbsduser/initware/commits/openbsd.yaml.svg)](https://builds.sr.ht/~netbsduser/initware/commits/openbsd.yaml?)|
@@ -51,8 +52,9 @@ Some details differ by port. See [Systemd compatibility].
 
 #### On what platforms does InitWare run?
 
-On NetBSD, FreeBSD, and GNU/Linux - its first-class targets - as an init system;
-on macOS, DragonFly BSD and OpenBSD as an auxiliary service manager. See
+InitWare is native to NetBSD. It runs on NetBSD, FreeBSD, and GNU/Linux - its
+first-class targets - as an init system; on macOS, DragonFly BSD and OpenBSD, it
+runs as an auxiliary service manager. See
 [Support matrix].
 
 [Support Matrix]: https://github.com/InitWare/InitWare/wiki/Support-Matrix
