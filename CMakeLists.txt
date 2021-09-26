@@ -85,7 +85,7 @@ set(DEFAULT_SVC_RUNSTATEDIR "/var/run")
 
 set(PKGCONF_DIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
-if (CMAKE_SYSTEM_NAME MATCHES ".*Linux")
+if (CMAKE_SYSTEM_NAME MATCHES ".*Linux|Linux")
 	set(SVC_PLATFORM_Linux TRUE)
 	set(DEFAULT_SVC_RUNSTATEDIR "/run")
 	add_definitions("-D_GNU_SOURCE")
@@ -113,8 +113,6 @@ if (NOT SVC_PLATFORM_Linux)
 	set(EPOLL_LIBS PkgConfig::inotify)
 else ()
 	pkg_check_modules(libcap IMPORTED_TARGET libcap)
-	pkg_check_modules(kqueue REQUIRED IMPORTED_TARGET libkqueue)
-	set(KQ_LIBS PkgConfig::kqueue)
 endif ()
 
 find_package(Threads REQUIRED)
@@ -141,6 +139,8 @@ check_type_size_in("struct statvfs" "sys/statvfs.h" SVC_HAVE_statvfs)
 check_type_size_in("struct ucred" "sys/socket.h" HAVE_socket_struct_ucred)
 
 # macros
+check_symbol_exists(GLOB_ALTDIRFUNC "glob.h" HAVE_GLOB_ALTDIRFUNC)
+check_symbol_exists(GLOB_BRACE "glob.h" HAVE_GLOB_BRACE)
 check_symbol_exists(RLIMIT_AS "sys/resource.h" HAVE_RLIMIT_AS)
 
 # functions/symbols

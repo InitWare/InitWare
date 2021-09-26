@@ -46,7 +46,7 @@
 #include "server.h"
 #include "socket-util.h"
 #include "stream.h"
-#include "syslog.h"
+#include "syslog_in.h"
 
 #ifdef HAVE_SELINUX
 #include <selinux/selinux.h>
@@ -54,6 +54,9 @@
 
 #ifdef SVC_PLATFORM_Linux
 #include <linux/sockios.h>
+#endif
+
+#ifdef SVC_USE_libudev
 #include <libudev.h>
 #endif
 
@@ -2081,7 +2084,7 @@ server_init(Server *s)
 	if (r < 0)
 		return r;
 
-#ifdef SVC_PLATFORM_Linux
+#ifdef SVC_USE_libudev
 	s->udev = udev_new();
 	if (!s->udev)
 		return -ENOMEM;
@@ -2181,7 +2184,7 @@ server_done(Server *s)
 	if (s->mmap)
 		mmap_cache_unref(s->mmap);
 
-#ifdef SVC_PLATFORM_Linux
+#ifdef SVC_USE_libudev
 	if (s->udev)
 		udev_unref(s->udev);
 #endif

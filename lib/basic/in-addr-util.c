@@ -18,7 +18,6 @@
 ***/
 
 #include <sys/types.h>
-#include <sys/cdefs.h>
 
 #include <stdbool.h>
 #include <stddef.h>

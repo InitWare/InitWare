@@ -35,7 +35,7 @@
 #include "server.h"
 #include "socket-util.h"
 #include "stream.h"
-#include "syslog.h"
+#include "syslog_in.h"
 #include "wall.h"
 
 #define STDOUT_STREAMS_MAX 4096

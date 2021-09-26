@@ -24,9 +24,11 @@
 #ifdef SVC_HAVE_signalfd
 #include <sys/signalfd.h>
 
+#define SIGFD_NONBLOCK SFD_NONBLOCK
+#define SIGFD_CLOEXEC SFD_CLOEXEC
 #define sigfd signalfd
 #define sigfd_siginfo signalfd_siginfo
-#define sigfd_read signalfd_read
+#define sigfd_read read
 #else
 
 enum {

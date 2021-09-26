@@ -26,7 +26,7 @@
 #include "selinux-util.h"
 #include "server.h"
 #include "socket-util.h"
-#include "syslog.h"
+#include "syslog_in.h"
 #include "wall.h"
 
 /* Warn once every 30s if we missed syslog message */

@@ -3643,9 +3643,11 @@ unit_dump_config_items(FILE *f)
 		{ config_parse_exec_cpu_sched_policy, "CPUSCHEDPOLICY" },
 		{ config_parse_exec_cpu_sched_prio, "CPUSCHEDPRIO" },
 		{ config_parse_exec_cpu_affinity, "CPUAFFINITY" },
+#ifdef SVC_USE_libcap
 		{ config_parse_exec_capabilities, "CAPABILITIES" },
 		{ config_parse_exec_secure_bits, "SECUREBITS" },
 		{ config_parse_capability_set, "BOUNDINGSET" },
+#endif
 #endif
 		{ config_parse_mode, "MODE" },
 		{ config_parse_unit_env_file, "FILE" },

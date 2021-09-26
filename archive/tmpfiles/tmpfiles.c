@@ -27,7 +27,6 @@
 #include <fcntl.h>
 #include <fnmatch.h>
 #include <getopt.h>
-#include <glob.h>
 #include <grp.h>
 #include <limits.h>
 #include <pwd.h>

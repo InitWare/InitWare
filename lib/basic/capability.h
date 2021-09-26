@@ -21,7 +21,7 @@
 
 #include "svc-config.h"
 
-#ifdef SVC_PLATFORM_Linux
+#ifdef SVC_USE_libcap
 
 #include <sys/capability.h>
 #include <inttypes.h>

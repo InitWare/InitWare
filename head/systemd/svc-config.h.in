@@ -32,6 +32,10 @@
 #cmakedefine SVC_HAVE_statfs
 #cmakedefine SVC_HAVE_statvfs
 
+/* preprocessor definitions */
+#cmakedefine HAVE_GLOB_ALTDIRFUNC
+#cmakedefine HAVE_GLOB_BRACE
+
 /* functions and symbols */
 #cmakedefine HAVE_canonicalize_file_name
 #cmakedefine HAVE_environ

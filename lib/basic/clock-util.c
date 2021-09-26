@@ -19,10 +19,8 @@
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#include <sys/prctl.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <linux/rtc.h>
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -40,6 +38,11 @@
 #include "macro.h"
 #include "strv.h"
 #include "util.h"
+
+#ifdef SVC_PLATFORM_Linux
+#include <sys/prctl.h>
+#include <linux/rtc.h>
+#endif
 
 int
 clock_get_hwclock(struct tm *tm)

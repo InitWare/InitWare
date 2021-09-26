@@ -141,7 +141,7 @@ typedef struct BootId {
 static int
 add_matches_for_device(sd_journal *j, const char *devpath)
 {
-#ifdef SVC_PLATFORM_Linux // FIXME: udev?
+#ifdef SVC_USE_libudev
 	int r;
 	_cleanup_udev_unref_ struct udev *udev = NULL;
 	_cleanup_udev_device_unref_ struct udev_device *device = NULL;

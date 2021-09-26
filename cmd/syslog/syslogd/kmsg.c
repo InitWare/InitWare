@@ -26,9 +26,9 @@
 
 #include "kmsg.h"
 #include "server.h"
-#include "syslog.h"
+#include "syslog_in.h"
 
-#ifdef SVC_PLATFORM_Linux
+#ifdef SVC_USE_libudev
 #include <libudev.h>
 #endif
 
@@ -221,7 +221,7 @@ dev_kmsg_record(Server *s, const char *p, size_t l)
 		k = e + 1;
 	}
 
-#ifdef SVC_PLATFORM_Linux
+#ifdef SVC_USE_libudev
 	if (kernel_device) {
 		struct udev_device *ud;
 

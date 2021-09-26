@@ -28,9 +28,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/* must come first */
+#include <linux/ip.h>
+
 #include <linux/if_link.h>
 #include <linux/if_tunnel.h>
-#include <linux/ip.h>
 
 #include "macro.h"
 #include "util.h"

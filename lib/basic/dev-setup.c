@@ -33,6 +33,7 @@
 int
 dev_setup(const char *prefix)
 {
+#ifdef SVC_PLATFORM_Linux
 	const char *j, *k;
 
 	static const char symlinks[] = "-/proc/kcore\0"
@@ -67,4 +68,5 @@ dev_setup(const char *prefix)
 	}
 
 	return 0;
+#endif
 }

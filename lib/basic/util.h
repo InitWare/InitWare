@@ -27,7 +27,6 @@
 #include <sys/time.h>
 #include <dirent.h>
 #include <fcntl.h>
-#include <glob.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <locale.h>
@@ -42,6 +41,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "bsdglob.h"
 #include "bsdstatfs.h"
 #include "bsducred.h"
 #include "def.h"

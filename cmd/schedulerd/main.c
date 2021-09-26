@@ -666,9 +666,11 @@ parse_config_file(void)
 			&arg_runtime_watchdog },
 		{ "Manager", "ShutdownWatchdogSec", config_parse_sec, 0,
 			&arg_shutdown_watchdog },
+#ifdef SVC_USE_libcap
 		{ "Manager", "CapabilityBoundingSet",
 			config_parse_capability_set, 0,
 			&arg_capability_bounding_set },
+#endif
 #ifdef HAVE_SECCOMP
 		{ "Manager", "SystemCallArchitectures",
 			config_parse_syscall_archs, 0, &arg_syscall_archs },
@@ -1814,6 +1816,7 @@ main(int argc, char *argv[])
 			log_error_errno(errno,
 				"Failed to adjust timer slack: %m");
 
+#ifdef SVC_USE_libcap
 	if (!cap_test_all(arg_capability_bounding_set)) {
 		r = capability_bounding_set_drop_usermode(
 			arg_capability_bounding_set);
@@ -1834,6 +1837,7 @@ main(int argc, char *argv[])
 			goto finish;
 		}
 	}
+#endif
 
 	if (arg_syscall_archs) {
 		r = enforce_syscall_archs(arg_syscall_archs);

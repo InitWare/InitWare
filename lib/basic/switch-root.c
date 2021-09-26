@@ -36,6 +36,7 @@ int
 switch_root(const char *new_root, const char *oldroot, bool detach_oldroot,
 	unsigned long mountflags)
 {
+#ifdef SVC_PLATFORM_Linux
 	/*  Don't try to unmount/move the old "/", there's no way to do it. */
 	static const char move_mounts[] = "/dev\0"
 					  "/proc\0"
@@ -160,4 +161,8 @@ switch_root(const char *new_root, const char *oldroot, bool detach_oldroot,
 	}
 
 	return 0;
+#else
+	unimplemented();
+	return 0;
+#endif
 }

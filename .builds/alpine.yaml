@@ -1,0 +1,19 @@
+image: alpine/latest
+sources:
+  - https://github.com/InitWare/InitWare
+packages:
+  - build-base
+  - m4 
+  - gperf
+  - gawk
+  - cmake
+  - pkgconf
+  - linux-headers
+tasks:
+  - setup: |
+      mkdir InitWare/build
+      cd InitWare/build
+      cmake ..
+  - build: |
+      cd InitWare/build
+      make

@@ -1,5 +1,3 @@
-#pragma once
-
 /***
   This file is part of systemd.
 
@@ -18,6 +16,9 @@
   You should have received a copy of the GNU Lesser General Public License
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
+
+#ifndef SYSLOG_IN_H_
+#define SYSLOG_IN_H_
 
 #include "server.h"
 
@@ -41,3 +42,5 @@ void server_process_syslog_message(Server *s, const char *buf, size_t buf_len,
 int server_open_syslog_socket(Server *s);
 
 void server_maybe_warn_forward_syslog_missed(Server *s);
+
+#endif /* SYSLOG_IN_H_ */

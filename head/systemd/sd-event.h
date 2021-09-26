@@ -2,8 +2,8 @@
 #define SD_EVENT_H_
 
 #include <sys/types.h>
-#include <sys/poll.h>
 #include <inttypes.h>
+#include <poll.h>
 #include <signal.h>
 
 #include "_sd-common.h"

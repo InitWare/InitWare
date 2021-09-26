@@ -28,7 +28,7 @@
 #include "journal-authenticate.h"
 #include "kmsg.h"
 #include "server.h"
-#include "syslog.h"
+#include "syslog_in.h"
 
 #include "sigbus.h"
 

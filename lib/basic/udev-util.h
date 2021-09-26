@@ -19,7 +19,10 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include "udev.h"
+#ifdef SVC_USE_libudev
+
+#include <libudev.h>
+
 #include "util.h"
 
 DEFINE_TRIVIAL_CLEANUP_FUNC(struct udev *, udev_unref);
@@ -38,3 +41,5 @@ DEFINE_TRIVIAL_CLEANUP_FUNC(struct udev_monitor *, udev_monitor_unref);
 #define _cleanup_udev_ctrl_unref_ _cleanup_(udev_ctrl_unrefp)
 #define _cleanup_udev_monitor_unref_ _cleanup_(udev_monitor_unrefp)
 #define _cleanup_udev_list_cleanup_ _cleanup_(udev_list_cleanup)
+
+#endif /* SVC_USE_libudev */

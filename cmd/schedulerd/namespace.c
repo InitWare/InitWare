@@ -17,12 +17,15 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "svc-config.h"
+
+#ifdef SVC_PLATFORM_Linux
+
 #include <sys/types.h>
 #include <sys/file.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
-#include <linux/fs.h>
 #include <errno.h>
 #include <limits.h>
 #include <sched.h>
@@ -708,3 +711,5 @@ static const char *const protect_system_table[_PROTECT_SYSTEM_MAX] = {
 };
 
 DEFINE_STRING_TABLE_LOOKUP(protect_system, ProtectSystem);
+
+#endif

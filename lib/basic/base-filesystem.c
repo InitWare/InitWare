@@ -55,6 +55,7 @@ static const BaseFilesystem table[] = {
 int
 base_filesystem_create(const char *root)
 {
+#ifdef SVC_PLATFORM_Linux
 	_cleanup_close_ int fd = -1;
 	unsigned i;
 	int r = 0;
@@ -116,4 +117,8 @@ base_filesystem_create(const char *root)
 	}
 
 	return 0;
+#else
+	unimplemented();
+	return -ENOTSUP;
+#endif
 }

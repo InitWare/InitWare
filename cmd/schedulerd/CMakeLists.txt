@@ -27,7 +27,7 @@ add_executable(svc.schedulerd cgroup.c dbus-cgroup.c dbus-execute.c dbus-job.c
     smack-setup.c snapshot.c socket.c target.c timer.c transaction.c
     unit-printf.c unit.c
     hostname-setup.c  kmod-setup.c locale-setup.c loopback-setup.c
-    machine-id-setup.c mount-setup.c
+    machine-id-setup.c mount-setup.c namespace.c
     ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.c
     ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf-nulstr.c)
 target_include_directories(svc.schedulerd PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
