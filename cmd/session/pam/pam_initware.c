@@ -18,7 +18,6 @@
 ***/
 
 #include <sys/file.h>
-#include <endian.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <pwd.h>
@@ -42,6 +41,7 @@
 #endif
 
 #include "audit.h"
+#include "bsdendian.h"
 #include "bus-error.h"
 #include "bus-util.h"
 #include "def.h"
