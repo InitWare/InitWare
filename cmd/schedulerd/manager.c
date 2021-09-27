@@ -445,7 +445,8 @@ enable_special_signals(Manager *m)
 	return 0;
 }
 
-static void sigchld_handler(int signo)
+static void
+sigchld_handler(int signo)
 {
 	assert_not_reached("This signal handler should never be invoked.");
 }
@@ -913,13 +914,18 @@ manager_connect_bus(Manager *m, bool reexecuting)
 	if (m->test_run)
 		return 0;
 
-	u = manager_get_unit(m, SPECIAL_DBUS_SERVICE);
+	if (m->scheduler_flags & SCHEDULER_AUXILIARY)
+		try_bus_connect = true;
+	else {
+		u = manager_get_unit(m, SPECIAL_DBUS_SERVICE);
 
-	try_bus_connect =
-		(u && SERVICE(u)->deserialized_state == SERVICE_RUNNING) &&
-		(reexecuting ||
-			(m->running_as == SYSTEMD_USER &&
-				getenv("DBUS_SESSION_BUS_ADDRESS")));
+		try_bus_connect = (u &&
+					  SERVICE(u)->deserialized_state ==
+						  SERVICE_RUNNING) &&
+			(reexecuting ||
+				(m->running_as == SYSTEMD_USER &&
+					getenv("DBUS_SESSION_BUS_ADDRESS")));
+	}
 
 	/* Try to connect to the busses, if possible. */
 	return bus_init(m, try_bus_connect);
