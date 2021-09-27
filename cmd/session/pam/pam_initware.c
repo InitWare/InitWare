@@ -23,11 +23,23 @@
 #include <fcntl.h>
 #include <pwd.h>
 
+#define NO_STATIC_MODULES /* fixes NetBSD builds. */
+
+#include <security/pam_appl.h>
+#include <security/pam_modules.h>
+
+#ifdef __LINUX_PAM__
 #include <security/_pam_macros.h>
 #include <security/pam_ext.h>
 #include <security/pam_misc.h>
-#include <security/pam_modules.h>
 #include <security/pam_modutil.h>
+#else
+#include <security/openpam.h>
+
+#define pam_syslog(handle, ...) openpam_log(__VA_ARGS__)
+#define pam_modutil_getpwnam(pamh, name) getpwnam(name)
+#define pam_misc_setenv pam_setenv
+#endif
 
 #include "audit.h"
 #include "bus-error.h"
@@ -122,7 +134,7 @@ get_seat_from_display(const char *display, const char **seat, uint32_t *vtnr)
 	};
 	_cleanup_free_ char *p = NULL, *tty = NULL;
 	_cleanup_close_ int fd = -1;
-	struct ucred ucred;
+	struct socket_ucred ucred;
 	int v, r;
 
 	assert(display);
@@ -189,12 +201,18 @@ pam_sm_open_session(pam_handle_t *handle, int flags, int argc,
 
 	assert(handle);
 
+	pam_syslog(handle, LOG_DEBUG, "InitWare PAM module");
+
 	/* Make this a NOP on non-logind systems */
 	if (!logind_running())
 		return PAM_SUCCESS;
 
 	if (parse_argv(handle, argc, argv, &class_pam, &type_pam, &debug) < 0)
 		return PAM_SESSION_ERR;
+
+#if 1
+	debug = true;
+#endif
 
 	if (debug)
 		pam_syslog(handle, LOG_DEBUG, "pam-systemd initializing");
@@ -236,8 +254,11 @@ pam_sm_open_session(pam_handle_t *handle, int flags, int argc,
 	}
 
 	/* Otherwise, we ask logind to create a session for us */
-
+#ifdef __LINUX_PAM__
 	pam_get_item(handle, PAM_XDISPLAY, (const void **)&display);
+#else
+	display = pam_getenv(handle, "DISPLAY");
+#endif
 	pam_get_item(handle, PAM_TTY, (const void **)&tty);
 	pam_get_item(handle, PAM_RUSER, (const void **)&remote_user);
 	pam_get_item(handle, PAM_RHOST, (const void **)&remote_host);
@@ -388,11 +409,6 @@ pam_sm_open_session(pam_handle_t *handle, int flags, int argc,
 				"Failed to set runtime dir.");
 			return r;
 		}
-
-		r = export_legacy_dbus_address(handle, pw->pw_uid,
-			runtime_path);
-		if (r != PAM_SUCCESS)
-			return r;
 	}
 
 	if (!isempty(seat)) {
@@ -494,3 +510,7 @@ pam_sm_close_session(pam_handle_t *handle, int flags, int argc,
 
 	return PAM_SUCCESS;
 }
+
+#ifdef OPENPAM
+PAM_MODULE_ENTRY("pam_initware");
+#endif

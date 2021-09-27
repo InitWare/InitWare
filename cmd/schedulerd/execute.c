@@ -33,22 +33,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef HAVE_PAM
-#include <security/pam_appl.h>
-#endif
-
-#ifdef HAVE_SELINUX
-#include <selinux/selinux.h>
-#endif
-
-#ifdef HAVE_SECCOMP
-#include <seccomp.h>
-#endif
-
-#ifdef HAVE_APPARMOR
-#include <sys/apparmor.h>
-#endif
-
 #include "af-list.h"
 #include "apparmor-util.h"
 #include "async.h"
@@ -75,6 +59,23 @@
 #include "unit.h"
 #include "util.h"
 #include "utmp-wtmp.h"
+
+#ifdef SVC_USE_PAM
+#include <security/pam_appl.h>
+#include <security/pam_modules.h>
+#endif
+
+#ifdef HAVE_SELINUX
+#include <selinux/selinux.h>
+#endif
+
+#ifdef HAVE_SECCOMP
+#include <seccomp.h>
+#endif
+
+#ifdef HAVE_APPARMOR
+#include <sys/apparmor.h>
+#endif
 
 #ifdef HAVE_SECCOMP
 #include "seccomp-util.h"
@@ -780,7 +781,7 @@ enforce_user(const ExecContext *context, uid_t uid)
 	return 0;
 }
 
-#ifdef HAVE_PAM
+#ifdef SVC_USE_PAM
 
 static int
 null_conv(int num_msg, const struct pam_message **msg,
@@ -885,6 +886,7 @@ setup_pam(const char *name, const char *user, uid_t uid, const char *tty,
 			log_error_errno(r,
 				"Error: Failed to setresuid() in sd-pam: %m");
 
+#ifdef SVC_HAVE_prctl
 		/* Wait until our parent died. This will only work if
                  * the above setresuid() succeeds, otherwise the kernel
                  * will not allow unprivileged parents kill their privileged
@@ -892,6 +894,7 @@ setup_pam(const char *name, const char *user, uid_t uid, const char *tty,
                  * to do the rest for us. */
 		if (prctl(PR_SET_PDEATHSIG, SIGTERM) < 0)
 			goto child_finish;
+#endif
 
 		/* Check if our parent process might already have
                  * died? */
@@ -1623,7 +1626,7 @@ exec_child(ExecCommand *command, const ExecContext *context,
 
 	umask(context->umask);
 
-#ifdef HAVE_PAM
+#ifdef SVC_USE_PAM
 	if (params->apply_permissions && context->pam_name && username) {
 		r = setup_pam(context->pam_name, username, uid,
 			context->tty_path, &pam_env, fds, n_fds);

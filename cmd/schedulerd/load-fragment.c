@@ -3621,7 +3621,7 @@ unit_dump_config_items(FILE *f)
 		const char *rvalue;
 	} table[] = {
 #if !defined(HAVE_SYSV_COMPAT) || !defined(HAVE_SECCOMP) ||                    \
-	!defined(HAVE_PAM) || !defined(HAVE_SELINUX) ||                        \
+	!defined(SVC_USE_PAM) || !defined(HAVE_SELINUX) ||                     \
 	!defined(HAVE_SMACK) || !defined(HAVE_APPARMOR)
 		{ config_parse_warn_compat, "NOTSUPPORTED" },
 #endif

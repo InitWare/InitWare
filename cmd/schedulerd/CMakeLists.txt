@@ -34,6 +34,10 @@ add_executable(svc.schedulerd cgroup.c dbus-cgroup.c dbus-execute.c dbus-job.c
 target_include_directories(svc.schedulerd PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(svc.schedulerd initware)
 
+if (SVC_USE_PAM)
+	target_link_libraries(svc.schedulerd pam)
+endif ()
+
 set(MANIFESTS_IN emergency.service.in systemd-halt.service.in
     systemd-kexec.service.in halt-local.service.in
     systemd-hibernate-resume@.service.in systemd-reboot.service.in

@@ -19,7 +19,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#ifdef HAVE_PAM
+#ifdef SVC_USE_PAM
 #define _PAM_FEATURE_ "+PAM"
 #else
 #define _PAM_FEATURE_ "-PAM"

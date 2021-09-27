@@ -756,6 +756,7 @@ cg_set_task_access(const char *controller, const char *path, mode_t mode,
 	if (r < 0)
 		return r;
 
+#ifdef SVC_PLATFORM_Linux // no tasks on BSD
 	/* Compatibility, Always keep values for "tasks" in sync with
          * "cgroup.procs" */
 	r = cg_get_path(controller, path, "tasks", &procs);
@@ -763,6 +764,9 @@ cg_set_task_access(const char *controller, const char *path, mode_t mode,
 		return r;
 
 	return chmod_and_chown(procs, mode, uid, gid);
+#else
+	return 0;
+#endif
 }
 
 int

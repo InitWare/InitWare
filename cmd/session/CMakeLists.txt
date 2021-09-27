@@ -13,3 +13,11 @@ add_executable(svc.sessiond sessiond/action.c sessiond/core.c sessiond/dbus.c
 target_include_directories(svc.sessiond
     PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sessiond>)
 target_link_libraries(svc.sessiond initware)
+
+if (SVC_USE_PAM)
+	add_library(pam_initware SHARED pam/pam_initware.c)
+	target_link_libraries(pam_initware initware pam)
+	set_target_properties(pam_initware PROPERTIES PREFIX "")
+	install(TARGETS pam_initware
+	    DESTINATION ${CMAKE_INSTALL_LIBDIR}/security)
+endif ()

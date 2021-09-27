@@ -119,6 +119,9 @@ find_package(Threads REQUIRED)
 find_package(Python COMPONENTS Interpreter)
 find_program(GPERF gperf REQUIRED)
 
+# libraries
+check_library_exists(pam pam_start "" HAVE_PAM)
+
 check_include_file(sys/endian.h HAVE_sys_endian_h)
 check_include_file(sys/timex.h HAVE_sys_timex_h)
 check_include_file(sys/xattr.h HAVE_sys_xattr_h)
@@ -170,6 +173,8 @@ cmake_dependent_option(SVC_USE_libcap "Use Capabilities (libcap)" ON
     "libcap_FOUND" OFF)
 option(SVC_USE_systemd_compat "Try to be as compatible with systemd as possible"
     OFF)
+cmake_dependent_option(SVC_USE_PAM "Use PAM" ON
+    "HAVE_PAM" OFF)
 cmake_dependent_option(SVC_USE_systemd_paths
     "Include the default systemd unit-file paths" ON "SVC_USE_systemd_compat"
     OFF)
@@ -283,7 +288,7 @@ configure_file(head/systemd/svc-config.h.in head/systemd/svc-config.h)
 # the build proper
 # ------------------------------------------------------------------------------
 
-add_to_m4_params(SVC_PLATFORM_Linux SVC_PLATFORM_BSD HAVE_RLIMIT_AS)
+add_to_m4_params(SVC_PLATFORM_Linux SVC_PLATFORM_BSD SVC_USE_PAM HAVE_RLIMIT_AS)
 
 add_subdirectory(cmd)
 add_subdirectory(lib)
@@ -303,6 +308,7 @@ endfunction (FShow)
 message("Feature settings (Use flags):")
 fshow(SVC_USE_CGroups)
 fshow(SVC_USE_libcap)
+fshow(SVC_USE_PAM)
 fshow(SVC_USE_systemd_compat)
 fshow(SVC_USE_systemd_busnames)
 fshow(SVC_USE_systemd_paths)

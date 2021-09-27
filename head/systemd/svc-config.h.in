@@ -11,6 +11,7 @@
 
 #cmakedefine SVC_USE_CGroups
 #cmakedefine SVC_USE_libcap
+#cmakedefine SVC_USE_PAM
 
 #define SVC_SIZEOF_PID_T @SVC_SIZEOF_PID_T@
 #define SVC_SIZEOF_UID_T @SVC_SIZEOF_UID_T@
