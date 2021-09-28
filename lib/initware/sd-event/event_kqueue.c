@@ -1062,9 +1062,10 @@ sd_event_dispatch(sd_event *loop)
 		r = source_dispatch(source);
 		if (r < 0)
 			return r;
-		else if (source->enabled == SD_EVENT_ONESHOT) {
+		else if (source->enabled == SD_EVENT_ONESHOT)
 			sd_event_source_set_enabled(source, SD_EVENT_OFF);
-		}
+
+		source->is_pending = false;
 		LIST_REMOVE(source, pendings);
 		sd_event_source_unref(source);
 	}

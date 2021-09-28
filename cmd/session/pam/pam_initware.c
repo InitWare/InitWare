@@ -226,11 +226,11 @@ pam_sm_open_session(pam_handle_t *handle, int flags, int argc,
 	/* Make sure we don't enter a loop by talking to
          * systemd-logind when it is actually waiting for the
          * background to finish start-up. If the service is
-         * "systemd-user" we simply set XDG_RUNTIME_DIR and
+         * "initware-user" we simply set XDG_RUNTIME_DIR and
          * leave. */
 
 	pam_get_item(handle, PAM_SERVICE, (const void **)&service);
-	if (streq_ptr(service, "systemd-user")) {
+	if (streq_ptr(service, "initware-user")) {
 		_cleanup_free_ char *p = NULL, *rt = NULL;
 
 		if (asprintf(&p, SVC_PKGRUNSTATEDIR "/users/" UID_FMT,
@@ -476,6 +476,7 @@ pam_sm_close_session(pam_handle_t *handle, int flags, int argc,
 	pam_get_data(handle, "systemd.existing", &existing);
 
 	id = pam_getenv(handle, "XDG_SESSION_ID");
+	pam_syslog(handle, LOG_ERR, "Closing session %s\n", id);
 	if (id && !existing) {
 		/* Before we go and close the FIFO we need to tell
                  * logind that this is a clean session shutdown, so

@@ -11,7 +11,7 @@ After=systemd-user-sessions.service
 
 [Service]
 User=%i
-PAMName=systemd-user
+PAMName=initware-user
 Type=notify
 ExecStart=-@SVC_PKGLIBEXECDIR@/svc.schedulerd --user
 Slice=user-%i.slice
