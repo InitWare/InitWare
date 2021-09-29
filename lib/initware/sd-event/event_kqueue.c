@@ -524,6 +524,9 @@ source_enable(sd_event_source *source, bool is_oneshot)
 							    now(CLOCK_MONOTONIC);
 		rel = source->timer.usec <= cur ? 1 : source->timer.usec - cur;
 
+		if (rel != 1)
+			rel /= USEC_PER_MSEC; /* EVFILT_TIMER uses millisecs */
+
 		EV_SET(&kev, (uintptr_t)source, EVFILT_TIMER, EV_ADD | oneshot,
 			0, rel, source);
 		r = kevent(source->loop->kq, &kev, 1, 0, 0, 0);

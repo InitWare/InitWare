@@ -51,6 +51,20 @@
 #include "strv.h"
 #include "util.h"
 
+#ifdef OPENPAM
+static inline const char *
+pam_getenv2(pam_handle_t *handle, const char *key)
+{
+	const char *res = pam_getenv(handle, key);
+	if (res && *res == '=' && *++res != '\0')
+		return res; /* sometimes '=' is first char on NetBSD, shouldn't be */
+	else
+		return res;
+}
+
+#define pam_getenv pam_getenv2
+#endif
+
 static int
 parse_argv(pam_handle_t *handle, int argc, const char **argv,
 	const char **class, const char **type, bool *debug)

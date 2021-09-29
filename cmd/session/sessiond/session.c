@@ -722,6 +722,8 @@ release_timeout_callback(sd_event_source *es, uint64_t usec, void *userdata)
 	assert(es);
 	assert(s);
 
+	log_debug("ssesion %s: release timer elapsed, stopping", s->id);
+
 	session_stop(s, false);
 	return 0;
 }
@@ -734,10 +736,13 @@ session_release(Session *s)
 	if (!s->started || s->stopping)
 		return;
 
-	if (!s->timer_event_source)
+	if (!s->timer_event_source) {
+		log_debug("session %s: beginning release timeout of %d seconds",
+			s->id, RELEASE_USEC / USEC_PER_SEC);
 		sd_event_add_time(s->manager->event, &s->timer_event_source,
 			CLOCK_MONOTONIC, now(CLOCK_MONOTONIC) + RELEASE_USEC, 0,
 			release_timeout_callback, s);
+	}
 }
 
 bool
