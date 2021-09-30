@@ -1,3 +1,4 @@
+add_subdirectory(busctl)
 add_subdirectory(cgls)
 if (SVC_PLATFORM_BSD)
 	add_subdirectory(cgrpfs)

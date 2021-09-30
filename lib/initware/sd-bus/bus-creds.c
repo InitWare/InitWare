@@ -555,10 +555,10 @@ sd_bus_creds_get_cmdline(sd_bus_creds *c, char ***cmdline)
 	return 0;
 }
 
-#ifdef SVC_USE_Audit
 _public_ int
 sd_bus_creds_get_audit_session_id(sd_bus_creds *c, uint32_t *sessionid)
 {
+#ifdef SVC_USE_Audit
 	assert_return(c, -EINVAL);
 	assert_return(sessionid, -EINVAL);
 
@@ -567,11 +567,15 @@ sd_bus_creds_get_audit_session_id(sd_bus_creds *c, uint32_t *sessionid)
 
 	*sessionid = c->audit_session_id;
 	return 0;
+#else
+	return -ENOTSUP;
+#endif
 }
 
 _public_ int
 sd_bus_creds_get_audit_login_uid(sd_bus_creds *c, uid_t *uid)
 {
+#ifdef SVC_USE_Audit
 	assert_return(c, -EINVAL);
 	assert_return(uid, -EINVAL);
 
@@ -580,8 +584,11 @@ sd_bus_creds_get_audit_login_uid(sd_bus_creds *c, uid_t *uid)
 
 	*uid = c->audit_login_uid;
 	return 0;
-}
+
+#else
+	return -ENOTSUP;
 #endif
+}
 
 _public_ int
 sd_bus_creds_get_unique_name(sd_bus_creds *c, const char **unique_name)

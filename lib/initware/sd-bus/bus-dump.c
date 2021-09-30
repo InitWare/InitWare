@@ -328,6 +328,7 @@ static void
 dump_capabilities(sd_bus_creds *c, FILE *f, const char *name, bool terse,
 	int (*has)(sd_bus_creds *c, int capability))
 {
+#ifdef SVC_USE_libcap
 	unsigned long i, last_cap;
 	unsigned n = 0;
 	int r;
@@ -370,6 +371,7 @@ dump_capabilities(sd_bus_creds *c, FILE *f, const char *name, bool terse,
 
 	if (!terse)
 		fputs(ansi_highlight_off(), f);
+#endif
 }
 
 int
@@ -554,6 +556,7 @@ bus_creds_dump(sd_bus_creds *c, FILE *f, bool terse)
 	if (terse && (c->mask & SD_BUS_CREDS_UNIQUE_NAME || well_known))
 		fputc('\n', f);
 
+#ifdef SVC_USE_libcap
 	dump_capabilities(c, f, "EffectiveCapabilities", terse,
 		sd_bus_creds_has_effective_cap);
 	dump_capabilities(c, f, "PermittedCapabilities", terse,
@@ -562,6 +565,7 @@ bus_creds_dump(sd_bus_creds *c, FILE *f, bool terse)
 		sd_bus_creds_has_inheritable_cap);
 	dump_capabilities(c, f, "BoundingCapabilities", terse,
 		sd_bus_creds_has_bounding_cap);
+#endif
 
 	return 0;
 }
