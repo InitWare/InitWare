@@ -556,6 +556,13 @@ int rm_rf(const char *path, bool only_dirs, bool delete_root,
 int rm_rf_dangerous(const char *path, bool only_dirs, bool delete_root,
 	bool honour_sticky);
 
+/**
+ * Check if EOF has been reached on the FD using poll() checking for POLLHUP.
+ *
+ * @retval 1 if EOF reached
+ * @retval 0 if EOF not reached
+ * @retval -errno if an error occurred
+ */
 int pipe_eof(int fd);
 
 #ifdef SVC_PLATFORM_Linux

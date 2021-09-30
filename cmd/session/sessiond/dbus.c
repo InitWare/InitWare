@@ -2359,8 +2359,6 @@ match_unit_removed(sd_bus *bus, sd_bus_message *message, void *userdata,
 		return r;
 	}
 
-	log_debug("message from scheduler: unit %s removed\n", unit);
-
 	session = hashmap_get(m->session_units, unit);
 	if (session)
 		session_add_to_gc_queue(session);

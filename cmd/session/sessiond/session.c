@@ -423,7 +423,6 @@ session_load(Session *s)
                    trigger the EOF. This will happen immediately if no
                    other process has the FIFO open for writing, i. e.
                    when the session died before logind (re)started. */
-
 		fd = session_create_fifo(s);
 		safe_close(fd);
 	}
@@ -907,7 +906,7 @@ session_dispatch_fifo(sd_event_source *es, int fd, uint32_t revents,
 	assert(s->fifo_fd == fd);
 
 	/* EOF on the FIFO means the session died abnormally. */
-
+	log_info("session %s FIFO hung up - stopping session", s->id);
 	session_remove_fifo(s);
 	session_stop(s, false);
 
@@ -946,7 +945,7 @@ session_create_fifo(Session *s)
 
 	if (!s->fifo_event_source) {
 		r = sd_event_add_io(s->manager->event, &s->fifo_event_source,
-			s->fifo_fd, 0, session_dispatch_fifo, s);
+			s->fifo_fd, EPOLLHUP, session_dispatch_fifo, s);
 		if (r < 0)
 			return r;
 
@@ -993,6 +992,7 @@ session_check_gc(Session *s, bool drop_not_started)
 		return false;
 
 	if (s->fifo_fd >= 0) {
+		/* broken on NetBSD - no POLLHUP returned when last writer closes */
 		if (pipe_eof(s->fifo_fd) <= 0)
 			return true;
 	}
