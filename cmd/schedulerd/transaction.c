@@ -889,16 +889,17 @@ transaction_unlink_job(Transaction *tr, Job *j, bool delete_dependencies)
 	}
 }
 
-int
+static int
 transaction_add_job_and_dependencies(Transaction *tr, JobType type, Unit *unit,
 	Job *by, bool matters, bool override, bool conflicts,
 	bool ignore_requirements, bool ignore_order, sd_bus_error *e)
 {
-	Job *ret;
+	Job *ret; /* the original job we want to add; deps will depend on it */
 	Iterator i;
 	Unit *dep;
 	int r;
 	bool is_new;
+	Set *following;
 
 	assert(tr);
 	assert(type < _JOB_TYPE_MAX);
@@ -943,236 +944,316 @@ transaction_add_job_and_dependencies(Transaction *tr, JobType type, Unit *unit,
 		tr->anchor_job = ret;
 	}
 
-	if (is_new && !ignore_requirements && type != JOB_NOP) {
-		Set *following;
+	if (!is_new || ignore_requirements || type == JOB_NOP)
+		return 0; /* all done */
 
-		/* If we are following some other unit, make sure we
-                 * add all dependencies of everybody following. */
-		if (unit_following_set(ret->unit, &following) > 0) {
-			SET_FOREACH (dep, following, i) {
-				r = transaction_add_job_and_dependencies(tr,
-					type, dep, ret, false, override, false,
-					false, ignore_order, e);
-				if (r < 0) {
-					log_unit_warning(dep->id,
-						"Cannot add dependency job for unit %s, ignoring: %s",
-						dep->id,
-						bus_error_message(e, r));
+	/* otherwise, add the dependencies */
 
-					if (e)
-						sd_bus_error_free(e);
-				}
-			}
-
-			set_free(following);
-		}
-
-		/* Finally, recursively add in all dependencies. */
-		if (type == JOB_START || type == JOB_RESTART) {
-			SET_FOREACH (dep,
-				ret->unit->dependencies[UNIT_REQUIRES], i) {
-				r = transaction_add_job_and_dependencies(tr,
-					JOB_START, dep, ret, true, override,
-					false, false, ignore_order, e);
-				if (r < 0) {
-					if (r != -EBADR)
-						goto fail;
-
-					if (e)
-						sd_bus_error_free(e);
-				}
-			}
-
-			SET_FOREACH (dep,
-				ret->unit->dependencies[UNIT_BINDS_TO], i) {
-				r = transaction_add_job_and_dependencies(tr,
-					JOB_START, dep, ret, true, override,
-					false, false, ignore_order, e);
-				if (r < 0) {
-					if (r != -EBADR)
-						goto fail;
-
-					if (e)
-						sd_bus_error_free(e);
-				}
-			}
-
-			SET_FOREACH (dep,
-				ret->unit
-					->dependencies[UNIT_REQUIRES_OVERRIDABLE],
-				i) {
-				r = transaction_add_job_and_dependencies(tr,
-					JOB_START, dep, ret, !override,
-					override, false, false, ignore_order,
-					e);
-				if (r < 0) {
-					log_unit_full(dep->id,
-						r == -EADDRNOTAVAIL ?
-							      LOG_DEBUG :
-							      LOG_WARNING,
-						"Cannot add dependency job for unit %s, ignoring: %s",
-						dep->id,
-						bus_error_message(e, r));
-
-					if (e)
-						sd_bus_error_free(e);
-				}
-			}
-
-			SET_FOREACH (dep, ret->unit->dependencies[UNIT_WANTS],
-				i) {
-				r = transaction_add_job_and_dependencies(tr,
-					JOB_START, dep, ret, false, false,
-					false, false, ignore_order, e);
-				if (r < 0) {
-					log_unit_full(dep->id,
-						r == -EADDRNOTAVAIL ?
-							      LOG_DEBUG :
-							      LOG_WARNING,
-						"Cannot add dependency job for unit %s, ignoring: %s",
-						dep->id,
-						bus_error_message(e, r));
-
-					if (e)
-						sd_bus_error_free(e);
-				}
-			}
-
-			SET_FOREACH (dep,
-				ret->unit->dependencies[UNIT_REQUISITE], i) {
-				r = transaction_add_job_and_dependencies(tr,
-					JOB_VERIFY_ACTIVE, dep, ret, true,
-					override, false, false, ignore_order,
-					e);
-				if (r < 0) {
-					if (r != -EBADR)
-						goto fail;
-
-					if (e)
-						sd_bus_error_free(e);
-				}
-			}
-
-			SET_FOREACH (dep,
-				ret->unit->dependencies
-					[UNIT_REQUISITE_OVERRIDABLE],
-				i) {
-				r = transaction_add_job_and_dependencies(tr,
-					JOB_VERIFY_ACTIVE, dep, ret, !override,
-					override, false, false, ignore_order,
-					e);
-				if (r < 0) {
-					log_unit_full(dep->id,
-						r == -EADDRNOTAVAIL ?
-							      LOG_DEBUG :
-							      LOG_WARNING,
-						"Cannot add dependency job for unit %s, ignoring: %s",
-						dep->id,
-						bus_error_message(e, r));
-
-					if (e)
-						sd_bus_error_free(e);
-				}
-			}
-
-			SET_FOREACH (dep,
-				ret->unit->dependencies[UNIT_CONFLICTS], i) {
-				r = transaction_add_job_and_dependencies(tr,
-					JOB_STOP, dep, ret, true, override,
-					true, false, ignore_order, e);
-				if (r < 0) {
-					if (r != -EBADR)
-						goto fail;
-
-					if (e)
-						sd_bus_error_free(e);
-				}
-			}
-
-			SET_FOREACH (dep,
-				ret->unit->dependencies[UNIT_CONFLICTED_BY],
-				i) {
-				r = transaction_add_job_and_dependencies(tr,
-					JOB_STOP, dep, ret, false, override,
-					false, false, ignore_order, e);
-				if (r < 0) {
-					log_unit_warning(dep->id,
-						"Cannot add dependency job for unit %s, ignoring: %s",
-						dep->id,
-						bus_error_message(e, r));
-
-					if (e)
-						sd_bus_error_free(e);
-				}
-			}
-		}
-
-		if (type == JOB_STOP || type == JOB_RESTART) {
-			static const UnitDependency propagate_deps[] = {
-				UNIT_REQUIRED_BY,
-				UNIT_BOUND_BY,
-				UNIT_CONSISTS_OF,
+	/* If we are following some other unit, make sure we
+         * add all dependencies of everybody following. */
+	if (unit_following_set(ret->unit, &following) > 0) {
+		SET_FOREACH (dep, following, i) {
+			struct tx_job_submission sub = {
+				.unit = dep,
+				.type = type,
+				.parent = ret,
+				.matters = false,
+				.override = override,
+				.conflicts = false,
+				.ignore_requirements = false,
+				.ignore_order = ignore_order,
 			};
 
-			JobType ptype;
-			unsigned j;
+			r = tx_submit_job(tr, &sub, e);
+			if (r < 0) {
+				log_unit_warning(dep->id,
+					"Cannot add dependency job for unit %s, ignoring: %s",
+					dep->id, bus_error_message(e, r));
 
-			/* We propagate STOP as STOP, but RESTART only
-                         * as TRY_RESTART, in order not to start
-                         * dependencies that are not around. */
-			ptype = type == JOB_RESTART ? JOB_TRY_RESTART : type;
-
-			for (j = 0; j < ELEMENTSOF(propagate_deps); j++)
-				SET_FOREACH (dep,
-					ret->unit
-						->dependencies[propagate_deps[j]],
-					i) {
-					JobType nt;
-
-					nt = job_type_collapse(ptype, dep);
-					if (nt == JOB_NOP)
-						continue;
-
-					r = transaction_add_job_and_dependencies(
-						tr, nt, dep, ret, true,
-						override, false, false,
-						ignore_order, e);
-					if (r < 0) {
-						if (r != -EBADR)
-							goto fail;
-
-						sd_bus_error_free(e);
-					}
-				}
-		}
-
-		if (type == JOB_RELOAD) {
-			SET_FOREACH (dep,
-				ret->unit
-					->dependencies[UNIT_PROPAGATES_RELOAD_TO],
-				i) {
-				r = transaction_add_job_and_dependencies(tr,
-					JOB_RELOAD, dep, ret, false, override,
-					false, false, ignore_order, e);
-				if (r < 0) {
-					log_unit_warning(dep->id,
-						"Cannot add dependency reload job for unit %s, ignoring: %s",
-						dep->id,
-						bus_error_message(e, r));
-
-					if (e)
-						sd_bus_error_free(e);
-				}
+				if (e)
+					sd_bus_error_free(e);
 			}
 		}
 
-		/* JOB_VERIFY_STARTED require no dependency handling */
+		set_free(following);
 	}
+
+	/* Finally, recursively add in all dependencies. */
+	if (type == JOB_START || type == JOB_RESTART) {
+		SET_FOREACH (dep, ret->unit->dependencies[UNIT_REQUIRES], i) {
+			struct tx_job_submission sub = {
+				.unit = dep,
+				.type = JOB_START,
+				.parent = ret,
+				.matters = true,
+				.override = override,
+				.conflicts = false,
+				.ignore_requirements = false,
+				.ignore_order = ignore_order,
+			};
+
+			r = tx_submit_job(tr, &sub, e);
+			if (r < 0) {
+				if (r != -EBADR)
+					goto fail;
+
+				if (e)
+					sd_bus_error_free(e);
+			}
+		}
+
+		SET_FOREACH (dep, ret->unit->dependencies[UNIT_BINDS_TO], i) {
+			struct tx_job_submission sub = {
+				.unit = dep,
+				.type = JOB_START,
+				.parent = ret,
+				.matters = true,
+				.override = override,
+				.conflicts = false,
+				.ignore_requirements = false,
+				.ignore_order = ignore_order,
+			};
+
+			r = tx_submit_job(tr, &sub, e);
+			if (r < 0) {
+				if (r != -EBADR)
+					goto fail;
+
+				if (e)
+					sd_bus_error_free(e);
+			}
+		}
+
+		SET_FOREACH (dep,
+			ret->unit->dependencies[UNIT_REQUIRES_OVERRIDABLE], i) {
+			struct tx_job_submission sub = {
+				.unit = dep,
+				.type = JOB_START,
+				.parent = ret,
+				.matters = !override,
+				.override = override,
+				.conflicts = false,
+				.ignore_requirements = false,
+				.ignore_order = ignore_order,
+			};
+
+			r = tx_submit_job(tr, &sub, e);
+			if (r < 0) {
+				log_unit_full(dep->id,
+					r == -EADDRNOTAVAIL ? LOG_DEBUG :
+								    LOG_WARNING,
+					"Cannot add dependency job for unit %s, ignoring: %s",
+					dep->id, bus_error_message(e, r));
+
+				if (e)
+					sd_bus_error_free(e);
+			}
+		}
+
+		SET_FOREACH (dep, ret->unit->dependencies[UNIT_WANTS], i) {
+			struct tx_job_submission sub = {
+				.unit = dep,
+				.type = JOB_START,
+				.parent = ret,
+				.matters = false,
+				.override = false,
+				.conflicts = false,
+				.ignore_requirements = false,
+				.ignore_order = ignore_order,
+			};
+
+			r = tx_submit_job(tr, &sub, e);
+			if (r < 0) {
+				log_unit_full(dep->id,
+					r == -EADDRNOTAVAIL ? LOG_DEBUG :
+								    LOG_WARNING,
+					"Cannot add dependency job for unit %s, ignoring: %s",
+					dep->id, bus_error_message(e, r));
+
+				if (e)
+					sd_bus_error_free(e);
+			}
+		}
+
+		SET_FOREACH (dep, ret->unit->dependencies[UNIT_REQUISITE], i) {
+			struct tx_job_submission sub = {
+				.unit = dep,
+				.type = JOB_VERIFY_ACTIVE,
+				.parent = ret,
+				.matters = true,
+				.override = override,
+				.conflicts = false,
+				.ignore_requirements = false,
+				.ignore_order = ignore_order,
+			};
+
+			r = tx_submit_job(tr, &sub, e);
+			if (r < 0) {
+				if (r != -EBADR)
+					goto fail;
+
+				if (e)
+					sd_bus_error_free(e);
+			}
+		}
+
+		SET_FOREACH (dep,
+			ret->unit->dependencies[UNIT_REQUISITE_OVERRIDABLE],
+			i) {
+			struct tx_job_submission sub = {
+				.unit = dep,
+				.type = JOB_VERIFY_ACTIVE,
+				.parent = ret,
+				.matters = !override,
+				.override = override,
+				.conflicts = false,
+				.ignore_requirements = false,
+				.ignore_order = ignore_order,
+			};
+
+			r = tx_submit_job(tr, &sub, e);
+			if (r < 0) {
+				log_unit_full(dep->id,
+					r == -EADDRNOTAVAIL ? LOG_DEBUG :
+								    LOG_WARNING,
+					"Cannot add dependency job for unit %s, ignoring: %s",
+					dep->id, bus_error_message(e, r));
+
+				if (e)
+					sd_bus_error_free(e);
+			}
+		}
+
+		SET_FOREACH (dep, ret->unit->dependencies[UNIT_CONFLICTS], i) {
+			struct tx_job_submission sub = {
+				.unit = dep,
+				.type = JOB_STOP,
+				.parent = ret,
+				.matters = true,
+				.override = override,
+				.conflicts = true,
+				.ignore_requirements = false,
+				.ignore_order = ignore_order,
+			};
+
+			r = tx_submit_job(tr, &sub, e);
+			if (r < 0) {
+				if (r != -EBADR)
+					goto fail;
+
+				if (e)
+					sd_bus_error_free(e);
+			}
+		}
+
+		SET_FOREACH (dep, ret->unit->dependencies[UNIT_CONFLICTED_BY],
+			i) {
+			struct tx_job_submission sub = {
+				.unit = dep,
+				.type = JOB_STOP,
+				.parent = ret,
+				.matters = false,
+				.override = override,
+				.conflicts = false,
+				.ignore_requirements = false,
+				.ignore_order = ignore_order,
+			};
+
+			r = tx_submit_job(tr, &sub, e);
+			if (r < 0) {
+				log_unit_warning(dep->id,
+					"Cannot add dependency job for unit %s, ignoring: %s",
+					dep->id, bus_error_message(e, r));
+
+				if (e)
+					sd_bus_error_free(e);
+			}
+		}
+	}
+
+	if (type == JOB_STOP || type == JOB_RESTART) {
+		static const UnitDependency propagate_deps[] = {
+			UNIT_REQUIRED_BY,
+			UNIT_BOUND_BY,
+			UNIT_CONSISTS_OF,
+		};
+
+		JobType ptype;
+		unsigned j;
+
+		/*
+		 * We propagate STOP as STOP, but RESTART only
+		 * as TRY_RESTART, in order not to start
+                 * dependencies that are not around.
+		 */
+		ptype = type == JOB_RESTART ? JOB_TRY_RESTART : type;
+
+		for (j = 0; j < ELEMENTSOF(propagate_deps); j++)
+			SET_FOREACH (dep,
+				ret->unit->dependencies[propagate_deps[j]], i) {
+				struct tx_job_submission sub = {
+					.unit = dep,
+					.parent = ret,
+					.matters = true,
+					.override = override,
+					.conflicts = false,
+					.ignore_requirements = false,
+					.ignore_order = ignore_order,
+				};
+
+				sub.type = job_type_collapse(ptype, dep);
+				if (sub.type == JOB_NOP)
+					continue;
+
+				r = tx_submit_job(tr, &sub, e);
+				if (r < 0) {
+					if (r != -EBADR)
+						goto fail;
+
+					sd_bus_error_free(e);
+				}
+			}
+	}
+
+	if (type == JOB_RELOAD) {
+		SET_FOREACH (dep,
+			ret->unit->dependencies[UNIT_PROPAGATES_RELOAD_TO], i) {
+			struct tx_job_submission sub = {
+				.unit = dep,
+				.parent = ret,
+				.matters = false,
+				.override = override,
+				.conflicts = false,
+				.ignore_requirements = false,
+				.ignore_order = ignore_order,
+			};
+
+			r = tx_submit_job(tr, &sub, e);
+			if (r < 0) {
+				log_unit_warning(dep->id,
+					"Cannot add dependency reload job for unit %s, ignoring: %s",
+					dep->id, bus_error_message(e, r));
+
+				if (e)
+					sd_bus_error_free(e);
+			}
+		}
+	}
+
+	/* JOB_VERIFY_STARTED require no dependency handling */
 
 	return 0;
 
 fail:
 	return r;
+}
+
+int
+tx_submit_job(Transaction *tx, struct tx_job_submission *sub, sd_bus_error *e)
+{
+	return transaction_add_job_and_dependencies(tx, sub->type, sub->unit,
+		sub->parent, sub->matters, sub->override, sub->conflicts,
+		sub->ignore_requirements, sub->ignore_order, e);
 }
 
 int
@@ -1187,6 +1268,17 @@ transaction_add_isolate_jobs(Transaction *tr, Manager *m)
 	assert(m);
 
 	HASHMAP_FOREACH_KEY (u, k, m->units, i) {
+		struct tx_job_submission sub = {
+			.unit = u,
+			.type = JOB_STOP,
+			.parent = tr->anchor_job,
+			.matters = true,
+			.override = false,
+			.conflicts = false,
+			.ignore_requirements = false,
+			.ignore_order = false,
+		};
+
 		/* ignore aliases */
 		if (u->id != k)
 			continue;
@@ -1202,8 +1294,7 @@ transaction_add_isolate_jobs(Transaction *tr, Manager *m)
 		if (hashmap_get(tr->jobs, u))
 			continue;
 
-		r = transaction_add_job_and_dependencies(tr, JOB_STOP, u,
-			tr->anchor_job, true, false, false, false, false, NULL);
+		r = tx_submit_job(tr, &sub, NULL);
 		if (r < 0)
 			log_unit_warning(u->id,
 				"Cannot add isolate job for unit %s, ignoring: %s",

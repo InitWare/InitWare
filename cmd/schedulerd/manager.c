@@ -1492,6 +1492,15 @@ manager_add_job(Manager *m, JobType type, Unit *unit, JobMode mode,
 {
 	int r;
 	Transaction *tr;
+	struct tx_job_submission sub = { .unit = unit,
+		.type = type,
+		.parent = NULL,
+		.matters = true,
+		.override = override,
+		.conflicts = false,
+		.ignore_requirements = (mode == JOB_IGNORE_DEPENDENCIES ||
+			mode == JOB_IGNORE_REQUIREMENTS),
+		.ignore_order = JOB_IGNORE_DEPENDENCIES };
 
 	assert(m);
 	assert(type < _JOB_TYPE_MAX);
@@ -1509,17 +1518,13 @@ manager_add_job(Manager *m, JobType type, Unit *unit, JobMode mode,
 	log_unit_debug(unit->id, "Trying to enqueue job %s/%s/%s", unit->id,
 		job_type_to_string(type), job_mode_to_string(mode));
 
-	type = job_type_collapse(type, unit);
+	sub.type = job_type_collapse(sub.type, unit);
 
 	tr = transaction_new(mode == JOB_REPLACE_IRREVERSIBLY);
 	if (!tr)
 		return -ENOMEM;
 
-	r = transaction_add_job_and_dependencies(tr, type, unit, NULL, true,
-		override, false,
-		mode == JOB_IGNORE_DEPENDENCIES ||
-			mode == JOB_IGNORE_REQUIREMENTS,
-		mode == JOB_IGNORE_DEPENDENCIES, e);
+	r = tx_submit_job(tr, &sub, e);
 	if (r < 0)
 		goto tr_abort;
 

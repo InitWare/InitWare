@@ -366,7 +366,7 @@ int manager_load_unit_from_dbus_path(Manager *m, const char *s, sd_bus_error *e,
 	Unit **_u);
 
 int manager_add_job(Manager *m, JobType type, Unit *unit, JobMode mode,
-	bool force, sd_bus_error *e, Job **_ret);
+	bool override, sd_bus_error *e, Job **_ret);
 int manager_add_job_by_name(Manager *m, JobType type, const char *name,
 	JobMode mode, bool force, sd_bus_error *e, Job **_ret);
 

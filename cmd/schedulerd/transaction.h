@@ -33,12 +33,26 @@ struct Transaction {
 	bool irreversible;
 };
 
+/* Describes a job being submitted for inclusion in a transaction. */
+struct tx_job_submission {
+	Unit *unit;	/* unit on which to operate */
+	JobType type;	/* kind of job */
+	Job *parent;	/* parent job which this was pulled-in by */
+	bool matters;	/* whether this job is essential to the parent job */
+	bool override;	/* whether to override any existing jobs for the unit */
+	bool conflicts; /* whether the job was brought in by a Conflicts= dep */
+	bool ignore_requirements; /* whether to skip adding requirement deps */
+	bool ignore_order; /* whether to ignore ordering requirements when running job */
+};
+
 Transaction *transaction_new(bool irreversible);
 void transaction_free(Transaction *tr);
 
-int transaction_add_job_and_dependencies(Transaction *tr, JobType type,
-	Unit *unit, Job *by, bool matters, bool override, bool conflicts,
-	bool ignore_requirements, bool ignore_order, sd_bus_error *e);
+/**
+ * Submit a job to the transaction. Dependency jobs are added if appropriate.
+ */
+int tx_submit_job(Transaction *, struct tx_job_submission *, sd_bus_error *);
+
 int transaction_activate(Transaction *tr, Manager *m, JobMode mode,
 	sd_bus_error *e);
 int transaction_add_isolate_jobs(Transaction *tr, Manager *m);
