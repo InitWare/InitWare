@@ -132,7 +132,7 @@ struct Job {
 	Manager *manager;
 	Unit *unit;
 
-	IWLIST_FIELDS(Job, transaction);
+	IWLIST_FIELDS(Job, transaction); /* other jobs in the tx on same unit */
 	IWLIST_FIELDS(Job, run_queue);
 	IWLIST_FIELDS(Job, dbus_queue);
 

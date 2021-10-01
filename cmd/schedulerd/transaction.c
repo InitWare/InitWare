@@ -804,7 +804,7 @@ static Job *
 transaction_add_one_job(Transaction *tr, JobType type, Unit *unit,
 	bool override, bool *is_new)
 {
-	Job *j, *f;
+	Job *j, *existing;
 
 	assert(tr);
 	assert(unit);
@@ -813,9 +813,9 @@ transaction_add_one_job(Transaction *tr, JobType type, Unit *unit,
          * it doesn't exist it is created and added to the prospective
          * jobs list. */
 
-	f = hashmap_get(tr->jobs, unit);
+	existing = hashmap_get(tr->jobs, unit);
 
-	IWLIST_FOREACH (transaction, j, f) {
+	IWLIST_FOREACH (transaction, j, existing) {
 		assert(j->unit == unit);
 
 		if (j->type == type) {
@@ -835,10 +835,15 @@ transaction_add_one_job(Transaction *tr, JobType type, Unit *unit,
 	j->override = override;
 	j->irreversible = tr->irreversible;
 
-	IWLIST_PREPEND(transaction, f, j);
+	/* prepend the new job to the existing job, if it exists */
+	IWLIST_PREPEND(transaction, existing, j);
 
-	if (hashmap_replace(tr->jobs, unit, f) < 0) {
-		IWLIST_REMOVE(transaction, f, j);
+	/*
+	 * finally, replace if necessary the existing job for the unit in the tx
+	 * with the new job.
+	 */
+	if (hashmap_replace(tr->jobs, unit, existing) < 0) {
+		IWLIST_REMOVE(transaction, existing, j);
 		job_free(j);
 		return NULL;
 	}
