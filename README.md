@@ -1,9 +1,10 @@
 ![InitWare](http://brand.initware.com/assets/page-logo-bg.png)
 
-***InitWare isn't ready to use yet!!***
-Unless you are doing so for fun, to experiment, or to contribute, you most
-likely do **not** want to try to install InitWare until a first stable release
-is made!
+**Please note that InitWare is still alpha software**. A recent effort has
+however addressed all currently-disclosed vulnerabilities inherited from
+systemd. Running InitWare as an auxiliary service manager under NetBSD can now,
+then, be regarded as safe; but beware relying on this in production until a
+first stable release is made.
 
 The InitWare Suite of Middleware allows you to manage services and system
 resources as logical entities called units. It runs on NetBSD, GNU/Linux, and
