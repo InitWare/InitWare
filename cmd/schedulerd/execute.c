@@ -1956,6 +1956,12 @@ exec_spawn(ExecCommand *command, const ExecContext *context,
 	int socket_fd, r;
 	char **argv;
 	pid_t pid;
+        /*
+         * A pipe on which the forked process waits for the reception of 1 byte
+         * before it tries to proceed. This gives the parent time to do any
+         * necessary work in advance, and prevents a race.
+         */
+        int waitfd[2];
 
 	assert(command);
 	assert(context);
@@ -1989,6 +1995,11 @@ exec_spawn(ExecCommand *command, const ExecContext *context,
 	if (!line)
 		return log_oom();
 
+        if (pipe(waitfd) < 0) {
+                log_error("Failed to open wait-pipe for child process: %m");
+                return -errno;
+        }
+
 	log_unit_struct(params->unit_id, LOG_DEBUG, "EXECUTABLE=%s",
 		command->path, LOG_MESSAGE("About to execute: %s", line), NULL);
 	pid = fork();
@@ -1998,6 +2009,15 @@ exec_spawn(ExecCommand *command, const ExecContext *context,
 
 	if (pid == 0) {
 		int exit_status;
+		char dispose;
+
+                /*
+                 * First, wait until we receive a byte on the waitfd, before
+                 * we proceed.
+                 */
+                close(waitfd[1]);
+                assert(read(waitfd[0], &dispose, 1) == 1);
+                close(waitfd[0]);
 
 		r = exec_child(command, context, params, runtime, argv,
 			socket_fd, fds, n_fds, files_env, &exit_status);
@@ -2016,6 +2036,11 @@ exec_spawn(ExecCommand *command, const ExecContext *context,
 		_exit(exit_status);
 	}
 
+	/* Parent process code resumes here. */
+
+	/* Close read end of wait pipe. */
+        close(waitfd[0]);
+
 	log_unit_debug(params->unit_id, "Forked %s as " PID_FMT, command->path,
 		pid);
 
@@ -2026,6 +2051,14 @@ exec_spawn(ExecCommand *command, const ExecContext *context,
          * killed too). */
 	if (params->cgroup_path)
 		cg_attach(SYSTEMD_CGROUP_CONTROLLER, params->cgroup_path, pid);
+
+	/* 
+	 * Write to the waitfd to let the subprocess resume now we've carried
+	 * out tracking duties.
+	 */
+        if (write(waitfd[1], "0", 1) < 0)
+                log_error("Failed to write to process " PID_FMT "'s wait-pipe: %m", pid);
+        close(waitfd[1]);
 
 	exec_status_start(&command->exec_status, pid);
 
