@@ -175,6 +175,9 @@ struct Manager {
 	int cgroups_agent_fd;
 	sd_event_source *cgroups_agent_event_source;
 
+	int cgrpfs_exit_fd;
+	sd_event_source *cgrpfs_exit_event_source;
+
 	int signal_fd;
 	sd_event_source *signal_event_source;
 

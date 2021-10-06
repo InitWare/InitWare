@@ -96,6 +96,8 @@ static int manager_dispatch_notify_fd(sd_event_source *source, int fd,
 	uint32_t revents, void *userdata);
 static int manager_dispatch_cgroups_agent_fd(sd_event_source *source, int fd,
 	uint32_t revents, void *userdata);
+static int manager_dispatch_cgrpfs_exit_fd(sd_event_source *source, int fd,
+	uint32_t revents, void *userdata);
 static int manager_dispatch_signal_fd(sd_event_source *source, int fd,
 	uint32_t revents, void *userdata);
 static int manager_dispatch_time_change_fd(sd_event_source *source, int fd,
@@ -104,6 +106,7 @@ static int manager_dispatch_idle_pipe_fd(sd_event_source *source, int fd,
 	uint32_t revents, void *userdata);
 static int manager_dispatch_jobs_in_progress(sd_event_source *source,
 	usec_t usec, void *userdata);
+
 static int manager_dispatch_run_queue(sd_event_source *source, void *userdata);
 static int manager_run_generators(Manager *m);
 static void manager_undo_generators(Manager *m);
@@ -626,9 +629,10 @@ manager_new(SystemdRunningAs running_as, bool test_run, Manager **_m)
 	m->idle_pipe[0] = m->idle_pipe[1] = m->idle_pipe[2] = m->idle_pipe[3] =
 		-1;
 
-	m->pin_cgroupfs_fd = m->notify_fd = m->cgroups_agent_fd = m->signal_fd =
-		m->time_change_fd = m->dev_autofs_fd = m->private_listen_fd =
-			m->utab_inotify_fd = -1;
+	m->pin_cgroupfs_fd = m->notify_fd = m->cgrpfs_exit_fd =
+		m->cgroups_agent_fd = m->signal_fd = m->time_change_fd =
+			m->dev_autofs_fd = m->private_listen_fd =
+				m->utab_inotify_fd = -1;
 	m->current_job_id =
 		1; /* start as id #1, so that we can leave #0 around as "null-like" value */
 
@@ -901,6 +905,54 @@ manager_setup_cgroups_agent(Manager *m)
 	}
 
 	return 0;
+}
+
+/* Set up the cgrpfs exit-notification socket */
+static int
+manager_setup_cgrpfs_exit(Manager *m)
+{
+	int r;
+
+	if (m->cgrpfs_exit_fd < 0) {
+		_cleanup_close_ int fd = -1;
+		union sockaddr_union sa = { .un.sun_family = AF_UNIX,
+			.un.sun_path = "/var/run/cgrpfs.notify" };
+
+		/* First free all secondary fields */
+		m->cgrpfs_exit_event_source = sd_event_source_unref(
+			m->cgrpfs_exit_event_source);
+
+		fd = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+		if (fd < 0)
+			return log_error_errno(errno,
+				"Failed to allocate cgrpfs exit notification socket: %m");
+
+		r = connect(fd, &sa.sa,
+			offsetof(struct sockaddr_un, sun_path) +
+				strlen(sa.un.sun_path));
+		if (r < 0)
+			return log_error_errno(errno, "connect(%s) failed: %m",
+				sa.un.sun_path);
+
+		m->cgrpfs_exit_fd = fd;
+		fd = -1;
+	}
+
+	if (!m->cgrpfs_exit_event_source) {
+		r = sd_event_add_io(m->event, &m->cgrpfs_exit_event_source,
+			m->cgrpfs_exit_fd, EPOLLIN,
+			manager_dispatch_cgrpfs_exit_fd, m);
+		if (r < 0)
+			return log_error_errno(r,
+				"Failed to allocate notify event source: %m");
+
+		/* process after SIGCHLDs */
+		r = sd_event_source_set_priority(m->cgrpfs_exit_event_source,
+			-5);
+		if (r < 0)
+			return log_error_errno(r,
+				"Failed to set priority of notify event source: %m");
+	}
 }
 
 static int
@@ -1460,6 +1512,10 @@ manager_startup(Manager *m, FILE *serialization, FDSet *fds)
 		r = q;
 
 	q = manager_setup_cgroups_agent(m);
+	if (q < 0 && r == 0)
+		r = q;
+
+	q = manager_setup_cgrpfs_exit(m);
 	if (q < 0 && r == 0)
 		r = q;
 
@@ -2080,6 +2136,37 @@ invoke_sigchld_event(Manager *m, Unit *u, siginfo_t *si)
 	}
 }
 
+static void
+dispatch_sigchld(Manager *m, siginfo_t *si)
+{
+	_cleanup_free_ char *name = NULL;
+	Unit *u1, *u2, *u3;
+
+#ifdef HAVE_waitid
+	get_process_comm(si->si_pid, &name);
+#endif
+
+	log_debug("Child " PID_FMT " (%s) died (code=%s, status=%i/%s)",
+		si->si_pid, strna(name), sigchld_code_to_string(si->si_code),
+		si->si_status,
+		strna(si->si_code == CLD_EXITED ?
+				      exit_status_to_string(si->si_status,
+					EXIT_STATUS_FULL) :
+				      signal_to_string(si->si_status)));
+
+	/* And now figure out the unit this belongs
+                         * to, it might be multiple... */
+	u1 = manager_get_unit_by_pid(m, si->si_pid);
+	if (u1)
+		invoke_sigchld_event(m, u1, si);
+	u2 = hashmap_get(m->watch_pids1, LONG_TO_PTR(si->si_pid));
+	if (u2 && u2 != u1)
+		invoke_sigchld_event(m, u2, si);
+	u3 = hashmap_get(m->watch_pids2, LONG_TO_PTR(si->si_pid));
+	if (u3 && u3 != u2 && u3 != u1)
+		invoke_sigchld_event(m, u3, si);
+}
+
 static int
 manager_dispatch_sigchld(Manager *m)
 {
@@ -2112,38 +2199,8 @@ manager_dispatch_sigchld(Manager *m)
 
 		if (si.si_code == CLD_EXITED || si.si_code == CLD_KILLED ||
 			si.si_code == CLD_DUMPED) {
-			_cleanup_free_ char *name = NULL;
-			Unit *u1, *u2, *u3;
-
-#ifdef HAVE_waitid
-			get_process_comm(si.si_pid, &name);
-#endif
-
-			log_debug("Child " PID_FMT
-				  " (%s) died (code=%s, status=%i/%s)",
-				si.si_pid, strna(name),
-				sigchld_code_to_string(si.si_code),
-				si.si_status,
-				strna(si.si_code == CLD_EXITED ?
-						      exit_status_to_string(
-							si.si_status,
-							EXIT_STATUS_FULL) :
-						      signal_to_string(
-							si.si_status)));
-
-			/* And now figure out the unit this belongs
-                         * to, it might be multiple... */
-			u1 = manager_get_unit_by_pid(m, si.si_pid);
-			if (u1)
-				invoke_sigchld_event(m, u1, &si);
-			u2 = hashmap_get(m->watch_pids1,
-				LONG_TO_PTR(si.si_pid));
-			if (u2 && u2 != u1)
-				invoke_sigchld_event(m, u2, &si);
-			u3 = hashmap_get(m->watch_pids2,
-				LONG_TO_PTR(si.si_pid));
-			if (u3 && u3 != u2 && u3 != u1)
-				invoke_sigchld_event(m, u3, &si);
+			log_debug("Got SIGCHLD for PID " PID_FMT, si.si_pid);
+			dispatch_sigchld(m, &si);
 		}
 
 #ifdef HAVE_waitid
@@ -2157,6 +2214,29 @@ manager_dispatch_sigchld(Manager *m)
 #endif
 	}
 
+	return 0;
+}
+
+static int
+manager_dispatch_cgrpfs_exit_fd(sd_event_source *source, int fd,
+	uint32_t revents, void *userdata)
+{
+	Manager *m = userdata;
+	siginfo_t si;
+	ssize_t r;
+
+	assert(fd == m->cgrpfs_exit_fd);
+
+	r = recv(fd, &si, sizeof si, 0);
+	if (r < 0) {
+		log_warning(
+			"Failed to receive cgrpfs exit notification: %m. Ignoring.");
+		return 0;
+	}
+
+	log_debug("Got cgrpfs exit notification for PID " PID_FMT, si.si_pid);
+
+	dispatch_sigchld(m, &si);
 	return 0;
 }
 
