@@ -1,3 +1,6 @@
 [submodule "cmd/cgrpfs"]
 	path = cmd/cgrpfs
 	url = ../CGrpFS
+[submodule "vendor/iw-cjson"]
+	path = vendor/iw-cjson
+	url = ../iw-cjson
