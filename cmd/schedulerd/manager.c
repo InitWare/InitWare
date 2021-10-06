@@ -1556,7 +1556,7 @@ manager_add_job(Manager *m, JobType type, Unit *unit, JobMode mode,
 		.conflicts = false,
 		.ignore_requirements = (mode == JOB_IGNORE_DEPENDENCIES ||
 			mode == JOB_IGNORE_REQUIREMENTS),
-		.ignore_order = JOB_IGNORE_DEPENDENCIES };
+		.ignore_order = (mode == JOB_IGNORE_DEPENDENCIES) };
 
 	assert(m);
 	assert(type < _JOB_TYPE_MAX);
