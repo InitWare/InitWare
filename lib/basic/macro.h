@@ -297,6 +297,9 @@ ALIGN_POWER2(unsigned long u)
 		}                                                              \
 	} while (false)
 
+#define PTR_TO_PID(p) ((pid_t)((intptr_t)(p)))
+#define PID_TO_PTR(u) ((void *)((intptr_t)(u)))
+
 #define PTR_TO_INT(p) ((int)((intptr_t)(p)))
 #define INT_TO_PTR(u) ((void *)((intptr_t)(u)))
 #define PTR_TO_UINT(p) ((unsigned int)((uintptr_t)(p)))

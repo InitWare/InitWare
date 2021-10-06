@@ -168,7 +168,10 @@ check_symbol_exists(waitid "sys/wait.h" HAVE_waitid)
 # options configurable by the user
 # ------------------------------------------------------------------------------
 
-option(SVC_USE_CGroups "Use Control Groups" ON)
+cmake_dependent_option(SVC_USE_CGroups "Use Control Groups"
+    ON "SVC_PLATFORM_Linux" OFF)
+cmake_dependent_option(SVC_USE_KQProc "Use Kernel Queues-based Process Tracking"
+    ON "SVC_PLATFORM_BSD" OFF)
 cmake_dependent_option(SVC_USE_libcap "Use Capabilities (libcap)" ON
     "libcap_FOUND" OFF)
 option(SVC_USE_systemd_compat "Try to be as compatible with systemd as possible"
@@ -308,6 +311,7 @@ endfunction (FShow)
 
 message("Feature settings (Use flags):")
 fshow(SVC_USE_CGroups)
+fshow(SVC_USE_KQProc)
 fshow(SVC_USE_libcap)
 fshow(SVC_USE_PAM)
 fshow(SVC_USE_systemd_compat)

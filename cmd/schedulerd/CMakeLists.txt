@@ -18,6 +18,10 @@ add_custom_command(
       > ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf-nulstr.c
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.gperf)
 
+if (SVC_USE_KQProc)
+#	list(APPEND MANAGER_SRCS ptgroup/kqproc.c ptgroup/ptgroup.c)
+endif ()
+
 add_executable(svc.schedulerd cgroup.c dbus-cgroup.c dbus-execute.c dbus-job.c
     dbus-kill.c dbus-manager.c dbus-path.c dbus-scope.c dbus-service.c
     dbus-slice.c dbus-snapshot.c dbus-socket.c dbus-target.c dbus-timer.c
@@ -28,6 +32,7 @@ add_executable(svc.schedulerd cgroup.c dbus-cgroup.c dbus-execute.c dbus-job.c
     unit-printf.c unit.c
     hostname-setup.c killall.c kmod-setup.c locale-setup.c loopback-setup.c
     machine-id-setup.c mount-setup.c namespace.c
+    ${MANAGER_SRCS}
     ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf.c
     ${CMAKE_CURRENT_BINARY_DIR}/load-fragment-gperf-nulstr.c)
 
