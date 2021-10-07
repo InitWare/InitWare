@@ -151,6 +151,10 @@ bool streq_ptr(const char *a, const char *b) _pure_;
 
 #define malloc0(n) (calloc((n), 1))
 
+/* fdset.c */
+#define MAKE_SET(s) ((Set *)s)
+#define MAKE_FDSET(s) ((FDSet *)s)
+
 static inline void *
 mfree(void *memory)
 {
@@ -489,6 +493,8 @@ ssize_t string_table_lookup(const char *const *table, size_t len,
 int fd_nonblock(int fd, bool nonblock);
 int fd_cloexec(int fd, bool cloexec);
 
+/* Returns true if \p fd is present in the FD array. */
+_pure_ bool fd_in_set(int fd, const int fdset[], unsigned n_fdset);
 int close_all_fds(const int except[], unsigned n_except);
 
 bool fstype_is_network(const char *fstype);

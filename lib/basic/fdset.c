@@ -28,9 +28,6 @@
 #include "set.h"
 #include "util.h"
 
-#define MAKE_SET(s) ((Set *)s)
-#define MAKE_FDSET(s) ((FDSet *)s)
-
 /* Make sure we can distuingish fd 0 and NULL */
 #define FD_TO_PTR(fd) INT_TO_PTR((fd) + 1)
 #define PTR_TO_FD(p) (PTR_TO_INT(p) - 1)
@@ -155,62 +152,6 @@ fdset_remove(FDSet *s, int fd)
 }
 
 int
-fdset_new_fill(FDSet **_s)
-{
-	_cleanup_closedir_ DIR *d = NULL;
-	struct dirent *de;
-	int r = 0;
-	FDSet *s;
-
-	assert(_s);
-
-	/* Creates an fdset and fills in all currently open file
-         * descriptors. */
-
-	d = opendir("/proc/self/fd");
-	if (!d)
-		return -errno;
-
-	s = fdset_new();
-	if (!s) {
-		r = -ENOMEM;
-		goto finish;
-	}
-
-	while ((de = readdir(d))) {
-		int fd = -1;
-
-		if (hidden_file(de->d_name))
-			continue;
-
-		r = safe_atoi(de->d_name, &fd);
-		if (r < 0)
-			goto finish;
-
-		if (fd < 3)
-			continue;
-
-		if (fd == dirfd(d))
-			continue;
-
-		r = fdset_put(s, fd);
-		if (r < 0)
-			goto finish;
-	}
-
-	r = 0;
-	*_s = s;
-	s = NULL;
-
-finish:
-	/* We won't close the fds here! */
-	if (s)
-		set_free(MAKE_SET(s));
-
-	return r;
-}
-
-int
 fdset_cloexec(FDSet *fds, bool b)
 {
 	Iterator i;
@@ -224,39 +165,6 @@ fdset_cloexec(FDSet *fds, bool b)
 			return r;
 
 	return 0;
-}
-
-int
-fdset_new_listen_fds(FDSet **_s, bool unset)
-{
-	int n, fd, r;
-	FDSet *s;
-
-	assert(_s);
-
-	/* Creates an fdset and fills in all passed file descriptors */
-
-	s = fdset_new();
-	if (!s) {
-		r = -ENOMEM;
-		goto fail;
-	}
-
-	n = sd_listen_fds(unset);
-	for (fd = SD_LISTEN_FDS_START; fd < SD_LISTEN_FDS_START + n; fd++) {
-		r = fdset_put(s, fd);
-		if (r < 0)
-			goto fail;
-	}
-
-	*_s = s;
-	return 0;
-
-fail:
-	if (s)
-		set_free(MAKE_SET(s));
-
-	return r;
 }
 
 int

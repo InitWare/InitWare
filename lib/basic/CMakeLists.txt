@@ -20,6 +20,18 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/errno-to-name.h
 	> errno-to-name.h
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/errno-list.txt)
 
+if (SVC_PLATFORM_Linux)
+	list(APPEND BASIC_SRC procfs/fd.c procfs/proc.cs)
+elseif (SVC_PLATFORM_MacOS)
+	# no KVM in macOS
+	list(APPEND BASIC_SRC macos/proc.c)
+elseif (SVC_PLATFORM_BSD)
+	list(APPEND BASIC_SRC kvm/fd.c kvm/proc.c)
+	list(APPEND BASIC_LIBS kvm)
+else ()
+	warning("No process utilities for this platform")
+endif()
+
 list(APPEND BASIC_SRC MurmurHash2.c acpi-fpdt.c apparmor-util.c async.c audit.c
     base-filesystem.c bus-label.c calendarspec.c cgroup-util.c clock-util.c
     condition.c conf-files.c conf-parser.c copy.c dev-setup.c device-nodes.c
@@ -49,5 +61,5 @@ target_include_directories(initware-basic
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/cmd/journal>)
-target_link_libraries(initware-basic ${EPOLL_LIBS} ${LIBCAP_LIBS} bsdcompat
-    Threads::Threads)
+target_link_libraries(initware-basic ${EPOLL_LIBS} ${LIBCAP_LIBS} ${BASIC_LIBS}
+    bsdcompat Threads::Threads)

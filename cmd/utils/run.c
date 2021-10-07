@@ -822,6 +822,7 @@ start_transient_service(sd_bus *bus, char **argv)
 	}
 
 	if (master >= 0) {
+#ifdef SVC_PLATFORM_Linux
 		_cleanup_(pty_forward_freep) PTYForward *forward = NULL;
 		_cleanup_event_unref_ sd_event *event = NULL;
 		sigset_t mask;
@@ -860,6 +861,10 @@ start_transient_service(sd_bus *bus, char **argv)
 
 		if (!arg_quiet && last_char != '\n')
 			fputc('\n', stdout);
+#else
+		log_error("PTY forwarding unsupported on BSD yet.");
+		return -ENOTSUP;
+#endif
 
 	} else if (!arg_quiet)
 		log_info("Running as unit %s.", service);
