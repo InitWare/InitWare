@@ -6,11 +6,14 @@
 #include <sys/param.h>
 
 #include <assert.h>
-#include <ulimit.h>
 
 #include "fdset.h"
 #include "kvm.h"
 #include "set.h"
+
+#ifdef HAVE_ulimit_h
+#include <ulimit.h>
+#endif
 
 #if defined(SVC_PLATFORM_FreeBSD)
 #include <libutil.h>

@@ -7646,7 +7646,7 @@ physical_memory(void)
 }
 
 void
-hexdump(FILE *f, const void *p, size_t s)
+hexprint(FILE *f, const void *p, size_t s)
 {
 	const uint8_t *b = p;
 	unsigned n = 0;

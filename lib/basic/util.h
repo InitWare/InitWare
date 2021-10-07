@@ -1177,7 +1177,7 @@ const char *personality_to_string(unsigned long);
 
 uint64_t physical_memory(void);
 
-void hexdump(FILE *f, const void *p, size_t s);
+void hexprint(FILE *f, const void *p, size_t s);
 
 #ifdef SVC_PLATFORM_Linux
 union file_handle_union {

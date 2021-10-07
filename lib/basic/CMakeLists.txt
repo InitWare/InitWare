@@ -21,7 +21,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/errno-to-name.h
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/errno-list.txt)
 
 if (SVC_PLATFORM_Linux)
-	list(APPEND BASIC_SRC procfs/fd.c procfs/proc.cs)
+	list(APPEND BASIC_SRC procfs/fd.c procfs/proc.c)
 elseif (SVC_PLATFORM_MacOS)
 	# no KVM in macOS
 	list(APPEND BASIC_SRC macos/proc.c)

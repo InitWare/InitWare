@@ -1205,19 +1205,19 @@ test_hexdump(void)
 	uint8_t data[146];
 	unsigned i;
 
-	hexdump(stdout, NULL, 0);
-	hexdump(stdout, "", 0);
-	hexdump(stdout, "", 1);
-	hexdump(stdout, "x", 1);
-	hexdump(stdout, "x", 2);
-	hexdump(stdout, "foobar", 7);
-	hexdump(stdout, "f\nobar", 7);
-	hexdump(stdout, "xxxxxxxxxxxxxxxxxxxxyz", 23);
+	hexprint(stdout, NULL, 0);
+	hexprint(stdout, "", 0);
+	hexprint(stdout, "", 1);
+	hexprint(stdout, "x", 1);
+	hexprint(stdout, "x", 2);
+	hexprint(stdout, "foobar", 7);
+	hexprint(stdout, "f\nobar", 7);
+	hexprint(stdout, "xxxxxxxxxxxxxxxxxxxxyz", 23);
 
 	for (i = 0; i < ELEMENTSOF(data); i++)
 		data[i] = i * 2;
 
-	hexdump(stdout, data, sizeof(data));
+	hexprint(stdout, data, sizeof(data));
 }
 
 static void
