@@ -36,11 +36,11 @@ test_copy_file(void)
 	size_t sz = 0;
 	int fd;
 
-	fd = mkostemp_safe(fn, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(fn, O_CLOEXEC);
 	assert_se(fd >= 0);
 	close(fd);
 
-	fd = mkostemp_safe(fn_copy, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(fn_copy, O_CLOEXEC);
 	assert_se(fd >= 0);
 	close(fd);
 
@@ -65,9 +65,9 @@ test_copy_file_fd(void)
 	char text[] = "boohoo\nfoo\n\tbar\n";
 	char buf[64] = { 0 };
 
-	in_fd = mkostemp_safe(in_fn, O_RDWR);
+	in_fd = mkostemp_safe(in_fn, 0);
 	assert_se(in_fd >= 0);
-	out_fd = mkostemp_safe(out_fn, O_RDWR);
+	out_fd = mkostemp_safe(out_fn, 0);
 	assert_se(out_fd >= 0);
 
 	assert_se(write_string_file(in_fn, text) == 0);

@@ -46,7 +46,7 @@ test_import(Hashmap *h, struct strbuf *sb, const char *contents, ssize_t size,
 	char name[] = "/tmp/test-catalog.XXXXXX";
 	_cleanup_close_ int fd;
 
-	fd = mkostemp_safe(name, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(name, O_CLOEXEC);
 	assert_se(fd >= 0);
 	assert_se(write(fd, contents, size) == size);
 
@@ -105,7 +105,7 @@ test_catalog_update(void)
 	static char name[] = "/tmp/test-catalog.XXXXXX";
 	int r;
 
-	r = mkostemp_safe(name, O_RDWR | O_CLOEXEC);
+	r = mkostemp_safe(name, O_CLOEXEC);
 	assert_se(r >= 0);
 
 	database = name;

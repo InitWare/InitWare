@@ -331,8 +331,7 @@ sd_journal_sendv(const struct iovec *iov, int n)
 	buffer_fd = memfd_new(NULL);
 	if (buffer_fd < 0) {
 		if (buffer_fd == -ENOSYS) {
-			buffer_fd =
-				open_tmpfile("/dev/shm", O_RDWR | O_CLOEXEC);
+			buffer_fd = open_tmpfile("/dev/shm", O_CLOEXEC);
 			if (buffer_fd < 0)
 				return buffer_fd;
 

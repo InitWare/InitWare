@@ -34,14 +34,14 @@ main(int argc, char **argv)
 	_cleanup_close_ int fd, fd2;
 	_cleanup_free_ char *cmd, *cmd2;
 
-	fd = open_tmpfile(p, O_RDWR | O_CLOEXEC);
+	fd = open_tmpfile(p, O_CLOEXEC);
 	assert_se(fd >= 0);
 
 	assert_se(asprintf(&cmd, "ls -l /proc/" PID_FMT "/fd/%d", getpid(),
 			  fd) > 0);
 	system(cmd);
 
-	fd2 = mkostemp_safe(pattern, O_RDWR | O_CLOEXEC);
+	fd2 = mkostemp_safe(pattern, O_CLOEXEC);
 	assert_se(fd >= 0);
 	assert_se(unlink(pattern) == 0);
 

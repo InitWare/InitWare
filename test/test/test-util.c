@@ -211,9 +211,9 @@ test_close_many(void)
 	char name1[] = "/tmp/test-close-many.XXXXXX";
 	char name2[] = "/tmp/test-close-many.XXXXXX";
 
-	fds[0] = mkostemp_safe(name0, O_RDWR | O_CLOEXEC);
-	fds[1] = mkostemp_safe(name1, O_RDWR | O_CLOEXEC);
-	fds[2] = mkostemp_safe(name2, O_RDWR | O_CLOEXEC);
+	fds[0] = mkostemp_safe(name0, O_CLOEXEC);
+	fds[1] = mkostemp_safe(name1, O_CLOEXEC);
+	fds[2] = mkostemp_safe(name2, O_CLOEXEC);
 
 	close_many(fds, 2);
 
@@ -1185,7 +1185,7 @@ test_writing_tmpfile(void)
 	IOVEC_SET_STRING(iov[1], ALPHANUMERICAL "\n");
 	IOVEC_SET_STRING(iov[2], "");
 
-	fd = mkostemp_safe(name, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(name, O_CLOEXEC);
 	printf("tmpfile: %s", name);
 
 	r = writev(fd, iov, 3);
@@ -1301,7 +1301,7 @@ test_files_same(void)
 	char name[] = "/tmp/test-files_same.XXXXXX";
 	char name_alias[] = "/tmp/test-files_same.alias";
 
-	fd = mkostemp_safe(name, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(name, O_CLOEXEC);
 	assert_se(fd >= 0);
 	assert_se(symlink(name, name_alias) >= 0);
 
@@ -1372,7 +1372,7 @@ test_close_nointr(void)
 	char name[] = "/tmp/test-test-close_nointr.XXXXXX";
 	int fd;
 
-	fd = mkostemp_safe(name, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(name, O_CLOEXEC);
 	assert_se(fd >= 0);
 	assert_se(close_nointr(fd) >= 0);
 	assert_se(close_nointr(fd) < 0);
@@ -1386,7 +1386,7 @@ test_unlink_noerrno(void)
 	char name[] = "/tmp/test-close_nointr.XXXXXX";
 	int fd;
 
-	fd = mkostemp_safe(name, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(name, O_CLOEXEC);
 	assert_se(fd >= 0);
 	assert_se(close_nointr(fd) >= 0);
 
@@ -1437,7 +1437,7 @@ test_read_one_char(void)
 	char name[] = "/tmp/test-read_one_char.XXXXXX";
 	int fd;
 
-	fd = mkostemp_safe(name, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(name, O_CLOEXEC);
 	assert_se(fd >= 0);
 	file = fdopen(fd, "r+");
 	assert_se(file);
@@ -1521,7 +1521,7 @@ test_is_symlink(void)
 	char name_link[] = "/tmp/test-is_symlink.link";
 	_cleanup_close_ int fd = -1;
 
-	fd = mkostemp_safe(name, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(name, O_CLOEXEC);
 	assert_se(fd >= 0);
 	assert_se(symlink(name, name_link) >= 0);
 
@@ -1580,7 +1580,7 @@ test_search_and_fopen(void)
 	int r;
 	FILE *f;
 
-	fd = mkostemp_safe(name, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(name, O_CLOEXEC);
 	assert_se(fd >= 0);
 	close(fd);
 
@@ -1619,7 +1619,7 @@ test_search_and_fopen_nulstr(void)
 	int r;
 	FILE *f;
 
-	fd = mkostemp_safe(name, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(name, O_CLOEXEC);
 	assert_se(fd >= 0);
 	close(fd);
 
@@ -1652,7 +1652,7 @@ test_glob_exists(void)
 	int fd = -1;
 	int r;
 
-	fd = mkostemp_safe(name, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(name, O_CLOEXEC);
 	assert_se(fd >= 0);
 	close(fd);
 

@@ -318,7 +318,7 @@ ask_password_agent(const char *message, const char *icon, const char *id,
 
 	mkdir_p_label(SVC_PKGRUNSTATEDIR "/ask-password", 0755);
 
-	fd = mkostemp_safe(temp, O_WRONLY | O_CLOEXEC);
+	fd = mkostemp_safe(temp, O_CLOEXEC);
 	if (fd < 0) {
 		log_error_errno(errno, "Failed to create password file: %m");
 		r = -errno;

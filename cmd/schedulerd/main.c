@@ -2183,7 +2183,7 @@ finish:
 			args[i++] = arg_running_as == SYSTEMD_SYSTEM ?
 				      "--system" :
 				      "--user";
-			if (m->scheduler_flags & SCHEDULER_AUXILIARY)
+			if (arg_auxiliary)
 				args[i++] = "--auxiliary";
 			args[i++] = "--deserialize";
 			args[i++] = sfd;

@@ -2842,7 +2842,7 @@ manager_open_serialization(Manager *m, FILE **_f)
 	assert(_f);
 
 	path = m->running_as == SYSTEMD_SYSTEM ? SVC_PKGRUNSTATEDIR : "/tmp";
-	fd = open_tmpfile(path, O_RDWR | O_CLOEXEC);
+	fd = open_tmpfile(path, O_CLOEXEC);
 	if (fd < 0)
 		return -errno;
 

@@ -43,11 +43,11 @@ test_parse_env_file(void)
 	char **i;
 	unsigned k;
 
-	fd = mkostemp_safe(p, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(p, O_CLOEXEC);
 	assert_se(fd >= 0);
 	close(fd);
 
-	fd = mkostemp_safe(t, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(t, O_CLOEXEC);
 	assert_se(fd >= 0);
 
 	f = fdopen(fd, "w");
@@ -149,11 +149,11 @@ test_parse_multiline_env_file(void)
 	_cleanup_strv_free_ char **a = NULL, **b = NULL;
 	char **i;
 
-	fd = mkostemp_safe(p, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(p, O_CLOEXEC);
 	assert_se(fd >= 0);
 	close(fd);
 
-	fd = mkostemp_safe(t, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(t, O_CLOEXEC);
 	assert_se(fd >= 0);
 
 	f = fdopen(fd, "w");
@@ -204,7 +204,7 @@ test_executable_is_script(void)
 	FILE *f;
 	char *command;
 
-	fd = mkostemp_safe(t, O_RDWR | O_CLOEXEC);
+	fd = mkostemp_safe(t, O_CLOEXEC);
 	assert_se(fd >= 0);
 
 	f = fdopen(fd, "w");
@@ -299,7 +299,7 @@ test_write_string_stream(void)
 	int fd;
 	char buf[64];
 
-	fd = mkostemp_safe(fn, O_RDWR);
+	fd = mkostemp_safe(fn, 0);
 	assert_se(fd >= 0);
 
 	f = fdopen(fd, "r");
@@ -325,7 +325,7 @@ test_write_string_file(void)
 	char buf[64] = {};
 	_cleanup_close_ int fd;
 
-	fd = mkostemp_safe(fn, O_RDWR);
+	fd = mkostemp_safe(fn, 0);
 	assert_se(fd >= 0);
 
 	assert_se(write_string_file(fn, "boohoo") == 0);
@@ -343,7 +343,7 @@ test_write_string_file_no_create(void)
 	_cleanup_close_ int fd;
 	char buf[64] = { 0 };
 
-	fd = mkostemp_safe(fn, O_RDWR);
+	fd = mkostemp_safe(fn, 0);
 	assert_se(fd >= 0);
 
 	assert_se(
@@ -367,7 +367,7 @@ test_load_env_file_pairs(void)
 	_cleanup_strv_free_ char **l = NULL;
 	char **k, **v;
 
-	fd = mkostemp_safe(fn, O_RDWR);
+	fd = mkostemp_safe(fn, 0);
 	assert_se(fd >= 0);
 
 	r = write_string_file(fn,
