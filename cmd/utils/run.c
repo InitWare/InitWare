@@ -1008,7 +1008,11 @@ start_transient_scope(sd_bus *bus, char **argv)
 	if (!arg_quiet)
 		log_info("Running scope as unit %s.", scope);
 
+#ifdef HAVE_execvpe
 	execvpe(argv[0], argv, env);
+#else
+	execve(argv[0], argv, env);
+#endif
 
 	return log_error_errno(errno, "Failed to execute: %m");
 }

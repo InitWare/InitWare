@@ -42,6 +42,7 @@
 #cmakedefine HAVE_canonicalize_file_name
 #cmakedefine HAVE_environ
 #cmakedefine SVC_HAVE_epoll
+#cmakedefine HAVE_execvpe
 #cmakedefine SVC_HAVE_get_current_dir_name
 #cmakedefine SVC_HAVE_program_invocation_short_name
 #cmakedefine HAVE_gettid

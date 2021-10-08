@@ -21,6 +21,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/errno-to-name.h
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/errno-list.txt)
 
 if (SVC_PLATFORM_Linux)
+	list(APPEND BASIC_SRC ptyfwd.c)
 	list(APPEND BASIC_SRC procfs/fd.c procfs/proc.c)
 elseif (SVC_PLATFORM_MacOS)
 	# no KVM in macOS
@@ -30,7 +31,11 @@ elseif (SVC_PLATFORM_BSD)
 	list(APPEND BASIC_LIBS kvm)
 else ()
 	warning("No process utilities for this platform")
-endif()
+endif ()
+
+if (SVC_PLATFORM_FreeBSD)
+	list(APPEND BASIC_LIBS util) # for kinfo_getfile
+endif ()
 
 list(APPEND BASIC_SRC MurmurHash2.c acpi-fpdt.c apparmor-util.c async.c audit.c
     base-filesystem.c bus-label.c calendarspec.c cgroup-util.c clock-util.c
