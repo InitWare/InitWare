@@ -556,7 +556,7 @@ bus_creds_dump(sd_bus_creds *c, FILE *f, bool terse)
 	if (terse && (c->mask & SD_BUS_CREDS_UNIQUE_NAME || well_known))
 		fputc('\n', f);
 
-#ifdef SVC_USE_libcap
+#if 0 /* SVC_USE_libcap */
 	dump_capabilities(c, f, "EffectiveCapabilities", terse,
 		sd_bus_creds_has_effective_cap);
 	dump_capabilities(c, f, "PermittedCapabilities", terse,

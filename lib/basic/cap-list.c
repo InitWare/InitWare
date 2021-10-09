@@ -24,8 +24,7 @@
 #include "missing.h"
 #include "util.h"
 
-static const struct capability_name *lookup_capability(register const char *str,
-	register GPERF_LEN_TYPE len);
+struct cap_name *lookup_cap(register const char *str, register size_t len);
 
 #include "cap-from-name.h"
 #include "cap-to-name.h"
@@ -36,16 +35,16 @@ capability_to_name(int id)
 	if (id < 0)
 		return NULL;
 
-	if (id >= (int)ELEMENTSOF(capability_names))
+	if (id >= (int)ELEMENTSOF(cap_names))
 		return NULL;
 
-	return capability_names[id];
+	return cap_names[id];
 }
 
 int
 capability_from_name(const char *name)
 {
-	const struct capability_name *sc;
+	const struct cap_name *sc;
 	int r, i;
 
 	assert(name);
@@ -56,7 +55,7 @@ capability_from_name(const char *name)
 		return i;
 
 	/* Try to parse string capability */
-	sc = lookup_capability(name, strlen(name));
+	sc = lookup_cap(name, strlen(name));
 	if (!sc)
 		return -EINVAL;
 
@@ -66,5 +65,5 @@ capability_from_name(const char *name)
 int
 capability_list_length(void)
 {
-	return (int)ELEMENTSOF(capability_names);
+	return (int)ELEMENTSOF(cap_names);
 }

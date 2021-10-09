@@ -1,24 +1,30 @@
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/errno-list.txt
-    COMMAND ${PROJECT_SOURCE_DIR}/tools/generate-errno-list.sh ${CMAKE_C_COMPILER}
-      > ${CMAKE_CURRENT_BINARY_DIR}/errno-list.txt)
+function (GenerateList name)
+	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${name}-list.txt
+	COMMAND ${PROJECT_SOURCE_DIR}/tools/generate-${name}-list.sh ${CMAKE_C_COMPILER}
+	    > ${CMAKE_CURRENT_BINARY_DIR}/${name}-list.txt)
 
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/errno-from-name.gperf
-    COMMAND ${PROJECT_SOURCE_DIR}/tools/generate-gperfs.sh errno ERRNO_
-      < ${CMAKE_CURRENT_BINARY_DIR}/errno-list.txt
-      > ${CMAKE_CURRENT_BINARY_DIR}/errno-from-name.gperf
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/errno-list.txt)
+	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${name}-from-name.gperf
+	COMMAND ${PROJECT_SOURCE_DIR}/tools/generate-gperfs.sh ${name} ${name}_
+	    < ${CMAKE_CURRENT_BINARY_DIR}/${name}-list.txt
+	    > ${CMAKE_CURRENT_BINARY_DIR}/${name}-from-name.gperf
+	DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${name}-list.txt)
 
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/errno-from-name.h
-    COMMAND gperf -L ANSI-C -t --ignore-case -N lookup_errno -H hash_errno
-	-p < ${CMAKE_CURRENT_BINARY_DIR}/errno-from-name.gperf
-	> errno-from-name.h
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/errno-from-name.gperf)
+	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${name}-from-name.h
+	COMMAND gperf -L ANSI-C -t --ignore-case -N lookup_${name} -H hash_${name}
+		-p < ${CMAKE_CURRENT_BINARY_DIR}/${name}-from-name.gperf
+		> ${name}-from-name.h
+	DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${name}-from-name.gperf)
 
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/errno-to-name.h
-    COMMAND awk -f ${CMAKE_CURRENT_SOURCE_DIR}/errno-to-name.awk
-	< ${CMAKE_CURRENT_BINARY_DIR}/errno-list.txt
-	> errno-to-name.h
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/errno-list.txt)
+	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${name}-to-name.h
+	COMMAND awk -f ${CMAKE_CURRENT_SOURCE_DIR}/${name}-to-name.awk
+	    < ${CMAKE_CURRENT_BINARY_DIR}/${name}-list.txt
+	    > ${name}-to-name.h
+	DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${name}-list.txt)
+
+	list(APPEND BASIC_SRC ${CMAKE_CURRENT_BINARY_DIR}/${name}-to-name.h
+	    ${CMAKE_CURRENT_BINARY_DIR}/${name}-from-name.h)
+	set(BASIC_SRC ${BASIC_SRC} PARENT_SCOPE)
+endfunction (GenerateList)
 
 if (SVC_PLATFORM_Linux)
 	list(APPEND BASIC_SRC ptyfwd.c)
@@ -37,6 +43,12 @@ if (SVC_PLATFORM_FreeBSD)
 	list(APPEND BASIC_LIBS util) # for kinfo_getfile
 endif ()
 
+GenerateList(errno)
+if (SVC_USE_libcap)
+	GenerateList(cap)
+	list(APPEND BASIC_SRC cap-list.c)
+endif ()
+
 list(APPEND BASIC_SRC MurmurHash2.c acpi-fpdt.c apparmor-util.c async.c audit.c
     base-filesystem.c bus-label.c calendarspec.c cgroup-util.c clock-util.c
     condition.c conf-files.c conf-parser.c copy.c dev-setup.c device-nodes.c
@@ -49,8 +61,7 @@ list(APPEND BASIC_SRC MurmurHash2.c acpi-fpdt.c apparmor-util.c async.c audit.c
     socket-label.c socket-util.c spawn-ask-password-agent.c spawn-polkit-agent.c
     specifier.c strbuf.c strv.c strxcpyx.c switch-root.c time-dst.c time-util.c
     uid-range.c unit-name.c utf8.c util.c verbs.c virt.c watchdog.c xml.c
-    ${CMAKE_CURRENT_BINARY_DIR}/errno-to-name.h
-    ${CMAKE_CURRENT_BINARY_DIR}/errno-from-name.h)
+    )
 
 if (SVC_PLATFORM_Linux)
 	list(APPEND BASIC_SRC memfd-util.c)
