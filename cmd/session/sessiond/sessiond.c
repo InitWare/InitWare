@@ -670,14 +670,15 @@ manager_connect_bus(Manager *m)
 			"Failed to connect to system bus: %m");
 
 	r = sd_bus_add_object_vtable(m->bus, NULL, "/org/freedesktop/login1",
-		"org.freedesktop.login1.Manager", manager_vtable, m);
+		SVC_SESSIOND_DBUS_INTERFACE ".Manager", manager_vtable, m);
 	if (r < 0)
 		return log_error_errno(r,
 			"Failed to add manager object vtable: %m");
 
 	r = sd_bus_add_fallback_vtable(m->bus, NULL,
-		"/org/freedesktop/login1/seat", "org.freedesktop.login1.Seat",
-		seat_vtable, seat_object_find, m);
+		"/org/freedesktop/login1/seat",
+		SVC_SESSIOND_DBUS_INTERFACE ".Seat", seat_vtable,
+		seat_object_find, m);
 	if (r < 0)
 		return log_error_errno(r,
 			"Failed to add seat object vtable: %m");
@@ -689,7 +690,7 @@ manager_connect_bus(Manager *m)
 
 	r = sd_bus_add_fallback_vtable(m->bus, NULL,
 		"/org/freedesktop/login1/session",
-		"org.freedesktop.login1.Session", session_vtable,
+		SVC_SESSIOND_DBUS_INTERFACE ".Session", session_vtable,
 		session_object_find, m);
 	if (r < 0)
 		return log_error_errno(r,
@@ -702,8 +703,9 @@ manager_connect_bus(Manager *m)
 			"Failed to add session enumerator: %m");
 
 	r = sd_bus_add_fallback_vtable(m->bus, NULL,
-		"/org/freedesktop/login1/user", "org.freedesktop.login1.User",
-		user_vtable, user_object_find, m);
+		"/org/freedesktop/login1/user",
+		SVC_SESSIOND_DBUS_INTERFACE ".User", user_vtable,
+		user_object_find, m);
 	if (r < 0)
 		return log_error_errno(r,
 			"Failed to add user object vtable: %m");
@@ -726,7 +728,7 @@ manager_connect_bus(Manager *m)
 
 	r = sd_bus_add_match(m->bus, NULL,
 		"type='signal',"
-		"interface='" SVC_DBUS_BUSNAME "',"
+		"sender='" SVC_DBUS_BUSNAME "',"
 		"interface='" SVC_DBUS_INTERFACE ".Manager',"
 		"member='JobRemoved',"
 		"path='/org/freedesktop/systemd1'",
@@ -737,7 +739,7 @@ manager_connect_bus(Manager *m)
 
 	r = sd_bus_add_match(m->bus, NULL,
 		"type='signal',"
-		"interface='" SVC_DBUS_BUSNAME "',"
+		"sender='" SVC_DBUS_BUSNAME "',"
 		"interface='" SVC_DBUS_INTERFACE ".Manager',"
 		"member='UnitRemoved',"
 		"path='/org/freedesktop/systemd1'",
@@ -748,7 +750,7 @@ manager_connect_bus(Manager *m)
 
 	r = sd_bus_add_match(m->bus, NULL,
 		"type='signal',"
-		"interface='" SVC_DBUS_BUSNAME "',"
+		"sender='" SVC_DBUS_BUSNAME "',"
 		"interface='org.freedesktop.DBus.Properties',"
 		"member='PropertiesChanged'",
 		match_properties_changed, m);
@@ -758,7 +760,7 @@ manager_connect_bus(Manager *m)
 
 	r = sd_bus_add_match(m->bus, NULL,
 		"type='signal',"
-		"interface='" SVC_DBUS_BUSNAME "',"
+		"sender='" SVC_DBUS_BUSNAME "',"
 		"interface='" SVC_DBUS_INTERFACE ".Manager',"
 		"member='Reloading',"
 		"path='/org/freedesktop/systemd1'",
@@ -776,7 +778,7 @@ manager_connect_bus(Manager *m)
 		return r;
 	}
 
-	r = sd_bus_request_name(m->bus, "org.freedesktop.login1", 0);
+	r = sd_bus_request_name(m->bus, SVC_SESSIOND_DBUS_BUSNAME, 0);
 	if (r < 0)
 		return log_error_errno(r, "Failed to register name: %m");
 

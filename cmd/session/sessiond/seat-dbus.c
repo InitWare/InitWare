@@ -209,7 +209,7 @@ method_activate_session(sd_bus *bus, sd_bus_message *message, void *userdata,
 			"Session %s not on seat %s", name, s->id);
 
 	r = bus_verify_polkit_async(message, CAP_SYS_ADMIN,
-		"org.freedesktop.login1.chvt", false,
+		SVC_SESSIOND_DBUS_INTERFACE ".chvt", false,
 		&s->manager->polkit_registry, error);
 	if (r < 0)
 		return r;
@@ -244,7 +244,7 @@ method_switch_to(sd_bus *bus, sd_bus_message *message, void *userdata,
 			"Invalid virtual terminal");
 
 	r = bus_verify_polkit_async(message, CAP_SYS_ADMIN,
-		"org.freedesktop.login1.chvt", false,
+		SVC_SESSIOND_DBUS_INTERFACE ".chvt", false,
 		&s->manager->polkit_registry, error);
 	if (r < 0)
 		return r;
@@ -270,7 +270,7 @@ method_switch_to_next(sd_bus *bus, sd_bus_message *message, void *userdata,
 	assert(s);
 
 	r = bus_verify_polkit_async(message, CAP_SYS_ADMIN,
-		"org.freedesktop.login1.chvt", false,
+		SVC_SESSIOND_DBUS_INTERFACE ".chvt", false,
 		&s->manager->polkit_registry, error);
 	if (r < 0)
 		return r;
@@ -296,7 +296,7 @@ method_switch_to_previous(sd_bus *bus, sd_bus_message *message, void *userdata,
 	assert(s);
 
 	r = bus_verify_polkit_async(message, CAP_SYS_ADMIN,
-		"org.freedesktop.login1.chvt", false,
+		SVC_SESSIOND_DBUS_INTERFACE ".chvt", false,
 		&s->manager->polkit_registry, error);
 	if (r < 0)
 		return r;
@@ -486,7 +486,7 @@ seat_send_signal(Seat *s, bool new_seat)
 		return -ENOMEM;
 
 	return sd_bus_emit_signal(s->manager->bus, "/org/freedesktop/login1",
-		"org.freedesktop.login1.Manager",
+		SVC_SESSIOND_DBUS_INTERFACE ".Manager",
 		new_seat ? "SeatNew" : "SeatRemoved", "so", s->id, p);
 }
 
@@ -508,5 +508,5 @@ seat_send_changed(Seat *s, const char *properties, ...)
 	l = strv_from_stdarg_alloca(properties);
 
 	return sd_bus_emit_properties_changed_strv(s->manager->bus, p,
-		"org.freedesktop.login1.Seat", l);
+		SVC_SESSIOND_DBUS_INTERFACE ".Seat", l);
 }

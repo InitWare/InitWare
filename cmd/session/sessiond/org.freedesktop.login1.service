@@ -6,7 +6,7 @@
 #  (at your option) any later version.
 
 [D-BUS Service]
-Name=org.freedesktop.login1
+Name=@SVC_SESSIOND_DBUS_BUSNAME@
 Exec=/bin/false
 User=root
-SystemdService=dbus-org.freedesktop.login1.service
+SystemdService=dbus-@SVC_SESSIOND_DBUS_BUSNAME@.service

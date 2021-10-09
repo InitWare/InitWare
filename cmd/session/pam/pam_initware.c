@@ -376,12 +376,12 @@ pam_sm_open_session(pam_handle_t *handle, int flags, int argc,
 			strempty(display), yes_no(remote),
 			strempty(remote_user), strempty(remote_host));
 
-	r = sd_bus_call_method(bus, "org.freedesktop.login1",
-		"/org/freedesktop/login1", "org.freedesktop.login1.Manager",
-		"CreateSession", &error, &reply, "uusssssussbssa(sv)",
-		(uint32_t)pw->pw_uid, (uint32_t)getpid(), service, type, class,
-		desktop, seat, vtnr, tty, display, remote, remote_user,
-		remote_host, 0);
+	r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
+		"/org/freedesktop/login1",
+		SVC_SESSIOND_DBUS_INTERFACE ".Manager", "CreateSession", &error,
+		&reply, "uusssssussbssa(sv)", (uint32_t)pw->pw_uid,
+		(uint32_t)getpid(), service, type, class, desktop, seat, vtnr,
+		tty, display, remote, remote_user, remote_host, 0);
 	if (r < 0) {
 		pam_syslog(handle, LOG_ERR, "Failed to create session: %s",
 			bus_error_message(&error, r));
@@ -505,10 +505,10 @@ pam_sm_close_session(pam_handle_t *handle, int flags, int argc,
 			return PAM_SESSION_ERR;
 		}
 
-		r = sd_bus_call_method(bus, "org.freedesktop.login1",
+		r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
 			"/org/freedesktop/login1",
-			"org.freedesktop.login1.Manager", "ReleaseSession",
-			&error, NULL, "s", id);
+			SVC_SESSIOND_DBUS_INTERFACE ".Manager",
+			"ReleaseSession", &error, NULL, "s", id);
 		if (r < 0) {
 			pam_syslog(handle, LOG_ERR,
 				"Failed to release session: %s",

@@ -746,9 +746,9 @@ start_transient_service(sd_bus *bus, char **argv)
 					"Failed to connect to system bus: %m");
 
 			r = sd_bus_call_method(system_bus,
-				"org.freedesktop.machine1",
+				SVC_MACHINED_DBUS_BUSNAME,
 				"/org/freedesktop/machine1",
-				"org.freedesktop.machine1.Manager",
+				SVC_MACHINED_DBUS_INTERFACE ".Manager",
 				"OpenMachinePTY", &error, &reply, "s",
 				arg_host);
 			if (r < 0) {

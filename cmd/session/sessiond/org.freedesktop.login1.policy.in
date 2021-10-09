@@ -16,7 +16,7 @@
         <vendor>The systemd Project</vendor>
         <vendor_url>http://www.freedesktop.org/wiki/Software/systemd</vendor_url>
 
-        <action id="org.freedesktop.login1.inhibit-block-shutdown">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.inhibit-block-shutdown">
                 <_description>Allow applications to inhibit system shutdown</_description>
                 <_message>Authentication is required for an application to inhibit system shutdown.</_message>
                 <defaults>
@@ -24,10 +24,10 @@
                         <allow_inactive>yes</allow_inactive>
                         <allow_active>yes</allow_active>
                 </defaults>
-                <annotate key="org.freedesktop.policykit.imply">org.freedesktop.login1.inhibit-delay-shutdown org.freedesktop.login1.inhibit-block-sleep org.freedesktop.login1.inhibit-delay-sleep org.freedesktop.login1.inhibit-block-idle</annotate>
+                <annotate key="org.freedesktop.policykit.imply">@SVC_SESSIOND_DBUS_INTERFACE@.inhibit-delay-shutdown @SVC_SESSIOND_DBUS_INTERFACE@.inhibit-block-sleep @SVC_SESSIOND_DBUS_INTERFACE@.inhibit-delay-sleep @SVC_SESSIOND_DBUS_INTERFACE@.inhibit-block-idle</annotate>
         </action>
 
-        <action id="org.freedesktop.login1.inhibit-delay-shutdown">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.inhibit-delay-shutdown">
                 <_description>Allow applications to delay system shutdown</_description>
                 <_message>Authentication is required for an application to delay system shutdown.</_message>
                 <defaults>
@@ -35,10 +35,10 @@
                         <allow_inactive>yes</allow_inactive>
                         <allow_active>yes</allow_active>
                 </defaults>
-                <annotate key="org.freedesktop.policykit.imply">org.freedesktop.login1.inhibit-delay-sleep</annotate>
+                <annotate key="org.freedesktop.policykit.imply">@SVC_SESSIOND_DBUS_INTERFACE@.inhibit-delay-sleep</annotate>
         </action>
 
-        <action id="org.freedesktop.login1.inhibit-block-sleep">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.inhibit-block-sleep">
                 <_description>Allow applications to inhibit system sleep</_description>
                 <_message>Authentication is required for an application to inhibit system sleep.</_message>
                 <defaults>
@@ -46,10 +46,10 @@
                         <allow_inactive>yes</allow_inactive>
                         <allow_active>yes</allow_active>
                 </defaults>
-                <annotate key="org.freedesktop.policykit.imply">org.freedesktop.login1.inhibit-delay-sleep org.freedesktop.login1.inhibit-block-idle</annotate>
+                <annotate key="org.freedesktop.policykit.imply">@SVC_SESSIOND_DBUS_INTERFACE@.inhibit-delay-sleep @SVC_SESSIOND_DBUS_INTERFACE@.inhibit-block-idle</annotate>
         </action>
 
-        <action id="org.freedesktop.login1.inhibit-delay-sleep">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.inhibit-delay-sleep">
                 <_description>Allow applications to delay system sleep</_description>
                 <_message>Authentication is required for an application to delay system sleep.</_message>
                 <defaults>
@@ -59,7 +59,7 @@
                 </defaults>
         </action>
 
-        <action id="org.freedesktop.login1.inhibit-block-idle">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.inhibit-block-idle">
                 <_description>Allow applications to inhibit automatic system suspend</_description>
                 <_message>Authentication is required for an application to inhibit automatic system suspend.</_message>
                 <defaults>
@@ -69,7 +69,7 @@
                 </defaults>
         </action>
 
-        <action id="org.freedesktop.login1.inhibit-handle-power-key">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.inhibit-handle-power-key">
                 <_description>Allow applications to inhibit system handling of the power key</_description>
                 <_message>Authentication is required for an application to inhibit system handling of the power key.</_message>
                 <defaults>
@@ -77,10 +77,10 @@
                         <allow_inactive>yes</allow_inactive>
                         <allow_active>yes</allow_active>
                 </defaults>
-                <annotate key="org.freedesktop.policykit.imply">org.freedesktop.login1.inhibit-handle-suspend-key org.freedesktop.login1.inhibit-handle-hibernate-key org.freedesktop.login1.inhibit-handle-lid-switch</annotate>
+                <annotate key="org.freedesktop.policykit.imply">@SVC_SESSIOND_DBUS_INTERFACE@.inhibit-handle-suspend-key @SVC_SESSIOND_DBUS_INTERFACE@.inhibit-handle-hibernate-key @SVC_SESSIOND_DBUS_INTERFACE@.inhibit-handle-lid-switch</annotate>
         </action>
 
-        <action id="org.freedesktop.login1.inhibit-handle-suspend-key">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.inhibit-handle-suspend-key">
                 <_description>Allow applications to inhibit system handling of the suspend key</_description>
                 <_message>Authentication is required for an application to inhibit system handling of the suspend key.</_message>
                 <defaults>
@@ -88,10 +88,10 @@
                         <allow_inactive>yes</allow_inactive>
                         <allow_active>yes</allow_active>
                 </defaults>
-                <annotate key="org.freedesktop.policykit.imply">org.freedesktop.login1.inhibit-handle-hibernate-key org.freedesktop.login1.inhibit-handle-lid-switch</annotate>
+                <annotate key="org.freedesktop.policykit.imply">@SVC_SESSIOND_DBUS_INTERFACE@.inhibit-handle-hibernate-key @SVC_SESSIOND_DBUS_INTERFACE@.inhibit-handle-lid-switch</annotate>
         </action>
 
-        <action id="org.freedesktop.login1.inhibit-handle-hibernate-key">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.inhibit-handle-hibernate-key">
                 <_description>Allow applications to inhibit system handling of the hibernate key</_description>
                 <_message>Authentication is required for an application to inhibit system handling of the hibernate key.</_message>
                 <defaults>
@@ -101,7 +101,7 @@
                 </defaults>
         </action>
 
-        <action id="org.freedesktop.login1.inhibit-handle-lid-switch">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.inhibit-handle-lid-switch">
                 <_description>Allow applications to inhibit system handling of the lid switch</_description>
                 <_message>Authentication is required for an application to inhibit system handling of the lid switch.</_message>
                 <defaults>
@@ -111,7 +111,7 @@
                 </defaults>
         </action>
 
-        <action id="org.freedesktop.login1.set-user-linger">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.set-user-linger">
                 <_description>Allow non-logged-in users to run programs</_description>
                 <_message>Authentication is required to run programs as a non-logged-in user.</_message>
                 <defaults>
@@ -121,7 +121,7 @@
                 </defaults>
         </action>
 
-        <action id="org.freedesktop.login1.attach-device">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.attach-device">
                 <_description>Allow attaching devices to seats</_description>
                 <_message>Authentication is required for attaching a device to a seat.</_message>
                 <defaults>
@@ -129,10 +129,10 @@
                         <allow_inactive>auth_admin_keep</allow_inactive>
                         <allow_active>auth_admin_keep</allow_active>
                 </defaults>
-                <annotate key="org.freedesktop.policykit.imply">org.freedesktop.login1.flush-devices</annotate>
+                <annotate key="org.freedesktop.policykit.imply">@SVC_SESSIOND_DBUS_INTERFACE@.flush-devices</annotate>
         </action>
 
-        <action id="org.freedesktop.login1.flush-devices">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.flush-devices">
                 <_description>Flush device to seat attachments</_description>
                 <_message>Authentication is required for resetting how devices are attached to seats.</_message>
                 <defaults>
@@ -142,7 +142,7 @@
                 </defaults>
         </action>
 
-        <action id="org.freedesktop.login1.power-off">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.power-off">
                 <_description>Power off the system</_description>
                 <_message>Authentication is required for powering off the system.</_message>
                 <defaults>
@@ -152,7 +152,7 @@
                 </defaults>
         </action>
 
-        <action id="org.freedesktop.login1.power-off-multiple-sessions">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.power-off-multiple-sessions">
                 <_description>Power off the system while other users are logged in</_description>
                 <_message>Authentication is required for powering off the system while other users are logged in.</_message>
                 <defaults>
@@ -160,10 +160,10 @@
                         <allow_inactive>auth_admin_keep</allow_inactive>
                         <allow_active>yes</allow_active>
                 </defaults>
-                <annotate key="org.freedesktop.policykit.imply">org.freedesktop.login1.power-off</annotate>
+                <annotate key="org.freedesktop.policykit.imply">@SVC_SESSIOND_DBUS_INTERFACE@.power-off</annotate>
         </action>
 
-        <action id="org.freedesktop.login1.power-off-ignore-inhibit">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.power-off-ignore-inhibit">
                 <_description>Power off the system while an application asked to inhibit it</_description>
                 <_message>Authentication is required for powering off the system while an application asked to inhibit it.</_message>
                 <defaults>
@@ -171,10 +171,10 @@
                         <allow_inactive>auth_admin_keep</allow_inactive>
                         <allow_active>auth_admin_keep</allow_active>
                 </defaults>
-                <annotate key="org.freedesktop.policykit.imply">org.freedesktop.login1.power-off</annotate>
+                <annotate key="org.freedesktop.policykit.imply">@SVC_SESSIOND_DBUS_INTERFACE@.power-off</annotate>
         </action>
 
-        <action id="org.freedesktop.login1.reboot">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.reboot">
                 <_description>Reboot the system</_description>
                 <_message>Authentication is required for rebooting the system.</_message>
                 <defaults>
@@ -184,7 +184,7 @@
                 </defaults>
         </action>
 
-        <action id="org.freedesktop.login1.reboot-multiple-sessions">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.reboot-multiple-sessions">
                 <_description>Reboot the system while other users are logged in</_description>
                 <_message>Authentication is required for rebooting the system while other users are logged in.</_message>
                 <defaults>
@@ -192,10 +192,10 @@
                         <allow_inactive>auth_admin_keep</allow_inactive>
                         <allow_active>yes</allow_active>
                 </defaults>
-                <annotate key="org.freedesktop.policykit.imply">org.freedesktop.login1.reboot</annotate>
+                <annotate key="org.freedesktop.policykit.imply">@SVC_SESSIOND_DBUS_INTERFACE@.reboot</annotate>
         </action>
 
-        <action id="org.freedesktop.login1.reboot-ignore-inhibit">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.reboot-ignore-inhibit">
                 <_description>Reboot the system while an application asked to inhibit it</_description>
                 <_message>Authentication is required for rebooting the system while an application asked to inhibit it.</_message>
                 <defaults>
@@ -203,10 +203,10 @@
                         <allow_inactive>auth_admin_keep</allow_inactive>
                         <allow_active>auth_admin_keep</allow_active>
                 </defaults>
-                <annotate key="org.freedesktop.policykit.imply">org.freedesktop.login1.reboot</annotate>
+                <annotate key="org.freedesktop.policykit.imply">@SVC_SESSIOND_DBUS_INTERFACE@.reboot</annotate>
         </action>
 
-        <action id="org.freedesktop.login1.suspend">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.suspend">
                 <_description>Suspend the system</_description>
                 <_message>Authentication is required for suspending the system.</_message>
                 <defaults>
@@ -216,7 +216,7 @@
                 </defaults>
         </action>
 
-        <action id="org.freedesktop.login1.suspend-multiple-sessions">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.suspend-multiple-sessions">
                 <_description>Suspend the system while other users are logged in</_description>
                 <_message>Authentication is required for suspending the system while other users are logged in.</_message>
                 <defaults>
@@ -224,10 +224,10 @@
                         <allow_inactive>auth_admin_keep</allow_inactive>
                         <allow_active>yes</allow_active>
                 </defaults>
-                <annotate key="org.freedesktop.policykit.imply">org.freedesktop.login1.suspend</annotate>
+                <annotate key="org.freedesktop.policykit.imply">@SVC_SESSIOND_DBUS_INTERFACE@.suspend</annotate>
         </action>
 
-        <action id="org.freedesktop.login1.suspend-ignore-inhibit">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.suspend-ignore-inhibit">
                 <_description>Suspend the system while an application asked to inhibit it</_description>
                 <_message>Authentication is required for suspending the system while an application asked to inhibit it.</_message>
                 <defaults>
@@ -235,10 +235,10 @@
                         <allow_inactive>auth_admin_keep</allow_inactive>
                         <allow_active>auth_admin_keep</allow_active>
                 </defaults>
-                <annotate key="org.freedesktop.policykit.imply">org.freedesktop.login1.suspend</annotate>
+                <annotate key="org.freedesktop.policykit.imply">@SVC_SESSIOND_DBUS_INTERFACE@.suspend</annotate>
         </action>
 
-        <action id="org.freedesktop.login1.hibernate">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.hibernate">
                 <_description>Hibernate the system</_description>
                 <_message>Authentication is required for hibernating the system.</_message>
                 <defaults>
@@ -248,7 +248,7 @@
                 </defaults>
         </action>
 
-        <action id="org.freedesktop.login1.hibernate-multiple-sessions">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.hibernate-multiple-sessions">
                 <_description>Hibernate the system while other users are logged in</_description>
                 <_message>Authentication is required for hibernating the system while other users are logged in.</_message>
                 <defaults>
@@ -256,10 +256,10 @@
                         <allow_inactive>auth_admin_keep</allow_inactive>
                         <allow_active>yes</allow_active>
                 </defaults>
-                <annotate key="org.freedesktop.policykit.imply">org.freedesktop.login1.hibernate</annotate>
+                <annotate key="org.freedesktop.policykit.imply">@SVC_SESSIOND_DBUS_INTERFACE@.hibernate</annotate>
         </action>
 
-        <action id="org.freedesktop.login1.hibernate-ignore-inhibit">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.hibernate-ignore-inhibit">
                 <_description>Hibernate the system while an application asked to inhibit it</_description>
                 <_message>Authentication is required for hibernating the system while an application asked to inhibit it.</_message>
                 <defaults>
@@ -267,10 +267,10 @@
                         <allow_inactive>auth_admin_keep</allow_inactive>
                         <allow_active>auth_admin_keep</allow_active>
                 </defaults>
-                <annotate key="org.freedesktop.policykit.imply">org.freedesktop.login1.hibernate</annotate>
+                <annotate key="org.freedesktop.policykit.imply">@SVC_SESSIOND_DBUS_INTERFACE@.hibernate</annotate>
         </action>
 
-        <action id="org.freedesktop.login1.chvt">
+        <action id="@SVC_SESSIOND_DBUS_INTERFACE@.chvt">
                 <description gettext-domain="systemd">Change Session</description>
                 <message gettext-domain="systemd">Authentication is required for changing the virtual terminal.</message>
                 <defaults>

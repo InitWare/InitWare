@@ -2079,9 +2079,9 @@ register_machine(pid_t pid, int local_ifindex)
 		return log_error_errno(r, "Failed to open system bus: %m");
 
 	if (arg_keep_unit) {
-		r = sd_bus_call_method(bus, "org.freedesktop.machine1",
+		r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
 			"/org/freedesktop/machine1",
-			"org.freedesktop.machine1.Manager",
+			SVC_MACHINED_DBUS_INTERFACE ".Manager",
 			"RegisterMachineWithNetwork", &error, NULL, "sayssusai",
 			arg_machine, SD_BUS_MESSAGE_APPEND_ID128(arg_uuid),
 			"nspawn", "container", (uint32_t)pid,
@@ -2091,8 +2091,8 @@ register_machine(pid_t pid, int local_ifindex)
 		_cleanup_bus_message_unref_ sd_bus_message *m = NULL;
 
 		r = sd_bus_message_new_method_call(bus, &m,
-			"org.freedesktop.machine1", "/org/freedesktop/machine1",
-			"org.freedesktop.machine1.Manager",
+			SVC_MACHINED_DBUS_BUSNAME, "/org/freedesktop/machine1",
+			SVC_MACHINED_DBUS_INTERFACE ".Manager",
 			"CreateMachineWithNetwork");
 		if (r < 0)
 			return log_error_errno(r,
@@ -2178,9 +2178,10 @@ terminate_machine(pid_t pid)
 	if (r < 0)
 		return log_error_errno(r, "Failed to open system bus: %m");
 
-	r = sd_bus_call_method(bus, "org.freedesktop.machine1",
-		"/org/freedesktop/machine1", "org.freedesktop.machine1.Manager",
-		"GetMachineByPID", &error, &reply, "u", (uint32_t)pid);
+	r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
+		"/org/freedesktop/machine1",
+		SVC_MACHINED_DBUS_INTERFACE ".Manager", "GetMachineByPID",
+		&error, &reply, "u", (uint32_t)pid);
 	if (r < 0) {
 		/* Note that the machine might already have been
                  * cleaned up automatically, hence don't consider it a
@@ -2194,9 +2195,9 @@ terminate_machine(pid_t pid)
 	if (r < 0)
 		return bus_log_parse_error(r);
 
-	r = sd_bus_call_method(bus, "org.freedesktop.machine1", path,
-		"org.freedesktop.machine1.Machine", "Terminate", &error, NULL,
-		NULL);
+	r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME, path,
+		SVC_MACHINED_DBUS_INTERFACE ".Machine", "Terminate", &error,
+		NULL, NULL);
 	if (r < 0) {
 		log_debug("Failed to terminate machine: %s",
 			bus_error_message(&error, r));

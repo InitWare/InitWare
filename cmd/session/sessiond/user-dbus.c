@@ -358,7 +358,7 @@ user_send_signal(User *u, bool new_user)
 		return -ENOMEM;
 
 	return sd_bus_emit_signal(u->manager->bus, "/org/freedesktop/login1",
-		"org.freedesktop.login1.Manager",
+		SVC_SESSIOND_DBUS_INTERFACE ".Manager",
 		new_user ? "UserNew" : "UserRemoved", "uo", (uint32_t)u->uid,
 		p);
 }
@@ -381,5 +381,5 @@ user_send_changed(User *u, const char *properties, ...)
 	l = strv_from_stdarg_alloca(properties);
 
 	return sd_bus_emit_properties_changed_strv(u->manager->bus, p,
-		"org.freedesktop.login1.User", l);
+		SVC_SESSIOND_DBUS_INTERFACE ".User", l);
 }

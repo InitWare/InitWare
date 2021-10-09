@@ -101,9 +101,10 @@ list_sessions(int argc, char *argv[], void *userdata)
 
 	pager_open_if_enabled();
 
-	r = sd_bus_call_method(bus, "org.freedesktop.login1",
-		"/org/freedesktop/login1", "org.freedesktop.login1.Manager",
-		"ListSessions", &error, &reply, "");
+	r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
+		"/org/freedesktop/login1",
+		SVC_SESSIOND_DBUS_INTERFACE ".Manager", "ListSessions", &error,
+		&reply, "");
 	if (r < 0) {
 		log_error("Failed to list sessions: %s",
 			bus_error_message(&error, r));
@@ -149,9 +150,10 @@ list_users(int argc, char *argv[], void *userdata)
 
 	pager_open_if_enabled();
 
-	r = sd_bus_call_method(bus, "org.freedesktop.login1",
-		"/org/freedesktop/login1", "org.freedesktop.login1.Manager",
-		"ListUsers", &error, &reply, "");
+	r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
+		"/org/freedesktop/login1",
+		SVC_SESSIOND_DBUS_INTERFACE ".Manager", "ListUsers", &error,
+		&reply, "");
 	if (r < 0) {
 		log_error("Failed to list users: %s",
 			bus_error_message(&error, r));
@@ -194,9 +196,10 @@ list_seats(int argc, char *argv[], void *userdata)
 
 	pager_open_if_enabled();
 
-	r = sd_bus_call_method(bus, "org.freedesktop.login1",
-		"/org/freedesktop/login1", "org.freedesktop.login1.Manager",
-		"ListSeats", &error, &reply, "");
+	r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
+		"/org/freedesktop/login1",
+		SVC_SESSIOND_DBUS_INTERFACE ".Manager", "ListSeats", &error,
+		&reply, "");
 	if (r < 0) {
 		log_error("Failed to list seats: %s",
 			bus_error_message(&error, r));
@@ -416,7 +419,7 @@ print_session_status_info(sd_bus *bus, const char *path, bool *new_line)
 	SessionStatusInfo i = {};
 	int r;
 
-	r = bus_map_all_properties(bus, "org.freedesktop.login1", path, map,
+	r = bus_map_all_properties(bus, SVC_SESSIOND_DBUS_BUSNAME, path, map,
 		&i);
 	if (r < 0)
 		return log_error_errno(r, "Could not get properties: %m");
@@ -543,7 +546,7 @@ print_user_status_info(sd_bus *bus, const char *path, bool *new_line)
 	UserStatusInfo i = {};
 	int r;
 
-	r = bus_map_all_properties(bus, "org.freedesktop.login1", path, map,
+	r = bus_map_all_properties(bus, SVC_SESSIOND_DBUS_BUSNAME, path, map,
 		&i);
 	if (r < 0) {
 		log_error_errno(r, "Could not get properties: %m");
@@ -617,7 +620,7 @@ print_seat_status_info(sd_bus *bus, const char *path, bool *new_line)
 	SeatStatusInfo i = {};
 	int r;
 
-	r = bus_map_all_properties(bus, "org.freedesktop.login1", path, map,
+	r = bus_map_all_properties(bus, SVC_SESSIOND_DBUS_BUSNAME, path, map,
 		&i);
 	if (r < 0) {
 		log_error_errno(r, "Could not get properties: %m");
@@ -776,7 +779,7 @@ show_properties(sd_bus *bus, const char *path, bool *new_line)
 	assert(path);
 	assert(new_line);
 
-	r = sd_bus_call_method(bus, "org.freedesktop.login1", path,
+	r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME, path,
 		"org.freedesktop.DBus.Properties", "GetAll", &error, &reply,
 		"s", "");
 	if (r < 0)
@@ -862,10 +865,10 @@ show_session(int argc, char *argv[], void *userdata)
 		_cleanup_bus_message_unref_ sd_bus_message *reply = NULL;
 		const char *path = NULL;
 
-		r = sd_bus_call_method(bus, "org.freedesktop.login1",
+		r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
 			"/org/freedesktop/login1",
-			"org.freedesktop.login1.Manager", "GetSession", &error,
-			&reply, "s", argv[i]);
+			SVC_SESSIOND_DBUS_INTERFACE ".Manager", "GetSession",
+			&error, &reply, "s", argv[i]);
 		if (r < 0) {
 			log_error("Failed to get session: %s",
 				bus_error_message(&error, r));
@@ -925,10 +928,10 @@ show_user(int argc, char *argv[], void *userdata)
 			return log_error_errno(r,
 				"Failed to look up user %s: %m", argv[i]);
 
-		r = sd_bus_call_method(bus, "org.freedesktop.login1",
+		r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
 			"/org/freedesktop/login1",
-			"org.freedesktop.login1.Manager", "GetUser", &error,
-			&reply, "u", (uint32_t)uid);
+			SVC_SESSIOND_DBUS_INTERFACE ".Manager", "GetUser",
+			&error, &reply, "u", (uint32_t)uid);
 		if (r < 0) {
 			log_error("Failed to get user: %s",
 				bus_error_message(&error, r));
@@ -981,10 +984,10 @@ show_seat(int argc, char *argv[], void *userdata)
 		_cleanup_bus_message_unref_ sd_bus_message *reply = NULL;
 		const char *path = NULL;
 
-		r = sd_bus_call_method(bus, "org.freedesktop.login1",
+		r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
 			"/org/freedesktop/login1",
-			"org.freedesktop.login1.Manager", "GetSeat", &error,
-			&reply, "s", argv[i]);
+			SVC_SESSIOND_DBUS_INTERFACE ".Manager", "GetSeat",
+			&error, &reply, "s", argv[i]);
 		if (r < 0) {
 			log_error("Failed to get seat: %s",
 				bus_error_message(&error, r));
@@ -1034,9 +1037,9 @@ activate(int argc, char *argv[], void *userdata)
 	}
 
 	for (i = 1; i < argc; i++) {
-		r = sd_bus_call_method(bus, "org.freedesktop.login1",
+		r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
 			"/org/freedesktop/login1",
-			"org.freedesktop.login1.Manager",
+			SVC_SESSIOND_DBUS_INTERFACE ".Manager",
 			streq(argv[0], "lock-session") ? "LockSession" :
 				streq(argv[0], "unlock-session") ?
 							       "UnlockSession" :
@@ -1070,10 +1073,10 @@ kill_session(int argc, char *argv[], void *userdata)
 		arg_kill_who = "all";
 
 	for (i = 1; i < argc; i++) {
-		r = sd_bus_call_method(bus, "org.freedesktop.login1",
+		r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
 			"/org/freedesktop/login1",
-			"org.freedesktop.login1.Manager", "KillSession", &error,
-			NULL, "ssi", argv[i], arg_kill_who, arg_signal);
+			SVC_SESSIOND_DBUS_INTERFACE ".Manager", "KillSession",
+			&error, NULL, "ssi", argv[i], arg_kill_who, arg_signal);
 		if (r < 0) {
 			log_error("Could not kill session: %s",
 				bus_error_message(&error, -r));
@@ -1122,9 +1125,9 @@ enable_linger(int argc, char *argv[], void *userdata)
 					argv[i]);
 		}
 
-		r = sd_bus_call_method(bus, "org.freedesktop.login1",
+		r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
 			"/org/freedesktop/login1",
-			"org.freedesktop.login1.Manager", "SetUserLinger",
+			SVC_SESSIOND_DBUS_INTERFACE ".Manager", "SetUserLinger",
 			&error, NULL, "ubb", (uint32_t)uid, b, true);
 		if (r < 0) {
 			log_error("Could not enable linger: %s",
@@ -1157,9 +1160,9 @@ terminate_user(int argc, char *argv[], void *userdata)
 			return log_error_errno(r,
 				"Failed to look up user %s: %m", argv[i]);
 
-		r = sd_bus_call_method(bus, "org.freedesktop.login1",
+		r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
 			"/org/freedesktop/login1",
-			"org.freedesktop.login1.Manager", "TerminateUser",
+			SVC_SESSIOND_DBUS_INTERFACE ".Manager", "TerminateUser",
 			&error, NULL, "u", (uint32_t)uid);
 		if (r < 0) {
 			log_error("Could not terminate user: %s",
@@ -1195,10 +1198,10 @@ kill_user(int argc, char *argv[], void *userdata)
 			return log_error_errno(r,
 				"Failed to look up user %s: %m", argv[i]);
 
-		r = sd_bus_call_method(bus, "org.freedesktop.login1",
+		r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
 			"/org/freedesktop/login1",
-			"org.freedesktop.login1.Manager", "KillUser", &error,
-			NULL, "ui", (uint32_t)uid, arg_signal);
+			SVC_SESSIOND_DBUS_INTERFACE ".Manager", "KillUser",
+			&error, NULL, "ui", (uint32_t)uid, arg_signal);
 		if (r < 0) {
 			log_error("Could not kill user: %s",
 				bus_error_message(&error, -r));
@@ -1222,9 +1225,9 @@ attach(int argc, char *argv[], void *userdata)
 	polkit_agent_open_if_enabled();
 
 	for (i = 2; i < argc; i++) {
-		r = sd_bus_call_method(bus, "org.freedesktop.login1",
+		r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
 			"/org/freedesktop/login1",
-			"org.freedesktop.login1.Manager", "AttachDevice",
+			SVC_SESSIOND_DBUS_INTERFACE ".Manager", "AttachDevice",
 			&error, NULL, "ssb", argv[1], argv[i], true);
 
 		if (r < 0) {
@@ -1249,9 +1252,10 @@ flush_devices(int argc, char *argv[], void *userdata)
 
 	polkit_agent_open_if_enabled();
 
-	r = sd_bus_call_method(bus, "org.freedesktop.login1",
-		"/org/freedesktop/login1", "org.freedesktop.login1.Manager",
-		"FlushDevices", &error, NULL, "b", true);
+	r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
+		"/org/freedesktop/login1",
+		SVC_SESSIOND_DBUS_INTERFACE ".Manager", "FlushDevices", &error,
+		NULL, "b", true);
 	if (r < 0)
 		log_error("Could not flush devices: %s",
 			bus_error_message(&error, -r));
@@ -1271,8 +1275,9 @@ lock_sessions(int argc, char *argv[], void *userdata)
 
 	polkit_agent_open_if_enabled();
 
-	r = sd_bus_call_method(bus, "org.freedesktop.login1",
-		"/org/freedesktop/login1", "org.freedesktop.login1.Manager",
+	r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
+		"/org/freedesktop/login1",
+		SVC_SESSIOND_DBUS_INTERFACE ".Manager",
 		streq(argv[0], "lock-sessions") ? "LockSessions" :
 							"UnlockSessions",
 		&error, NULL, NULL);
@@ -1296,9 +1301,9 @@ terminate_seat(int argc, char *argv[], void *userdata)
 	polkit_agent_open_if_enabled();
 
 	for (i = 1; i < argc; i++) {
-		r = sd_bus_call_method(bus, "org.freedesktop.login1",
+		r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
 			"/org/freedesktop/login1",
-			"org.freedesktop.login1.Manager", "TerminateSeat",
+			SVC_SESSIOND_DBUS_INTERFACE ".Manager", "TerminateSeat",
 			&error, NULL, "s", argv[i]);
 		if (r < 0) {
 			log_error("Could not terminate seat: %s",

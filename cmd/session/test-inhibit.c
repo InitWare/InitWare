@@ -35,9 +35,10 @@ inhibit(sd_bus *bus, const char *what)
 	int fd;
 	int r;
 
-	r = sd_bus_call_method(bus, "org.freedesktop.login1",
-		"/org/freedesktop/login1", "org.freedesktop.login1.Manager",
-		"Inhibit", &error, &reply, "ssss", what, who, reason, mode);
+	r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
+		"/org/freedesktop/login1",
+		SVC_SESSIOND_DBUS_INTERFACE ".Manager", "Inhibit", &error,
+		&reply, "ssss", what, who, reason, mode);
 	assert_se(r >= 0);
 
 	r = sd_bus_message_read_basic(reply, SD_BUS_TYPE_UNIX_FD, &fd);
@@ -57,9 +58,10 @@ print_inhibitors(sd_bus *bus)
 	unsigned n = 0;
 	int r;
 
-	r = sd_bus_call_method(bus, "org.freedesktop.login1",
-		"/org/freedesktop/login1", "org.freedesktop.login1.Manager",
-		"ListInhibitors", &error, &reply, "");
+	r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
+		"/org/freedesktop/login1",
+		SVC_SESSIOND_DBUS_INTERFACE ".Manager", "ListInhibitors",
+		&error, &reply, "");
 	assert_se(r >= 0);
 
 	r = sd_bus_message_enter_container(reply, SD_BUS_TYPE_ARRAY,

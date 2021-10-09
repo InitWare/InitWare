@@ -2870,9 +2870,10 @@ reboot_with_logind(sd_bus *bus, enum action a)
 		return -EINVAL;
 	}
 
-	r = sd_bus_call_method(bus, "org.freedesktop.login1",
-		"/org/freedesktop/login1", "org.freedesktop.login1.Manager",
-		method, &error, NULL, "b", arg_ask_password);
+	r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
+		"/org/freedesktop/login1",
+		SVC_SESSIOND_DBUS_INTERFACE ".Manager", method, &error, NULL,
+		"b", arg_ask_password);
 	if (r < 0)
 		log_error("Failed to execute operation: %s",
 			bus_error_message(&error, r));
@@ -2910,9 +2911,10 @@ check_inhibitors(sd_bus *bus, enum action a)
 	if (!on_tty())
 		return 0;
 
-	r = sd_bus_call_method(bus, "org.freedesktop.login1",
-		"/org/freedesktop/login1", "org.freedesktop.login1.Manager",
-		"ListInhibitors", NULL, &reply, NULL);
+	r = sd_bus_call_method(bus, SVC_SESSIOND_DBUS_BUSNAME,
+		"/org/freedesktop/login1",
+		SVC_SESSIOND_DBUS_INTERFACE ".Manager", "ListInhibitors", NULL,
+		&reply, NULL);
 	if (r < 0)
 		/* If logind is not around, then there are no inhibitors... */
 		return 0;
