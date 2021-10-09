@@ -64,6 +64,26 @@ set(MANIFESTS basic.target bluetooth.target cryptsetup-pre.target
 install_manifests(SYSTEM_IN ${MANIFESTS_IN} SYSTEM ${MANIFESTS})
 install(TARGETS svc.schedulerd DESTINATION ${SVC_PKGLIBEXECDIR})
 
+# pkg-config file
 configure_file(InitWare.pc.in InitWare.pc @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/InitWare.pc
     DESTINATION ${PKGCONF_DIR})
+
+# D-Bus & PolicyKit
+configure_file(org.InitWare.Scheduler1.conf.in org.InitWare.Scheduler1.conf)
+configure_file(org.InitWare.Scheduler1.policy.in
+    org.InitWare.Scheduler1.policy)
+configure_file(org.InitWare.Scheduler1.service.in
+    org.InitWare.Scheduler1.service)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.InitWare.Scheduler1.service
+    DESTINATION ${SVC_DBUSSERVICESDIR}
+    RENAME ${SVC_DBUS_BUSNAME}.service)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.InitWare.Scheduler1.policy
+    DESTINATION ${SVC_POLKITACTIONDIR}
+    RENAME ${SVC_DBUS_BUSNAME}.policy)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.InitWare.Scheduler1.conf
+    DESTINATION ${SVC_DBUSCONFDIR}
+    RENAME ${SVC_DBUS_BUSNAME}.conf)

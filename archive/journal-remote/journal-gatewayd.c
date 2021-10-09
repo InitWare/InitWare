@@ -727,8 +727,8 @@ get_virtualization(char **v)
 	if (r < 0)
 		return r;
 
-	r = sd_bus_get_property_string(bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_get_property_string(bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"Virtualization", NULL, &b);
 	if (r < 0)
 		return r;

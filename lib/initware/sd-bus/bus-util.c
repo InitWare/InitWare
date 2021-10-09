@@ -1649,16 +1649,15 @@ bus_wait_for_jobs_new(sd_bus *bus, BusWaitForJobs **ret)
          * connections OTOH have no initialized sender field, and
          * hence we ignore the sender then */
 	r = sd_bus_add_match(bus, &d->slot_job_removed,
-		bus->bus_client ?
-			      "type='signal',"
-			"sender='org.freedesktop.systemd1',"
-			"interface='org.freedesktop.systemd1.Manager',"
-			"member='JobRemoved',"
-			"path='/org/freedesktop/systemd1'" :
-			      "type='signal',"
-			"interface='org.freedesktop.systemd1.Manager',"
-			"member='JobRemoved',"
-			"path='/org/freedesktop/systemd1'",
+		bus->bus_client ? "type='signal',"
+				  "interface='" SVC_DBUS_BUSNAME "',"
+				  "interface='" SVC_DBUS_INTERFACE ".Manager',"
+				  "member='JobRemoved',"
+				  "path='/org/freedesktop/systemd1'" :
+					"type='signal',"
+				  "interface='" SVC_DBUS_INTERFACE ".Manager',"
+				  "member='JobRemoved',"
+				  "path='/org/freedesktop/systemd1'",
 		match_job_removed, d);
 	if (r < 0)
 		return r;
@@ -1709,9 +1708,8 @@ bus_job_get_service_result(BusWaitForJobs *d, char **result)
 	if (!dbus_path)
 		return -ENOMEM;
 
-	return sd_bus_get_property_string(d->bus, "org.freedesktop.systemd1",
-		dbus_path, "org.freedesktop.systemd1.Service", "Result", NULL,
-		result);
+	return sd_bus_get_property_string(d->bus, SVC_DBUS_BUSNAME, dbus_path,
+		SVC_DBUS_INTERFACE ".Service", "Result", NULL, result);
 }
 
 static const struct {

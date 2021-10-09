@@ -263,9 +263,9 @@ context_read_ntp(Context *c, sd_bus *bus)
 		_cleanup_bus_message_unref_ sd_bus_message *reply = NULL;
 		const char *s;
 
-		r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
+		r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
 			"/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager", "GetUnitFileState",
+			SVC_DBUS_INTERFACE ".Manager", "GetUnitFileState",
 			&error, &reply, "s", *i);
 
 		if (r < 0) {
@@ -302,18 +302,18 @@ context_start_ntp(sd_bus *bus, sd_bus_error *error, bool enabled)
 
 	l = get_ntp_services();
 	STRV_FOREACH (i, l) {
-		r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
+		r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
 			"/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager",
+			SVC_DBUS_INTERFACE ".Manager",
 			enabled ? "StartUnit" : "StopUnit", error, NULL, "ss",
 			*i, "replace");
 		if (r < 0) {
 			if (sd_bus_error_has_name(error,
 				    SD_BUS_ERROR_FILE_NOT_FOUND) ||
 				sd_bus_error_has_name(error,
-					"org.freedesktop.systemd1.LoadFailed") ||
+					SVC_DBUS_INTERFACE ".LoadFailed") ||
 				sd_bus_error_has_name(error,
-					"org.freedesktop.systemd1.NoSuchUnit")) {
+					SVC_DBUS_INTERFACE ".NoSuchUnit")) {
 				/* This implementation does not exist. Try the next one. */
 				sd_bus_error_free(error);
 				continue;
@@ -343,15 +343,15 @@ context_enable_ntp(sd_bus *bus, sd_bus_error *error, bool enabled)
 	l = get_ntp_services();
 	STRV_FOREACH (i, l) {
 		if (enabled)
-			r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
+			r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
 				"/org/freedesktop/systemd1",
-				"org.freedesktop.systemd1.Manager",
+				SVC_DBUS_INTERFACE ".Manager",
 				"EnableUnitFiles", error, NULL, "asbb", 1, *i,
 				false, true);
 		else
-			r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
+			r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
 				"/org/freedesktop/systemd1",
-				"org.freedesktop.systemd1.Manager",
+				SVC_DBUS_INTERFACE ".Manager",
 				"DisableUnitFiles", error, NULL, "asb", 1, *i,
 				false);
 
@@ -366,10 +366,10 @@ context_enable_ntp(sd_bus *bus, sd_bus_error *error, bool enabled)
 			return r;
 		}
 
-		r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
+		r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
 			"/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager", "Reload", error,
-			NULL, NULL);
+			SVC_DBUS_INTERFACE ".Manager", "Reload", error, NULL,
+			NULL);
 		if (r < 0)
 			return r;
 

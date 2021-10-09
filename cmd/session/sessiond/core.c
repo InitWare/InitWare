@@ -524,8 +524,8 @@ manager_spawn_autovt(Manager *m, unsigned int vtnr)
 	}
 
 	snprintf(name, sizeof(name), "autovt@tty%u.service", vtnr);
-	r = sd_bus_call_method(m->bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(m->bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"StartUnit", &error, NULL, "ss", name, "fail");
 	if (r < 0)
 		log_error("Failed to start %s: %s", name,

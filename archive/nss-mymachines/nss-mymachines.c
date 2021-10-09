@@ -108,9 +108,10 @@ _nss_mymachines_gethostbyname4_r(const char *name, struct gaih_addrtuple **pat,
 	if (r < 0)
 		goto fail;
 
-	r = sd_bus_call_method(bus, "org.freedesktop.machine1",
-		"/org/freedesktop/machine1", "org.freedesktop.machine1.Manager",
-		"GetMachineAddresses", NULL, &reply, "s", name);
+	r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
+		"/org/freedesktop/machine1",
+		SVC_MACHINED_DBUS_INTERFACE ".Manager", "GetMachineAddresses",
+		NULL, &reply, "s", name);
 	if (r < 0)
 		goto fail;
 
@@ -252,9 +253,10 @@ _nss_mymachines_gethostbyname3_r(const char *name, int af,
 	if (r < 0)
 		goto fail;
 
-	r = sd_bus_call_method(bus, "org.freedesktop.machine1",
-		"/org/freedesktop/machine1", "org.freedesktop.machine1.Manager",
-		"GetMachineAddresses", NULL, &reply, "s", name);
+	r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
+		"/org/freedesktop/machine1",
+		SVC_MACHINED_DBUS_INTERFACE ".Manager", "GetMachineAddresses",
+		NULL, &reply, "s", name);
 	if (r < 0)
 		goto fail;
 

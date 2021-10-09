@@ -932,9 +932,9 @@ manager_start_scope(Manager *manager, const char *scope, pid_t pid,
 	assert(scope);
 	assert(pid > 1);
 
-	r = sd_bus_message_new_method_call(manager->bus, &m,
-		"org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-		"org.freedesktop.systemd1.Manager", "StartTransientUnit");
+	r = sd_bus_message_new_method_call(manager->bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
+		"StartTransientUnit");
 	if (r < 0)
 		return r;
 
@@ -1013,8 +1013,8 @@ manager_stop_unit(Manager *manager, const char *unit, sd_bus_error *error,
 	assert(manager);
 	assert(unit);
 
-	r = sd_bus_call_method(manager->bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(manager->bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"StopUnit", error, &reply, "ss", unit, "fail");
 	if (r < 0) {
 		if (sd_bus_error_has_name(error, BUS_ERROR_NO_SUCH_UNIT) ||
@@ -1054,8 +1054,8 @@ manager_kill_unit(Manager *manager, const char *unit, int signo,
 	assert(manager);
 	assert(unit);
 
-	return sd_bus_call_method(manager->bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	return sd_bus_call_method(manager->bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"KillUnit", error, NULL, "ssi", unit, "all", signo);
 }
 
@@ -1075,9 +1075,8 @@ manager_unit_is_active(Manager *manager, const char *unit)
 	if (!path)
 		return -ENOMEM;
 
-	r = sd_bus_get_property(manager->bus, "org.freedesktop.systemd1", path,
-		"org.freedesktop.systemd1.Unit", "ActiveState", &error, &reply,
-		"s");
+	r = sd_bus_get_property(manager->bus, SVC_DBUS_BUSNAME, path,
+		SVC_DBUS_INTERFACE ".Unit", "ActiveState", &error, &reply, "s");
 	if (r < 0) {
 		if (sd_bus_error_has_name(&error, SD_BUS_ERROR_NO_REPLY) ||
 			sd_bus_error_has_name(&error,
@@ -1108,8 +1107,8 @@ manager_job_is_active(Manager *manager, const char *path)
 	assert(manager);
 	assert(path);
 
-	r = sd_bus_get_property(manager->bus, "org.freedesktop.systemd1", path,
-		"org.freedesktop.systemd1.Job", "State", &error, &reply, "s");
+	r = sd_bus_get_property(manager->bus, SVC_DBUS_BUSNAME, path,
+		SVC_DBUS_INTERFACE ".Job", "State", &error, &reply, "s");
 	if (r < 0) {
 		if (sd_bus_error_has_name(&error, SD_BUS_ERROR_NO_REPLY) ||
 			sd_bus_error_has_name(&error,

@@ -107,7 +107,8 @@ introspect_write_flags(struct introspect *i, int type, uint64_t flags)
 		(type == _SD_BUS_VTABLE_METHOD ||
 			type == _SD_BUS_VTABLE_WRITABLE_PROPERTY) &&
 		!(flags & SD_BUS_VTABLE_UNPRIVILEGED))
-		fputs("   <annotation name=\"org.freedesktop.systemd1.Privileged\" value=\"true\"/>\n",
+		fputs("   <annotation name=\"" SVC_DBUS_INTERFACE
+		      ".Privileged\" value=\"true\"/>\n",
 			i->f);
 }
 

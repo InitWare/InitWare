@@ -160,14 +160,14 @@ manager_connect_bus(Manager *m)
 			"Failed to connect to system bus: %m");
 
 	r = sd_bus_add_object_vtable(m->bus, NULL, "/org/freedesktop/machine1",
-		"org.freedesktop.machine1.Manager", manager_vtable, m);
+		SVC_MACHINED_DBUS_INTERFACE ".Manager", manager_vtable, m);
 	if (r < 0)
 		return log_error_errno(r,
 			"Failed to add manager object vtable: %m");
 
 	r = sd_bus_add_fallback_vtable(m->bus, NULL,
 		"/org/freedesktop/machine1/machine",
-		"org.freedesktop.machine1.Machine", machine_vtable,
+		SVC_MACHINED_DBUS_INTERFACE ".Machine", machine_vtable,
 		machine_object_find, m);
 	if (r < 0)
 		return log_error_errno(r,
@@ -182,7 +182,7 @@ manager_connect_bus(Manager *m)
 
 	r = sd_bus_add_fallback_vtable(m->bus, NULL,
 		"/org/freedesktop/machine1/image",
-		"org.freedesktop.machine1.Image", image_vtable,
+		SVC_MACHINED_DBUS_INTERFACE ".Image", image_vtable,
 		image_object_find, m);
 	if (r < 0)
 		return log_error_errno(r,
@@ -195,8 +195,8 @@ manager_connect_bus(Manager *m)
 
 	r = sd_bus_add_match(m->bus, NULL,
 		"type='signal',"
-		"sender='org.freedesktop.systemd1',"
-		"interface='org.freedesktop.systemd1.Manager',"
+		"sender='" SVC_DBUS_BUSNAME "',"
+		"interface='" SVC_DBUS_INTERFACE ".Manager',"
 		"member='JobRemoved',"
 		"path='/org/freedesktop/systemd1'",
 		match_job_removed, m);
@@ -206,8 +206,8 @@ manager_connect_bus(Manager *m)
 
 	r = sd_bus_add_match(m->bus, NULL,
 		"type='signal',"
-		"sender='org.freedesktop.systemd1',"
-		"interface='org.freedesktop.systemd1.Manager',"
+		"sender='" SVC_DBUS_BUSNAME "',"
+		"interface='" SVC_DBUS_INTERFACE ".Manager',"
 		"member='UnitRemoved',"
 		"path='/org/freedesktop/systemd1'",
 		match_unit_removed, m);
@@ -217,7 +217,7 @@ manager_connect_bus(Manager *m)
 
 	r = sd_bus_add_match(m->bus, NULL,
 		"type='signal',"
-		"sender='org.freedesktop.systemd1',"
+		"sender='" SVC_DBUS_BUSNAME "',"
 		"interface='org.freedesktop.DBus.Properties',"
 		"member='PropertiesChanged'",
 		match_properties_changed, m);
@@ -227,8 +227,8 @@ manager_connect_bus(Manager *m)
 
 	r = sd_bus_add_match(m->bus, NULL,
 		"type='signal',"
-		"sender='org.freedesktop.systemd1',"
-		"interface='org.freedesktop.systemd1.Manager',"
+		"sender='" SVC_DBUS_BUSNAME "',"
+		"interface='" SVC_DBUS_INTERFACE ".Manager',"
 		"member='Reloading',"
 		"path='/org/freedesktop/systemd1'",
 		match_reloading, m);
@@ -236,8 +236,8 @@ manager_connect_bus(Manager *m)
 		return log_error_errno(r,
 			"Failed to add match for Reloading: %m");
 
-	r = sd_bus_call_method(m->bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(m->bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"Subscribe", &error, NULL, NULL);
 	if (r < 0) {
 		log_error("Failed to enable subscription: %s",
@@ -245,7 +245,7 @@ manager_connect_bus(Manager *m)
 		return r;
 	}
 
-	r = sd_bus_request_name(m->bus, "org.freedesktop.machine1", 0);
+	r = sd_bus_request_name(m->bus, SVC_MACHINED_DBUS_BUSNAME, 0);
 	if (r < 0)
 		return log_error_errno(r, "Failed to register name: %m");
 
@@ -318,7 +318,7 @@ manager_run(Manager *m)
 	assert(m);
 
 	return bus_event_loop_with_idle(m->event, m->bus,
-		"org.freedesktop.machine1", DEFAULT_EXIT_USEC, check_idle, m);
+		SVC_MACHINED_DBUS_BUSNAME, DEFAULT_EXIT_USEC, check_idle, m);
 }
 
 int

@@ -465,7 +465,7 @@ bus_machine_method_open_login(sd_bus *bus, sd_bus_message *message,
 			"Opening logins is only supported on container machines.");
 
 	r = bus_verify_polkit_async(message, CAP_SYS_ADMIN,
-		"org.freedesktop.machine1.login", false,
+		SVC_MACHINED_DBUS_INTERFACE ".login", false,
 		&m->manager->polkit_registry, error);
 	if (r < 0)
 		return r;
@@ -509,8 +509,8 @@ bus_machine_method_open_login(sd_bus *bus, sd_bus_message *message,
 	if (!getty)
 		return -ENOMEM;
 
-	r = sd_bus_call_method(container_bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(container_bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"StartUnit", error, NULL, "ss", getty, "replace");
 	if (r < 0)
 		return r;
@@ -678,7 +678,7 @@ machine_send_signal(Machine *m, bool new_machine)
 		return -ENOMEM;
 
 	return sd_bus_emit_signal(m->manager->bus, "/org/freedesktop/machine1",
-		"org.freedesktop.machine1.Manager",
+		SVC_MACHINED_DBUS_INTERFACE ".Manager",
 		new_machine ? "MachineNew" : "MachineRemoved", "so", m->name,
 		p);
 }

@@ -957,7 +957,7 @@ method_activate_session_on_seat(sd_bus *bus, sd_bus_message *message,
 			"Session %s not on seat %s", session_name, seat_name);
 
 	r = bus_verify_polkit_async(message, CAP_SYS_ADMIN,
-		"org.freedesktop.login1.chvt", false, &m->polkit_registry,
+		SVC_SESSIOND_DBUS_INTERFACE ".chvt", false, &m->polkit_registry,
 		error);
 	if (r < 0)
 		return r;
@@ -1220,7 +1220,7 @@ method_set_user_linger(sd_bus *bus, sd_bus_message *message, void *userdata,
 		return errno ? -errno : -ENOENT;
 
 	r = bus_verify_polkit_async(message, CAP_SYS_ADMIN,
-		"org.freedesktop.login1.set-user-linger", interactive,
+		SVC_SESSIOND_DBUS_INTERFACE ".set-user-linger", interactive,
 		&m->polkit_registry, error);
 	if (r < 0)
 		return r;
@@ -1421,7 +1421,7 @@ method_attach_device(sd_bus *bus, sd_bus_message *message, void *userdata,
 			"Seat %s is not valid", seat);
 
 	r = bus_verify_polkit_async(message, CAP_SYS_ADMIN,
-		"org.freedesktop.login1.attach-device", interactive,
+		SVC_SESSIOND_DBUS_INTERFACE ".attach-device", interactive,
 		&m->polkit_registry, error);
 	if (r < 0)
 		return r;
@@ -1451,7 +1451,7 @@ method_flush_devices(sd_bus *bus, sd_bus_message *message, void *userdata,
 		return r;
 
 	r = bus_verify_polkit_async(message, CAP_SYS_ADMIN,
-		"org.freedesktop.login1.flush-devices", interactive,
+		SVC_SESSIOND_DBUS_INTERFACE ".flush-devices", interactive,
 		&m->polkit_registry, error);
 	if (r < 0)
 		return r;
@@ -1579,8 +1579,8 @@ execute_shutdown_or_sleep(Manager *m, InhibitWhat w, const char *unit_name,
 
 	bus_manager_log_shutdown(m, w, unit_name);
 
-	r = sd_bus_call_method(m->bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(m->bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"StartUnit", error, &reply, "ss", unit_name,
 		"replace-irreversibly");
 	if (r < 0)
@@ -1637,7 +1637,8 @@ send_prepare_for(Manager *m, InhibitWhat w, bool _active)
 	assert(signal_name[w]);
 
 	return sd_bus_emit_signal(m->bus, "/org/freedesktop/login1",
-		"org.freedesktop.login1.Manager", signal_name[w], "b", active);
+		SVC_SESSIOND_DBUS_INTERFACE ".Manager", signal_name[w], "b",
+		active);
 }
 
 int
@@ -1773,9 +1774,9 @@ method_poweroff(sd_bus *bus, sd_bus_message *message, void *userdata,
 	Manager *m = userdata;
 
 	return method_do_shutdown_or_sleep(m, message, SPECIAL_POWEROFF_TARGET,
-		INHIBIT_SHUTDOWN, "org.freedesktop.login1.power-off",
-		"org.freedesktop.login1.power-off-multiple-sessions",
-		"org.freedesktop.login1.power-off-ignore-inhibit", NULL,
+		INHIBIT_SHUTDOWN, SVC_SESSIOND_DBUS_INTERFACE ".power-off",
+		SVC_SESSIOND_DBUS_INTERFACE ".power-off-multiple-sessions",
+		SVC_SESSIOND_DBUS_INTERFACE ".power-off-ignore-inhibit", NULL,
 		method_poweroff, error);
 }
 
@@ -1786,9 +1787,9 @@ method_reboot(sd_bus *bus, sd_bus_message *message, void *userdata,
 	Manager *m = userdata;
 
 	return method_do_shutdown_or_sleep(m, message, SPECIAL_REBOOT_TARGET,
-		INHIBIT_SHUTDOWN, "org.freedesktop.login1.reboot",
-		"org.freedesktop.login1.reboot-multiple-sessions",
-		"org.freedesktop.login1.reboot-ignore-inhibit", NULL,
+		INHIBIT_SHUTDOWN, SVC_SESSIOND_DBUS_INTERFACE ".reboot",
+		SVC_SESSIOND_DBUS_INTERFACE ".reboot-multiple-sessions",
+		SVC_SESSIOND_DBUS_INTERFACE ".reboot-ignore-inhibit", NULL,
 		method_reboot, error);
 }
 
@@ -1799,10 +1800,10 @@ method_suspend(sd_bus *bus, sd_bus_message *message, void *userdata,
 	Manager *m = userdata;
 
 	return method_do_shutdown_or_sleep(m, message, SPECIAL_SUSPEND_TARGET,
-		INHIBIT_SLEEP, "org.freedesktop.login1.suspend",
-		"org.freedesktop.login1.suspend-multiple-sessions",
-		"org.freedesktop.login1.suspend-ignore-inhibit", "suspend",
-		method_suspend, error);
+		INHIBIT_SLEEP, SVC_SESSIOND_DBUS_INTERFACE ".suspend",
+		SVC_SESSIOND_DBUS_INTERFACE ".suspend-multiple-sessions",
+		SVC_SESSIOND_DBUS_INTERFACE ".suspend-ignore-inhibit",
+		"suspend", method_suspend, error);
 }
 
 static int
@@ -1812,10 +1813,10 @@ method_hibernate(sd_bus *bus, sd_bus_message *message, void *userdata,
 	Manager *m = userdata;
 
 	return method_do_shutdown_or_sleep(m, message, SPECIAL_HIBERNATE_TARGET,
-		INHIBIT_SLEEP, "org.freedesktop.login1.hibernate",
-		"org.freedesktop.login1.hibernate-multiple-sessions",
-		"org.freedesktop.login1.hibernate-ignore-inhibit", "hibernate",
-		method_hibernate, error);
+		INHIBIT_SLEEP, SVC_SESSIOND_DBUS_INTERFACE ".hibernate",
+		SVC_SESSIOND_DBUS_INTERFACE ".hibernate-multiple-sessions",
+		SVC_SESSIOND_DBUS_INTERFACE ".hibernate-ignore-inhibit",
+		"hibernate", method_hibernate, error);
 }
 
 static int
@@ -1826,9 +1827,9 @@ method_hybrid_sleep(sd_bus *bus, sd_bus_message *message, void *userdata,
 
 	return method_do_shutdown_or_sleep(m, message,
 		SPECIAL_HYBRID_SLEEP_TARGET, INHIBIT_SLEEP,
-		"org.freedesktop.login1.hibernate",
-		"org.freedesktop.login1.hibernate-multiple-sessions",
-		"org.freedesktop.login1.hibernate-ignore-inhibit",
+		SVC_SESSIOND_DBUS_INTERFACE ".hibernate",
+		SVC_SESSIOND_DBUS_INTERFACE ".hibernate-multiple-sessions",
+		SVC_SESSIOND_DBUS_INTERFACE ".hibernate-ignore-inhibit",
 		"hybrid-sleep", method_hybrid_sleep, error);
 }
 
@@ -1931,9 +1932,10 @@ method_can_poweroff(sd_bus *bus, sd_bus_message *message, void *userdata,
 	Manager *m = userdata;
 
 	return method_can_shutdown_or_sleep(m, message, INHIBIT_SHUTDOWN,
-		"org.freedesktop.login1.power-off",
-		"org.freedesktop.login1.power-off-multiple-sessions",
-		"org.freedesktop.login1.power-off-ignore-inhibit", NULL, error);
+		SVC_SESSIOND_DBUS_INTERFACE ".power-off",
+		SVC_SESSIOND_DBUS_INTERFACE ".power-off-multiple-sessions",
+		SVC_SESSIOND_DBUS_INTERFACE ".power-off-ignore-inhibit", NULL,
+		error);
 }
 
 static int
@@ -1943,9 +1945,10 @@ method_can_reboot(sd_bus *bus, sd_bus_message *message, void *userdata,
 	Manager *m = userdata;
 
 	return method_can_shutdown_or_sleep(m, message, INHIBIT_SHUTDOWN,
-		"org.freedesktop.login1.reboot",
-		"org.freedesktop.login1.reboot-multiple-sessions",
-		"org.freedesktop.login1.reboot-ignore-inhibit", NULL, error);
+		SVC_SESSIOND_DBUS_INTERFACE ".reboot",
+		SVC_SESSIOND_DBUS_INTERFACE ".reboot-multiple-sessions",
+		SVC_SESSIOND_DBUS_INTERFACE ".reboot-ignore-inhibit", NULL,
+		error);
 }
 
 static int
@@ -1955,10 +1958,10 @@ method_can_suspend(sd_bus *bus, sd_bus_message *message, void *userdata,
 	Manager *m = userdata;
 
 	return method_can_shutdown_or_sleep(m, message, INHIBIT_SLEEP,
-		"org.freedesktop.login1.suspend",
-		"org.freedesktop.login1.suspend-multiple-sessions",
-		"org.freedesktop.login1.suspend-ignore-inhibit", "suspend",
-		error);
+		SVC_SESSIOND_DBUS_INTERFACE ".suspend",
+		SVC_SESSIOND_DBUS_INTERFACE ".suspend-multiple-sessions",
+		SVC_SESSIOND_DBUS_INTERFACE ".suspend-ignore-inhibit",
+		"suspend", error);
 }
 
 static int
@@ -1968,10 +1971,10 @@ method_can_hibernate(sd_bus *bus, sd_bus_message *message, void *userdata,
 	Manager *m = userdata;
 
 	return method_can_shutdown_or_sleep(m, message, INHIBIT_SLEEP,
-		"org.freedesktop.login1.hibernate",
-		"org.freedesktop.login1.hibernate-multiple-sessions",
-		"org.freedesktop.login1.hibernate-ignore-inhibit", "hibernate",
-		error);
+		SVC_SESSIOND_DBUS_INTERFACE ".hibernate",
+		SVC_SESSIOND_DBUS_INTERFACE ".hibernate-multiple-sessions",
+		SVC_SESSIOND_DBUS_INTERFACE ".hibernate-ignore-inhibit",
+		"hibernate", error);
 }
 
 static int
@@ -1981,9 +1984,9 @@ method_can_hybrid_sleep(sd_bus *bus, sd_bus_message *message, void *userdata,
 	Manager *m = userdata;
 
 	return method_can_shutdown_or_sleep(m, message, INHIBIT_SLEEP,
-		"org.freedesktop.login1.hibernate",
-		"org.freedesktop.login1.hibernate-multiple-sessions",
-		"org.freedesktop.login1.hibernate-ignore-inhibit",
+		SVC_SESSIOND_DBUS_INTERFACE ".hibernate",
+		SVC_SESSIOND_DBUS_INTERFACE ".hibernate-multiple-sessions",
+		SVC_SESSIOND_DBUS_INTERFACE ".hibernate-ignore-inhibit",
 		"hybrid-sleep", error);
 }
 
@@ -2036,22 +2039,28 @@ method_inhibit(sd_bus *bus, sd_bus_message *message, void *userdata,
 
 	r = bus_verify_polkit_async(message, CAP_SYS_BOOT,
 		w == INHIBIT_SHUTDOWN ?
-			      (mm == INHIBIT_BLOCK ?
-					      "org.freedesktop.login1.inhibit-block-shutdown" :
-					      "org.freedesktop.login1.inhibit-delay-shutdown") :
+			      (mm == INHIBIT_BLOCK ? SVC_SESSIOND_DBUS_INTERFACE
+					".inhibit-block-shutdown" :
+						     SVC_SESSIOND_DBUS_INTERFACE
+					".inhibit-delay-shutdown") :
 			w == INHIBIT_SLEEP ?
-			      (mm == INHIBIT_BLOCK ?
-					      "org.freedesktop.login1.inhibit-block-sleep" :
-					      "org.freedesktop.login1.inhibit-delay-sleep") :
-			w == INHIBIT_IDLE ?
-			      "org.freedesktop.login1.inhibit-block-idle" :
+			      (mm == INHIBIT_BLOCK ? SVC_SESSIOND_DBUS_INTERFACE
+					".inhibit-block-sleep" :
+						     SVC_SESSIOND_DBUS_INTERFACE
+					".inhibit-delay-sleep") :
+			w == INHIBIT_IDLE ? SVC_SESSIOND_DBUS_INTERFACE
+			".inhibit-block-idle" :
 			w == INHIBIT_HANDLE_POWER_KEY ?
-			      "org.freedesktop.login1.inhibit-handle-power-key" :
+						  SVC_SESSIOND_DBUS_INTERFACE
+			".inhibit-handle-power-key" :
 			w == INHIBIT_HANDLE_SUSPEND_KEY ?
-			      "org.freedesktop.login1.inhibit-handle-suspend-key" :
+						  SVC_SESSIOND_DBUS_INTERFACE
+			".inhibit-handle-suspend-key" :
 			w == INHIBIT_HANDLE_HIBERNATE_KEY ?
-			      "org.freedesktop.login1.inhibit-handle-hibernate-key" :
-			      "org.freedesktop.login1.inhibit-handle-lid-switch",
+						  SVC_SESSIOND_DBUS_INTERFACE
+			".inhibit-handle-hibernate-key" :
+						  SVC_SESSIOND_DBUS_INTERFACE
+			".inhibit-handle-lid-switch",
 		false, &m->polkit_registry, error);
 	if (r < 0)
 		return r;
@@ -2481,7 +2490,8 @@ manager_send_changed(Manager *manager, const char *property, ...)
 	l = strv_from_stdarg_alloca(property);
 
 	return sd_bus_emit_properties_changed_strv(manager->bus,
-		"/org/freedesktop/login1", "org.freedesktop.login1.Manager", l);
+		"/org/freedesktop/login1",
+		SVC_SESSIOND_DBUS_INTERFACE ".Manager", l);
 }
 
 int
@@ -2540,9 +2550,9 @@ manager_start_slice(Manager *manager, const char *slice,
 	assert(manager);
 	assert(slice);
 
-	r = sd_bus_message_new_method_call(manager->bus, &m,
-		"org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-		"org.freedesktop.systemd1.Manager", "StartTransientUnit");
+	r = sd_bus_message_new_method_call(manager->bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
+		"StartTransientUnit");
 	if (r < 0)
 		return r;
 
@@ -2619,9 +2629,9 @@ manager_start_scope(Manager *manager, const char *scope, pid_t pid,
 	assert(scope);
 	assert(pid > 1);
 
-	r = sd_bus_message_new_method_call(manager->bus, &m,
-		"org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-		"org.freedesktop.systemd1.Manager", "StartTransientUnit");
+	r = sd_bus_message_new_method_call(manager->bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
+		"StartTransientUnit");
 	if (r < 0)
 		return r;
 
@@ -2717,8 +2727,8 @@ manager_start_unit(Manager *manager, const char *unit, sd_bus_error *error,
 	assert(manager);
 	assert(unit);
 
-	r = sd_bus_call_method(manager->bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(manager->bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"StartUnit", error, &reply, "ss", unit, "fail");
 	if (r < 0)
 		return r;
@@ -2751,8 +2761,8 @@ manager_stop_unit(Manager *manager, const char *unit, sd_bus_error *error,
 	assert(manager);
 	assert(unit);
 
-	r = sd_bus_call_method(manager->bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(manager->bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"StopUnit", error, &reply, "ss", unit, "fail");
 	if (r < 0) {
 		if (sd_bus_error_has_name(error, BUS_ERROR_NO_SUCH_UNIT) ||
@@ -2798,8 +2808,8 @@ manager_abandon_scope(Manager *manager, const char *scope, sd_bus_error *error)
 	if (!path)
 		return -ENOMEM;
 
-	r = sd_bus_call_method(manager->bus, "org.freedesktop.systemd1", path,
-		"org.freedesktop.systemd1.Scope", "Abandon", error, NULL, NULL);
+	r = sd_bus_call_method(manager->bus, SVC_DBUS_BUSNAME, path,
+		SVC_DBUS_INTERFACE ".Scope", "Abandon", error, NULL, NULL);
 	if (r < 0) {
 		if (sd_bus_error_has_name(error, BUS_ERROR_NO_SUCH_UNIT) ||
 			sd_bus_error_has_name(error, BUS_ERROR_LOAD_FAILED) ||
@@ -2822,8 +2832,8 @@ manager_kill_unit(Manager *manager, const char *unit, KillWho who, int signo,
 	assert(manager);
 	assert(unit);
 
-	return sd_bus_call_method(manager->bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	return sd_bus_call_method(manager->bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"KillUnit", error, NULL, "ssi", unit,
 		who == KILL_LEADER ? "main" : "all", signo);
 }
@@ -2844,9 +2854,8 @@ manager_unit_is_active(Manager *manager, const char *unit)
 	if (!path)
 		return -ENOMEM;
 
-	r = sd_bus_get_property(manager->bus, "org.freedesktop.systemd1", path,
-		"org.freedesktop.systemd1.Unit", "ActiveState", &error, &reply,
-		"s");
+	r = sd_bus_get_property(manager->bus, SVC_DBUS_BUSNAME, path,
+		SVC_DBUS_INTERFACE ".Unit", "ActiveState", &error, &reply, "s");
 	if (r < 0) {
 		/* systemd might have droppped off momentarily, let's
                  * not make this an error */
@@ -2881,8 +2890,8 @@ manager_job_is_active(Manager *manager, const char *path)
 	assert(manager);
 	assert(path);
 
-	r = sd_bus_get_property(manager->bus, "org.freedesktop.systemd1", path,
-		"org.freedesktop.systemd1.Job", "State", &error, &reply, "s");
+	r = sd_bus_get_property(manager->bus, SVC_DBUS_BUSNAME, path,
+		SVC_DBUS_INTERFACE ".Job", "State", &error, &reply, "s");
 	if (r < 0) {
 		if (sd_bus_error_has_name(&error, SD_BUS_ERROR_NO_REPLY) ||
 			sd_bus_error_has_name(&error,

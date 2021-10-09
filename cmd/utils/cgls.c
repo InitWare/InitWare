@@ -222,9 +222,8 @@ main(int argc, char *argv[])
 					goto finish;
 				}
 
-				r = sd_bus_get_property(bus,
-					"org.freedesktop.systemd1", path,
-					"org.freedesktop.systemd1.Scope",
+				r = sd_bus_get_property(bus, SVC_DBUS_BUSNAME,
+					path, SVC_DBUS_INTERFACE ".Scope",
 					"ControlGroup", &error, &reply, "s");
 
 				if (r < 0) {

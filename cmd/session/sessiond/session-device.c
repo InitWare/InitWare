@@ -62,7 +62,7 @@ session_device_notify(SessionDevice *sd, enum SessionDeviceNotifications type)
 		return -ENOMEM;
 
 	r = sd_bus_message_new_signal(sd->session->manager->bus, &m, path,
-		"org.freedesktop.login1.Session",
+		SVC_SESSIOND_DBUS_INTERFACE ".Session",
 		(type == SESSION_DEVICE_RESUME) ? "ResumeDevice" :
 							"PauseDevice");
 	if (!m)

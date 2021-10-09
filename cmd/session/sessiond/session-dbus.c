@@ -201,7 +201,7 @@ bus_session_method_activate(sd_bus *bus, sd_bus_message *message,
 	assert(s);
 
 	r = bus_verify_polkit_async(message, CAP_SYS_ADMIN,
-		"org.freedesktop.login1.chvt", false,
+		SVC_SESSIOND_DBUS_INTERFACE ".chvt", false,
 		&s->manager->polkit_registry, error);
 	if (r < 0)
 		return r;
@@ -735,7 +735,7 @@ session_send_signal(Session *s, bool new_session)
 		return -ENOMEM;
 
 	return sd_bus_emit_signal(s->manager->bus, "/org/freedesktop/login1",
-		"org.freedesktop.login1.Manager",
+		SVC_SESSIOND_DBUS_INTERFACE ".Manager",
 		new_session ? "SessionNew" : "SessionRemoved", "so", s->id, p);
 }
 
@@ -757,7 +757,7 @@ session_send_changed(Session *s, const char *properties, ...)
 	l = strv_from_stdarg_alloca(properties);
 
 	return sd_bus_emit_properties_changed_strv(s->manager->bus, p,
-		"org.freedesktop.login1.Session", l);
+		SVC_SESSIOND_DBUS_INTERFACE ".Session", l);
 }
 
 int
@@ -772,8 +772,8 @@ session_send_lock(Session *s, bool lock)
 		return -ENOMEM;
 
 	return sd_bus_emit_signal(s->manager->bus, p,
-		"org.freedesktop.login1.Session", lock ? "Lock" : "Unlock",
-		NULL);
+		SVC_SESSIOND_DBUS_INTERFACE ".Session",
+		lock ? "Lock" : "Unlock", NULL);
 }
 
 int

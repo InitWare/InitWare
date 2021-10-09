@@ -139,9 +139,10 @@ list_machines(int argc, char *argv[], void *userdata)
 
 	pager_open_if_enabled();
 
-	r = sd_bus_call_method(bus, "org.freedesktop.machine1",
-		"/org/freedesktop/machine1", "org.freedesktop.machine1.Manager",
-		"ListMachines", &error, &reply, NULL);
+	r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
+		"/org/freedesktop/machine1",
+		SVC_MACHINED_DBUS_INTERFACE ".Manager", "ListMachines", &error,
+		&reply, NULL);
 	if (r < 0) {
 		log_error("Could not get machines: %s",
 			bus_error_message(&error, -r));
@@ -238,9 +239,10 @@ list_images(int argc, char *argv[], void *userdata)
 
 	pager_open_if_enabled();
 
-	r = sd_bus_call_method(bus, "org.freedesktop.machine1",
-		"/org/freedesktop/machine1", "org.freedesktop.machine1.Manager",
-		"ListImages", &error, &reply, "");
+	r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
+		"/org/freedesktop/machine1",
+		SVC_MACHINED_DBUS_INTERFACE ".Manager", "ListImages", &error,
+		&reply, "");
 	if (r < 0) {
 		log_error("Could not get images: %s",
 			bus_error_message(&error, -r));
@@ -361,9 +363,9 @@ show_unit_cgroup(sd_bus *bus, const char *unit, pid_t leader)
 	if (!path)
 		return log_oom();
 
-	r = sd_bus_get_property(bus, "org.freedesktop.systemd1", path,
-		endswith(unit, ".scope") ? "org.freedesktop.systemd1.Scope" :
-						 "org.freedesktop.systemd1.Service",
+	r = sd_bus_get_property(bus, SVC_DBUS_BUSNAME, path,
+		endswith(unit, ".scope") ? SVC_DBUS_INTERFACE ".Scope" :
+						 SVC_DBUS_INTERFACE ".Service",
 		"ControlGroup", &error, &reply, "s");
 	if (r < 0) {
 		log_error("Failed to query ControlGroup: %s",
@@ -406,9 +408,10 @@ print_addresses(sd_bus *bus, const char *name, int ifi, const char *prefix,
 	assert(prefix);
 	assert(prefix2);
 
-	r = sd_bus_call_method(bus, "org.freedesktop.machine1",
-		"/org/freedesktop/machine1", "org.freedesktop.machine1.Manager",
-		"GetMachineAddresses", NULL, &reply, "s", name);
+	r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
+		"/org/freedesktop/machine1",
+		SVC_MACHINED_DBUS_INTERFACE ".Manager", "GetMachineAddresses",
+		NULL, &reply, "s", name);
 	if (r < 0)
 		return r;
 
@@ -464,9 +467,10 @@ print_os_release(sd_bus *bus, const char *name, const char *prefix)
 	assert(name);
 	assert(prefix);
 
-	r = sd_bus_call_method(bus, "org.freedesktop.machine1",
-		"/org/freedesktop/machine1", "org.freedesktop.machine1.Manager",
-		"GetMachineOSRelease", NULL, &reply, "s", name);
+	r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
+		"/org/freedesktop/machine1",
+		SVC_MACHINED_DBUS_INTERFACE ".Manager", "GetMachineOSRelease",
+		NULL, &reply, "s", name);
 	if (r < 0)
 		return r;
 
@@ -648,7 +652,7 @@ show_machine_info(const char *verb, sd_bus *bus, const char *path,
 	assert(path);
 	assert(new_line);
 
-	r = bus_map_all_properties(bus, "org.freedesktop.machine1", path, map,
+	r = bus_map_all_properties(bus, SVC_MACHINED_DBUS_BUSNAME, path, map,
 		&info);
 	if (r < 0)
 		return log_error_errno(r, "Could not get properties: %m");
@@ -683,7 +687,7 @@ show_machine_properties(sd_bus *bus, const char *path, bool *new_line)
 
 	*new_line = true;
 
-	r = bus_print_all_properties(bus, "org.freedesktop.machine1", path,
+	r = bus_print_all_properties(bus, SVC_MACHINED_DBUS_BUSNAME, path,
 		arg_property, arg_all);
 	if (r < 0)
 		log_error_errno(r, "Could not get properties: %m");
@@ -718,9 +722,9 @@ show_machine(int argc, char *argv[], void *userdata)
 	for (i = 1; i < argc; i++) {
 		const char *path = NULL;
 
-		r = sd_bus_call_method(bus, "org.freedesktop.machine1",
+		r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
 			"/org/freedesktop/machine1",
-			"org.freedesktop.machine1.Manager", "GetMachine",
+			SVC_MACHINED_DBUS_INTERFACE ".Manager", "GetMachine",
 			&error, &reply, "s", argv[i]);
 		if (r < 0) {
 			log_error("Could not get path to machine: %s",
@@ -846,7 +850,7 @@ show_image_info(const char *verb, sd_bus *bus, const char *path, bool *new_line)
 	assert(path);
 	assert(new_line);
 
-	r = bus_map_all_properties(bus, "org.freedesktop.machine1", path, map,
+	r = bus_map_all_properties(bus, SVC_MACHINED_DBUS_BUSNAME, path, map,
 		&info);
 	if (r < 0)
 		return log_error_errno(r, "Could not get properties: %m");
@@ -878,7 +882,7 @@ show_image_properties(sd_bus *bus, const char *path, bool *new_line)
 
 	*new_line = true;
 
-	r = bus_print_all_properties(bus, "org.freedesktop.machine1", path,
+	r = bus_print_all_properties(bus, SVC_MACHINED_DBUS_BUSNAME, path,
 		arg_property, arg_all);
 	if (r < 0)
 		log_error_errno(r, "Could not get properties: %m");
@@ -913,10 +917,10 @@ show_image(int argc, char *argv[], void *userdata)
 	for (i = 1; i < argc; i++) {
 		const char *path = NULL;
 
-		r = sd_bus_call_method(bus, "org.freedesktop.machine1",
+		r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
 			"/org/freedesktop/machine1",
-			"org.freedesktop.machine1.Manager", "GetImage", &error,
-			&reply, "s", argv[i]);
+			SVC_MACHINED_DBUS_INTERFACE ".Manager", "GetImage",
+			&error, &reply, "s", argv[i]);
 		if (r < 0) {
 			log_error("Could not get path to image: %s",
 				bus_error_message(&error, -r));
@@ -953,9 +957,9 @@ kill_machine(int argc, char *argv[], void *userdata)
 	for (i = 1; i < argc; i++) {
 		int r;
 
-		r = sd_bus_call_method(bus, "org.freedesktop.machine1",
+		r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
 			"/org/freedesktop/machine1",
-			"org.freedesktop.machine1.Manager", "KillMachine",
+			SVC_MACHINED_DBUS_INTERFACE ".Manager", "KillMachine",
 			&error, NULL, "ssi", argv[i], arg_kill_who, arg_signal);
 		if (r < 0) {
 			log_error("Could not kill machine: %s",
@@ -999,10 +1003,10 @@ terminate_machine(int argc, char *argv[], void *userdata)
 	for (i = 1; i < argc; i++) {
 		int r;
 
-		r = sd_bus_call_method(bus, "org.freedesktop.machine1",
+		r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
 			"/org/freedesktop/machine1",
-			"org.freedesktop.machine1.Manager", "TerminateMachine",
-			&error, NULL, "s", argv[i]);
+			SVC_MACHINED_DBUS_INTERFACE ".Manager",
+			"TerminateMachine", &error, NULL, "s", argv[i]);
 		if (r < 0) {
 			log_error("Could not terminate machine: %s",
 				bus_error_message(&error, -r));
@@ -1027,9 +1031,10 @@ machine_get_leader(sd_bus *bus, const char *name, pid_t *ret)
 	assert(name);
 	assert(ret);
 
-	r = sd_bus_call_method(bus, "org.freedesktop.machine1",
-		"/org/freedesktop/machine1", "org.freedesktop.machine1.Manager",
-		"GetMachine", &error, &reply, "s", name);
+	r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
+		"/org/freedesktop/machine1",
+		SVC_MACHINED_DBUS_INTERFACE ".Manager", "GetMachine", &error,
+		&reply, "s", name);
 	if (r < 0) {
 		log_error("Could not get path to machine: %s",
 			bus_error_message(&error, -r));
@@ -1040,9 +1045,9 @@ machine_get_leader(sd_bus *bus, const char *name, pid_t *ret)
 	if (r < 0)
 		return bus_log_parse_error(r);
 
-	r = sd_bus_get_property(bus, "org.freedesktop.machine1", object,
-		"org.freedesktop.machine1.Machine", "Leader", &error, &reply2,
-		"u");
+	r = sd_bus_get_property(bus, SVC_MACHINED_DBUS_BUSNAME, object,
+		SVC_MACHINED_DBUS_INTERFACE ".Machine", "Leader", &error,
+		&reply2, "u");
 	if (r < 0)
 		return log_error_errno(r,
 			"Failed to retrieve PID of leader: %m");
@@ -1414,9 +1419,9 @@ login_machine(int argc, char *argv[], void *userdata)
 			"Failed to attach bus to event loop: %m");
 
 	match = strjoina("type='signal',"
-			 "sender='org.freedesktop.machine1',"
+			 "sender='" SVC_MACHINED_DBUS_BUSNAME "',"
 			 "path='/org/freedesktop/machine1',",
-		"interface='org.freedesktop.machine1.Manager',"
+		"interface='" SVC_MACHINED_DBUS_INTERFACE ".Manager',"
 		"member='MachineRemoved',"
 		"arg0='",
 		argv[1], "'");
@@ -1426,9 +1431,9 @@ login_machine(int argc, char *argv[], void *userdata)
 		return log_error_errno(r,
 			"Failed to add machine removal match: %m");
 
-	r = sd_bus_message_new_method_call(bus, &m, "org.freedesktop.machine1",
-		"/org/freedesktop/machine1", "org.freedesktop.machine1.Manager",
-		"OpenMachineLogin");
+	r = sd_bus_message_new_method_call(bus, &m, SVC_MACHINED_DBUS_BUSNAME,
+		"/org/freedesktop/machine1",
+		SVC_MACHINED_DBUS_INTERFACE ".Manager", "OpenMachineLogin");
 	if (r < 0)
 		return bus_log_create_error(r);
 
@@ -1498,9 +1503,9 @@ remove_image(int argc, char *argv[], void *userdata)
 	polkit_agent_open_if_enabled();
 
 	for (i = 1; i < argc; i++) {
-		r = sd_bus_call_method(bus, "org.freedesktop.machine1",
+		r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
 			"/org/freedesktop/machine1",
-			"org.freedesktop.machine1.Manager", "RemoveImage",
+			SVC_MACHINED_DBUS_INTERFACE ".Manager", "RemoveImage",
 			&error, NULL, "s", argv[i]);
 		if (r < 0) {
 			log_error("Could not remove image: %s",
@@ -1521,9 +1526,10 @@ rename_image(int argc, char *argv[], void *userdata)
 
 	polkit_agent_open_if_enabled();
 
-	r = sd_bus_call_method(bus, "org.freedesktop.machine1",
-		"/org/freedesktop/machine1", "org.freedesktop.machine1.Manager",
-		"RenameImage", &error, NULL, "ss", argv[1], argv[2]);
+	r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
+		"/org/freedesktop/machine1",
+		SVC_MACHINED_DBUS_INTERFACE ".Manager", "RenameImage", &error,
+		NULL, "ss", argv[1], argv[2]);
 	if (r < 0) {
 		log_error("Could not rename image: %s",
 			bus_error_message(&error, -r));
@@ -1542,10 +1548,10 @@ clone_image(int argc, char *argv[], void *userdata)
 
 	polkit_agent_open_if_enabled();
 
-	r = sd_bus_call_method(bus, "org.freedesktop.machine1",
-		"/org/freedesktop/machine1", "org.freedesktop.machine1.Manager",
-		"CloneImage", &error, NULL, "ssb", argv[1], argv[2],
-		arg_read_only);
+	r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
+		"/org/freedesktop/machine1",
+		SVC_MACHINED_DBUS_INTERFACE ".Manager", "CloneImage", &error,
+		NULL, "ssb", argv[1], argv[2], arg_read_only);
 	if (r < 0) {
 		log_error("Could not clone image: %s",
 			bus_error_message(&error, -r));
@@ -1573,9 +1579,10 @@ read_only_image(int argc, char *argv[], void *userdata)
 
 	polkit_agent_open_if_enabled();
 
-	r = sd_bus_call_method(bus, "org.freedesktop.machine1",
-		"/org/freedesktop/machine1", "org.freedesktop.machine1.Manager",
-		"MarkImageReadOnly", &error, NULL, "sb", argv[1], b);
+	r = sd_bus_call_method(bus, SVC_MACHINED_DBUS_BUSNAME,
+		"/org/freedesktop/machine1",
+		SVC_MACHINED_DBUS_INTERFACE ".Manager", "MarkImageReadOnly",
+		&error, NULL, "sb", argv[1], b);
 	if (r < 0) {
 		log_error("Could not mark image read-only: %s",
 			bus_error_message(&error, -r));
@@ -1620,9 +1627,9 @@ start_machine(int argc, char *argv[], void *userdata)
 		if (!unit)
 			return log_oom();
 
-		r = sd_bus_message_new_method_call(bus, &m,
-			"org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager", "StartUnit");
+		r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+			"/org/freedesktop/systemd1",
+			SVC_DBUS_INTERFACE ".Manager", "StartUnit");
 		if (r < 0)
 			return bus_log_create_error(r);
 
@@ -1675,8 +1682,8 @@ enable_machine(int argc, char *argv[], void *userdata)
 	method = streq(argv[0], "enable") ? "EnableUnitFiles" :
 						  "DisableUnitFiles";
 
-	r = sd_bus_message_new_method_call(bus, &m, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		method);
 	if (r < 0)
 		return bus_log_create_error(r);
@@ -1742,8 +1749,8 @@ enable_machine(int argc, char *argv[], void *userdata)
 
 	m = sd_bus_message_unref(m);
 
-	r = sd_bus_message_new_method_call(bus, &m, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"Reload");
 	if (r < 0)
 		return bus_log_create_error(r);

@@ -952,7 +952,7 @@ const UnitVTable device_vtable = {
         .active_state = device_active_state,
         .sub_state_to_string = device_sub_state_to_string,
 
-        .bus_interface = "org.freedesktop.systemd1.Device",
+        .bus_interface = SVC_DBUS_INTERFACE ".Device",
         .bus_vtable = bus_device_vtable,
 
         .following = device_following,

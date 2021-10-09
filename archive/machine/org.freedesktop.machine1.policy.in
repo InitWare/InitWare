@@ -16,7 +16,7 @@
         <vendor>The systemd Project</vendor>
         <vendor_url>http://www.freedesktop.org/wiki/Software/systemd</vendor_url>
 
-        <action id="org.freedesktop.machine1.login">
+        <action id=@SVC_MACHINED_DBUS_INTERFACE@.login">
                 <_description>Log into a local container</_description>
                 <_message>Authentication is required to log into a local container</_message>
                 <defaults>

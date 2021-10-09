@@ -16,7 +16,7 @@
         <vendor>The systemd Project</vendor>
         <vendor_url>http://www.freedesktop.org/wiki/Software/systemd</vendor_url>
 
-        <action id="org.freedesktop.systemd1.reply-password">
+        <action id="@SVC_DBUS_INTERFACE@.reply-password">
                 <_description>Send passphrase back to system</_description>
                 <_message>Authentication is required to send the entered passphrase back to the system.</_message>
                 <defaults>
@@ -27,7 +27,7 @@
                 <annotate key="org.freedesktop.policykit.exec.path">@rootlibexecdir@/systemd-reply-password</annotate>
         </action>
 
-        <action id="org.freedesktop.systemd1.manage-units">
+        <action id="@SVC_DBUS_INTERFACE@.manage-units">
                 <_description>Manage system services or units</_description>
                 <_message>Authentication is required to manage system services or units.</_message>
                 <defaults>
@@ -37,7 +37,7 @@
                 </defaults>
         </action>
 
-        <action id="org.freedesktop.systemd1.manage-unit-files">
+        <action id="@SVC_DBUS_INTERFACE@.manage-unit-files">
                 <_description>Manage system service or unit files</_description>
                 <_message>Authentication is required to manage system service or unit files.</_message>
                 <defaults>
@@ -47,7 +47,7 @@
                 </defaults>
         </action>
 
-        <action id="org.freedesktop.systemd1.reload-daemon">
+        <action id="@SVC_DBUS_INTERFACE@.reload-daemon">
                 <_description>Reload the systemd state</_description>
                 <_message>Authentication is required to reload the systemd state.</_message>
                 <defaults>

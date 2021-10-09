@@ -2892,7 +2892,7 @@ const UnitVTable socket_vtable = {
 
         .control_pid = socket_control_pid,
 
-        .bus_interface = "org.freedesktop.systemd1.Socket",
+        .bus_interface = SVC_DBUS_INTERFACE ".Socket",
         .bus_vtable = bus_socket_vtable,
         .bus_set_property = bus_socket_set_property,
         .bus_commit_properties = bus_socket_commit_properties,
