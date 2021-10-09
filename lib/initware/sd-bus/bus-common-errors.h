@@ -22,28 +22,27 @@
 #include "bus-error.h"
 #include "sd-bus.h"
 
-#define BUS_ERROR_NO_SUCH_UNIT "org.freedesktop.systemd1.NoSuchUnit"
-#define BUS_ERROR_NO_UNIT_FOR_PID "org.freedesktop.systemd1.NoUnitForPID"
-#define BUS_ERROR_UNIT_EXISTS "org.freedesktop.systemd1.UnitExists"
-#define BUS_ERROR_LOAD_FAILED "org.freedesktop.systemd1.LoadFailed"
-#define BUS_ERROR_JOB_FAILED "org.freedesktop.systemd1.JobFailed"
-#define BUS_ERROR_NO_SUCH_JOB "org.freedesktop.systemd1.NoSuchJob"
-#define BUS_ERROR_NOT_SUBSCRIBED "org.freedesktop.systemd1.NotSubscribed"
-#define BUS_ERROR_ALREADY_SUBSCRIBED                                           \
-	"org.freedesktop.systemd1.AlreadySubscribed"
-#define BUS_ERROR_ONLY_BY_DEPENDENCY "org.freedesktop.systemd1.OnlyByDependency"
+#define BUS_ERROR_NO_SUCH_UNIT SVC_DBUS_INTERFACE ".NoSuchUnit"
+#define BUS_ERROR_NO_UNIT_FOR_PID SVC_DBUS_INTERFACE ".NoUnitForPID"
+#define BUS_ERROR_UNIT_EXISTS SVC_DBUS_INTERFACE ".UnitExists"
+#define BUS_ERROR_LOAD_FAILED SVC_DBUS_INTERFACE ".LoadFailed"
+#define BUS_ERROR_JOB_FAILED SVC_DBUS_INTERFACE ".JobFailed"
+#define BUS_ERROR_NO_SUCH_JOB SVC_DBUS_INTERFACE ".NoSuchJob"
+#define BUS_ERROR_NOT_SUBSCRIBED SVC_DBUS_INTERFACE ".NotSubscribed"
+#define BUS_ERROR_ALREADY_SUBSCRIBED SVC_DBUS_INTERFACE ".AlreadySubscribed"
+#define BUS_ERROR_ONLY_BY_DEPENDENCY SVC_DBUS_INTERFACE ".OnlyByDependency"
 #define BUS_ERROR_TRANSACTION_JOBS_CONFLICTING                                 \
-	"org.freedesktop.systemd1.TransactionJobsConflicting"
+	SVC_DBUS_INTERFACE ".TransactionJobsConflicting"
 #define BUS_ERROR_TRANSACTION_ORDER_IS_CYCLIC                                  \
-	"org.freedesktop.systemd1.TransactionOrderIsCyclic"
+	SVC_DBUS_INTERFACE ".TransactionOrderIsCyclic"
 #define BUS_ERROR_TRANSACTION_IS_DESTRUCTIVE                                   \
-	"org.freedesktop.systemd1.TransactionIsDestructive"
-#define BUS_ERROR_UNIT_MASKED "org.freedesktop.systemd1.UnitMasked"
+	SVC_DBUS_INTERFACE ".TransactionIsDestructive"
+#define BUS_ERROR_UNIT_MASKED SVC_DBUS_INTERFACE ".UnitMasked"
 #define BUS_ERROR_JOB_TYPE_NOT_APPLICABLE                                      \
-	"org.freedesktop.systemd1.JobTypeNotApplicable"
-#define BUS_ERROR_NO_ISOLATION "org.freedesktop.systemd1.NoIsolation"
-#define BUS_ERROR_SHUTTING_DOWN "org.freedesktop.systemd1.ShuttingDown"
-#define BUS_ERROR_SCOPE_NOT_RUNNING "org.freedesktop.systemd1.ScopeNotRunning"
+	SVC_DBUS_INTERFACE ".JobTypeNotApplicable"
+#define BUS_ERROR_NO_ISOLATION SVC_DBUS_INTERFACE ".NoIsolation"
+#define BUS_ERROR_SHUTTING_DOWN SVC_DBUS_INTERFACE ".ShuttingDown"
+#define BUS_ERROR_SCOPE_NOT_RUNNING SVC_DBUS_INTERFACE ".ScopeNotRunning"
 
 #define BUS_ERROR_NO_SUCH_MACHINE "org.freedesktop.machine1.NoSuchMachine"
 #define BUS_ERROR_NO_SUCH_IMAGE "org.freedesktop.machine1.NoSuchImage"
@@ -69,7 +68,7 @@
 #define BUS_ERROR_AUTOMATIC_TIME_SYNC_ENABLED                                  \
 	"org.freedesktop.timedate1.AutomaticTimeSyncEnabled"
 
-#define BUS_ERROR_NO_SUCH_PROCESS "org.freedesktop.systemd1.NoSuchProcess"
+#define BUS_ERROR_NO_SUCH_PROCESS SVC_DBUS_INTERFACE ".NoSuchProcess"
 
 #define BUS_ERROR_NO_NAME_SERVERS "org.freedesktop.resolve1.NoNameServers"
 #define BUS_ERROR_INVALID_REPLY "org.freedesktop.resolve1.InvalidReply"

@@ -1995,8 +1995,8 @@ flush_to_var(void)
 	if (r < 0)
 		return log_error_errno(r, "Failed to get D-Bus connection: %m");
 
-	r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"KillUnit", &error, NULL, "ssi", "systemd-log.service", "main",
 		SIGUSR1);
 	if (r < 0) {

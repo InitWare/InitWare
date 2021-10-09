@@ -13,6 +13,8 @@
 #cmakedefine SVC_USE_libcap
 #cmakedefine SVC_USE_PAM
 
+#cmakedefine SVC_USE_systemd_busnames
+
 #define SVC_SIZEOF_PID_T @SVC_SIZEOF_PID_T@
 #define SVC_SIZEOF_UID_T @SVC_SIZEOF_UID_T@
 #define SVC_SIZEOF_GID_T @SVC_SIZEOF_GID_T@
@@ -86,6 +88,10 @@
 
 #define SVC_PERSISTENTLOGDIR "@SVC_PERSISTENTLOGDIR@"
 #define SVC_RUNTIMELOGDIR "@SVC_RUNTIMELOGDIR@"
+
+/* D-Bus busnames/interfaces */
+#define SVC_DBUS_BUSNAME "@SVC_DBUS_BUSNAME@"
+#define SVC_DBUS_INTERFACE "@SVC_DBUS_INTERFACE@"
 
 /* computed paths */
 #define SYSTEMD_BINARY_PATH SVC_PKGLIBEXECDIR "/svc.schedulerd"

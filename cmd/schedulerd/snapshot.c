@@ -334,5 +334,5 @@ const UnitVTable snapshot_vtable = { .object_size = sizeof(Snapshot),
 	.active_state = snapshot_active_state,
 	.sub_state_to_string = snapshot_sub_state_to_string,
 
-	.bus_interface = "org.freedesktop.systemd1.Snapshot",
+	.bus_interface = SVC_DBUS_INTERFACE ".Snapshot",
 	.bus_vtable = bus_snapshot_vtable };

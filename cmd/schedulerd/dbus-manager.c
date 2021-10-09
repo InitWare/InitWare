@@ -1743,7 +1743,7 @@ send_unit_files_changed(sd_bus *bus, void *userdata)
 	assert(bus);
 
 	r = sd_bus_message_new_signal(bus, &message,
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"UnitFilesChanged");
 	if (r < 0)
 		return r;
@@ -2520,7 +2520,7 @@ send_finished(sd_bus *bus, void *userdata)
 	assert(times);
 
 	r = sd_bus_message_new_signal(bus, &message,
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"StartupFinished");
 	if (r < 0)
 		return r;
@@ -2558,7 +2558,7 @@ send_reloading(sd_bus *bus, void *userdata)
 	assert(bus);
 
 	r = sd_bus_message_new_signal(bus, &message,
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"Reloading");
 	if (r < 0)
 		return r;

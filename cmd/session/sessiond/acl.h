@@ -24,10 +24,8 @@
 
 #ifdef SVC_USE_libudev
 #include <libudev.h>
-#endif
 
 #ifdef HAVE_ACL
-
 int devnode_acl(const char *path, bool flush, bool del, uid_t old_uid, bool add,
 	uid_t new_uid);
 
@@ -50,3 +48,4 @@ devnode_acl_all(struct udev *udev, const char *seat, bool flush, bool del,
 }
 
 #endif
+#endif /* SVC_USE_libudev */

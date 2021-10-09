@@ -238,14 +238,12 @@ CACHE STRING
 set(SVC_DBUSCONFDIR
 "${CMAKE_INSTALL_FULL_DATAROOTDIR}/dbus-1/system.d"
 CACHE STRING
-    "Full path to the directory for storing D-Bus system service configuration."
-)
+    "Full path to the directory for storing D-Bus system service configuration.")
 
 set(SVC_POLKITACTIONDIR
 "${CMAKE_INSTALL_FULL_DATAROOTDIR}/polkit-1/actions"
 CACHE STRING
-    "Full path to the directory for storing D-Bus system service configuration."
-)
+    "Full path to the directory for storing PolicyKit action files.")
 
 if (SVC_USE_systemd_paths)
 	set(DEFAULT_SVC_PERSISTENTLOGDIR
@@ -286,6 +284,18 @@ set(SYSTEM_GENERATOR_PATH ${SVC_PKGLIBEXECDIR}/system-generators)
 set(USER_CONFIG_UNIT_PATH ${SVC_PKGSYSCONFDIR}/user)
 set(USER_DATA_UNIT_PATH ${SVC_PKGLIBDIR}/user)
 set(USER_GENERATOR_PATH ${SVC_PKGLIBEXECDIR}/user-generators)
+
+if (SVC_USE_systemd_busnames)
+	set(SVC_DBUS_BUSNAME "org.freedesktop.systemd1")
+	set(SVC_DBUS_INTERFACE ${SVC_DBUS_BUSNAME})
+	set(SVC_SESSIOND_DBUS_BUSNAME "org.freedesktop.login1")
+	set(SVC_SESSIOND_DBUS_INTERFACE ${SVC_SESSIOND_DBUS_BUSNAME})
+else ()
+	set(SVC_DBUS_BUSNAME "org.InitWare.Scheduler1")
+	set(SVC_DBUS_INTERFACE ${SVC_DBUS_BUSNAME})
+	set(SVC_SESSIOND_DBUS_BUSNAME "org.InitWare.SessionManager1")
+	set(SVC_SESSIOND_DBUS_INTERFACE ${SVC_SESSIOND_DBUS_BUSNAME})
+endif ()
 
 configure_file(head/systemd/svc-config.h.in head/systemd/svc-config.h)
 

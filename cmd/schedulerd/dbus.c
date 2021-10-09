@@ -91,7 +91,7 @@ bus_forward_agent_released(Manager *m, const char *path)
          * instances get notified about this, too */
 
 	r = sd_bus_emit_signal(m->system_bus, "/org/freedesktop/systemd1/agent",
-		"org.freedesktop.systemd1.Agent", "Released", "s", path);
+		SVC_DBUS_INTERFACE ".Agent", "Released", "s", path);
 	if (r < 0)
 		return log_debug_errno(r,
 			"Failed to propagate agent release message: %m");
@@ -221,7 +221,7 @@ failed:
 		bus_error_message(&error, r));
 
 	r = sd_bus_message_new_signal(bus, &reply, "/org/freedesktop/systemd1",
-		"org.freedesktop.systemd1.Activator", "ActivationFailure");
+		SVC_DBUS_INTERFACE ".Activator", "ActivationFailure");
 	if (r < 0) {
 		bus_log_create_error(r);
 		return 0;
@@ -616,13 +616,13 @@ bus_setup_api_vtables(Manager *m, sd_bus *bus)
 #endif
 
 	r = sd_bus_add_object_vtable(bus, NULL, "/org/freedesktop/systemd1",
-		"org.freedesktop.systemd1.Manager", bus_manager_vtable, m);
+		SVC_DBUS_INTERFACE ".Manager", bus_manager_vtable, m);
 	if (r < 0)
 		return log_error_errno(r,
 			"Failed to register Manager vtable: %m");
 
 	r = sd_bus_add_fallback_vtable(bus, NULL,
-		"/org/freedesktop/systemd1/job", "org.freedesktop.systemd1.Job",
+		"/org/freedesktop/systemd1/job", SVC_DBUS_INTERFACE ".Job",
 		bus_job_vtable, bus_job_find, m);
 	if (r < 0)
 		return log_error_errno(r, "Failed to register Job vtable: %m");
@@ -633,9 +633,8 @@ bus_setup_api_vtables(Manager *m, sd_bus *bus)
 		return log_error_errno(r, "Failed to add job enumerator: %m");
 
 	r = sd_bus_add_fallback_vtable(bus, NULL,
-		"/org/freedesktop/systemd1/unit",
-		"org.freedesktop.systemd1.Unit", bus_unit_vtable, bus_unit_find,
-		m);
+		"/org/freedesktop/systemd1/unit", SVC_DBUS_INTERFACE ".Unit",
+		bus_unit_vtable, bus_unit_find, m);
 	if (r < 0)
 		return log_error_errno(r, "Failed to register Unit vtable: %m");
 
@@ -886,7 +885,7 @@ bus_setup_api(Manager *m, sd_bus *bus)
 		"type='signal',"
 		"sender='org.freedesktop.DBus',"
 		"path='/org/freedesktop/DBus',"
-		"interface='org.freedesktop.systemd1.Activator',"
+		"interface='" SVC_DBUS_INTERFACE ".Activator',"
 		"member='ActivationRequest'",
 		signal_activation_request, m);
 	if (r < 0)
@@ -898,7 +897,7 @@ bus_setup_api(Manager *m, sd_bus *bus)
          * after the new connection is set up and the name installed
          * to allow clients to synchronously wait for reexecution to
          * finish */
-	r = sd_bus_request_name(bus, "org.freedesktop.systemd1",
+	r = sd_bus_request_name(bus, SVC_DBUS_BUSNAME,
 		SD_BUS_NAME_REPLACE_EXISTING | SD_BUS_NAME_ALLOW_REPLACEMENT);
 	if (r < 0)
 		return log_error_errno(r, "Failed to register name: %m");
@@ -967,7 +966,7 @@ bus_setup_system(Manager *m, sd_bus *bus)
          * the system bus */
 	r = sd_bus_add_match(bus, NULL,
 		"type='signal',"
-		"interface='org.freedesktop.systemd1.Agent',"
+		"interface='" SVC_DBUS_INTERFACE ".Agent',"
 		"member='Released',"
 		"path='/org/freedesktop/systemd1/agent'",
 		signal_agent_released, m);
@@ -1324,8 +1323,8 @@ bus_verify_manage_unit_async(Manager *m, sd_bus_message *call,
 	sd_bus_error *error)
 {
 	return bus_verify_polkit_async(call, CAP_SYS_ADMIN,
-		"org.freedesktop.systemd1.manage-units", false,
-		&m->polkit_registry, error);
+		SVC_DBUS_INTERFACE ".manage-units", false, &m->polkit_registry,
+		error);
 }
 
 /* Same as bus_verify_manage_unit_async(), but checks for CAP_KILL instead of CAP_SYS_ADMIN */
@@ -1334,8 +1333,8 @@ bus_verify_manage_unit_async_for_kill(Manager *m, sd_bus_message *call,
 	sd_bus_error *error)
 {
 	return bus_verify_polkit_async(call, CAP_KILL,
-		"org.freedesktop.systemd1.manage-units", false,
-		&m->polkit_registry, error);
+		SVC_DBUS_INTERFACE ".manage-units", false, &m->polkit_registry,
+		error);
 }
 
 int
@@ -1343,7 +1342,7 @@ bus_verify_manage_unit_files_async(Manager *m, sd_bus_message *call,
 	sd_bus_error *error)
 {
 	return bus_verify_polkit_async(call, CAP_SYS_ADMIN,
-		"org.freedesktop.systemd1.manage-unit-files", false,
+		SVC_DBUS_INTERFACE ".manage-unit-files", false,
 		&m->polkit_registry, error);
 }
 
@@ -1352,6 +1351,6 @@ bus_verify_reload_daemon_async(Manager *m, sd_bus_message *call,
 	sd_bus_error *error)
 {
 	return bus_verify_polkit_async(call, CAP_SYS_ADMIN,
-		"org.freedesktop.systemd1.reload-daemon", false,
-		&m->polkit_registry, error);
+		SVC_DBUS_INTERFACE ".reload-daemon", false, &m->polkit_registry,
+		error);
 }

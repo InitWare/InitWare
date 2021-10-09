@@ -811,7 +811,7 @@ send_new_signal(sd_bus *bus, void *userdata)
 		return -ENOMEM;
 
 	r = sd_bus_message_new_signal(bus, &m, "/org/freedesktop/systemd1",
-		"org.freedesktop.systemd1.Manager", "UnitNew");
+		SVC_DBUS_INTERFACE ".Manager", "UnitNew");
 	if (r < 0)
 		return r;
 
@@ -846,7 +846,7 @@ send_changed_signal(sd_bus *bus, void *userdata)
 		return r;
 
 	return sd_bus_emit_properties_changed_strv(bus, p,
-		"org.freedesktop.systemd1.Unit", NULL);
+		SVC_DBUS_INTERFACE ".Unit", NULL);
 }
 
 void
@@ -889,7 +889,7 @@ send_removed_signal(sd_bus *bus, void *userdata)
 		return -ENOMEM;
 
 	r = sd_bus_message_new_signal(bus, &m, "/org/freedesktop/systemd1",
-		"org.freedesktop.systemd1.Manager", "UnitRemoved");
+		SVC_DBUS_INTERFACE ".Manager", "UnitRemoved");
 	if (r < 0)
 		return r;
 

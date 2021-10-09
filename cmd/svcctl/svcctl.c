@@ -574,8 +574,8 @@ get_unit_list(sd_bus *bus, const char *machine, char **patterns,
 	assert(unit_infos);
 	assert(_reply);
 
-	r = sd_bus_message_new_method_call(bus, &m, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"ListUnitsFiltered");
 
 	if (r < 0)
@@ -733,8 +733,8 @@ get_triggered_units(sd_bus *bus, const char *path, char ***ret)
 	_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
 	int r;
 
-	r = sd_bus_get_property_strv(bus, "org.freedesktop.systemd1", path,
-		"org.freedesktop.systemd1.Unit", "Triggers", &error, ret);
+	r = sd_bus_get_property_strv(bus, SVC_DBUS_BUSNAME, path,
+		SVC_DBUS_INTERFACE ".Unit", "Triggers", &error, ret);
 
 	if (r < 0)
 		log_error("Failed to determine triggers: %s",
@@ -751,8 +751,8 @@ get_listening(sd_bus *bus, const char *unit_path, char ***listening)
 	const char *type, *path;
 	int r, n = 0;
 
-	r = sd_bus_get_property(bus, "org.freedesktop.systemd1", unit_path,
-		"org.freedesktop.systemd1.Socket", "Listen", &error, &reply,
+	r = sd_bus_get_property(bus, SVC_DBUS_BUSNAME, unit_path,
+		SVC_DBUS_INTERFACE ".Socket", "Listen", &error, &reply,
 		"a(ss)");
 	if (r < 0) {
 		log_error("Failed to get list of listening sockets: %s",
@@ -987,18 +987,18 @@ get_next_elapse(sd_bus *bus, const char *path, dual_timestamp *next)
 	assert(path);
 	assert(next);
 
-	r = sd_bus_get_property_trivial(bus, "org.freedesktop.systemd1", path,
-		"org.freedesktop.systemd1.Timer", "NextElapseUSecMonotonic",
-		&error, 't', &t.monotonic);
+	r = sd_bus_get_property_trivial(bus, SVC_DBUS_BUSNAME, path,
+		SVC_DBUS_INTERFACE ".Timer", "NextElapseUSecMonotonic", &error,
+		't', &t.monotonic);
 	if (r < 0) {
 		log_error("Failed to get next elapsation time: %s",
 			bus_error_message(&error, r));
 		return r;
 	}
 
-	r = sd_bus_get_property_trivial(bus, "org.freedesktop.systemd1", path,
-		"org.freedesktop.systemd1.Timer", "NextElapseUSecRealtime",
-		&error, 't', &t.realtime);
+	r = sd_bus_get_property_trivial(bus, SVC_DBUS_BUSNAME, path,
+		SVC_DBUS_INTERFACE ".Timer", "NextElapseUSecRealtime", &error,
+		't', &t.realtime);
 	if (r < 0) {
 		log_error("Failed to get next elapsation time: %s",
 			bus_error_message(&error, r));
@@ -1019,9 +1019,9 @@ get_last_trigger(sd_bus *bus, const char *path, usec_t *last)
 	assert(path);
 	assert(last);
 
-	r = sd_bus_get_property_trivial(bus, "org.freedesktop.systemd1", path,
-		"org.freedesktop.systemd1.Timer", "LastTriggerUSec", &error,
-		't', last);
+	r = sd_bus_get_property_trivial(bus, SVC_DBUS_BUSNAME, path,
+		SVC_DBUS_INTERFACE ".Timer", "LastTriggerUSec", &error, 't',
+		last);
 	if (r < 0) {
 		log_error("Failed to get last trigger time: %s",
 			bus_error_message(&error, r));
@@ -1433,10 +1433,10 @@ list_unit_files(sd_bus *bus, char **args)
 		assert(c <= n_units);
 		hashmap_free(h);
 	} else {
-		r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
+		r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
 			"/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager", "ListUnitFiles",
-			&error, &reply, NULL);
+			SVC_DBUS_INTERFACE ".Manager", "ListUnitFiles", &error,
+			&reply, NULL);
 		if (r < 0) {
 			log_error("Failed to list unit files: %s",
 				bus_error_message(&error, r));
@@ -1559,9 +1559,9 @@ list_dependencies_get_dependencies(sd_bus *bus, const char *name, char ***deps)
 	if (!path)
 		return log_oom();
 
-	r = sd_bus_call_method(bus, "org.freedesktop.systemd1", path,
+	r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME, path,
 		"org.freedesktop.DBus.Properties", "GetAll", &error, &reply,
-		"s", "org.freedesktop.systemd1.Unit");
+		"s", SVC_DBUS_INTERFACE ".Unit");
 	if (r < 0) {
 		log_error("Failed to get properties of %s: %s", name,
 			bus_error_message(&error, r));
@@ -1790,7 +1790,7 @@ get_machine_properties(sd_bus *bus, struct machine_info *mi)
 		bus = container;
 	}
 
-	r = bus_map_all_properties(bus, "org.freedesktop.systemd1",
+	r = bus_map_all_properties(bus, SVC_DBUS_BUSNAME,
 		"/org/freedesktop/systemd1", machine_info_property_map, mi);
 	if (r < 0)
 		return r;
@@ -1983,9 +1983,9 @@ get_default(sd_bus *bus, char **args)
 		path = _path;
 
 	} else {
-		r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
+		r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
 			"/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager", "GetDefaultTarget",
+			SVC_DBUS_INTERFACE ".Manager", "GetDefaultTarget",
 			&error, &reply, NULL);
 		if (r < 0) {
 			log_error("Failed to get default target: %s",
@@ -2062,9 +2062,9 @@ set_default(sd_bus *bus, char **args)
 							   *m = NULL;
 		_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
 
-		r = sd_bus_message_new_method_call(bus, &m,
-			"org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager", "SetDefaultTarget");
+		r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+			"/org/freedesktop/systemd1",
+			SVC_DBUS_INTERFACE ".Manager", "SetDefaultTarget");
 		if (r < 0)
 			return bus_log_create_error(r);
 
@@ -2197,8 +2197,8 @@ list_jobs(sd_bus *bus, char **args)
 	int r;
 	bool skipped = false;
 
-	r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"ListJobs", &error, &reply, NULL);
 	if (r < 0) {
 		log_error("Failed to list jobs: %s",
@@ -2257,9 +2257,9 @@ cancel_job(sd_bus *bus, char **args)
 			return log_error_errno(q,
 				"Failed to parse job id \"%s\": %m", *name);
 
-		q = sd_bus_message_new_method_call(bus, &m,
-			"org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager", "CancelJob");
+		q = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+			"/org/freedesktop/systemd1",
+			SVC_DBUS_INTERFACE ".Manager", "CancelJob");
 		if (q < 0)
 			return bus_log_create_error(q);
 
@@ -2297,8 +2297,8 @@ need_daemon_reload(sd_bus *bus, const char *unit)
 	/* We don't use unit_dbus_path_from_name() directly since we
          * don't want to load the unit if it isn't loaded. */
 
-	r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"GetUnit", NULL, &reply, "s", unit);
 	if (r < 0)
 		return r;
@@ -2307,9 +2307,8 @@ need_daemon_reload(sd_bus *bus, const char *unit)
 	if (r < 0)
 		return r;
 
-	r = sd_bus_get_property_trivial(bus, "org.freedesktop.systemd1", path,
-		"org.freedesktop.systemd1.Unit", "NeedDaemonReload", NULL, 'b',
-		&b);
+	r = sd_bus_get_property_trivial(bus, SVC_DBUS_BUSNAME, path,
+		SVC_DBUS_INTERFACE ".Unit", "NeedDaemonReload", NULL, 'b', &b);
 	if (r < 0)
 		return r;
 
@@ -2379,18 +2378,17 @@ unit_find_paths(sd_bus *bus, const char *unit_name, bool avoid_bus_cache,
 		if (!unit)
 			return log_oom();
 
-		r = sd_bus_get_property_string(bus, "org.freedesktop.systemd1",
-			unit, "org.freedesktop.systemd1.Unit", "FragmentPath",
-			&error, &path);
+		r = sd_bus_get_property_string(bus, SVC_DBUS_BUSNAME, unit,
+			SVC_DBUS_INTERFACE ".Unit", "FragmentPath", &error,
+			&path);
 		if (r < 0)
 			return log_error_errno(r,
 				"Failed to get FragmentPath: %s",
 				bus_error_message(&error, r));
 
 		if (dropin_paths) {
-			r = sd_bus_get_property_strv(bus,
-				"org.freedesktop.systemd1", unit,
-				"org.freedesktop.systemd1.Unit", "DropInPaths",
+			r = sd_bus_get_property_strv(bus, SVC_DBUS_BUSNAME,
+				unit, SVC_DBUS_INTERFACE ".Unit", "DropInPaths",
 				&error, &dropins);
 			if (r < 0)
 				return log_error_errno(r,
@@ -2472,8 +2470,8 @@ check_one_unit(sd_bus *bus, const char *name, const char *good_states,
 	/* We don't use unit_dbus_path_from_name() directly since we
          * don't want to load the unit if it isn't loaded. */
 
-	r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"GetUnit", NULL, &reply, "s", n);
 	if (r < 0) {
 		if (!quiet)
@@ -2485,8 +2483,8 @@ check_one_unit(sd_bus *bus, const char *name, const char *good_states,
 	if (r < 0)
 		return bus_log_parse_error(r);
 
-	r = sd_bus_get_property_string(bus, "org.freedesktop.systemd1", path,
-		"org.freedesktop.systemd1.Unit", "ActiveState", NULL, &state);
+	r = sd_bus_get_property_string(bus, SVC_DBUS_BUSNAME, path,
+		SVC_DBUS_INTERFACE ".Unit", "ActiveState", NULL, &state);
 	if (r < 0) {
 		if (!quiet)
 			puts("unknown");
@@ -2517,8 +2515,8 @@ check_triggering_units(sd_bus *bus, const char *name)
 	if (!path)
 		return log_oom();
 
-	r = sd_bus_get_property_string(bus, "org.freedesktop.systemd1", path,
-		"org.freedesktop.systemd1.Unit", "LoadState", &error, &state);
+	r = sd_bus_get_property_string(bus, SVC_DBUS_BUSNAME, path,
+		SVC_DBUS_INTERFACE ".Unit", "LoadState", &error, &state);
 	if (r < 0) {
 		log_error("Failed to get load state of %s: %s", n,
 			bus_error_message(&error, r));
@@ -2528,8 +2526,8 @@ check_triggering_units(sd_bus *bus, const char *name)
 	if (streq(state, "masked"))
 		return 0;
 
-	r = sd_bus_get_property_strv(bus, "org.freedesktop.systemd1", path,
-		"org.freedesktop.systemd1.Unit", "TriggeredBy", &error,
+	r = sd_bus_get_property_strv(bus, SVC_DBUS_BUSNAME, path,
+		SVC_DBUS_INTERFACE ".Unit", "TriggeredBy", &error,
 		&triggered_by);
 	if (r < 0) {
 		log_error("Failed to get triggered by array of %s: %s", n,
@@ -2609,8 +2607,8 @@ start_unit_one(sd_bus *bus, const char *method, const char *name,
 
 	log_debug("Calling manager for %s on %s, %s", method, name, mode);
 
-	r = sd_bus_message_new_method_call(bus, &m, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		method);
 	if (r < 0)
 		return bus_log_create_error(r);
@@ -3127,9 +3125,9 @@ kill_unit(sd_bus *bus, char **args)
 	STRV_FOREACH (name, names) {
 		_cleanup_bus_message_unref_ sd_bus_message *m = NULL;
 
-		q = sd_bus_message_new_method_call(bus, &m,
-			"org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager", "KillUnit");
+		q = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+			"/org/freedesktop/systemd1",
+			SVC_DBUS_INTERFACE ".Manager", "KillUnit");
 		if (q < 0)
 			return bus_log_create_error(q);
 
@@ -4394,7 +4392,7 @@ show_one(const char *verb, sd_bus *bus, const char *path, const char *unit,
 
 	log_debug("Showing one %s", path);
 
-	r = sd_bus_call_method(bus, "org.freedesktop.systemd1", path,
+	r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME, path,
 		"org.freedesktop.DBus.Properties", "GetAll", &error, &reply,
 		"s", "");
 	if (r < 0) {
@@ -4532,8 +4530,8 @@ get_unit_dbus_path_by_pid(sd_bus *bus, uint32_t pid, char **unit)
 	char *u;
 	int r;
 
-	r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"GetUnitByPID", &error, &reply, "u", pid);
 	if (r < 0) {
 		log_error("Failed to get unit for PID %" PRIu32 ": %s", pid,
@@ -4605,7 +4603,7 @@ show_system_status(sd_bus *bus)
 	if (!hn)
 		return log_oom();
 
-	r = bus_map_all_properties(bus, "org.freedesktop.systemd1",
+	r = bus_map_all_properties(bus, SVC_DBUS_BUSNAME,
 		"/org/freedesktop/systemd1", machine_info_property_map, &mi);
 	if (r < 0)
 		return log_error_errno(r, "Failed to read server status: %m");
@@ -4891,8 +4889,8 @@ set_property(sd_bus *bus, char **args)
 
 	polkit_agent_open_if_enabled();
 
-	r = sd_bus_message_new_method_call(bus, &m, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"SetUnitProperties");
 	if (r < 0)
 		return bus_log_create_error(r);
@@ -4961,8 +4959,8 @@ snapshot(sd_bus *bus, char **args)
 	if (!n)
 		return log_oom();
 
-	r = sd_bus_message_new_method_call(bus, &m, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"CreateSnapshot");
 	if (r < 0)
 		return bus_log_create_error(r);
@@ -4987,8 +4985,8 @@ snapshot(sd_bus *bus, char **args)
 	if (r < 0)
 		return bus_log_parse_error(r);
 
-	r = sd_bus_get_property_string(bus, "org.freedesktop.systemd1", path,
-		"org.freedesktop.systemd1.Unit", "Id", &error, &id);
+	r = sd_bus_get_property_string(bus, SVC_DBUS_BUSNAME, path,
+		SVC_DBUS_INTERFACE ".Unit", "Id", &error, &id);
 	if (r < 0) {
 		log_error("Failed to get ID of snapshot: %s",
 			bus_error_message(&error, r));
@@ -5021,9 +5019,9 @@ delete_snapshot(sd_bus *bus, char **args)
 		_cleanup_bus_message_unref_ sd_bus_message *m = NULL;
 		int q;
 
-		q = sd_bus_message_new_method_call(bus, &m,
-			"org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager", "RemoveSnapshot");
+		q = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+			"/org/freedesktop/systemd1",
+			SVC_DBUS_INTERFACE ".Manager", "RemoveSnapshot");
 		if (q < 0)
 			return bus_log_create_error(q);
 
@@ -5078,8 +5076,8 @@ daemon_reload(sd_bus *bus, char **args)
 						       /* "daemon-reload" */ "Reload";
 	}
 
-	r = sd_bus_message_new_method_call(bus, &m, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		method);
 	if (r < 0)
 		return bus_log_create_error(r);
@@ -5126,9 +5124,9 @@ reset_failed(sd_bus *bus, char **args)
 	STRV_FOREACH (name, names) {
 		_cleanup_bus_message_unref_ sd_bus_message *m = NULL;
 
-		q = sd_bus_message_new_method_call(bus, &m,
-			"org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager", "ResetFailedUnit");
+		q = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+			"/org/freedesktop/systemd1",
+			SVC_DBUS_INTERFACE ".Manager", "ResetFailedUnit");
 		if (q < 0)
 			return bus_log_create_error(q);
 
@@ -5163,8 +5161,8 @@ show_environment(sd_bus *bus, char **args)
 
 	pager_open_if_enabled();
 
-	r = sd_bus_get_property(bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_get_property(bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"Environment", &error, &reply, "as");
 	if (r < 0) {
 		log_error("Failed to get environment: %s",
@@ -5248,8 +5246,8 @@ switch_root(sd_bus *bus, char **args)
 
 	log_debug("Switching root - root: %s; init: %s", root, strna(init));
 
-	r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"SwitchRoot", &error, NULL, "ss", root, init);
 	if (r < 0) {
 		(void)default_signals(SIGTERM, -1);
@@ -5276,8 +5274,8 @@ set_environment(sd_bus *bus, char **args)
 	method = streq(args[0], "set-environment") ? "SetEnvironment" :
 							   "UnsetEnvironment";
 
-	r = sd_bus_message_new_method_call(bus, &m, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		method);
 	if (r < 0)
 		return bus_log_create_error(r);
@@ -5311,8 +5309,8 @@ import_environment(sd_bus *bus, char **args)
 	assert(bus);
 	assert(args);
 
-	r = sd_bus_message_new_method_call(bus, &m, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"SetEnvironment");
 	if (r < 0)
 		return bus_log_create_error(r);
@@ -5669,9 +5667,9 @@ enable_unit(sd_bus *bus, char **args)
 		} else
 			assert_not_reached("Unknown verb");
 
-		r = sd_bus_message_new_method_call(bus, &m,
-			"org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager", method);
+		r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+			"/org/freedesktop/systemd1",
+			SVC_DBUS_INTERFACE ".Manager", method);
 		if (r < 0)
 			return bus_log_create_error(r);
 
@@ -5814,9 +5812,9 @@ add_dependency(sd_bus *bus, char **args)
 
 		polkit_agent_open_if_enabled();
 
-		r = sd_bus_message_new_method_call(bus, &m,
-			"org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager",
+		r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+			"/org/freedesktop/systemd1",
+			SVC_DBUS_INTERFACE ".Manager",
 			"AddDependencyUnitFiles");
 		if (r < 0)
 			return bus_log_create_error(r);
@@ -5883,10 +5881,9 @@ preset_all(sd_bus *bus, char **args)
 
 		polkit_agent_open_if_enabled();
 
-		r = sd_bus_message_new_method_call(bus, &m,
-			"org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager",
-			"PresetAllUnitFiles");
+		r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+			"/org/freedesktop/systemd1",
+			SVC_DBUS_INTERFACE ".Manager", "PresetAllUnitFiles");
 		if (r < 0)
 			return bus_log_create_error(r);
 
@@ -5958,8 +5955,8 @@ show_installation_targets(sd_bus *bus, const char *name)
 	const char *link;
 	int r;
 
-	r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"GetUnitFileLinks", &error, &reply, "sb", name, arg_runtime);
 	if (r < 0)
 		return log_error_errno(r,
@@ -6036,9 +6033,9 @@ unit_is_enabled(sd_bus *bus, char **args)
 				NULL;
 			const char *s;
 
-			r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
+			r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
 				"/org/freedesktop/systemd1",
-				"org.freedesktop.systemd1.Manager",
+				SVC_DBUS_INTERFACE ".Manager",
 				"GetUnitFileState", &error, &reply, "s", *name);
 			if (r < 0) {
 				log_error(
@@ -6076,8 +6073,8 @@ is_system_running(sd_bus *bus, char **args)
 	_cleanup_free_ char *state = NULL;
 	int r;
 
-	r = sd_bus_get_property_string(bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_get_property_string(bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"SystemState", NULL, &state);
 	if (r < 0) {
 		if (!arg_quiet)

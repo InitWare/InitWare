@@ -199,7 +199,7 @@ show_all_names(sd_bus *bus)
 	if (r < 0)
 		goto fail;
 
-	bus_map_all_properties(bus, "org.freedesktop.systemd1",
+	bus_map_all_properties(bus, SVC_DBUS_BUSNAME,
 		"/org/freedesktop/systemd1", manager_map, &info);
 
 	print_status_info(&info);

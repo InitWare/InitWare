@@ -1249,7 +1249,7 @@ const UnitVTable automount_vtable = {
 
         .reset_failed = automount_reset_failed,
 
-        .bus_interface = "org.freedesktop.systemd1.Automount",
+        .bus_interface = SVC_DBUS_INTERFACE ".Automount",
         .bus_vtable = bus_automount_vtable,
 
         .shutdown = automount_shutdown,

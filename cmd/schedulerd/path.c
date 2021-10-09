@@ -864,5 +864,5 @@ const UnitVTable path_vtable = { .object_size = sizeof(Path),
 
 	.reset_failed = path_reset_failed,
 
-	.bus_interface = "org.freedesktop.systemd1.Path",
+	.bus_interface = SVC_DBUS_INTERFACE ".Path",
 	.bus_vtable = bus_path_vtable };

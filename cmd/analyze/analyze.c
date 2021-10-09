@@ -130,8 +130,8 @@ bus_get_uint64_property(sd_bus *bus, const char *path, const char *interface,
 	assert(property);
 	assert(val);
 
-	r = sd_bus_get_property_trivial(bus, "org.freedesktop.systemd1", path,
-		interface, property, &error, 't', val);
+	r = sd_bus_get_property_trivial(bus, SVC_DBUS_BUSNAME, path, interface,
+		property, &error, 't', val);
 
 	if (r < 0) {
 		log_error("Failed to parse reply: %s",
@@ -154,8 +154,8 @@ bus_get_unit_property_strv(sd_bus *bus, const char *path, const char *property,
 	assert(property);
 	assert(strv);
 
-	r = sd_bus_get_property_strv(bus, "org.freedesktop.systemd1", path,
-		"org.freedesktop.systemd1.Unit", property, &error, strv);
+	r = sd_bus_get_property_strv(bus, SVC_DBUS_BUSNAME, path,
+		SVC_DBUS_INTERFACE ".Unit", property, &error, strv);
 	if (r < 0) {
 		log_error("Failed to get unit property %s: %s", property,
 			bus_error_message(&error, -r));
@@ -200,8 +200,8 @@ acquire_time_data(sd_bus *bus, struct unit_times **out)
 	size_t size = 0;
 	UnitInfo u;
 
-	r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"ListUnits", &error, &reply, NULL);
 	if (r < 0) {
 		log_error("Failed to list units: %s",
@@ -230,19 +230,19 @@ acquire_time_data(sd_bus *bus, struct unit_times **out)
 		assert_cc(sizeof(usec_t) == sizeof(uint64_t));
 
 		if (bus_get_uint64_property(bus, u.unit_path,
-			    "org.freedesktop.systemd1.Unit",
+			    SVC_DBUS_INTERFACE ".Unit",
 			    "InactiveExitTimestampMonotonic",
 			    &t->activating) < 0 ||
 			bus_get_uint64_property(bus, u.unit_path,
-				"org.freedesktop.systemd1.Unit",
+				SVC_DBUS_INTERFACE ".Unit",
 				"ActiveEnterTimestampMonotonic",
 				&t->activated) < 0 ||
 			bus_get_uint64_property(bus, u.unit_path,
-				"org.freedesktop.systemd1.Unit",
+				SVC_DBUS_INTERFACE ".Unit",
 				"ActiveExitTimestampMonotonic",
 				&t->deactivating) < 0 ||
 			bus_get_uint64_property(bus, u.unit_path,
-				"org.freedesktop.systemd1.Unit",
+				SVC_DBUS_INTERFACE ".Unit",
 				"InactiveEnterTimestampMonotonic",
 				&t->deactivated) < 0) {
 			r = -EIO;
@@ -292,46 +292,46 @@ acquire_boot_times(sd_bus *bus, struct boot_times **bt)
 	assert_cc(sizeof(usec_t) == sizeof(uint64_t));
 
 	if (bus_get_uint64_property(bus, "/org/freedesktop/systemd1",
-		    "org.freedesktop.systemd1.Manager",
-		    "FirmwareTimestampMonotonic", &times.firmware_time) < 0 ||
+		    SVC_DBUS_INTERFACE ".Manager", "FirmwareTimestampMonotonic",
+		    &times.firmware_time) < 0 ||
 		bus_get_uint64_property(bus, "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager",
+			SVC_DBUS_INTERFACE ".Manager",
 			"LoaderTimestampMonotonic", &times.loader_time) < 0 ||
 		bus_get_uint64_property(bus, "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager", "KernelTimestamp",
+			SVC_DBUS_INTERFACE ".Manager", "KernelTimestamp",
 			&times.kernel_time) < 0 ||
 		bus_get_uint64_property(bus, "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager",
+			SVC_DBUS_INTERFACE ".Manager",
 			"InitRDTimestampMonotonic", &times.initrd_time) < 0 ||
 		bus_get_uint64_property(bus, "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager",
+			SVC_DBUS_INTERFACE ".Manager",
 			"UserspaceTimestampMonotonic",
 			&times.userspace_time) < 0 ||
 		bus_get_uint64_property(bus, "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager",
+			SVC_DBUS_INTERFACE ".Manager",
 			"FinishTimestampMonotonic", &times.finish_time) < 0 ||
 		bus_get_uint64_property(bus, "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager",
+			SVC_DBUS_INTERFACE ".Manager",
 			"SecurityStartTimestampMonotonic",
 			&times.security_start_time) < 0 ||
 		bus_get_uint64_property(bus, "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager",
+			SVC_DBUS_INTERFACE ".Manager",
 			"SecurityFinishTimestampMonotonic",
 			&times.security_finish_time) < 0 ||
 		bus_get_uint64_property(bus, "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager",
+			SVC_DBUS_INTERFACE ".Manager",
 			"GeneratorsStartTimestampMonotonic",
 			&times.generators_start_time) < 0 ||
 		bus_get_uint64_property(bus, "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager",
+			SVC_DBUS_INTERFACE ".Manager",
 			"GeneratorsFinishTimestampMonotonic",
 			&times.generators_finish_time) < 0 ||
 		bus_get_uint64_property(bus, "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager",
+			SVC_DBUS_INTERFACE ".Manager",
 			"UnitsLoadStartTimestampMonotonic",
 			&times.unitsload_start_time) < 0 ||
 		bus_get_uint64_property(bus, "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager",
+			SVC_DBUS_INTERFACE ".Manager",
 			"UnitsLoadFinishTimestampMonotonic",
 			&times.unitsload_finish_time) < 0)
 		return -EIO;
@@ -403,7 +403,7 @@ acquire_host_info(sd_bus *bus, struct host_info **hi)
 	if (r < 0)
 		goto fail;
 
-	r = bus_map_all_properties(bus, "org.freedesktop.systemd1",
+	r = bus_map_all_properties(bus, SVC_DBUS_BUSNAME,
 		"/org/freedesktop/systemd1", manager_map, host);
 	if (r < 0)
 		goto fail;
@@ -907,8 +907,8 @@ list_dependencies(sd_bus *bus, const char *name)
 	if (path == NULL)
 		return -ENOMEM;
 
-	r = sd_bus_get_property(bus, "org.freedesktop.systemd1", path,
-		"org.freedesktop.systemd1.Unit", "Id", &error, &reply, "s");
+	r = sd_bus_get_property(bus, SVC_DBUS_BUSNAME, path,
+		SVC_DBUS_INTERFACE ".Unit", "Id", &error, &reply, "s");
 	if (r < 0) {
 		log_error("Failed to get ID: %s",
 			bus_error_message(&error, -r));
@@ -1117,8 +1117,8 @@ dot(sd_bus *bus, char *patterns[])
 	int r;
 	UnitInfo u;
 
-	r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"ListUnits", &error, &reply, "");
 	if (r < 0) {
 		log_error("Failed to list units: %s",
@@ -1167,8 +1167,8 @@ dump_fallback(sd_bus *bus)
 
 	assert(bus);
 
-	r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"Dump", &error, &reply, "");
 	if (r < 0) {
 		log_error("Failed to issue method call Dump: %s",
@@ -1202,8 +1202,8 @@ dump(sd_bus *bus, char **args)
 	if (!sd_bus_can_send(bus, SD_BUS_TYPE_UNIX_FD))
 		return dump_fallback(bus);
 
-	r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"DumpByFileDescriptor", &error, &reply, "");
 	if (r < 0) {
 		/* fall back to Dump if DumpByFileDescriptor is not supported */
@@ -1239,8 +1239,8 @@ set_log_level(sd_bus *bus, char **args)
 		return -E2BIG;
 	}
 
-	r = sd_bus_set_property(bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_set_property(bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"LogLevel", &error, "s", args[0]);
 	if (r < 0) {
 		log_error("Failed to issue method call: %s",

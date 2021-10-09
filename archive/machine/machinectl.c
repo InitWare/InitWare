@@ -361,9 +361,9 @@ show_unit_cgroup(sd_bus *bus, const char *unit, pid_t leader)
 	if (!path)
 		return log_oom();
 
-	r = sd_bus_get_property(bus, "org.freedesktop.systemd1", path,
-		endswith(unit, ".scope") ? "org.freedesktop.systemd1.Scope" :
-						 "org.freedesktop.systemd1.Service",
+	r = sd_bus_get_property(bus, SVC_DBUS_BUSNAME, path,
+		endswith(unit, ".scope") ? SVC_DBUS_INTERFACE ".Scope" :
+						 SVC_DBUS_INTERFACE ".Service",
 		"ControlGroup", &error, &reply, "s");
 	if (r < 0) {
 		log_error("Failed to query ControlGroup: %s",
@@ -1620,9 +1620,9 @@ start_machine(int argc, char *argv[], void *userdata)
 		if (!unit)
 			return log_oom();
 
-		r = sd_bus_message_new_method_call(bus, &m,
-			"org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-			"org.freedesktop.systemd1.Manager", "StartUnit");
+		r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+			"/org/freedesktop/systemd1",
+			SVC_DBUS_INTERFACE ".Manager", "StartUnit");
 		if (r < 0)
 			return bus_log_create_error(r);
 
@@ -1675,8 +1675,8 @@ enable_machine(int argc, char *argv[], void *userdata)
 	method = streq(argv[0], "enable") ? "EnableUnitFiles" :
 						  "DisableUnitFiles";
 
-	r = sd_bus_message_new_method_call(bus, &m, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		method);
 	if (r < 0)
 		return bus_log_create_error(r);
@@ -1742,8 +1742,8 @@ enable_machine(int argc, char *argv[], void *userdata)
 
 	m = sd_bus_message_unref(m);
 
-	r = sd_bus_message_new_method_call(bus, &m, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"Reload");
 	if (r < 0)
 		return bus_log_create_error(r);

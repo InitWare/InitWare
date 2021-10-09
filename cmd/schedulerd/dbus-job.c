@@ -120,7 +120,7 @@ send_new_signal(sd_bus *bus, void *userdata)
 		return -ENOMEM;
 
 	r = sd_bus_message_new_signal(bus, &m, "/org/freedesktop/systemd1",
-		"org.freedesktop.systemd1.Manager", "JobNew");
+		SVC_DBUS_INTERFACE ".Manager", "JobNew");
 	if (r < 0)
 		return r;
 
@@ -144,8 +144,8 @@ send_changed_signal(sd_bus *bus, void *userdata)
 	if (!p)
 		return -ENOMEM;
 
-	return sd_bus_emit_properties_changed(bus, p,
-		"org.freedesktop.systemd1.Job", "State", NULL);
+	return sd_bus_emit_properties_changed(bus, p, SVC_DBUS_INTERFACE ".Job",
+		"State", NULL);
 }
 
 void
@@ -186,7 +186,7 @@ send_removed_signal(sd_bus *bus, void *userdata)
 		return -ENOMEM;
 
 	r = sd_bus_message_new_signal(bus, &m, "/org/freedesktop/systemd1",
-		"org.freedesktop.systemd1.Manager", "JobRemoved");
+		SVC_DBUS_INTERFACE ".Manager", "JobRemoved");
 	if (r < 0)
 		return r;
 

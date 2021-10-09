@@ -379,8 +379,8 @@ locale_update_system_manager(Context *c, sd_bus *bus)
 	}
 
 	assert(c_set + c_unset == _LOCALE_MAX);
-	r = sd_bus_message_new_method_call(bus, &m, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"UnsetAndSetEnvironment");
 	if (r < 0)
 		return r;
@@ -526,8 +526,8 @@ vconsole_reload(sd_bus *bus)
 
 	assert(bus);
 
-	r = sd_bus_call_method(bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"RestartUnit", &error, NULL, "ss",
 		"systemd-vconsole-setup.service", "replace");
 

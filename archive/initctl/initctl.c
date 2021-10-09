@@ -129,8 +129,8 @@ change_runlevel(Server *s, int runlevel)
 
 	log_debug("Running request %s/start/%s", target, mode);
 
-	r = sd_bus_call_method(s->bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(s->bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"StartUnit", &error, NULL, "ss", target, mode);
 	if (r < 0) {
 		log_error("Failed to change runlevel: %s",

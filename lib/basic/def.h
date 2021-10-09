@@ -1,5 +1,3 @@
-#pragma once
-
 /***
   This file is part of systemd.
 
@@ -18,6 +16,10 @@
   You should have received a copy of the GNU Lesser General Public License
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
+
+#pragma once
+
+#include "svc_def.h"
 
 #define DEFAULT_TIMEOUT_USEC (90 * USEC_PER_SEC)
 #define DEFAULT_RESTART_USEC (100 * USEC_PER_MSEC)

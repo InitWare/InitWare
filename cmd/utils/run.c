@@ -785,8 +785,8 @@ start_transient_service(sd_bus *bus, char **argv)
 	} else if (asprintf(&service, "run-" PID_FMT ".service", getpid()) < 0)
 		return log_oom();
 
-	r = sd_bus_message_new_method_call(bus, &m, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"StartTransientUnit");
 	if (r < 0)
 		return bus_log_create_error(r);
@@ -898,8 +898,8 @@ start_transient_scope(sd_bus *bus, char **argv)
 	} else if (asprintf(&scope, "run-" PID_FMT ".scope", getpid()) < 0)
 		return log_oom();
 
-	r = sd_bus_message_new_method_call(bus, &m, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"StartTransientUnit");
 	if (r < 0)
 		return bus_log_create_error(r);
@@ -1074,8 +1074,8 @@ start_transient_timer(sd_bus *bus, char **argv)
 		(asprintf(&timer, "run-" PID_FMT ".timer", getpid()) < 0))
 		return log_oom();
 
-	r = sd_bus_message_new_method_call(bus, &m, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"StartTransientUnit");
 	if (r < 0)
 		return bus_log_create_error(r);

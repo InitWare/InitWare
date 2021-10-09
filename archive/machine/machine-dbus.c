@@ -509,8 +509,8 @@ bus_machine_method_open_login(sd_bus *bus, sd_bus_message *message,
 	if (!getty)
 		return -ENOMEM;
 
-	r = sd_bus_call_method(container_bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_call_method(container_bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"StartUnit", error, NULL, "ss", getty, "replace");
 	if (r < 0)
 		return r;

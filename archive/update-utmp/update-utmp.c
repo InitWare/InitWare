@@ -54,8 +54,8 @@ get_startup_time(Context *c)
 
 	assert(c);
 
-	r = sd_bus_get_property_trivial(c->bus, "org.freedesktop.systemd1",
-		"/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+	r = sd_bus_get_property_trivial(c->bus, SVC_DBUS_BUSNAME,
+		"/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Manager",
 		"UserspaceTimestamp", &error, 't', &t);
 	if (r < 0) {
 		log_error("Failed to get timestamp: %s",
@@ -98,9 +98,8 @@ get_current_runlevel(Context *c)
 		if (!path)
 			return log_oom();
 
-		r = sd_bus_get_property_string(c->bus,
-			"org.freedesktop.systemd1", path,
-			"org.freedesktop.systemd1.Unit", "ActiveState", &error,
+		r = sd_bus_get_property_string(c->bus, SVC_DBUS_BUSNAME, path,
+			SVC_DBUS_INTERFACE ".Unit", "ActiveState", &error,
 			&state);
 		if (r < 0) {
 			log_warning("Failed to get state: %s",

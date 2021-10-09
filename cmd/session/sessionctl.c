@@ -244,8 +244,8 @@ show_unit_cgroup(sd_bus *bus, const char *interface, const char *unit,
 	if (!path)
 		return -ENOMEM;
 
-	r = sd_bus_get_property(bus, "org.freedesktop.systemd1", path,
-		interface, "ControlGroup", &error, &reply, "s");
+	r = sd_bus_get_property(bus, SVC_DBUS_BUSNAME, path, interface,
+		"ControlGroup", &error, &reply, "s");
 	if (r < 0)
 		return r;
 
@@ -505,7 +505,7 @@ print_session_status_info(sd_bus *bus, const char *path, bool *new_line)
 
 	if (i.scope) {
 		printf("\t    Unit: %s\n", i.scope);
-		show_unit_cgroup(bus, "org.freedesktop.systemd1.Scope", i.scope,
+		show_unit_cgroup(bus, SVC_DBUS_INTERFACE ".Scope", i.scope,
 			i.leader);
 
 		if (arg_transport == BUS_TRANSPORT_LOCAL) {
@@ -588,8 +588,7 @@ print_user_status_info(sd_bus *bus, const char *path, bool *new_line)
 
 	if (i.slice) {
 		printf("\t    Unit: %s\n", i.slice);
-		show_unit_cgroup(bus, "org.freedesktop.systemd1.Slice", i.slice,
-			0);
+		show_unit_cgroup(bus, SVC_DBUS_INTERFACE ".Slice", i.slice, 0);
 
 		show_journal_by_unit(stdout, i.slice, arg_output, 0,
 			i.timestamp.monotonic, arg_lines, 0,
