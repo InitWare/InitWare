@@ -953,6 +953,8 @@ manager_setup_cgrpfs_exit(Manager *m)
 			return log_error_errno(r,
 				"Failed to set priority of notify event source: %m");
 	}
+
+	return 0;
 }
 
 static int
@@ -1243,6 +1245,7 @@ manager_free(Manager *m)
 
 	sd_event_source_unref(m->signal_event_source);
 	sd_event_source_unref(m->notify_event_source);
+	sd_event_source_unref(m->cgrpfs_exit_event_source);
 	sd_event_source_unref(m->cgroups_agent_event_source);
 	sd_event_source_unref(m->time_change_event_source);
 	sd_event_source_unref(m->jobs_in_progress_event_source);
@@ -1251,6 +1254,7 @@ manager_free(Manager *m)
 
 	safe_close(m->signal_fd);
 	safe_close(m->notify_fd);
+	safe_close(m->cgrpfs_exit_fd);
 	safe_close(m->cgroups_agent_fd);
 	safe_close(m->time_change_fd);
 
@@ -1515,9 +1519,11 @@ manager_startup(Manager *m, FILE *serialization, FDSet *fds)
 	if (q < 0 && r == 0)
 		r = q;
 
+#ifdef SVC_PLATFORM_BSD
 	q = manager_setup_cgrpfs_exit(m);
 	if (q < 0 && r == 0)
 		r = q;
+#endif
 
 	/* We might have deserialized the kdbus control fd, but if we
          * didn't, then let's create the bus now. */
@@ -3258,6 +3264,12 @@ manager_reload(Manager *m)
 	q = manager_setup_notify(m);
 	if (q < 0 && r >= 0)
 		r = q;
+
+#ifdef SVC_PLATFORM_BSD
+	q = manager_setup_cgrpfs_exit(m);
+	if (q < 0 && r == 0)
+		r = q;
+#endif
 
 	q = manager_setup_cgroups_agent(m);
 	if (q < 0 && r >= 0)

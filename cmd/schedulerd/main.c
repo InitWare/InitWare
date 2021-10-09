@@ -1817,7 +1817,8 @@ main(int argc, char *argv[])
 				"Failed to adjust timer slack: %m");
 
 #ifdef SVC_USE_libcap
-	if (!cap_test_all(arg_capability_bounding_set)) {
+	if (arg_running_as == SYSTEMD_SYSTEM &&
+		!cap_test_all(arg_capability_bounding_set)) {
 		r = capability_bounding_set_drop_usermode(
 			arg_capability_bounding_set);
 		if (r < 0) {
