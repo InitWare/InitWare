@@ -444,8 +444,13 @@ cg_migrate_recursive_fallback(const char *cfrom, const char *pfrom,
 	return 0;
 }
 
+/*
+ * Convert a controller name to subdirectory of /sys/fs/cgroup to which it's
+ * mounted. This means nothing more than deleting any name= prefix that's
+ * present.
+ */
 static const char *
-normalize_controller(const char *controller)
+controller_to_dirname(const char *controller)
 {
 	assert(controller);
 
@@ -458,7 +463,7 @@ normalize_controller(const char *controller)
 }
 
 static int
-join_path(const char *controller, const char *path, const char *suffix,
+join_path_legacy(const char *controller, const char *path, const char *suffix,
 	char **fs)
 {
 	char *t = NULL;
@@ -491,36 +496,83 @@ join_path(const char *controller, const char *path, const char *suffix,
 	return 0;
 }
 
+static int
+join_path_unified(const char *path, const char *suffix, char **fs)
+{
+	char *t;
+
+	assert(fs);
+
+	if (isempty(path) && isempty(suffix))
+		t = strdup("/sys/fs/cgroup");
+	else if (isempty(path))
+		t = strappend("/sys/fs/cgroup/", suffix);
+	else if (isempty(suffix))
+		t = strappend("/sys/fs/cgroup/", path);
+	else
+		t = strjoin("/sys/fs/cgroup/", path, "/", suffix, NULL);
+	if (!t)
+		return -ENOMEM;
+
+	*fs = t;
+	return 0;
+}
+
 int
 cg_get_path(const char *controller, const char *path, const char *suffix,
 	char **fs)
 {
-	const char *p;
-	static thread_local bool good = false;
+	int unified, r;
 
 	assert(fs);
 
-	if (controller && !cg_controller_is_valid(controller, true))
-		return -EINVAL;
+	if (!controller) {
+		char *t;
 
-	if (_unlikely_(!good)) {
-		int r;
+		/* If no controller is specified, we assume only the
+                 * path below the controller matters */
 
-#ifdef SVC_PLATFORM_Linux
-		r = path_is_mount_point("/sys/fs/cgroup", false);
-		if (r < 0)
-			return r;
-		if (r == 0)
-			return -ENOENT;
-#endif
+		if (!path && !suffix)
+			return -EINVAL;
 
-		/* Cache this to save a few stat()s */
-		good = true;
+		if (isempty(suffix))
+			t = strdup(path);
+		else if (isempty(path))
+			t = strdup(suffix);
+		else
+			t = strjoin(path, "/", suffix, NULL);
+		if (!t)
+			return -ENOMEM;
+
+		*fs = path_kill_slashes(t);
+		return 0;
 	}
 
-	p = controller ? normalize_controller(controller) : NULL;
+	if (!cg_controller_is_valid(controller, true))
+		return -EINVAL;
 
-	return join_path(p, path, suffix, fs);
+	unified = cg_unified();
+	if (unified < 0)
+		return unified;
+
+	if (unified > 0)
+		r = join_path_unified(path, suffix, fs);
+	else {
+		const char *dn;
+
+		if (controller)
+			dn = controller_to_dirname(controller);
+		else
+			dn = NULL;
+
+		r = join_path_legacy(dn, path, suffix, fs);
+	}
+
+	if (r < 0)
+		return r;
+
+	path_kill_slashes(*fs);
+	return 0;
 }
 
 static int
@@ -554,14 +606,14 @@ cg_get_path_and_check(const char *controller, const char *path,
 		return -EINVAL;
 
 	/* Normalize the controller syntax */
-	p = normalize_controller(controller);
+	p = controller_to_dirname(controller);
 
 	/* Check if this controller actually really exists */
 	r = check_hierarchy(p);
 	if (r < 0)
 		return r;
 
-	return join_path(p, path, suffix, fs);
+	return join_path_legacy(p, path, suffix, fs);
 }
 
 static int
@@ -784,7 +836,7 @@ cg_pid_get_path(const char *controller, pid_t pid, char **path)
 		if (!cg_controller_is_valid(controller, true))
 			return -EINVAL;
 
-		controller = normalize_controller(controller);
+		controller = controller_to_dirname(controller);
 	} else
 		controller = SYSTEMD_CGROUP_CONTROLLER;
 
@@ -1030,7 +1082,7 @@ cg_split_spec(const char *spec, char **controller, char **path)
 			return -EINVAL;
 
 		if (controller) {
-			t = strdup(normalize_controller(spec));
+			t = strdup(controller_to_dirname(spec));
 			if (!t)
 				return -ENOMEM;
 
@@ -1046,7 +1098,7 @@ cg_split_spec(const char *spec, char **controller, char **path)
 	v = strndup(spec, e - spec);
 	if (!v)
 		return -ENOMEM;
-	t = strdup(normalize_controller(v));
+	t = strdup(controller_to_dirname(v));
 	if (!t)
 		return -ENOMEM;
 	if (!cg_controller_is_valid(t, true)) {
@@ -1961,4 +2013,10 @@ cg_blkio_weight_parse(const char *s, uint64_t *ret)
 
 	*ret = u;
 	return 0;
+}
+
+int
+cg_unified(void)
+{
+	return false;
 }

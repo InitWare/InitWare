@@ -196,6 +196,7 @@ int cg_migrate_everywhere(CGroupMask supported, const char *from,
 	const char *to, cg_migrate_callback_t callback, void *userdata);
 int cg_trim_everywhere(CGroupMask supported, const char *path,
 	bool delete_root);
+int cg_enable_everywhere(CGroupMask supported, CGroupMask mask, const char *p);
 
 CGroupMask cg_mask_supported(void);
 
@@ -203,6 +204,12 @@ int cg_kernel_controllers(Set *controllers);
 
 int cg_cpu_shares_parse(const char *s, uint64_t *ret);
 int cg_blkio_weight_parse(const char *s, uint64_t *ret);
+
+int cg_unified(void);
+void cg_unified_flush(void);
+
+bool cg_is_unified_wanted(void);
+bool cg_is_legacy_wanted(void);
 
 const char *cgroup_controller_to_string(CGroupController c) _const_;
 CGroupController cgroup_controller_from_string(const char *s) _pure_;
