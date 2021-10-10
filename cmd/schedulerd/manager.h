@@ -263,7 +263,7 @@ struct Manager {
 
 	/* Data specific to the cgroup subsystem */
 	Hashmap *cgroup_unit;
-	CGroupControllerMask cgroup_supported;
+	CGroupMask cgroup_supported;
 	char *cgroup_root;
 
 	int gc_marker;

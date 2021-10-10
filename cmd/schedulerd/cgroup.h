@@ -98,10 +98,10 @@ struct CGroupContext {
 void cgroup_context_init(CGroupContext *c);
 void cgroup_context_done(CGroupContext *c);
 void cgroup_context_dump(CGroupContext *c, FILE *f, const char *prefix);
-void cgroup_context_apply(CGroupContext *c, CGroupControllerMask mask,
-	const char *path, ManagerState state);
+void cgroup_context_apply(CGroupContext *c, CGroupMask mask, const char *path,
+	ManagerState state);
 
-CGroupControllerMask cgroup_context_get_mask(CGroupContext *c);
+CGroupMask cgroup_context_get_mask(CGroupContext *c);
 
 void cgroup_context_free_device_allow(CGroupContext *c, CGroupDeviceAllow *a);
 void cgroup_context_free_blockio_device_weight(CGroupContext *c,
@@ -109,10 +109,10 @@ void cgroup_context_free_blockio_device_weight(CGroupContext *c,
 void cgroup_context_free_blockio_device_bandwidth(CGroupContext *c,
 	CGroupBlockIODeviceBandwidth *b);
 
-CGroupControllerMask unit_get_cgroup_mask(Unit *u);
-CGroupControllerMask unit_get_siblings_mask(Unit *u);
-CGroupControllerMask unit_get_members_mask(Unit *u);
-CGroupControllerMask unit_get_target_mask(Unit *u);
+CGroupMask unit_get_cgroup_mask(Unit *u);
+CGroupMask unit_get_siblings_mask(Unit *u);
+CGroupMask unit_get_members_mask(Unit *u);
+CGroupMask unit_get_target_mask(Unit *u);
 
 void unit_update_cgroup_members_masks(Unit *u);
 int unit_realize_cgroup(Unit *u);

@@ -745,7 +745,7 @@ property_get_current_memory(sd_bus *bus, const char *path,
 	assert(reply);
 	assert(u);
 
-	if (u->cgroup_path && (u->cgroup_realized_mask & CGROUP_MEMORY)) {
+	if (u->cgroup_path && (u->cgroup_realized_mask & CGROUP_MASK_MEMORY)) {
 		_cleanup_free_ char *v = NULL;
 
 		r = cg_get_attribute("memory", u->cgroup_path,

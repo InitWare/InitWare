@@ -1716,10 +1716,9 @@ static const char mask_names[] = "cpu\0"
 				 "pids\0";
 
 int
-cg_create_everywhere(CGroupControllerMask supported, CGroupControllerMask mask,
-	const char *path)
+cg_create_everywhere(CGroupMask supported, CGroupMask mask, const char *path)
 {
-	CGroupControllerMask bit = 1;
+	CGroupMask bit = 1;
 	const char *n;
 	int r;
 
@@ -1746,10 +1745,10 @@ cg_create_everywhere(CGroupControllerMask supported, CGroupControllerMask mask,
 }
 
 int
-cg_attach_everywhere(CGroupControllerMask supported, const char *path,
-	pid_t pid, cg_migrate_callback_t path_callback, void *userdata)
+cg_attach_everywhere(CGroupMask supported, const char *path, pid_t pid,
+	cg_migrate_callback_t path_callback, void *userdata)
 {
-	CGroupControllerMask bit = 1;
+	CGroupMask bit = 1;
 	const char *n;
 	int r;
 
@@ -1777,8 +1776,8 @@ cg_attach_everywhere(CGroupControllerMask supported, const char *path,
 }
 
 int
-cg_attach_many_everywhere(CGroupControllerMask supported, const char *path,
-	Set *pids, cg_migrate_callback_t path_callback, void *userdata)
+cg_attach_many_everywhere(CGroupMask supported, const char *path, Set *pids,
+	cg_migrate_callback_t path_callback, void *userdata)
 {
 	Iterator i;
 	void *pidp;
@@ -1798,10 +1797,10 @@ cg_attach_many_everywhere(CGroupControllerMask supported, const char *path,
 }
 
 int
-cg_migrate_everywhere(CGroupControllerMask supported, const char *from,
-	const char *to, cg_migrate_callback_t to_callback, void *userdata)
+cg_migrate_everywhere(CGroupMask supported, const char *from, const char *to,
+	cg_migrate_callback_t to_callback, void *userdata)
 {
-	CGroupControllerMask bit = 1;
+	CGroupMask bit = 1;
 	const char *n;
 	int r;
 
@@ -1833,10 +1832,9 @@ cg_migrate_everywhere(CGroupControllerMask supported, const char *from,
 }
 
 int
-cg_trim_everywhere(CGroupControllerMask supported, const char *path,
-	bool delete_root)
+cg_trim_everywhere(CGroupMask supported, const char *path, bool delete_root)
 {
-	CGroupControllerMask bit = 1;
+	CGroupMask bit = 1;
 	const char *n;
 	int r;
 
@@ -1854,10 +1852,10 @@ cg_trim_everywhere(CGroupControllerMask supported, const char *path,
 	return 0;
 }
 
-CGroupControllerMask
+CGroupMask
 cg_mask_supported(void)
 {
-	CGroupControllerMask bit = 1, mask = 0;
+	CGroupMask bit = 1, mask = 0;
 	const char *n;
 
 	NULSTR_FOREACH (n, mask_names) {

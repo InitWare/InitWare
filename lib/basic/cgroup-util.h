@@ -32,16 +32,32 @@
 #define CGROUP_ROOT_DIR "/sys/fs/cgroup"
 #endif
 
-/* A bit mask of well known cgroup controllers */
-typedef enum CGroupControllerMask {
-	CGROUP_CPU = 1,
-	CGROUP_CPUACCT = 2,
-	CGROUP_BLKIO = 4,
-	CGROUP_MEMORY = 8,
-	CGROUP_DEVICE = 16,
-	CGROUP_PIDS = 32,
-	_CGROUP_CONTROLLER_MASK_ALL = 63
-} CGroupControllerMask;
+/* An enum of well known cgroup controllers */
+typedef enum CGroupController {
+	CGROUP_CONTROLLER_CPU,
+	CGROUP_CONTROLLER_CPUACCT,
+	CGROUP_CONTROLLER_BLKIO,
+	CGROUP_CONTROLLER_MEMORY,
+	CGROUP_CONTROLLER_DEVICE,
+	CGROUP_CONTROLLER_PIDS,
+	_CGROUP_CONTROLLER_MAX,
+	_CGROUP_CONTROLLER_INVALID = -1,
+} CGroupController;
+
+#define CGROUP_CONTROLLER_TO_MASK(c) (1 << (c))
+
+typedef enum CGroupMask {
+	CGROUP_MASK_CPU = CGROUP_CONTROLLER_TO_MASK(CGROUP_CONTROLLER_CPU),
+	CGROUP_MASK_CPUACCT = CGROUP_CONTROLLER_TO_MASK(
+		CGROUP_CONTROLLER_CPUACCT),
+	CGROUP_MASK_BLKIO = CGROUP_CONTROLLER_TO_MASK(CGROUP_CONTROLLER_BLKIO),
+	CGROUP_MASK_MEMORY = CGROUP_CONTROLLER_TO_MASK(
+		CGROUP_CONTROLLER_MEMORY),
+	CGROUP_MASK_DEVICE = CGROUP_CONTROLLER_TO_MASK(
+		CGROUP_CONTROLLER_DEVICE),
+	CGROUP_MASK_PIDS = CGROUP_CONTROLLER_TO_MASK(CGROUP_CONTROLLER_PIDS),
+	_CGROUP_MASK_ALL = CGROUP_CONTROLLER_TO_MASK(_CGROUP_CONTROLLER_MAX) - 1
+} CGroupMask;
 
 /* Special values for the cpu.shares attribute */
 #define CGROUP_CPU_SHARES_INVALID ((uint64_t)-1)
@@ -168,23 +184,25 @@ bool cg_controller_is_valid(const char *p, bool allow_named);
 
 int cg_slice_to_path(const char *unit, char **ret);
 
-typedef const char *(
-	*cg_migrate_callback_t)(CGroupControllerMask mask, void *userdata);
+typedef const char *(*cg_migrate_callback_t)(CGroupMask mask, void *userdata);
 
-int cg_create_everywhere(CGroupControllerMask supported,
-	CGroupControllerMask mask, const char *path);
-int cg_attach_everywhere(CGroupControllerMask supported, const char *path,
-	pid_t pid, cg_migrate_callback_t callback, void *userdata);
-int cg_attach_many_everywhere(CGroupControllerMask supported, const char *path,
-	Set *pids, cg_migrate_callback_t callback, void *userdata);
-int cg_migrate_everywhere(CGroupControllerMask supported, const char *from,
+int cg_create_everywhere(CGroupMask supported, CGroupMask mask,
+	const char *path);
+int cg_attach_everywhere(CGroupMask supported, const char *path, pid_t pid,
+	cg_migrate_callback_t callback, void *userdata);
+int cg_attach_many_everywhere(CGroupMask supported, const char *path, Set *pids,
+	cg_migrate_callback_t callback, void *userdata);
+int cg_migrate_everywhere(CGroupMask supported, const char *from,
 	const char *to, cg_migrate_callback_t callback, void *userdata);
-int cg_trim_everywhere(CGroupControllerMask supported, const char *path,
+int cg_trim_everywhere(CGroupMask supported, const char *path,
 	bool delete_root);
 
-CGroupControllerMask cg_mask_supported(void);
+CGroupMask cg_mask_supported(void);
 
 int cg_kernel_controllers(Set *controllers);
 
 int cg_cpu_shares_parse(const char *s, uint64_t *ret);
 int cg_blkio_weight_parse(const char *s, uint64_t *ret);
+
+const char *cgroup_controller_to_string(CGroupController c) _const_;
+CGroupController cgroup_controller_from_string(const char *s) _pure_;

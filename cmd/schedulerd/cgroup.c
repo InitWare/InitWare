@@ -308,8 +308,8 @@ fail:
 }
 
 void
-cgroup_context_apply(CGroupContext *c, CGroupControllerMask mask,
-	const char *path, ManagerState state)
+cgroup_context_apply(CGroupContext *c, CGroupMask mask, const char *path,
+	ManagerState state)
 {
 	bool is_root;
 	int r;
@@ -331,7 +331,7 @@ cgroup_context_apply(CGroupContext *c, CGroupControllerMask mask,
          * cgroup trees (assuming we are running in a container then),
          * and missing cgroups, i.e. EROFS and ENOENT. */
 
-	if ((mask & CGROUP_CPU) && !is_root) {
+	if ((mask & CGROUP_MASK_CPU) && !is_root) {
 		char buf[MAX(DECIMAL_STR_MAX(uint64_t), DECIMAL_STR_MAX(usec_t)) +
 			1];
 
@@ -374,7 +374,7 @@ cgroup_context_apply(CGroupContext *c, CGroupControllerMask mask,
 				path);
 	}
 
-	if (mask & CGROUP_BLKIO) {
+	if (mask & CGROUP_MASK_BLKIO) {
 		char buf[MAX(DECIMAL_STR_MAX(uint64_t) + 1,
 			DECIMAL_STR_MAX(dev_t) * 2 + 2 +
 				DECIMAL_STR_MAX(uint64_t) + 1)];
@@ -451,7 +451,7 @@ cgroup_context_apply(CGroupContext *c, CGroupControllerMask mask,
 		}
 	}
 
-	if ((mask & CGROUP_MEMORY) && !is_root) {
+	if ((mask & CGROUP_MASK_MEMORY) && !is_root) {
 		if (c->memory_limit != (uint64_t)-1) {
 			char buf[DECIMAL_STR_MAX(uint64_t) + 1];
 
@@ -470,7 +470,7 @@ cgroup_context_apply(CGroupContext *c, CGroupControllerMask mask,
 				path);
 	}
 
-	if ((mask & CGROUP_DEVICE) && !is_root) {
+	if ((mask & CGROUP_MASK_DEVICE) && !is_root) {
 		CGroupDeviceAllow *a;
 
 		/* Changing the devices list of a populated cgroup
@@ -547,7 +547,7 @@ cgroup_context_apply(CGroupContext *c, CGroupControllerMask mask,
 		}
 	}
 
-	if ((mask & CGROUP_PIDS) && !is_root) {
+	if ((mask & CGROUP_MASK_PIDS) && !is_root) {
 		if (c->tasks_max != (uint64_t)-1) {
 			char buf[DECIMAL_STR_MAX(uint64_t) + 2];
 
@@ -563,37 +563,37 @@ cgroup_context_apply(CGroupContext *c, CGroupControllerMask mask,
 	}
 }
 
-CGroupControllerMask
+CGroupMask
 cgroup_context_get_mask(CGroupContext *c)
 {
-	CGroupControllerMask mask = 0;
+	CGroupMask mask = 0;
 
 	/* Figure out which controllers we need */
 
 	if (c->cpu_accounting || c->cpu_shares != CGROUP_CPU_SHARES_INVALID ||
 		c->startup_cpu_shares != CGROUP_CPU_SHARES_INVALID ||
 		c->cpu_quota_per_sec_usec != USEC_INFINITY)
-		mask |= CGROUP_CPUACCT | CGROUP_CPU;
+		mask |= CGROUP_MASK_CPUACCT | CGROUP_MASK_CPU;
 
 	if (c->blockio_accounting ||
 		c->blockio_weight != CGROUP_BLKIO_WEIGHT_INVALID ||
 		c->startup_blockio_weight != CGROUP_BLKIO_WEIGHT_INVALID ||
 		c->blockio_device_weights || c->blockio_device_bandwidths)
-		mask |= CGROUP_BLKIO;
+		mask |= CGROUP_MASK_BLKIO;
 
 	if (c->memory_accounting || c->memory_limit != (uint64_t)-1)
-		mask |= CGROUP_MEMORY;
+		mask |= CGROUP_MASK_MEMORY;
 
 	if (c->device_allow || c->device_policy != CGROUP_AUTO)
-		mask |= CGROUP_DEVICE;
+		mask |= CGROUP_MASK_DEVICE;
 
 	if (c->tasks_accounting || c->tasks_max != (uint64_t)-1)
-		mask |= CGROUP_PIDS;
+		mask |= CGROUP_MASK_PIDS;
 
 	return mask;
 }
 
-CGroupControllerMask
+CGroupMask
 unit_get_cgroup_mask(Unit *u)
 {
 	CGroupContext *c;
@@ -612,13 +612,13 @@ unit_get_cgroup_mask(Unit *u)
 
 		e = unit_get_exec_context(u);
 		if (!e || exec_context_maintains_privileges(e))
-			return _CGROUP_CONTROLLER_MASK_ALL;
+			return _CGROUP_MASK_ALL;
 	}
 
 	return cgroup_context_get_mask(c);
 }
 
-CGroupControllerMask
+CGroupMask
 unit_get_members_mask(Unit *u)
 {
 	assert(u);
@@ -648,7 +648,7 @@ unit_get_members_mask(Unit *u)
 	return u->cgroup_members_mask;
 }
 
-CGroupControllerMask
+CGroupMask
 unit_get_siblings_mask(Unit *u)
 {
 	assert(u);
@@ -659,10 +659,10 @@ unit_get_siblings_mask(Unit *u)
 	return unit_get_cgroup_mask(u) | unit_get_members_mask(u);
 }
 
-CGroupControllerMask
+CGroupMask
 unit_get_target_mask(Unit *u)
 {
-	CGroupControllerMask mask;
+	CGroupMask mask;
 
 	mask = unit_get_cgroup_mask(u) | unit_get_members_mask(u) |
 		unit_get_siblings_mask(u);
@@ -676,7 +676,7 @@ unit_get_target_mask(Unit *u)
 void
 unit_update_cgroup_members_masks(Unit *u)
 {
-	CGroupControllerMask m;
+	CGroupMask m;
 	bool more;
 
 	assert(u);
@@ -722,7 +722,7 @@ unit_update_cgroup_members_masks(Unit *u)
 }
 
 static const char *
-migrate_callback(CGroupControllerMask mask, void *userdata)
+migrate_callback(CGroupMask mask, void *userdata)
 {
 	Unit *u = userdata;
 
@@ -741,7 +741,7 @@ migrate_callback(CGroupControllerMask mask, void *userdata)
 }
 
 static int
-unit_create_cgroups(Unit *u, CGroupControllerMask mask)
+unit_create_cgroups(Unit *u, CGroupMask mask)
 {
 	CGroupContext *c;
 	int r;
@@ -818,7 +818,7 @@ unit_attach_pids_to_cgroup(Unit *u)
 }
 
 static bool
-unit_has_mask_realized(Unit *u, CGroupControllerMask mask)
+unit_has_mask_realized(Unit *u, CGroupMask mask)
 {
 	assert(u);
 
@@ -834,7 +834,7 @@ unit_has_mask_realized(Unit *u, CGroupControllerMask mask)
 static int
 unit_realize_cgroup_now(Unit *u, ManagerState state)
 {
-	CGroupControllerMask mask;
+	CGroupMask mask;
 	int r;
 
 	assert(u);
@@ -1220,7 +1220,7 @@ unit_get_tasks_current(Unit *u, uint64_t *ret)
 	if (!u->cgroup_path)
 		return -ENODATA;
 
-	if ((u->cgroup_realized_mask & CGROUP_PIDS) == 0)
+	if ((u->cgroup_realized_mask & CGROUP_MASK_PIDS) == 0)
 		return -ENODATA;
 
 	r = cg_get_attribute("pids", u->cgroup_path, "pids.current", &v);
@@ -1239,3 +1239,14 @@ static const char *const cgroup_device_policy_table[_CGROUP_DEVICE_POLICY_MAX] =
 };
 
 DEFINE_STRING_TABLE_LOOKUP(cgroup_device_policy, CGroupDevicePolicy);
+
+static const char *cgroup_controller_table[_CGROUP_CONTROLLER_MAX] = {
+	[CGROUP_CONTROLLER_CPU] = "cpu",
+	[CGROUP_CONTROLLER_CPUACCT] = "cpuacct",
+	[CGROUP_CONTROLLER_BLKIO] = "blkio",
+	[CGROUP_CONTROLLER_MEMORY] = "memory",
+	[CGROUP_CONTROLLER_DEVICE] = "device",
+	[CGROUP_CONTROLLER_PIDS] = "pids",
+};
+
+DEFINE_STRING_TABLE_LOOKUP(cgroup_controller, CGroupController);

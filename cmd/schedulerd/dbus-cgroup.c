@@ -208,7 +208,7 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 
 		if (mode != UNIT_CHECK) {
 			c->cpu_accounting = b;
-			u->cgroup_realized_mask &= ~CGROUP_CPUACCT;
+			u->cgroup_realized_mask &= ~CGROUP_MASK_CPUACCT;
 			unit_write_drop_in_private(u, mode, name,
 				b ? "CPUAccounting=yes" : "CPUAccounting=no");
 		}
@@ -228,7 +228,7 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 
 		if (mode != UNIT_CHECK) {
 			c->cpu_shares = shares;
-			u->cgroup_realized_mask &= ~CGROUP_CPU;
+			u->cgroup_realized_mask &= ~CGROUP_MASK_CPU;
 
 			if (shares == CGROUP_CPU_SHARES_INVALID)
 				unit_write_drop_in_private(u, mode, name,
@@ -253,7 +253,7 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 
 		if (mode != UNIT_CHECK) {
 			c->startup_cpu_shares = shares;
-			u->cgroup_realized_mask &= ~CGROUP_CPU;
+			u->cgroup_realized_mask &= ~CGROUP_MASK_CPU;
 
 			if (shares == CGROUP_CPU_SHARES_INVALID)
 				unit_write_drop_in_private(u, mode, name,
@@ -278,7 +278,7 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 
 		if (mode != UNIT_CHECK) {
 			c->cpu_quota_per_sec_usec = u64;
-			u->cgroup_realized_mask &= ~CGROUP_CPU;
+			u->cgroup_realized_mask &= ~CGROUP_MASK_CPU;
 			unit_write_drop_in_private_format(u, mode, "CPUQuota",
 				"CPUQuota=%0.f%%",
 				(double)(c->cpu_quota_per_sec_usec / 10000));
@@ -295,7 +295,7 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 
 		if (mode != UNIT_CHECK) {
 			c->blockio_accounting = b;
-			u->cgroup_realized_mask &= ~CGROUP_BLKIO;
+			u->cgroup_realized_mask &= ~CGROUP_MASK_BLKIO;
 			unit_write_drop_in_private(u, mode, name,
 				b ? "BlockIOAccounting=yes" :
 					  "BlockIOAccounting=no");
@@ -316,7 +316,7 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 
 		if (mode != UNIT_CHECK) {
 			c->blockio_weight = weight;
-			u->cgroup_realized_mask &= ~CGROUP_BLKIO;
+			u->cgroup_realized_mask &= ~CGROUP_MASK_BLKIO;
 
 			if (weight == CGROUP_BLKIO_WEIGHT_INVALID)
 				unit_write_drop_in_private(u, mode, name,
@@ -341,7 +341,7 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 
 		if (mode != UNIT_CHECK) {
 			c->startup_blockio_weight = weight;
-			u->cgroup_realized_mask &= ~CGROUP_BLKIO;
+			u->cgroup_realized_mask &= ~CGROUP_MASK_BLKIO;
 
 			if (weight == CGROUP_BLKIO_WEIGHT_INVALID)
 				unit_write_drop_in_private(u, mode, name,
@@ -426,7 +426,7 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 							c, a);
 			}
 
-			u->cgroup_realized_mask &= ~CGROUP_BLKIO;
+			u->cgroup_realized_mask &= ~CGROUP_MASK_BLKIO;
 
 			f = open_memstream(&buf, &size);
 			if (!f)
@@ -521,7 +521,7 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 						c, c->blockio_device_weights);
 			}
 
-			u->cgroup_realized_mask &= ~CGROUP_BLKIO;
+			u->cgroup_realized_mask &= ~CGROUP_MASK_BLKIO;
 
 			f = open_memstream(&buf, &size);
 			if (!f)
@@ -549,7 +549,7 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 
 		if (mode != UNIT_CHECK) {
 			c->memory_accounting = b;
-			u->cgroup_realized_mask &= ~CGROUP_MEMORY;
+			u->cgroup_realized_mask &= ~CGROUP_MASK_MEMORY;
 			unit_write_drop_in_private(u, mode, name,
 				b ? "MemoryAccounting=yes" :
 					  "MemoryAccounting=no");
@@ -566,7 +566,7 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 
 		if (mode != UNIT_CHECK) {
 			c->memory_limit = limit;
-			u->cgroup_realized_mask &= ~CGROUP_MEMORY;
+			u->cgroup_realized_mask &= ~CGROUP_MASK_MEMORY;
 
 			if (limit == (uint64_t)-1)
 				unit_write_drop_in_private(u, mode, name,
@@ -594,7 +594,7 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 			char *buf;
 
 			c->device_policy = p;
-			u->cgroup_realized_mask &= ~CGROUP_DEVICE;
+			u->cgroup_realized_mask &= ~CGROUP_MASK_DEVICE;
 
 			buf = strjoina("DevicePolicy=", policy);
 			unit_write_drop_in_private(u, mode, name, buf);
@@ -678,7 +678,7 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 						c->device_allow);
 			}
 
-			u->cgroup_realized_mask &= ~CGROUP_DEVICE;
+			u->cgroup_realized_mask &= ~CGROUP_MASK_DEVICE;
 
 			f = open_memstream(&buf, &size);
 			if (!f)
@@ -705,7 +705,7 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 
 		if (mode != UNIT_CHECK) {
 			c->tasks_accounting = b;
-			u->cgroup_realized_mask &= ~CGROUP_PIDS;
+			u->cgroup_realized_mask &= ~CGROUP_MASK_PIDS;
 			unit_write_drop_in_private(u, mode, name,
 				b ? "TasksAccounting=yes" :
 					  "TasksAccounting=no");
@@ -725,7 +725,7 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 
 		if (mode != UNIT_CHECK) {
 			c->tasks_max = limit;
-			u->cgroup_realized_mask &= ~CGROUP_PIDS;
+			u->cgroup_realized_mask &= ~CGROUP_MASK_PIDS;
 
 			if (limit == (uint64_t)-1)
 				unit_write_drop_in_private(u, mode, name,
@@ -751,7 +751,7 @@ bus_cgroup_set_property(Unit *u, CGroupContext *c, const char *name,
 
 		if (mode != UNIT_CHECK) {
 			c->tasks_max = limit;
-			u->cgroup_realized_mask &= ~CGROUP_PIDS;
+			u->cgroup_realized_mask &= ~CGROUP_MASK_PIDS;
 			unit_write_drop_in_private_format(u, mode, name,
 				"TasksMax=%" PRIu32 "%%",
 				(uint32_t)(DIV_ROUND_UP((uint64_t)raw * 100U,
