@@ -30,6 +30,7 @@
 #cmakedefine HAVE_endian_h
 #cmakedefine HAVE_mntent_h
 #cmakedefine HAVE_mqueue_h
+#cmakedefine HAVE_xlocale_h
 
 /* data types */
 #cmakedefine HAVE_socket_struct_ucred

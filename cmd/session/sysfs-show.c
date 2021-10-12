@@ -27,6 +27,9 @@
 
 #ifdef SVC_USE_libudev
 #include <libudev.h>
+#else
+struct udev;
+struct udev_list_entry;
 #endif
 
 static int

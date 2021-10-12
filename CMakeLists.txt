@@ -129,6 +129,7 @@ check_include_file(endian.h HAVE_endian_h)
 check_include_file(mntent.h HAVE_mntent_h)
 check_include_file(mqueue.h HAVE_mqueue_h)
 check_include_file(ulimit.h HAVE_ulimit_h)
+check_include_file(xlocale.h HAVE_xlocale_h)
 
 check_type_size(pid_t SVC_SIZEOF_PID_T)
 check_type_size(uid_t SVC_SIZEOF_UID_T)

@@ -62,6 +62,10 @@
 #include <sys/auxv.h>
 #endif
 
+#ifdef HAVE_xlocale_h
+#include <xlocale.h>
+#endif
+
 #include "bsdglibc.h"
 #include "bsdsignal.h"
 #include "bsdxattr.h"

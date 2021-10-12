@@ -308,6 +308,8 @@ manager_enumerate_buttons(Manager *m)
 	}
 
 	return r;
+#else
+	return 0;
 #endif
 }
 

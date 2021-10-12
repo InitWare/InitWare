@@ -532,7 +532,7 @@ path_enter_running(Path *p)
 	trigger = UNIT_TRIGGER(UNIT(p));
 	if (!trigger) {
 		log_unit_error(UNIT(p)->id, "Unit to trigger vanished.");
-		path_enter_dead(p, TIMER_FAILURE_RESOURCES);
+		path_enter_dead(p, PATH_FAILURE_RESOURCES);
 		return;
 	}
 

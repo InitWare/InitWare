@@ -37,6 +37,7 @@
 #endif
 
 #include "architecture.h"
+#include "bsdcapability.h"
 #include "build.h"
 #include "bus-error.h"
 #include "bus-util.h"
@@ -80,7 +81,6 @@
 #include <sys/prctl.h>
 #endif
 
-#define CAP_ALL 0
 #define SYSTEMD_SHUTDOWN_BINARY_PATH "FIXMENOW!"
 
 static enum {

@@ -129,16 +129,6 @@
 #define SOL_NETLINK 270
 #endif
 
-#if !HAVE_DECL_PIVOT_ROOT
-static inline int
-missing_pivot_root(const char *new_root, const char *put_old)
-{
-	return syscall(SYS_pivot_root, new_root, put_old);
-}
-
-#define pivot_root missing_pivot_root
-#endif
-
 #ifndef __NR_memfd_create
 #if defined __x86_64__
 #define __NR_memfd_create 319

@@ -22,6 +22,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
+#include "bsdcapability.h"
 #include "hashmap.h"
 #include "list.h"
 #include "sd-bus.h"
@@ -38,12 +39,6 @@ typedef struct Manager Manager;
 #include "seat.h"
 #include "session.h"
 #include "user.h"
-
-#ifndef CAP_SYS_ADMIN
-#define CAP_SYS_ADMIN 0
-#define CAP_SYS_BOOT 0
-#define CAP_KILL 0
-#endif
 
 #ifdef SVC_USE_libudev
 #include <libudev.h>

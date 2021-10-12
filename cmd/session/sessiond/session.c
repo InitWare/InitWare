@@ -736,7 +736,8 @@ session_release(Session *s)
 		return;
 
 	if (!s->timer_event_source) {
-		log_debug("session %s: beginning release timeout of %d seconds",
+		log_debug("session %s: beginning release timeout of %" PRIu64
+			  " seconds",
 			s->id, RELEASE_USEC / USEC_PER_SEC);
 		sd_event_add_time(s->manager->event, &s->timer_event_source,
 			CLOCK_MONOTONIC, now(CLOCK_MONOTONIC) + RELEASE_USEC, 0,

@@ -841,7 +841,7 @@ cg_pid_get_path(const char *controller, pid_t pid, char **path)
 		controller = SYSTEMD_CGROUP_CONTROLLER;
 
 #ifdef SVC_PLATFORM_Linux
-	fs = procfs_file_alloca(pid, "cgroup");
+	fs = (char *)procfs_file_alloca(pid, "cgroup");
 #else
 	fs = alloca(strlen("/mnt/systemd/cgroup.meta/") +
 		DECIMAL_STR_MAX(pid_t) + strlen("/cgroup") + 1);

@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include "bsdcapability.h"
 #include "bus-common-errors.h"
 #include "bus-error.h"
 #include "bus-internal.h"
@@ -40,8 +41,6 @@
 #include "strv.h"
 #include "strxcpyx.h"
 
-#define CAP_SYS_ADMIN 0
-#define CAP_KILL 0
 
 #define CONNECTIONS_MAX 4096
 

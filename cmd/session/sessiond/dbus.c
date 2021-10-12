@@ -23,6 +23,7 @@
 #include <unistd.h>
 
 #include "audit.h"
+#include "bsdcapability.h"
 #include "bsdsignal.h"
 #include "bus-common-errors.h"
 #include "bus-error.h"
@@ -1303,7 +1304,7 @@ trigger_device(Manager *m, struct udev_device *d)
 	}
 
 	return 0;
-
+#else
 	unimplemented();
 	return -ENOTSUP;
 #endif

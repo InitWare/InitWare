@@ -21,6 +21,7 @@
 #include <unistd.h>
 
 #include "architecture.h"
+#include "bsdcapability.h"
 #include "build.h"
 #include "bus-common-errors.h"
 #include "clock-util.h"
@@ -2220,8 +2221,6 @@ method_get_unit_file_links(sd_bus *bus, sd_bus_message *message, void *userdata,
 
 	return sd_bus_send(bus, reply, NULL);
 }
-
-#define CAP_SYS_BOOT 0
 
 const sd_bus_vtable bus_manager_vtable[] = { SD_BUS_VTABLE_START(0),
 

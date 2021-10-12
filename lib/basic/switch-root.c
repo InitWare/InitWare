@@ -130,7 +130,7 @@ switch_root(const char *new_root, const char *oldroot, bool detach_oldroot,
 	/* We first try a pivot_root() so that we can umount the old
          * root dir. In many cases (i.e. where rootfs is /), that's
          * not possible however, and hence we simply overmount root */
-	if (pivot_root(new_root, temporary_old_root) >= 0) {
+	if (syscall(SYS_pivot_root, new_root, temporary_old_root) >= 0) {
 		/* Immediately get rid of the old root, if detach_oldroot is set.
                  * Since we are running off it we need to do this lazily. */
 		if (detach_oldroot && umount2(oldroot, MNT_DETACH) < 0)
