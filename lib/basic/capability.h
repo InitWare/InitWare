@@ -21,6 +21,8 @@
 
 #include "svc-config.h"
 
+#define CAP_ALL (uint64_t) - 1
+
 #ifdef SVC_USE_libcap
 
 #include <sys/capability.h>
@@ -28,8 +30,6 @@
 #include <stdbool.h>
 
 #include "util.h"
-
-#define CAP_ALL (uint64_t) - 1
 
 unsigned long cap_last_cap(void);
 int have_effective_cap(int value);

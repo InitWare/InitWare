@@ -1186,7 +1186,8 @@ parse_rlimit_range(const char *unit, const char *filename, unsigned line,
 		return log_syntax(unit, LOG_WARNING, filename, line, 0,
 			"Invalid resource value (" RLIM_FMT " > " RLIM_FMT
 			"), ignoring: %s",
-			soft, hard, whole_value);
+			rlim_to_uintmax(soft), rlim_to_uintmax(hard),
+			whole_value);
 
 	if (!*rl) {
 		*rl = new (struct rlimit, 1);

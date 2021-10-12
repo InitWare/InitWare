@@ -33,7 +33,13 @@
 #include "mmap-cache.h"
 #include "sparse-endian.h"
 
-#ifdef __clang__
+#ifdef __GNUC__
+#if __GNUC__ >= 9
+#define SVC_GCC_9
+#endif
+#endif
+
+#if defined(__clang__) || defined(SVC_GCC_9)
 #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
 #endif
 

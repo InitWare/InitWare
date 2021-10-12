@@ -92,13 +92,12 @@
 #error Unknown time_t size
 #endif
 
-#if SVC_SIZEOF_RLIM_T == 8
-#define RLIM_FMT "%" PRIu64
-#elif SVC_SIZEOF_RLIM_T == 4
-#define RLIM_FMT "%" PRIu32
-#else
-#error Unknown rlim_t size
-#endif
+#define RLIM_FMT "%" PRIuMAX
+static inline uintmax_t
+rlim_to_uintmax(rlim_t rlim)
+{
+	return (uintmax_t)rlim;
+}
 
 #include "macro.h"
 #include "missing.h"
