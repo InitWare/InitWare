@@ -748,6 +748,7 @@ config_parse_capability_set(const char *unit, const char *filename,
 	const char *lvalue, int ltype, const char *rvalue, void *data,
 	void *userdata)
 {
+#ifdef SVC_HAVE_libcap
 	uint64_t *capability_set = data;
 	uint64_t sum = 0, initial = 0;
 	bool invert = false;
@@ -804,6 +805,9 @@ config_parse_capability_set(const char *unit, const char *filename,
 		*capability_set |= sum;
 
 	return 0;
+#else
+	return -ENOTSUP;
+#endif
 }
 #endif
 

@@ -308,7 +308,9 @@ configure_file(head/systemd/svc-config.h.in head/systemd/svc-config.h)
 # the build proper
 # ------------------------------------------------------------------------------
 
-add_to_m4_params(SVC_PLATFORM_Linux SVC_PLATFORM_BSD SVC_USE_PAM HAVE_RLIMIT_AS)
+add_to_m4_params(SVC_PLATFORM_Linux SVC_PLATFORM_BSD
+    SVC_USE_PAM SVC_USE_libcap
+    HAVE_RLIMIT_AS)
 
 add_subdirectory(vendor/iw-cjson)
 add_subdirectory(cmd)
