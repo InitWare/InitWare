@@ -66,7 +66,7 @@ dev_setup(const char *prefix)
 		} else
 			symlink_label(j, k);
 	}
+#endif
 
 	return 0;
-#endif
 }

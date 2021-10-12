@@ -58,13 +58,6 @@
 #include <libgen.h>
 #undef basename
 
-#ifdef HAVE_SYS_AUXV_H
-#include <sys/auxv.h>
-#endif
-
-#ifdef HAVE_xlocale_h
-#include <xlocale.h>
-#endif
 
 #include "bsdglibc.h"
 #include "bsdsignal.h"
@@ -106,8 +99,16 @@
 #include "ioprio.h"
 #endif
 
+#ifdef HAVE_sys_auxv_h
+#include <sys/auxv.h>
+#endif
+
 #ifdef SVC_HAVE_sys_prctl_h
 #include <sys/prctl.h>
+#endif
+
+#ifdef HAVE_xlocale_h
+#include <xlocale.h>
 #endif
 
 int saved_argc = 0;
