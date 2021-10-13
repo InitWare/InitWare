@@ -1409,7 +1409,7 @@ main(int argc, char *argv[])
 	dual_timestamp kernel_timestamp = DUAL_TIMESTAMP_NULL;
 	dual_timestamp security_start_timestamp = DUAL_TIMESTAMP_NULL;
 	dual_timestamp security_finish_timestamp = DUAL_TIMESTAMP_NULL;
-	static char systemd[] = "systemd";
+	static char systemd[] = "svc.schedulerd";
 	bool skip_setup = false;
 	unsigned j;
 	bool loaded_policy = false;

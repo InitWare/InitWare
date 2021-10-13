@@ -645,6 +645,7 @@ log_internalv(int level, int error, const char *file, int line,
 {
 	PROTECT_ERRNO;
 	char buffer[LINE_MAX], fmtcpy[LINE_MAX];
+	const char *use = format;
 
 	if (error < 0)
 		error = -error;
@@ -656,9 +657,11 @@ log_internalv(int level, int error, const char *file, int line,
 	if (error != 0)
 		errno = error;
 
+#if !defined(__GLIBC__) || !defined(SVC_PLATFORM_FreeBSD)
 	expand_percentm(_saved_errno_, format, fmtcpy);
-
-	vsnprintf(buffer, sizeof(buffer), fmtcpy, ap);
+	use = fmtcpy;
+#endif
+	vsnprintf(buffer, sizeof(buffer), use, ap);
 
 	return log_dispatch(level, error, file, line, func, NULL, NULL, buffer);
 }
@@ -684,6 +687,7 @@ log_object_internalv(int level, int error, const char *file, int line,
 {
 	PROTECT_ERRNO;
 	char buffer[LINE_MAX], fmtcpy[LINE_MAX];
+	const char *use = format;
 
 	if (error < 0)
 		error = -error;
@@ -695,7 +699,10 @@ log_object_internalv(int level, int error, const char *file, int line,
 	if (error != 0)
 		errno = error;
 
+#if !defined(__GLIBC__) || !defined(SVC_PLATFORM_FreeBSD)
 	expand_percentm(_saved_errno_, format, fmtcpy);
+	use = fmtcpy;
+#endif
 
 	vsnprintf(buffer, sizeof(buffer), fmtcpy, ap);
 

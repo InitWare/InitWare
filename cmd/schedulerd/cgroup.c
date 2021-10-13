@@ -1114,7 +1114,10 @@ manager_setup_cgroup(Manager *m)
 	}
 
 	/* 7. Figure out which controllers are supported */
-	m->cgroup_supported = cg_mask_supported();
+	r = cg_mask_supported(&m->cgroup_supported);
+	if (r < 0)
+		return log_error_errno(r,
+			"Failed to check supported CGroups: %m");
 
 	return 0;
 }
@@ -1239,14 +1242,3 @@ static const char *const cgroup_device_policy_table[_CGROUP_DEVICE_POLICY_MAX] =
 };
 
 DEFINE_STRING_TABLE_LOOKUP(cgroup_device_policy, CGroupDevicePolicy);
-
-static const char *cgroup_controller_table[_CGROUP_CONTROLLER_MAX] = {
-	[CGROUP_CONTROLLER_CPU] = "cpu",
-	[CGROUP_CONTROLLER_CPUACCT] = "cpuacct",
-	[CGROUP_CONTROLLER_BLKIO] = "blkio",
-	[CGROUP_CONTROLLER_MEMORY] = "memory",
-	[CGROUP_CONTROLLER_DEVICE] = "device",
-	[CGROUP_CONTROLLER_PIDS] = "pids",
-};
-
-DEFINE_STRING_TABLE_LOOKUP(cgroup_controller, CGroupController);

@@ -198,7 +198,7 @@ int cg_trim_everywhere(CGroupMask supported, const char *path,
 	bool delete_root);
 int cg_enable_everywhere(CGroupMask supported, CGroupMask mask, const char *p);
 
-CGroupMask cg_mask_supported(void);
+int cg_mask_supported(CGroupMask *supported_out);
 
 int cg_kernel_controllers(Set *controllers);
 

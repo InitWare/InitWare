@@ -576,19 +576,42 @@ cg_get_path(const char *controller, const char *path, const char *suffix,
 }
 
 static int
-check_hierarchy(const char *p)
+check_hierarchy(const char *controller)
 {
-	const char *cc;
+	int unified;
 
-	assert(p);
+	assert(controller);
 
-	if (!filename_is_valid(p))
-		return 0;
+	/* Checks whether a specific controller is accessible,
+         * i.e. its hierarchy mounted. In the unified hierarchy all
+         * controllers are considered accessible, except for the named
+         * hierarchies */
 
-	/* Check if this controller actually really exists */
-	cc = strjoina(CGROUP_ROOT_DIR "/", p);
-	if (laccess(cc, F_OK) < 0)
-		return -errno;
+	if (!cg_controller_is_valid(controller, true))
+		return -EINVAL;
+
+	unified = cg_unified();
+	if (unified < 0)
+		return unified;
+	if (unified > 0) {
+		/* We don't support named hierarchies if we are using
+                 * the unified hierarchy. */
+
+		if (streq(controller, SYSTEMD_CGROUP_CONTROLLER))
+			return 0;
+
+		if (startswith(controller, "name="))
+			return -EOPNOTSUPP;
+
+	} else {
+		const char *cc, *dn;
+
+		dn = controller_to_dirname(controller);
+		cc = strjoina(CGROUP_ROOT_DIR "/", dn);
+
+		if (laccess(cc, F_OK) < 0)
+			return -errno;
+	}
 
 	return 0;
 }
@@ -605,15 +628,12 @@ cg_get_path_and_check(const char *controller, const char *path,
 	if (!cg_controller_is_valid(controller, true))
 		return -EINVAL;
 
-	/* Normalize the controller syntax */
-	p = controller_to_dirname(controller);
-
 	/* Check if this controller actually really exists */
-	r = check_hierarchy(p);
+	r = check_hierarchy(controller);
 	if (r < 0)
 		return r;
 
-	return join_path_legacy(p, path, suffix, fs);
+	return cg_get_path(controller, path, suffix, fs);
 }
 
 static int
@@ -808,17 +828,12 @@ cg_set_task_access(const char *controller, const char *path, mode_t mode,
 	if (r < 0)
 		return r;
 
-#ifdef SVC_PLATFORM_Linux // no tasks on BSD
 	/* Compatibility, Always keep values for "tasks" in sync with
          * "cgroup.procs" */
-	r = cg_get_path(controller, path, "tasks", &procs);
-	if (r < 0)
-		return r;
-
-	return chmod_and_chown(procs, mode, uid, gid);
-#else
-	return 0;
-#endif
+	if (cg_get_path(controller, path, "tasks", &procs) >= 0)
+		return chmod_and_chown(procs, mode, uid, gid);
+	else
+		return 0;
 }
 
 int
@@ -827,18 +842,24 @@ cg_pid_get_path(const char *controller, pid_t pid, char **path)
 	_cleanup_fclose_ FILE *f = NULL;
 	char line[LINE_MAX];
 	char *fs;
-	size_t cs;
+	size_t cs = 0;
+	int unified;
 
 	assert(path);
 	assert(pid >= 0);
 
-	if (controller) {
-		if (!cg_controller_is_valid(controller, true))
-			return -EINVAL;
+	unified = cg_unified();
+	if (unified < 0)
+		return unified;
+	if (unified == 0) {
+		if (controller) {
+			if (!cg_controller_is_valid(controller, true))
+				return -EINVAL;
+		} else
+			controller = SYSTEMD_CGROUP_CONTROLLER;
 
-		controller = controller_to_dirname(controller);
-	} else
-		controller = SYSTEMD_CGROUP_CONTROLLER;
+		cs = strlen(controller);
+	}
 
 #ifdef SVC_PLATFORM_Linux
 	fs = (char *)procfs_file_alloca(pid, "cgroup");
@@ -852,44 +873,48 @@ cg_pid_get_path(const char *controller, pid_t pid, char **path)
 	if (!f)
 		return errno == ENOENT ? -ESRCH : -errno;
 
-	cs = strlen(controller);
-
 	FOREACH_LINE(line, f, return -errno)
 	{
-		char *l, *p, *e;
-		size_t k;
-		const char *word, *state;
-		bool found = false;
+		char *e, *p;
 
 		truncate_nl(line);
 
-		l = strchr(line, ':');
-		if (!l)
-			continue;
+		if (unified) {
+			e = startswith(line, "0:");
+			if (!e)
+				continue;
 
-		l++;
-		e = strchr(l, ':');
-		if (!e)
-			continue;
+			e = strchr(e, ':');
+			if (!e)
+				continue;
+		} else {
+			char *l;
+			size_t k;
+			const char *word, *state;
+			bool found = false;
 
-		*e = 0;
+			l = strchr(line, ':');
+			if (!l)
+				continue;
 
-		FOREACH_WORD_SEPARATOR(word, k, l, ",", state)
-		{
-			if (k == cs && memcmp(word, controller, cs) == 0) {
-				found = true;
-				break;
+			l++;
+			e = strchr(l, ':');
+			if (!e)
+				continue;
+
+			*e = 0;
+			FOREACH_WORD_SEPARATOR(word, k, l, ",", state)
+			{
+				if (k == cs &&
+					memcmp(word, controller, cs) == 0) {
+					found = true;
+					break;
+				}
 			}
 
-			if (k == 5 + cs && memcmp(word, "name=", 5) == 0 &&
-				memcmp(word + 5, controller, cs) == 0) {
-				found = true;
-				break;
-			}
+			if (!found)
+				continue;
 		}
-
-		if (!found)
-			continue;
 
 		p = strdup(e + 1);
 		if (!p)
@@ -1904,20 +1929,71 @@ cg_trim_everywhere(CGroupMask supported, const char *path, bool delete_root)
 	return 0;
 }
 
-CGroupMask
-cg_mask_supported(void)
+int
+cg_mask_supported(CGroupMask *ret)
 {
-	CGroupMask bit = 1, mask = 0;
-	const char *n;
+	CGroupMask mask = 0;
+	int r, unified;
 
-	NULSTR_FOREACH (n, mask_names) {
-		if (check_hierarchy(n) >= 0)
-			mask |= bit;
+	/* Determines the mask of supported cgroup controllers. Only
+         * includes controllers we can make sense of and that are
+         * actually accessible. */
 
-		bit <<= 1;
+	unified = cg_unified();
+	if (unified < 0)
+		return unified;
+	if (unified > 0) {
+		_cleanup_free_ char *controllers = NULL;
+		const char *c;
+
+		/* In the unified hierarchy we can read the supported
+                 * and accessible controllers from a the top-level
+                 * cgroup attribute */
+
+		r = read_one_line_file("/sys/fs/cgroup/cgroup.controllers",
+			&controllers);
+		if (r < 0)
+			return r;
+
+		c = controllers;
+		for (;;) {
+			_cleanup_free_ char *n = NULL;
+			CGroupController v;
+
+			r = extract_first_word(&c, &n, NULL, 0);
+			if (r < 0)
+				return r;
+			if (r == 0)
+				break;
+
+			v = cgroup_controller_from_string(n);
+			if (v < 0)
+				continue;
+
+			mask |= CGROUP_CONTROLLER_TO_MASK(v);
+		}
+
+		/* Currently, we only support the memory controller in
+                 * the unified hierarchy, mask everything else off. */
+		mask &= CGROUP_MASK_MEMORY;
+
+	} else {
+		CGroupController c;
+
+		/* In the legacy hierarchy, we check whether which
+                 * hierarchies are mounted. */
+
+		for (c = 0; c < _CGROUP_CONTROLLER_MAX; c++) {
+			const char *n;
+
+			n = cgroup_controller_to_string(c);
+			if (check_hierarchy(n) >= 0)
+				mask |= CGROUP_CONTROLLER_TO_MASK(c);
+		}
 	}
 
-	return mask;
+	*ret = mask;
+	return 0;
 }
 
 int
@@ -2018,5 +2094,20 @@ cg_blkio_weight_parse(const char *s, uint64_t *ret)
 int
 cg_unified(void)
 {
+#ifdef SVC_PLATFORM_Linux
+	return true;
+#else
 	return false;
+#endif
 }
+
+static const char *cgroup_controller_table[_CGROUP_CONTROLLER_MAX] = {
+	[CGROUP_CONTROLLER_CPU] = "cpu",
+	[CGROUP_CONTROLLER_CPUACCT] = "cpuacct",
+	[CGROUP_CONTROLLER_BLKIO] = "blkio",
+	[CGROUP_CONTROLLER_MEMORY] = "memory",
+	[CGROUP_CONTROLLER_DEVICE] = "device",
+	[CGROUP_CONTROLLER_PIDS] = "pids",
+};
+
+DEFINE_STRING_TABLE_LOOKUP(cgroup_controller, CGroupController);
