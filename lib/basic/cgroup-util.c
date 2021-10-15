@@ -828,8 +828,10 @@ cg_set_task_access(const char *controller, const char *path, mode_t mode,
 	if (r < 0)
 		return r;
 
-	/* Compatibility, Always keep values for "tasks" in sync with
-         * "cgroup.procs" */
+	/*
+	 * Compatibility, Always keep values for "tasks" in sync with
+         * "cgroup.procs", if "tasks" exists.
+	 */
 	if (cg_get_path(controller, path, "tasks", &procs) >= 0)
 		return chmod_and_chown(procs, mode, uid, gid);
 	else
@@ -1808,6 +1810,12 @@ cg_create_everywhere(CGroupMask supported, CGroupMask mask, const char *path)
 	if (r < 0)
 		return r;
 
+	r = cg_unified();
+	if (r < 0)
+		return r;
+	else if (r > 0)
+		return 0;
+
 	/* Then, do the same in the other hierarchies */
 	NULSTR_FOREACH (n, mask_names) {
 		if (mask & bit)
@@ -1832,6 +1840,12 @@ cg_attach_everywhere(CGroupMask supported, const char *path, pid_t pid,
 	r = cg_attach(SYSTEMD_CGROUP_CONTROLLER, path, pid);
 	if (r < 0)
 		return r;
+
+	r = cg_unified();
+	if (r < 0)
+		return r;
+	else if (r > 0)
+		return 0;
 
 	NULSTR_FOREACH (n, mask_names) {
 		if (supported & bit) {
@@ -1888,6 +1902,12 @@ cg_migrate_everywhere(CGroupMask supported, const char *from, const char *to,
 			return r;
 	}
 
+	r = cg_unified();
+	if (r < 0)
+		return r;
+	else if (r > 0)
+		return 0;
+
 	NULSTR_FOREACH (n, mask_names) {
 		if (supported & bit) {
 			const char *p = NULL;
@@ -1917,6 +1937,12 @@ cg_trim_everywhere(CGroupMask supported, const char *path, bool delete_root)
 
 	r = cg_trim(SYSTEMD_CGROUP_CONTROLLER, path, delete_root);
 	if (r < 0)
+		return r;
+
+	r = cg_unified();
+	if (r < 0)
+		return r;
+	else if (r > 0)
 		return r;
 
 	NULSTR_FOREACH (n, mask_names) {

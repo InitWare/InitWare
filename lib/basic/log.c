@@ -658,7 +658,7 @@ log_internalv(int level, int error, const char *file, int line,
 		errno = error;
 
 #if !defined(__GLIBC__) || !defined(SVC_PLATFORM_FreeBSD)
-	expand_percentm(_saved_errno_, format, fmtcpy);
+	expand_percentm(error, format, fmtcpy);
 	use = fmtcpy;
 #endif
 	vsnprintf(buffer, sizeof(buffer), use, ap);
@@ -700,7 +700,7 @@ log_object_internalv(int level, int error, const char *file, int line,
 		errno = error;
 
 #if !defined(__GLIBC__) || !defined(SVC_PLATFORM_FreeBSD)
-	expand_percentm(_saved_errno_, format, fmtcpy);
+	expand_percentm(error, format, fmtcpy);
 	use = fmtcpy;
 #endif
 
