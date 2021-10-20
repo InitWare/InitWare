@@ -380,21 +380,17 @@ job_dump(Job *j, FILE *f, const char *prefix)
  * Also, if A merged with B cannot be merged with C, then either A or B cannot
  * be merged with C either.
  */
+/* clang-format off */
 static const JobType job_merging_table[] = {
-	/* What \ With       *  JOB_START         JOB_VERIFY_ACTIVE  JOB_STOP JOB_RELOAD */
-	/*********************************************************************************/
-	/*JOB_START          */
-	/*JOB_VERIFY_ACTIVE  */ JOB_START,
-	/*JOB_STOP           */ -1,
-	-1,
-	/*JOB_RELOAD         */ JOB_RELOAD_OR_START,
-	JOB_RELOAD,
-	-1,
-	/*JOB_RESTART        */ JOB_RESTART,
-	JOB_RESTART,
-	-1,
-	JOB_RESTART,
+/* What \ With	*	JOB_START	JOB_VERIFY_ACTIVE  JOB_STOP JOB_RELOAD */
+/*********************************************************************************/
+/*JOB_START          */
+/*JOB_VERIFY_ACTIVE  */ JOB_START,
+/*JOB_STOP           */ -1,                  -1,
+/*JOB_RELOAD         */ JOB_RELOAD_OR_START, JOB_RELOAD,          -1,
+/*JOB_RESTART        */ JOB_RESTART,         JOB_RESTART,         -1, JOB_RESTART,
 };
+/* clang-format on */
 
 JobType
 job_type_lookup_merge(JobType a, JobType b)
@@ -748,17 +744,17 @@ job_print_status_message(Unit *u, JobType t, JobResult result)
 	const char *format;
 	static const char *const job_result_status_table[_JOB_RESULT_MAX] = {
 		[JOB_DONE] = ANSI_GREEN_ON "  OK  " ANSI_HIGHLIGHT_OFF,
-		[JOB_TIMEOUT] =
-			ANSI_HIGHLIGHT_RED_ON " TIME " ANSI_HIGHLIGHT_OFF,
-		[JOB_FAILED] =
-			ANSI_HIGHLIGHT_RED_ON "FAILED" ANSI_HIGHLIGHT_OFF,
-		[JOB_DEPENDENCY] =
-			ANSI_HIGHLIGHT_YELLOW_ON "DEPEND" ANSI_HIGHLIGHT_OFF,
+		[JOB_TIMEOUT] = ANSI_HIGHLIGHT_RED_ON
+		" TIME " ANSI_HIGHLIGHT_OFF,
+		[JOB_FAILED] = ANSI_HIGHLIGHT_RED_ON
+		"FAILED" ANSI_HIGHLIGHT_OFF,
+		[JOB_DEPENDENCY] = ANSI_HIGHLIGHT_YELLOW_ON
+		"DEPEND" ANSI_HIGHLIGHT_OFF,
 		[JOB_SKIPPED] = ANSI_HIGHLIGHT_ON " INFO " ANSI_HIGHLIGHT_OFF,
-		[JOB_ASSERT] =
-			ANSI_HIGHLIGHT_YELLOW_ON "ASSERT" ANSI_HIGHLIGHT_OFF,
-		[JOB_UNSUPPORTED] =
-			ANSI_HIGHLIGHT_YELLOW_ON "UNSUPP" ANSI_HIGHLIGHT_OFF,
+		[JOB_ASSERT] = ANSI_HIGHLIGHT_YELLOW_ON
+		"ASSERT" ANSI_HIGHLIGHT_OFF,
+		[JOB_UNSUPPORTED] = ANSI_HIGHLIGHT_YELLOW_ON
+		"UNSUPP" ANSI_HIGHLIGHT_OFF,
 	};
 
 	assert(u);
@@ -1248,8 +1244,8 @@ job_coldplug(Job *j)
 		return 0;
 
 	if (j->timer_event_source)
-		j->timer_event_source =
-			sd_event_source_unref(j->timer_event_source);
+		j->timer_event_source = sd_event_source_unref(
+			j->timer_event_source);
 
 	r = sd_event_add_time(j->manager->event, &j->timer_event_source,
 		CLOCK_MONOTONIC, j->begin_usec + j->unit->job_timeout, 0,

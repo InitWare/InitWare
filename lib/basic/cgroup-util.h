@@ -177,7 +177,13 @@ int cg_pid_get_slice(pid_t pid, char **slice);
 
 int cg_path_decode_unit(const char *cgroup, char **unit);
 
+/*
+ * Return the escaped form of this cgroup pathname component.
+ *
+ * A new string is allocated which is owned by the caller.
+ */
 char *cg_escape(const char *p);
+/* Return the unescaped form of this cgroup pathname component. */
 char *cg_unescape(const char *p) _pure_;
 
 bool cg_controller_is_valid(const char *p, bool allow_named);

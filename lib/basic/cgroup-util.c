@@ -1633,27 +1633,31 @@ cg_escape(const char *p)
          * is sufficient to remove a single prefixing underscore if
          * there is one. */
 
-	/* The return value of this function (unlike cg_unescape())
-         * needs free()! */
-
 	if (p[0] == 0 || p[0] == '_' || p[0] == '.' ||
 		streq(p, "notify_on_release") || streq(p, "release_agent") ||
-		streq(p, "tasks"))
+		streq(p, "tasks") || startswith(p, "cgroup."))
 		need_prefix = true;
 	else {
 		const char *dot;
 
 		dot = strrchr(p, '.');
 		if (dot) {
-			if (dot - p == 6 && memcmp(p, "cgroup", 6) == 0)
+			CGroupController c;
+			size_t l = dot - p;
+
+			for (c = 0; c < _CGROUP_CONTROLLER_MAX; c++) {
+				const char *n;
+
+				n = cgroup_controller_to_string(c);
+
+				if (l != strlen(n))
+					continue;
+
+				if (memcmp(p, n, l) != 0)
+					continue;
+
 				need_prefix = true;
-			else {
-				char *n;
-
-				n = strndupa(p, dot - p);
-
-				if (check_hierarchy(n) >= 0)
-					need_prefix = true;
+				break;
 			}
 		}
 	}
