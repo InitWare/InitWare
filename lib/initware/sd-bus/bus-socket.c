@@ -139,6 +139,44 @@ bus_socket_auth_needs_write(sd_bus *b)
 	return false;
 }
 
+static int bus_socket_write_null_byte(sd_bus *b) {
+#if defined(SVC_PLATFORM_FreeBSD) || defined(SVC_PLATFORM_DragonFlyBSD)
+	struct cmsgcred creds = { 0 };
+
+	union {
+		struct cmsghdr hdr;
+		uint8_t buf[CMSG_SPACE(sizeof(creds))];
+	} control;
+	memset(control.buf, 0, sizeof(control.buf));
+
+	struct msghdr mh;
+	zero(mh);
+
+	mh.msg_control = control.buf;
+	mh.msg_controllen = sizeof(control.buf);
+
+	struct cmsghdr *cmsgp = CMSG_FIRSTHDR(&mh);
+	cmsgp->cmsg_len = CMSG_LEN(sizeof(creds));
+	cmsgp->cmsg_level = SOL_SOCKET;
+	cmsgp->cmsg_type = SCM_CREDS;
+	memcpy(CMSG_DATA(cmsgp), &creds, sizeof(creds));
+
+	struct iovec iov;
+	mh.msg_iov = &iov;
+	mh.msg_iovlen = 1;
+	iov.iov_base = (void*) "\0";
+	iov.iov_len = 1;
+
+	int k = sendmsg(b->output_fd, &mh, MSG_DONTWAIT|MSG_NOSIGNAL);
+#else
+	int k = send(b->output_fd, (void*) "\0", 1, MSG_DONTWAIT|MSG_NOSIGNAL);
+#endif
+	if (k < 0)
+		return errno == EAGAIN ? 0 : -errno;
+	b->send_null_byte = false;
+	return 1;
+}
+
 static int
 bus_socket_write_auth(sd_bus *b)
 {
@@ -149,6 +187,9 @@ bus_socket_write_auth(sd_bus *b)
 
 	if (!bus_socket_auth_needs_write(b))
 		return 0;
+
+	if (b->send_null_byte)
+		return bus_socket_write_null_byte(b);
 
 	if (b->prefer_writev)
 		k = writev(b->output_fd, b->auth_iovec + b->auth_index,
@@ -668,7 +709,7 @@ bus_socket_start_auth_client(sd_bus *b)
 	assert(b);
 
 	if (b->anonymous_auth) {
-		auth_prefix = "\0AUTH ANONYMOUS ";
+		auth_prefix = "AUTH ANONYMOUS ";
 
 		/* For ANONYMOUS auth we send some arbitrary "trace" string */
 		l = 9;
@@ -676,7 +717,7 @@ bus_socket_start_auth_client(sd_bus *b)
 	} else {
 		char text[DECIMAL_STR_MAX(uid_t) + 1];
 
-		auth_prefix = "\0AUTH EXTERNAL ";
+		auth_prefix = "AUTH EXTERNAL ";
 
 		xsprintf(text, UID_FMT, geteuid());
 
@@ -692,6 +733,7 @@ bus_socket_start_auth_client(sd_bus *b)
 	else
 		auth_suffix = "\r\nBEGIN\r\n";
 
+	b->send_null_byte = true;
 	b->auth_iovec[0].iov_base = (void *)auth_prefix;
 	b->auth_iovec[0].iov_len = 1 + strlen(auth_prefix + 1);
 	b->auth_iovec[1].iov_base = (void *)b->auth_buffer;
