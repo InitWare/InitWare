@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <errno.h>
 
+#include "alloc-util.h"
 #include "async.h"
 #include "dbus-job.h"
 #include "dbus.h"
@@ -435,7 +436,7 @@ job_type_is_redundant(JobType a, UnitActiveState b)
 		return true;
 
 	default:
-		assert_not_reached("Invalid job type");
+		assert_not_reached();
 	}
 }
 
@@ -585,7 +586,7 @@ job_perform_on_unit(Job **j)
 		break;
 
 	default:
-		assert_not_reached("Invalid job type");
+		assert_not_reached();
 	}
 
 	/* Log if the job still exists and the start/stop/reload function
@@ -651,7 +652,7 @@ job_run_and_invalidate(Job *j)
 		break;
 
 	default:
-		assert_not_reached("Unknown job type");
+		assert_not_reached();
 	}
 
 	if (j) {

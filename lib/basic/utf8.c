@@ -47,6 +47,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "alloc-util.h"
 #include "utf8.h"
 #include "util.h"
 

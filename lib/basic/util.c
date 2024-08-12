@@ -58,7 +58,8 @@
 #include <libgen.h>
 #undef basename
 
-
+#include "alloc-util.h"
+#include "argv-util.h"
 #include "bsdglibc.h"
 #include "bsdsignal.h"
 #include "bsdxattr.h"
@@ -111,29 +112,10 @@
 #include <xlocale.h>
 #endif
 
-int saved_argc = 0;
-char **saved_argv = NULL;
-
 static volatile unsigned cached_columns = 0;
 static volatile unsigned cached_lines = 0;
 
 bool unichar_is_valid(int32_t ch);
-
-size_t
-page_size(void)
-{
-	static thread_local size_t pgsz = 0;
-	long r;
-
-	if (_likely_(pgsz > 0))
-		return pgsz;
-
-	r = sysconf(_SC_PAGESIZE);
-	assert(r > 0);
-
-	pgsz = (size_t)r;
-	return pgsz;
-}
 
 bool
 streq_ptr(const char *a, const char *b)
@@ -789,7 +771,7 @@ get_process_environ(pid_t pid, char **env)
 	_cleanup_free_ char *outcome = NULL;
 	int c;
 	const char *p;
-	size_t allocated = 0, sz = 0;
+	size_t sz = 0;
 
 	assert(pid >= 0);
 	assert(env);
@@ -801,7 +783,7 @@ get_process_environ(pid_t pid, char **env)
 		return -errno;
 
 	while ((c = fgetc(f)) != EOF) {
-		if (!GREEDY_REALLOC(outcome, allocated, sz + 5))
+		if (!GREEDY_REALLOC(outcome, sz + 5))
 			return -ENOMEM;
 
 		if (c == '\0')
@@ -5425,7 +5407,7 @@ int
 get_files_in_directory(const char *path, char ***list)
 {
 	_cleanup_closedir_ DIR *d = NULL;
-	size_t bufsize = 0, n = 0;
+	size_t n = 0;
 	_cleanup_strv_free_ char **l = NULL;
 
 	assert(path);
@@ -5455,7 +5437,7 @@ get_files_in_directory(const char *path, char ***list)
 
 		if (list) {
 			/* one extra slot is needed for the terminating NULL */
-			if (!GREEDY_REALLOC(l, bufsize, n + 2))
+			if (!GREEDY_REALLOC(l, n + 2))
 				return -ENOMEM;
 
 			l[n] = strdup(de->d_name);
@@ -5868,21 +5850,6 @@ format_bytes(char *buf, size_t l, off_t t)
 finish:
 	buf[l - 1] = 0;
 	return buf;
-}
-
-void *
-memdup(const void *p, size_t l)
-{
-	void *r;
-
-	assert(p);
-
-	r = malloc(l);
-	if (!r)
-		return NULL;
-
-	memcpy(r, p, l);
-	return r;
 }
 
 int
@@ -6912,55 +6879,6 @@ strrep(const char *s, unsigned n)
 
 	*p = 0;
 	return r;
-}
-
-void *
-greedy_realloc(void **p, size_t *allocated, size_t need, size_t size)
-{
-	size_t a, newalloc;
-	void *q;
-
-	assert(p);
-	assert(allocated);
-
-	if (*allocated >= need)
-		return *p;
-
-	newalloc = MAX(need * 2, 64u / size);
-	a = newalloc * size;
-
-	/* check for overflows */
-	if (a < size * need)
-		return NULL;
-
-	q = realloc(*p, a);
-	if (!q)
-		return NULL;
-
-	*p = q;
-	*allocated = newalloc;
-	return q;
-}
-
-void *
-greedy_realloc0(void **p, size_t *allocated, size_t need, size_t size)
-{
-	size_t prev;
-	uint8_t *q;
-
-	assert(p);
-	assert(allocated);
-
-	prev = *allocated;
-
-	q = greedy_realloc(p, allocated, need, size);
-	if (!q)
-		return NULL;
-
-	if (*allocated > prev)
-		memzero(q + prev * size, (*allocated - prev) * size);
-
-	return q;
 }
 
 bool
@@ -8173,7 +8091,7 @@ int
 unquote_first_word(const char **p, char **ret, bool relax)
 {
 	_cleanup_free_ char *s = NULL;
-	size_t allocated = 0, sz = 0;
+	size_t sz = 0;
 
 	enum {
 		START,
@@ -8220,7 +8138,7 @@ unquote_first_word(const char **p, char **ret, bool relax)
 			else if (strchr(WHITESPACE, c))
 				state = SPACE;
 			else {
-				if (!GREEDY_REALLOC(s, allocated, sz + 2))
+				if (!GREEDY_REALLOC(s, sz + 2))
 					return -ENOMEM;
 
 				s[sz++] = c;
@@ -8235,7 +8153,7 @@ unquote_first_word(const char **p, char **ret, bool relax)
 				return -EINVAL;
 			}
 
-			if (!GREEDY_REALLOC(s, allocated, sz + 2))
+			if (!GREEDY_REALLOC(s, sz + 2))
 				return -ENOMEM;
 
 			s[sz++] = c;
@@ -8253,7 +8171,7 @@ unquote_first_word(const char **p, char **ret, bool relax)
 			else if (c == '\\')
 				state = SINGLE_QUOTE_ESCAPE;
 			else {
-				if (!GREEDY_REALLOC(s, allocated, sz + 2))
+				if (!GREEDY_REALLOC(s, sz + 2))
 					return -ENOMEM;
 
 				s[sz++] = c;
@@ -8268,7 +8186,7 @@ unquote_first_word(const char **p, char **ret, bool relax)
 				return -EINVAL;
 			}
 
-			if (!GREEDY_REALLOC(s, allocated, sz + 2))
+			if (!GREEDY_REALLOC(s, sz + 2))
 				return -ENOMEM;
 
 			s[sz++] = c;
@@ -8283,7 +8201,7 @@ unquote_first_word(const char **p, char **ret, bool relax)
 			else if (c == '\\')
 				state = DOUBLE_QUOTE_ESCAPE;
 			else {
-				if (!GREEDY_REALLOC(s, allocated, sz + 2))
+				if (!GREEDY_REALLOC(s, sz + 2))
 					return -ENOMEM;
 
 				s[sz++] = c;
@@ -8298,7 +8216,7 @@ unquote_first_word(const char **p, char **ret, bool relax)
 				return -EINVAL;
 			}
 
-			if (!GREEDY_REALLOC(s, allocated, sz + 2))
+			if (!GREEDY_REALLOC(s, sz + 2))
 				return -ENOMEM;
 
 			s[sz++] = c;
@@ -9197,7 +9115,7 @@ extract_first_word(const char **p, char **ret, const char *separators,
 	ExtractFlags flags)
 {
 	_cleanup_free_ char *s = NULL;
-	size_t allocated = 0, sz = 0;
+	size_t sz = 0;
 	char c;
 	int r;
 
@@ -9221,7 +9139,7 @@ extract_first_word(const char **p, char **ret, const char *separators,
          * the pointer *p at the first invalid character. */
 
 	if (flags & EXTRACT_DONT_COALESCE_SEPARATORS)
-		if (!GREEDY_REALLOC(s, allocated, sz + 1))
+		if (!GREEDY_REALLOC(s, sz + 1))
 			return -ENOMEM;
 
 	for (;; (*p)++, c = **p) {
@@ -9236,7 +9154,7 @@ extract_first_word(const char **p, char **ret, const char *separators,
 			/* We found a non-blank character, so we will always
                          * want to return a string (even if it is empty),
                          * allocate it here. */
-			if (!GREEDY_REALLOC(s, allocated, sz + 1))
+			if (!GREEDY_REALLOC(s, sz + 1))
 				return -ENOMEM;
 			break;
 		}
@@ -9244,7 +9162,7 @@ extract_first_word(const char **p, char **ret, const char *separators,
 
 	for (;; (*p)++, c = **p) {
 		if (backslash) {
-			if (!GREEDY_REALLOC(s, allocated, sz + 7))
+			if (!GREEDY_REALLOC(s, sz + 7))
 				return -ENOMEM;
 
 			if (c == 0) {
@@ -9306,8 +9224,7 @@ extract_first_word(const char **p, char **ret, const char *separators,
 					backslash = true;
 					break;
 				} else {
-					if (!GREEDY_REALLOC(s, allocated,
-						    sz + 2))
+					if (!GREEDY_REALLOC(s, sz + 2))
 						return -ENOMEM;
 
 					s[sz++] = c;
@@ -9342,8 +9259,7 @@ extract_first_word(const char **p, char **ret, const char *separators,
 					goto finish;
 
 				} else {
-					if (!GREEDY_REALLOC(s, allocated,
-						    sz + 2))
+					if (!GREEDY_REALLOC(s, sz + 2))
 						return -ENOMEM;
 
 					s[sz++] = c;

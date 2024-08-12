@@ -17,6 +17,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "alloc-util.h"
 #include "dbus-timer.h"
 #include "bus-util.h"
 #include "dbus-unit.h"

@@ -18,6 +18,7 @@
 ***/
 
 #include "sd-path.h"
+#include "alloc-util.h"
 #include "architecture.h"
 #include "bsdglibc.h"
 #include "missing.h"

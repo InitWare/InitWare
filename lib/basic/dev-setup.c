@@ -24,6 +24,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "dev-setup.h"
 #include "label.h"
 #include "log.h"

@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#include "alloc-util.h"
 #include "install-printf.h"
 #include "specifier.h"
 #include "unit-name.h"

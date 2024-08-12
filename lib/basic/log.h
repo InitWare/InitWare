@@ -101,8 +101,10 @@ int log_dump_internal(int level, int error, const char *file, int line,
 noreturn void log_assert_failed(const char *text, const char *file, int line,
 	const char *func);
 
-noreturn void log_assert_failed_unreachable(const char *text, const char *file,
-	int line, const char *func);
+_noreturn_ void log_assert_failed_unreachable(
+                const char *file,
+                int line,
+                const char *func);
 
 void log_assert_failed_return(const char *text, const char *file, int line,
 	const char *func);

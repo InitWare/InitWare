@@ -25,6 +25,7 @@
 #include <stddef.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "compress.h"
 #include "fsprg.h"
 #include "journal-authenticate.h"

@@ -21,6 +21,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "fileio.h"
 #include "util.h"
 #include "virt.h"

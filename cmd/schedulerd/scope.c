@@ -499,7 +499,7 @@ scope_dispatch_timer(sd_event_source *source, usec_t usec, void *userdata)
 		break;
 
 	default:
-		assert_not_reached("Timeout at wrong time.");
+		assert_not_reached();
 	}
 
 	return 0;

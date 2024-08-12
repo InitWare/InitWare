@@ -20,6 +20,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "bsdglibc.h"
 #include "dropin.h"
 #include "fileio.h"

@@ -24,6 +24,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "install.h"
 #include "mkdir.h"
 #include "path-lookup.h"

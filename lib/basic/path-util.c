@@ -28,6 +28,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "bsdglibc.h"
 #include "fileio.h"
 #include "log.h"

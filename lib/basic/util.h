@@ -128,27 +128,12 @@ rlim_to_uintmax(rlim_t rlim)
 #define ANSI_HIGHLIGHT_OFF "\x1B[0m"
 #define ANSI_ERASE_TO_END_OF_LINE "\x1B[K"
 
-size_t page_size(void) _pure_;
-#define PAGE_ALIGN(l) ALIGN_TO((l), page_size())
-
 #define streq(a, b) (strcmp((a), (b)) == 0)
 #define strneq(a, b, n) (strncmp((a), (b), (n)) == 0)
 #define strcaseeq(a, b) (strcasecmp((a), (b)) == 0)
 #define strncaseeq(a, b, n) (strncasecmp((a), (b), (n)) == 0)
 
 bool streq_ptr(const char *a, const char *b) _pure_;
-
-#define new(t, n) ((t *)malloc_multiply(sizeof(t), (n)))
-
-#define new0(t, n) ((t *)calloc((n), sizeof(t)))
-
-#define newa(t, n) ((t *)alloca(sizeof(t) * (n)))
-
-#define newa0(t, n) ((t *)alloca0(sizeof(t) * (n)))
-
-#define newdup(t, p, n) ((t *)memdup_multiply(p, sizeof(t), (n)))
-
-#define malloc0(n) (calloc((n), 1))
 
 /* fdset.c */
 #define MAKE_SET(s) ((Set *)s)
@@ -764,9 +749,6 @@ int signal_from_string(const char *s) _pure_;
 
 int signal_from_string_try_harder(const char *s);
 
-extern int saved_argc;
-extern char **saved_argv;
-
 bool kexec_loaded(void);
 
 int prot_from_flags(int flags) _const_;
@@ -774,8 +756,6 @@ int prot_from_flags(int flags) _const_;
 char *format_bytes(char *buf, size_t l, off_t t);
 
 int fd_wait_for_event(int fd, int event, usec_t timeout);
-
-void *memdup(const void *p, size_t l) _alloc_(2);
 
 int is_kernel_thread(pid_t pid);
 
@@ -800,12 +780,6 @@ void warn_melody(void);
 
 int get_home_dir(char **ret);
 int get_shell(char **_ret);
-
-static inline void
-freep(void *p)
-{
-	free(*(void **)p);
-}
 
 static inline void
 closep(int *fd)
@@ -846,29 +820,12 @@ DEFINE_TRIVIAL_CLEANUP_FUNC(cpu_set_t *, CPU_FREE);
 #define _cleanup_cpu_free_ _cleanup_(CPU_FREEp)
 #endif
 
-_malloc_ _alloc_(1, 2) static inline void *malloc_multiply(size_t a, size_t b)
-{
-	if (_unlikely_(b != 0 && a > ((size_t)-1) / b))
-		return NULL;
-
-	return malloc(a * b);
-}
-
 _alloc_(2, 3) static inline void *realloc_multiply(void *p, size_t a, size_t b)
 {
 	if (_unlikely_(b != 0 && a > ((size_t)-1) / b))
 		return NULL;
 
 	return realloc(p, a * b);
-}
-
-_alloc_(2, 3) static inline void *memdup_multiply(const void *p, size_t a,
-	size_t b)
-{
-	if (_unlikely_(b != 0 && a > ((size_t)-1) / b))
-		return NULL;
-
-	return memdup(p, a * b);
 }
 
 bool filename_is_valid(const char *p) _pure_;
@@ -945,28 +902,11 @@ int search_and_fopen_nulstr(const char *path, const char *mode,
 			break;                                                 \
 		} else
 
-static inline void *
-mempset(void *s, int c, size_t n)
-{
-	memset(s, c, n);
-	return (uint8_t *)s + n;
-}
-
 char *hexmem(const void *p, size_t l);
 void *unhexmem(const char *p, size_t l);
 
 char *strextend(char **x, ...) _sentinel_;
 char *strrep(const char *s, unsigned n);
-
-void *greedy_realloc(void **p, size_t *allocated, size_t need, size_t size);
-void *greedy_realloc0(void **p, size_t *allocated, size_t need, size_t size);
-#define GREEDY_REALLOC(array, allocated, need)                                 \
-	greedy_realloc((void **)&(array), &(allocated), (need),                \
-		sizeof((array)[0]))
-
-#define GREEDY_REALLOC0(array, allocated, need)                                \
-	greedy_realloc0((void **)&(array), &(allocated), (need),               \
-		sizeof((array)[0]))
 
 static inline void
 _reset_errno_(int *saved_errno)
@@ -1068,31 +1008,6 @@ logind_running(void)
 	})
 
 int unlink_noerrno(const char *path);
-
-#define alloca0(n)                                                             \
-	({                                                                     \
-		char *_new_;                                                   \
-		size_t _len_ = n;                                              \
-		_new_ = alloca(_len_);                                         \
-		(void *)memset(_new_, 0, _len_);                               \
-	})
-
-/* It's not clear what alignment glibc/gcc alloca() guarantee, hence provide a guaranteed safe version */
-#define alloca_align(size, align)                                              \
-	({                                                                     \
-		void *_ptr_;                                                   \
-		size_t _mask_ = (align)-1;                                     \
-		_ptr_ = alloca((size) + _mask_);                               \
-		(void *)(((uintptr_t)_ptr_ + _mask_) & ~_mask_);               \
-	})
-
-#define alloca0_align(size, align)                                             \
-	({                                                                     \
-		void *_new_;                                                   \
-		size_t _size_ = (size);                                        \
-		_new_ = alloca_align(_size_, (align));                         \
-		(void *)memset(_new_, 0, _size_);                              \
-	})
 
 #define strjoina(a, ...)                                                       \
 	({                                                                     \

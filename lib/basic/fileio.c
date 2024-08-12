@@ -19,6 +19,7 @@
 
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "ctype.h"
 #include "def.h"
 #include "fileio.h"
@@ -216,7 +217,7 @@ parse_env_file_internal(FILE *f, const char *fname, const char *newline,
 	void *userdata, int *n_pushed)
 {
 	_cleanup_free_ char *contents = NULL, *key = NULL;
-	size_t key_alloc = 0, n_key = 0, value_alloc = 0, n_value = 0,
+	size_t n_key = 0, n_value = 0,
 	       last_value_whitespace = (size_t)-1,
 	       last_key_whitespace = (size_t)-1;
 	char *p, *value = NULL;
@@ -257,7 +258,7 @@ parse_env_file_internal(FILE *f, const char *fname, const char *newline,
 				state = KEY;
 				last_key_whitespace = (size_t)-1;
 
-				if (!GREEDY_REALLOC(key, key_alloc,
+				if (!GREEDY_REALLOC(key,
 					    n_key + 2)) {
 					r = -ENOMEM;
 					goto fail;
@@ -281,7 +282,7 @@ parse_env_file_internal(FILE *f, const char *fname, const char *newline,
 				else if (last_key_whitespace == (size_t)-1)
 					last_key_whitespace = n_key;
 
-				if (!GREEDY_REALLOC(key, key_alloc,
+				if (!GREEDY_REALLOC(key,
 					    n_key + 2)) {
 					r = -ENOMEM;
 					goto fail;
@@ -312,7 +313,7 @@ parse_env_file_internal(FILE *f, const char *fname, const char *newline,
 
 				n_key = 0;
 				value = NULL;
-				value_alloc = n_value = 0;
+				n_value = 0;
 
 			} else if (c == '\'')
 				state = SINGLE_QUOTE_VALUE;
@@ -323,7 +324,7 @@ parse_env_file_internal(FILE *f, const char *fname, const char *newline,
 			else if (!strchr(WHITESPACE, c)) {
 				state = VALUE;
 
-				if (!GREEDY_REALLOC(value, value_alloc,
+				if (!GREEDY_REALLOC(value,
 					    n_value + 2)) {
 					r = -ENOMEM;
 					goto fail;
@@ -359,7 +360,7 @@ parse_env_file_internal(FILE *f, const char *fname, const char *newline,
 
 				n_key = 0;
 				value = NULL;
-				value_alloc = n_value = 0;
+				n_value = 0;
 
 			} else if (c == '\\') {
 				state = VALUE_ESCAPE;
@@ -370,7 +371,7 @@ parse_env_file_internal(FILE *f, const char *fname, const char *newline,
 				else if (last_value_whitespace == (size_t)-1)
 					last_value_whitespace = n_value;
 
-				if (!GREEDY_REALLOC(value, value_alloc,
+				if (!GREEDY_REALLOC(value,
 					    n_value + 2)) {
 					r = -ENOMEM;
 					goto fail;
@@ -386,7 +387,7 @@ parse_env_file_internal(FILE *f, const char *fname, const char *newline,
 
 			if (!strchr(newline, c)) {
 				/* Escaped newlines we eat up entirely */
-				if (!GREEDY_REALLOC(value, value_alloc,
+				if (!GREEDY_REALLOC(value,
 					    n_value + 2)) {
 					r = -ENOMEM;
 					goto fail;
@@ -402,7 +403,7 @@ parse_env_file_internal(FILE *f, const char *fname, const char *newline,
 			else if (c == '\\')
 				state = SINGLE_QUOTE_VALUE_ESCAPE;
 			else {
-				if (!GREEDY_REALLOC(value, value_alloc,
+				if (!GREEDY_REALLOC(value,
 					    n_value + 2)) {
 					r = -ENOMEM;
 					goto fail;
@@ -417,7 +418,7 @@ parse_env_file_internal(FILE *f, const char *fname, const char *newline,
 			state = SINGLE_QUOTE_VALUE;
 
 			if (!strchr(newline, c)) {
-				if (!GREEDY_REALLOC(value, value_alloc,
+				if (!GREEDY_REALLOC(value,
 					    n_value + 2)) {
 					r = -ENOMEM;
 					goto fail;
@@ -433,7 +434,7 @@ parse_env_file_internal(FILE *f, const char *fname, const char *newline,
 			else if (c == '\\')
 				state = DOUBLE_QUOTE_VALUE_ESCAPE;
 			else {
-				if (!GREEDY_REALLOC(value, value_alloc,
+				if (!GREEDY_REALLOC(value,
 					    n_value + 2)) {
 					r = -ENOMEM;
 					goto fail;
@@ -448,7 +449,7 @@ parse_env_file_internal(FILE *f, const char *fname, const char *newline,
 			state = DOUBLE_QUOTE_VALUE;
 
 			if (!strchr(newline, c)) {
-				if (!GREEDY_REALLOC(value, value_alloc,
+				if (!GREEDY_REALLOC(value,
 					    n_value + 2)) {
 					r = -ENOMEM;
 					goto fail;
@@ -851,7 +852,7 @@ int
 read_line(FILE *f, size_t limit, char **ret)
 {
 	_cleanup_free_ char *buffer = NULL;
-	size_t n = 0, allocated = 0, count = 0;
+	size_t n = 0, count = 0;
 
 	assert(f);
 
@@ -869,7 +870,7 @@ read_line(FILE *f, size_t limit, char **ret)
          * If a line shall be skipped ret may be initialized as NULL. */
 
 	if (ret) {
-		if (!GREEDY_REALLOC(buffer, allocated, 1))
+		if (!GREEDY_REALLOC(buffer, 1))
 			return -ENOMEM;
 	}
 
@@ -899,7 +900,7 @@ read_line(FILE *f, size_t limit, char **ret)
 				break;
 
 			if (ret) {
-				if (!GREEDY_REALLOC(buffer, allocated, n + 2))
+				if (!GREEDY_REALLOC(buffer, n + 2))
 					return -ENOMEM;
 
 				buffer[n] = (char)c;

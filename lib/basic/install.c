@@ -23,6 +23,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "conf-files.h"
 #include "conf-parser.h"
 #include "fileio.h"
@@ -122,7 +123,7 @@ get_config_path(UnitFileScope scope, bool runtime, const char *root_dir,
 		break;
 
 	default:
-		assert_not_reached("Bad scope");
+		assert_not_reached();
 	}
 
 	if (!p)
@@ -173,7 +174,7 @@ is_config_path(UnitFileScope scope, const char *path)
 	}
 
 	default:
-		assert_not_reached("Bad scope");
+		assert_not_reached();
 	}
 }
 
@@ -1553,7 +1554,7 @@ unit_file_unmask(UnitFileScope scope, UnitFileFlags flags, const char *root_dir,
 	_cleanup_set_free_free_ Set *remove_symlinks_to = NULL;
 	_cleanup_free_ char *config_path = NULL;
 	_cleanup_strv_free_ char **todo = NULL;
-	size_t n_todo = 0, n_allocated = 0;
+	size_t n_todo = 0;
 	char **i;
 	bool dry_run;
 	int r, q;
@@ -1590,7 +1591,7 @@ unit_file_unmask(UnitFileScope scope, UnitFileFlags flags, const char *root_dir,
 		if (r == 0)
 			continue;
 
-		if (!GREEDY_REALLOC0(todo, n_allocated, n_todo + 2))
+		if (!GREEDY_REALLOC0(todo, n_todo + 2))
 			return -ENOMEM;
 
 		todo[n_todo] = strdup(*i);
@@ -1638,7 +1639,7 @@ unit_file_link(UnitFileScope scope, UnitFileFlags flags, const char *root_dir,
 	_cleanup_lookup_paths_free_ LookupPaths paths = {};
 	_cleanup_free_ char *config_path = NULL;
 	_cleanup_strv_free_ char **todo = NULL;
-	size_t n_todo = 0, n_allocated = 0;
+	size_t n_todo = 0;
 	char **i;
 	int r, q;
 
@@ -1689,7 +1690,7 @@ unit_file_link(UnitFileScope scope, UnitFileFlags flags, const char *root_dir,
 		if (q > 0)
 			continue;
 
-		if (!GREEDY_REALLOC0(todo, n_allocated, n_todo + 2))
+		if (!GREEDY_REALLOC0(todo, n_todo + 2))
 			return -ENOMEM;
 
 		todo[n_todo] = strdup(*i);
@@ -2044,7 +2045,7 @@ unit_file_lookup_state(UnitFileScope scope, const char *root_dir,
 		break;
 
 	default:
-		assert_not_reached("Unexpect unit file type.");
+		assert_not_reached();
 	}
 
 	*ret = state;

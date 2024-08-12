@@ -33,6 +33,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "bsdendian.h"
 #include "time-dst.h"
 #include "util.h"

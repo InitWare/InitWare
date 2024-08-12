@@ -17,6 +17,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "alloc-util.h"
 #include "bus-match.h"
 #include "bus-error.h"
 #include "bus-internal.h"
@@ -229,7 +230,7 @@ value_node_test(struct bus_match_node *node,
 	}
 
 	default:
-		assert_not_reached("Invalid node type");
+		assert_not_reached();
 	}
 }
 
@@ -261,7 +262,7 @@ value_node_same(struct bus_match_node *node,
 		return streq(node->value.str, value_str);
 
 	default:
-		assert_not_reached("Invalid node type");
+		assert_not_reached();
 	}
 }
 
@@ -397,7 +398,7 @@ bus_match_run(sd_bus *bus, struct bus_match_node *node, sd_bus_message *m)
 		break;
 
 	default:
-		assert_not_reached("Unknown match type.");
+		assert_not_reached();
 	}
 
 	if (BUS_MATCH_CAN_HASH(node->type)) {
@@ -794,7 +795,6 @@ bus_match_parse(const char *match, struct bus_match_component **_components,
 {
 	const char *p = match;
 	struct bus_match_component *components = NULL;
-	size_t components_allocated = 0;
 	unsigned n_components = 0, i;
 	_cleanup_free_ char *value = NULL;
 	int r;
@@ -807,7 +807,6 @@ bus_match_parse(const char *match, struct bus_match_component **_components,
 		const char *eq, *q;
 		enum bus_match_node_type t;
 		unsigned j = 0;
-		size_t value_allocated = 0;
 		bool escaped = false, quoted;
 		uint8_t u;
 
@@ -858,7 +857,7 @@ bus_match_parse(const char *match, struct bus_match_component **_components,
 				}
 			}
 
-			if (!GREEDY_REALLOC(value, value_allocated, j + 2)) {
+			if (!GREEDY_REALLOC(value, j + 2)) {
 				r = -ENOMEM;
 				goto fail;
 			}
@@ -885,8 +884,7 @@ bus_match_parse(const char *match, struct bus_match_component **_components,
 		} else
 			u = 0;
 
-		if (!GREEDY_REALLOC(components, components_allocated,
-			    n_components + 1)) {
+		if (!GREEDY_REALLOC(components, n_components + 1)) {
 			r = -ENOMEM;
 			goto fail;
 		}

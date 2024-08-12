@@ -36,6 +36,7 @@
 #include "strv.h"
 #include "util.h"
 
+#include "alloc-util.h"
 #include "bus-container.h"
 #include "bus-control.h"
 #include "bus-internal.h"
@@ -177,7 +178,7 @@ sd_bus_new(sd_bus **ret)
 
 	/* We guarantee that wqueue always has space for at least one
          * entry */
-	if (!GREEDY_REALLOC(r->wqueue, r->wqueue_allocated, 1)) {
+	if (!GREEDY_REALLOC(r->wqueue, 1)) {
 		free(r);
 		return -ENOMEM;
 	}
@@ -445,7 +446,7 @@ bus_start_running(sd_bus *bus)
 static int
 parse_address_key(const char **p, const char *key, char **value)
 {
-	size_t l, n = 0, allocated = 0;
+	size_t l, n = 0;
 	const char *a;
 	char *r = NULL;
 
@@ -493,7 +494,7 @@ parse_address_key(const char **p, const char *key, char **value)
 			a++;
 		}
 
-		if (!GREEDY_REALLOC(r, allocated, n + 2))
+		if (!GREEDY_REALLOC(r, n + 2))
 			return -ENOMEM;
 
 		r[n++] = c;
@@ -670,7 +671,6 @@ parse_exec_address(sd_bus *b, const char **p, char **guid)
 	char *path = NULL;
 	unsigned n_argv = 0, j;
 	char **argv = NULL;
-	size_t allocated = 0;
 	int r;
 
 	assert(b);
@@ -704,7 +704,7 @@ parse_exec_address(sd_bus *b, const char **p, char **guid)
 			(*p)++;
 
 			if (ul >= n_argv) {
-				if (!GREEDY_REALLOC0(argv, allocated, ul + 2)) {
+				if (!GREEDY_REALLOC0(argv, ul + 2)) {
 					r = -ENOMEM;
 					goto fail;
 				}
@@ -1777,8 +1777,7 @@ bus_rqueue_make_room(sd_bus *bus)
 	if (bus->rqueue_size >= BUS_RQUEUE_MAX)
 		return -ENOBUFS;
 
-	if (!GREEDY_REALLOC(bus->rqueue, bus->rqueue_allocated,
-		    bus->rqueue_size + 1))
+	if (!GREEDY_REALLOC(bus->rqueue, bus->rqueue_size + 1))
 		return -ENOMEM;
 
 	return 0;
@@ -1897,8 +1896,7 @@ bus_send_internal(sd_bus *bus, sd_bus_message *_m, uint64_t *cookie,
 		if (bus->wqueue_size >= BUS_WQUEUE_MAX)
 			return -ENOBUFS;
 
-		if (!GREEDY_REALLOC(bus->wqueue, bus->wqueue_allocated,
-			    bus->wqueue_size + 1))
+		if (!GREEDY_REALLOC(bus->wqueue, bus->wqueue_size + 1))
 			return -ENOMEM;
 
 		bus->wqueue[bus->wqueue_size++] = sd_bus_message_ref(m);
@@ -2939,7 +2937,7 @@ bus_process_internal(sd_bus *bus, bool hint_priority, int64_t priority,
 		return process_closing(bus, ret);
 	}
 
-	assert_not_reached("Unknown state");
+	assert_not_reached();
 }
 
 _public_ int

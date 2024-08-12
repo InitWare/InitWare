@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "bsdglibc.h"
 #include "bsdprintf.h"
 #include "log.h"
@@ -754,11 +755,10 @@ log_assert_failed(const char *text, const char *file, int line,
 }
 
 noreturn void
-log_assert_failed_unreachable(const char *text, const char *file, int line,
-	const char *func)
+log_assert_failed_unreachable(const char *file, int line, const char *func)
 {
-	log_assert(LOG_CRIT, text, file, line, func,
-		"Code should not be reached '%s' at %s:%u, function %s(). Aborting.");
+	log_assert(LOG_CRIT, "Code should not be reached", file, line, func,
+                   "%s at %s:%u, function %s(). Aborting. 💥");
 	abort();
 }
 

@@ -34,6 +34,7 @@
 #include <unistd.h>
 
 #include "af-list.h"
+#include "alloc-util.h"
 #include "apparmor-util.h"
 #include "async.h"
 #include "cap-list.h"
@@ -412,7 +413,7 @@ setup_input(const ExecContext *context, int socket_fd, bool apply_tty_stdin)
 								 STDIN_FILENO;
 
 	default:
-		assert_not_reached("Unknown input type");
+		assert_not_reached();
 	}
 }
 
@@ -507,7 +508,7 @@ setup_output(const ExecContext *context, int fileno, int socket_fd,
 		return dup2(socket_fd, fileno) < 0 ? -errno : fileno;
 
 	default:
-		assert_not_reached("Unknown error type");
+		assert_not_reached();
 	}
 }
 
@@ -1283,7 +1284,7 @@ static int
 build_pass_environment(const ExecContext *c, char ***ret)
 {
 	_cleanup_strv_free_ char **pass_env = NULL;
-	size_t n_env = 0, n_bufsize = 0;
+	size_t n_env = 0;
 	char **i;
 
 	STRV_FOREACH (i, c->pass_environment) {
@@ -1296,7 +1297,7 @@ build_pass_environment(const ExecContext *c, char ***ret)
 		x = strjoin(*i, "=", v, NULL);
 		if (!x)
 			return -ENOMEM;
-		if (!GREEDY_REALLOC(pass_env, n_bufsize, n_env + 2))
+		if (!GREEDY_REALLOC(pass_env, n_env + 2))
 			return -ENOMEM;
 		pass_env[n_env++] = x;
 		pass_env[n_env] = NULL;

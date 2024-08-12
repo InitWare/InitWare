@@ -25,6 +25,7 @@
 #include <unistd.h>
 
 #include "acl.h"
+#include "alloc-util.h"
 #include "mkdir.h"
 #include "path-util.h"
 #include "sd-id128.h"
@@ -538,7 +539,7 @@ seat_claim_position(Seat *s, Session *session, unsigned int pos)
 	if (seat_has_vts(s))
 		pos = session->vtnr;
 
-	if (!GREEDY_REALLOC0(s->positions, s->position_count, pos + 1))
+	if (!GREEDY_REALLOC0(s->positions, pos + 1))
 		return;
 
 	seat_evict_position(s, session);

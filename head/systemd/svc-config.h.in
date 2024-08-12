@@ -58,6 +58,7 @@
 #cmakedefine HAVE_strchrnul
 #cmakedefine HAVE_strtod_l
 #cmakedefine HAVE_waitid
+#cmakedefine HAVE_REALLOCARRAY
 
 /* paths */
 #define SVC_PKGDIRNAME "@SVC_PKGDIRNAME@"

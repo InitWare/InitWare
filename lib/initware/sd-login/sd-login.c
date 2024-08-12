@@ -23,6 +23,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "cgroup-util.h"
 #include "fileio.h"
 #include "login-shared.h"
@@ -887,7 +888,7 @@ _public_ int
 sd_machine_get_ifindices(const char *machine, int **ifindices)
 {
 	_cleanup_free_ char *netif = NULL;
-	size_t l, allocated = 0, nr = 0;
+	size_t l, nr = 0;
 	int *ni = NULL;
 	const char *p, *word, *state;
 	int r;
@@ -916,7 +917,7 @@ sd_machine_get_ifindices(const char *machine, int **ifindices)
 		if (ifi <= 0)
 			continue;
 
-		if (!GREEDY_REALLOC(ni, allocated, nr + 1)) {
+		if (!GREEDY_REALLOC(ni, nr + 1)) {
 			free(ni);
 			return -ENOMEM;
 		}

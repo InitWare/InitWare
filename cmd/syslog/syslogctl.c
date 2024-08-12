@@ -35,6 +35,7 @@
 #include <unistd.h>
 
 #include "acl-util.h"
+#include "alloc-util.h"
 #include "build.h"
 #include "bus-error.h"
 #include "bus-util.h"
@@ -824,7 +825,7 @@ parse_argv(int argc, char *argv[])
 			return -EINVAL;
 
 		default:
-			assert_not_reached("Unhandled option");
+			assert_not_reached();
 		}
 
 	if (arg_follow && !arg_no_tail && !arg_since &&

@@ -24,6 +24,7 @@
 #include <stddef.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "catalog.h"
 #include "compress.h"
 #include "fileio.h"
@@ -217,7 +218,7 @@ same_field(const void *_a, size_t s, const void *_b, size_t t)
 			return true;
 	}
 
-	assert_not_reached("\"=\" not found");
+	assert_not_reached();
 }
 
 static Match *

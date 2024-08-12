@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "alloc-util.h"
 #include "strv.h"
 #include "util.h"
 
@@ -305,7 +306,7 @@ strv_split_newlines(const char *s)
 int
 strv_split_quoted(char ***t, const char *s, bool relax)
 {
-	size_t n = 0, allocated = 0;
+	size_t n = 0;
 	_cleanup_strv_free_ char **l = NULL;
 	int r;
 
@@ -321,7 +322,7 @@ strv_split_quoted(char ***t, const char *s, bool relax)
 		if (r == 0)
 			break;
 
-		if (!GREEDY_REALLOC(l, allocated, n + 2))
+		if (!GREEDY_REALLOC(l, n + 2))
 			return -ENOMEM;
 
 		l[n++] = word;
@@ -391,8 +392,10 @@ strv_join_quoted(char **l)
 			goto oom;
 
 		/* reserving space for the escaped text, separator, quotes and NULL terminator. */
-		if (!GREEDY_REALLOC(buf, allocated, len + strlen(esc) + 4))
+		if (!GREEDY_REALLOC(buf, len + strlen(esc) + 4))
 			goto oom;
+		// HACK: CHECK IF THIS IS CORRECT!
+		allocated = len + strlen(esc) + 4;
 
 		needed = snprintf(buf + len, allocated - len, "%s\"%s\"",
 			len > 0 ? " " : "", esc);

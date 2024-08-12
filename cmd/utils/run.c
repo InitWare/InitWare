@@ -20,6 +20,7 @@
 #include <getopt.h>
 #include <stdio.h>
 
+#include "alloc-util.h"
 #include "build.h"
 #include "bus-error.h"
 #include "bus-util.h"
@@ -353,7 +354,7 @@ parse_argv(int argc, char *argv[])
 			return -EINVAL;
 
 		default:
-			assert_not_reached("Unhandled option");
+			assert_not_reached();
 		}
 
 	if ((optind >= argc) && (!arg_unit || !with_timer())) {
@@ -770,7 +771,7 @@ start_transient_service(sd_bus *bus, char **argv)
 			if (!pty_path)
 				return log_oom();
 		} else
-			assert_not_reached("Can't allocate tty via ssh");
+			assert_not_reached();
 
 		if (unlockpt(master) < 0)
 			return log_error_errno(errno,

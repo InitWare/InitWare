@@ -17,6 +17,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "alloc-util.h"
 #include "bus-slot.h"
 #include "bus-control.h"
 #include "bus-objects.h"
@@ -201,7 +202,7 @@ bus_slot_disconnect(sd_bus_slot *slot)
 		break;
 
 	default:
-		assert_not_reached("Wut? Unknown slot type?");
+		assert_not_reached();
 	}
 
 	bus = slot->bus;

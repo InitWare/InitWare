@@ -19,6 +19,7 @@
 
 #include "bsdxattr.h"
 
+#include "alloc-util.h"
 #include "copy.h"
 #include "util.h"
 

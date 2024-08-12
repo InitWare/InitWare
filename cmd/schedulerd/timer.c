@@ -19,6 +19,7 @@
 
 #include <errno.h>
 
+#include "alloc-util.h"
 #include "bsdglibc.h"
 #include "bus-error.h"
 #include "bus-util.h"
@@ -483,7 +484,7 @@ timer_enter_waiting(Timer *t)
 				break;
 
 			default:
-				assert_not_reached("Unknown timer base");
+				assert_not_reached();
 			}
 
 			if (t->wake_system)
@@ -858,7 +859,7 @@ timer_trigger_notify(Unit *u, Unit *other)
 		break;
 
 	default:
-		assert_not_reached("Unknown timer state");
+		assert_not_reached();
 	}
 }
 

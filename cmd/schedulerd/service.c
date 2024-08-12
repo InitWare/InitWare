@@ -22,6 +22,7 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "async.h"
 #include "bus-error.h"
 #include "bus-kernel.h"
@@ -1821,7 +1822,7 @@ service_enter_start(Service *s)
 		service_set_main_pid(s, pid);
 		service_set_state(s, SERVICE_START);
 	} else
-		assert_not_reached("Unknown service type");
+		assert_not_reached();
 
 	return;
 
@@ -2191,7 +2192,7 @@ service_serialize_exec_command(Unit *u, FILE *f, ExecCommand *command)
 	char **arg;
 	_cleanup_strv_free_ char **escaped_args = NULL;
 	_cleanup_free_ char *args = NULL, *p = NULL;
-	size_t allocated = 0, length = 0;
+	size_t length = 0;
 
 	assert(s);
 	assert(f);
@@ -2218,7 +2219,7 @@ service_serialize_exec_command(Unit *u, FILE *f, ExecCommand *command)
 			return -ENOMEM;
 
 		n = strlen(e);
-		if (!GREEDY_REALLOC(args, allocated, length + 1 + n + 1))
+		if (!GREEDY_REALLOC(args, length + 1 + n + 1))
 			return -ENOMEM;
 
 		if (length > 0)
@@ -2228,7 +2229,7 @@ service_serialize_exec_command(Unit *u, FILE *f, ExecCommand *command)
 		length += n;
 	}
 
-	if (!GREEDY_REALLOC(args, allocated, length + 1))
+	if (!GREEDY_REALLOC(args, length + 1))
 		return -ENOMEM;
 	args[length++] = 0;
 
@@ -2401,8 +2402,7 @@ service_deserialize_exec_command(Unit *u, const char *key, const char *value)
 				return -ENOMEM;
 			break;
 		default:
-			assert_not_reached(
-				"Unknown error at deserialization of exec command");
+			assert_not_reached();
 			break;
 		}
 	}
@@ -2866,7 +2866,7 @@ service_sigchld_event(Unit *u, pid_t pid, int code, int status)
 	else if (code == CLD_DUMPED)
 		f = SERVICE_FAILURE_CORE_DUMP;
 	else
-		assert_not_reached("Unknown code");
+		assert_not_reached();
 
 	/* Here's a special hack: avoid a timing issue caused by switching
          * root when the initramfs contains an old systemd binary.
@@ -3004,8 +3004,7 @@ service_sigchld_event(Unit *u, pid_t pid, int code, int status)
 				break;
 
 			default:
-				assert_not_reached(
-					"Uh, main process died at wrong time.");
+				assert_not_reached();
 			}
 		}
 
@@ -3163,8 +3162,7 @@ service_sigchld_event(Unit *u, pid_t pid, int code, int status)
 				break;
 
 			default:
-				assert_not_reached(
-					"Uh, control process died at wrong time.");
+				assert_not_reached();
 			}
 		}
 	}
@@ -3298,7 +3296,7 @@ service_dispatch_timer(sd_event_source *source, usec_t usec, void *userdata)
 		break;
 
 	default:
-		assert_not_reached("Timeout at wrong time.");
+		assert_not_reached();
 	}
 
 	return 0;

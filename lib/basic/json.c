@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <math.h>
 
+#include "alloc-util.h"
 #include "json.h"
 #include "log.h"
 #include "macro.h"
@@ -93,7 +94,7 @@ static int
 json_parse_string(const char **p, char **ret)
 {
 	_cleanup_free_ char *s = NULL;
-	size_t n = 0, allocated = 0;
+	size_t n = 0;
 	const char *c;
 
 	assert(p);
@@ -166,7 +167,7 @@ json_parse_string(const char **p, char **ret)
 
 				c += 5;
 
-				if (!GREEDY_REALLOC(s, allocated, n + 4))
+				if (!GREEDY_REALLOC(s, n + 4))
 					return -ENOMEM;
 
 				if (!utf16_is_surrogate(x))
@@ -197,7 +198,7 @@ json_parse_string(const char **p, char **ret)
 			} else
 				return -EINVAL;
 
-			if (!GREEDY_REALLOC(s, allocated, n + 2))
+			if (!GREEDY_REALLOC(s, n + 2))
 				return -ENOMEM;
 
 			s[n++] = ch;
@@ -209,7 +210,7 @@ json_parse_string(const char **p, char **ret)
 		if (len < 0)
 			return len;
 
-		if (!GREEDY_REALLOC(s, allocated, n + len + 1))
+		if (!GREEDY_REALLOC(s, n + len + 1))
 			return -ENOMEM;
 
 		memcpy(s + n, c, len);

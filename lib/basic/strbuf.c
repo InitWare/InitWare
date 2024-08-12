@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "alloc-util.h"
 #include "bsdglibc.h"
 #include "strbuf.h"
 #include "util.h"

@@ -26,6 +26,7 @@
 
 #define SD_JOURNAL_SUPPRESS_LOCATION
 
+#include "alloc-util.h"
 #include "bsdendian.h"
 #include "bsdprintf.h"
 #include "memfd-util.h"

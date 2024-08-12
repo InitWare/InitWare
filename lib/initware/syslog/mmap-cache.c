@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "alloc-util.h"
 #include "hashmap.h"
 #include "list.h"
 #include "log.h"

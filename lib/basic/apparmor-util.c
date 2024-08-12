@@ -20,6 +20,7 @@
 #include <unistd.h>
 
 #include "apparmor-util.h"
+#include "alloc-util.h"
 #include "fileio.h"
 #include "util.h"
 

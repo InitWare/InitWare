@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "bsdcapability.h"
 #include "bus-common-errors.h"
 #include "bus-error.h"

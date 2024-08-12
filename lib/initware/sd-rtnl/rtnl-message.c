@@ -22,6 +22,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "missing.h"
 #include "refcnt.h"
 #include "socket-util.h"
@@ -1439,8 +1440,7 @@ sd_rtnl_message_enter_container(sd_rtnl_message *m, unsigned short type)
 			break;
 		}
 		default:
-			assert_not_reached(
-				"sd-rtnl: invalid type system union type");
+			assert_not_reached();
 		}
 	} else
 		return -EINVAL;
@@ -1677,11 +1677,13 @@ socket_read_message(sd_rtnl *rtnl)
 		len = (size_t)r;
 
 	/* make room for the pending message */
-	if (!greedy_realloc((void **)&rtnl->rbuffer, &rtnl->rbuffer_allocated,
+	if (!greedy_realloc((void **)&rtnl->rbuffer,
 		    len, sizeof(uint8_t)))
 		return -ENOMEM;
 
 	iov.iov_base = rtnl->rbuffer;
+	// HACK: Check if this is right? upstream doesn't have this anymore
+	rtnl->rbuffer_allocated = len;
 	iov.iov_len = rtnl->rbuffer_allocated;
 
 	/* read the pending message */

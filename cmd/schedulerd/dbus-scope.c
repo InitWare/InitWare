@@ -17,6 +17,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "alloc-util.h"
 #include "dbus-scope.h"
 #include "bus-common-errors.h"
 #include "bus-internal.h"

@@ -21,6 +21,7 @@
 #include <limits.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "def.h"
 #include "env-util.h"
 #include "strv.h"

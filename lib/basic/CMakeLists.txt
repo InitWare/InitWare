@@ -49,14 +49,14 @@ if (SVC_USE_libcap)
 	list(APPEND BASIC_SRC cap-list.c)
 endif ()
 
-list(APPEND BASIC_SRC MurmurHash2.c acpi-fpdt.c apparmor-util.c async.c audit.c
-    base-filesystem.c bus-label.c calendarspec.c cgroup-util.c clock-util.c
-    condition.c conf-files.c conf-parser.c copy.c dev-setup.c device-nodes.c
-    dropin.c efivars.c env-util.c errno-list.c exit-status.c fdset.c
+list(APPEND BASIC_SRC MurmurHash2.c acpi-fpdt.c alloc-util.c apparmor-util.c argv-util.c
+    async.c audit.c base-filesystem.c bus-label.c calendarspec.c cgroup-util.c
+    clock-util.c condition.c conf-files.c conf-parser.c copy.c dev-setup.c
+    device-nodes.c dropin.c efivars.c env-util.c errno-list.c exit-status.c fdset.c
     fileio-label.c fileio.c fstab-util.c generator.c gunicode.c hashmap.c
     ima-util.c import-util.c in-addr-util.c install-printf.c install.c json.c
-    label.c locale-util.c log.c login-shared.c mempool.c mkdir-label.c mkdir.c
-    pager.c path-lookup.c path-util.c prioq.c ratelimit.c replace-var.c
+    label.c locale-util.c log.c login-shared.c memory-util.c mempool.c mkdir-label.c
+    mkdir.c pager.c path-lookup.c path-util.c prioq.c ratelimit.c replace-var.c
     selinux-util.c sigbus.c siphash24.c sleep-config.c smack-util.c
     socket-label.c socket-util.c spawn-ask-password-agent.c spawn-polkit-agent.c
     specifier.c strbuf.c strv.c strxcpyx.c switch-root.c time-dst.c time-util.c

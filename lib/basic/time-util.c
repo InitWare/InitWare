@@ -21,6 +21,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "alloc-util.h"
 #include "bsdglibc.h"
 #include "strv.h"
 #include "time-util.h"
@@ -909,7 +910,7 @@ get_timezones(char ***ret)
 {
 	_cleanup_fclose_ FILE *f = NULL;
 	_cleanup_strv_free_ char **zones = NULL;
-	size_t n_zones = 0, n_allocated = 0;
+	size_t n_zones = 0;
 
 	assert(ret);
 
@@ -917,7 +918,6 @@ get_timezones(char ***ret)
 	if (!zones)
 		return -ENOMEM;
 
-	n_allocated = 2;
 	n_zones = 1;
 
 	f = fopen("/usr/share/zoneinfo/zone.tab", "re");
@@ -951,7 +951,7 @@ get_timezones(char ***ret)
 			if (!w)
 				return -ENOMEM;
 
-			if (!GREEDY_REALLOC(zones, n_allocated, n_zones + 2)) {
+			if (!GREEDY_REALLOC(zones, n_zones + 2)) {
 				free(w);
 				return -ENOMEM;
 			}

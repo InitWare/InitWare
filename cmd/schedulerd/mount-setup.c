@@ -29,6 +29,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "bsdstatfs.h"
 #include "cgroup-util.h"
 #include "def.h"

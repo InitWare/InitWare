@@ -25,6 +25,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "catalog.h"
 #include "conf-files.h"
 #include "hashmap.h"

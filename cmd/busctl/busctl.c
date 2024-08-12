@@ -19,6 +19,7 @@
 
 #include <getopt.h>
 
+#include "alloc-util.h"
 #include "build.h"
 #include "log.h"
 #include "pager.h"
@@ -644,7 +645,7 @@ format_cmdline(sd_bus_message *m, FILE *f, bool needs_space)
 			break;
 
 		default:
-			assert_not_reached("Unknown basic type.");
+			assert_not_reached();
 		}
 
 		needs_space = true;
@@ -2055,7 +2056,7 @@ parse_argv(int argc, char *argv[])
 			return -EINVAL;
 
 		default:
-			assert_not_reached("Unhandled option");
+			assert_not_reached();
 		}
 
 	return 1;
@@ -2175,7 +2176,7 @@ main(int argc, char *argv[])
 			break;
 
 		default:
-			assert_not_reached("Hmm, unknown transport type.");
+			assert_not_reached();
 		}
 	}
 	if (r < 0) {

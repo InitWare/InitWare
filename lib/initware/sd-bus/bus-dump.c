@@ -17,6 +17,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "alloc-util.h"
 #include "audit.h"
 #include "cap-list.h"
 #include "capability.h"
@@ -307,7 +308,7 @@ bus_message_dump(sd_bus_message *m, FILE *f, unsigned flags)
 			break;
 
 		default:
-			assert_not_reached("Unknown basic type.");
+			assert_not_reached();
 		}
 	}
 

@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "bsdendian.h"
 #include "macro.h"
 #include "missing.h"

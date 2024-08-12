@@ -23,6 +23,11 @@
 
 #include "macro.h"
 
+typedef enum PagerFlags {
+        PAGER_DISABLE     = 1 << 0,
+        PAGER_JUMP_TO_END = 1 << 1,
+} PagerFlags;
+
 int pager_open(bool jump_to_end);
 void pager_close(void);
 bool pager_have(void) _pure_;

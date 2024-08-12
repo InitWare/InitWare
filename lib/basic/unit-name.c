@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include "alloc-util.h"
 #include "bus-label.h"
 #include "def.h"
 #include "path-util.h"

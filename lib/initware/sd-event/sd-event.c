@@ -21,6 +21,7 @@
 #include <sys/wait.h>
 #include <pthread.h>
 
+#include "alloc-util.h"
 #include "bsdglibc.h"
 #include "hashmap.h"
 #include "list.h"
@@ -747,7 +748,7 @@ source_disconnect(sd_event_source *s)
 		break;
 
 	default:
-		assert_not_reached("Wut? I shouldn't exist.");
+		assert_not_reached();
 	}
 
 	if (s->pending)
@@ -1611,7 +1612,7 @@ sd_event_source_set_enabled(sd_event_source *s, int m)
 			break;
 
 		default:
-			assert_not_reached("Wut? I shouldn't exist.");
+			assert_not_reached();
 		}
 
 	} else {
@@ -1690,7 +1691,7 @@ sd_event_source_set_enabled(sd_event_source *s, int m)
 			break;
 
 		default:
-			assert_not_reached("Wut? I shouldn't exist.");
+			assert_not_reached();
 		}
 	}
 
@@ -2286,7 +2287,7 @@ source_dispatch(sd_event_source *s)
 	case SOURCE_WATCHDOG:
 	case _SOURCE_EVENT_SOURCE_TYPE_MAX:
 	case _SOURCE_EVENT_SOURCE_TYPE_INVALID:
-		assert_not_reached("Wut? I shouldn't exist.");
+		assert_not_reached();
 	}
 
 	s->dispatching = false;

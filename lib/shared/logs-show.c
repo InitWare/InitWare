@@ -25,6 +25,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "alloc-util.h"
 #include "fileio.h"
 #include "hashmap.h"
 #include "journal-internal.h"

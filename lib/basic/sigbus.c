@@ -20,6 +20,7 @@
 #include <sys/mman.h>
 #include <signal.h>
 
+#include "alloc-util.h"
 #include "macro.h"
 #include "sigbus.h"
 #include "util.h"

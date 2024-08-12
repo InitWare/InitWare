@@ -22,6 +22,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "console.h"
 #include "fileio.h"
 #include "server.h"

@@ -23,6 +23,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "bsdsignal.h"
 #include "def.h"
 #include "killall.h"

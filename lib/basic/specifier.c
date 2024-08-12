@@ -20,6 +20,7 @@
 #include <sys/utsname.h>
 #include <string.h>
 
+#include "alloc-util.h"
 #include "macro.h"
 #include "specifier.h"
 #include "util.h"

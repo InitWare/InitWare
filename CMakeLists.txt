@@ -166,6 +166,7 @@ check_function_exists(signalfd SVC_HAVE_signalfd)
 check_function_exists(strchrnul HAVE_strchrnul)
 check_function_exists(strtod_l HAVE_strtod_l)
 check_symbol_exists(waitid "sys/wait.h" HAVE_waitid)
+check_symbol_exists(reallocarray "stdlib.h" HAVE_REALLOCARRAY)
 
 # ------------------------------------------------------------------------------
 # options configurable by the user

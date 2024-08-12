@@ -27,6 +27,7 @@
 #include <linux/memfd.h>
 #endif
 
+#include "alloc-util.h"
 #include "bus-label.h"
 #include "memfd-util.h"
 #include "missing.h"

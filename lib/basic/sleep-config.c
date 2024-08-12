@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 
+#include "alloc-util.h"
 #include "conf-parser.h"
 #include "fileio.h"
 #include "log.h"
@@ -94,7 +95,7 @@ parse_sleep_config(const char *verb, char ***_modes, char ***_states)
 			states = strv_new("disk", NULL);
 
 	} else
-		assert_not_reached("what verb");
+		assert_not_reached();
 
 	if ((!modes && !streq(verb, "suspend")) || !states) {
 		strv_free(modes);

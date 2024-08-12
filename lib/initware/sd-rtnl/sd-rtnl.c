@@ -20,6 +20,7 @@
 #include <sys/socket.h>
 #include <poll.h>
 
+#include "alloc-util.h"
 #include "hashmap.h"
 #include "macro.h"
 #include "missing.h"
@@ -52,12 +53,12 @@ sd_rtnl_new(sd_rtnl **ret)
 
 	/* We guarantee that wqueue always has space for at least
          * one entry */
-	if (!GREEDY_REALLOC(rtnl->wqueue, rtnl->wqueue_allocated, 1))
+	if (!GREEDY_REALLOC(rtnl->wqueue, 1))
 		return -ENOMEM;
 
 	/* We guarantee that the read buffer has at least space for
          * a message header */
-	if (!greedy_realloc((void **)&rtnl->rbuffer, &rtnl->rbuffer_allocated,
+	if (!greedy_realloc((void **)&rtnl->rbuffer,
 		    sizeof(struct nlmsghdr), sizeof(uint8_t)))
 		return -ENOMEM;
 
@@ -322,7 +323,7 @@ sd_rtnl_send(sd_rtnl *nl, sd_rtnl_message *message, uint32_t *serial)
 			return -ENOBUFS;
 		}
 
-		if (!GREEDY_REALLOC(nl->wqueue, nl->wqueue_allocated,
+		if (!GREEDY_REALLOC(nl->wqueue,
 			    nl->wqueue_size + 1))
 			return -ENOMEM;
 
@@ -346,7 +347,7 @@ rtnl_rqueue_make_room(sd_rtnl *rtnl)
 		return -ENOBUFS;
 	}
 
-	if (!GREEDY_REALLOC(rtnl->rqueue, rtnl->rqueue_allocated,
+	if (!GREEDY_REALLOC(rtnl->rqueue,
 		    rtnl->rqueue_size + 1))
 		return -ENOMEM;
 
@@ -365,7 +366,6 @@ rtnl_rqueue_partial_make_room(sd_rtnl *rtnl)
 	}
 
 	if (!GREEDY_REALLOC(rtnl->rqueue_partial,
-		    rtnl->rqueue_partial_allocated,
 		    rtnl->rqueue_partial_size + 1))
 		return -ENOMEM;
 

@@ -131,7 +131,7 @@ emergency_action(Manager *m, EmergencyAction action, const char *reboot_arg,
 		break;
 
 	default:
-		assert_not_reached("Unknown emergency action");
+		assert_not_reached();
 	}
 
 	return -ECANCELED;

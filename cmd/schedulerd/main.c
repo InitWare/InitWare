@@ -36,7 +36,9 @@
 #include <seccomp.h>
 #endif
 
+#include "alloc-util.h"
 #include "architecture.h"
+#include "argv-util.h"
 #include "bsdcapability.h"
 #include "build.h"
 #include "bus-error.h"
@@ -185,7 +187,7 @@ crash(int sig)
 			pid = raw_getpid();
 			kill(pid, sig); /* raise() would kill the parent */
 
-			assert_not_reached("We shouldn't be here...");
+			assert_not_reached();
 			_exit(1);
 		} else {
 			siginfo_t status;
@@ -1049,7 +1051,7 @@ parse_argv(int argc, char *argv[])
 				return 0;
 
 		default:
-			assert_not_reached("Unhandled option code.");
+			assert_not_reached();
 		}
 
 	if (optind < argc && getpid() != 1) {
@@ -2101,7 +2103,7 @@ main(int argc, char *argv[])
 		}
 
 		default:
-			assert_not_reached("Unknown exit code.");
+			assert_not_reached();
 		}
 	}
 

@@ -27,6 +27,7 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "bsdxattr.h"
 #include "bus-error.h"
 #include "bus-util.h"
@@ -507,7 +508,7 @@ listen_lookup(int family, int type)
 	else if (type == SOCK_SEQPACKET)
 		return "ListenSequentialPacket";
 
-	assert_not_reached("Unknown socket type");
+	assert_not_reached();
 	return NULL;
 }
 
@@ -763,7 +764,7 @@ instance_from_socket(int fd, unsigned nr, char **instance)
 	}
 
 	default:
-		assert_not_reached("Unhandled socket type.");
+		assert_not_reached();
 	}
 
 	*instance = r;
@@ -1276,7 +1277,7 @@ socket_open_fds(Socket *s)
 			if (r < 0)
 				goto rollback;
 		} else
-			assert_not_reached("Unknown port type");
+			assert_not_reached();
 	}
 
 	mac_selinux_free(label);
@@ -2486,7 +2487,7 @@ socket_sigchld_event(Unit *u, pid_t pid, int code, int status)
 	else if (code == CLD_DUMPED)
 		f = SOCKET_FAILURE_CORE_DUMP;
 	else
-		assert_not_reached("Unknown sigchld code");
+		assert_not_reached();
 
 	if (s->control_command) {
 		exec_status_exit(&s->control_command->exec_status,
@@ -2553,8 +2554,7 @@ socket_sigchld_event(Unit *u, pid_t pid, int code, int status)
 			break;
 
 		default:
-			assert_not_reached(
-				"Uh, control process died at wrong time.");
+			assert_not_reached();
 		}
 	}
 
@@ -2643,7 +2643,7 @@ socket_dispatch_timer(sd_event_source *source, usec_t usec, void *userdata)
 		break;
 
 	default:
-		assert_not_reached("Timeout at wrong time.");
+		assert_not_reached();
 	}
 
 	return 0;

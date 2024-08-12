@@ -36,6 +36,7 @@
 #endif
 
 #include "af-list.h"
+#include "alloc-util.h"
 #include "bus-error.h"
 #include "bus-internal.h"
 #include "bus-util.h"
@@ -1974,7 +1975,7 @@ config_parse_pass_environ(const char *unit, const char *filename, unsigned line,
 	const char *whole_rvalue = rvalue;
 	char ***passenv = data;
 	_cleanup_strv_free_ char **n = NULL;
-	size_t nlen = 0, nbufsize = 0;
+	size_t nlen = 0;
 	int r;
 
 	assert(filename);
@@ -2012,7 +2013,7 @@ config_parse_pass_environ(const char *unit, const char *filename, unsigned line,
 			continue;
 		}
 
-		if (!GREEDY_REALLOC(n, nbufsize, nlen + 2))
+		if (!GREEDY_REALLOC(n, nlen + 2))
 			return log_oom();
 		n[nlen++] = word;
 		n[nlen] = NULL;

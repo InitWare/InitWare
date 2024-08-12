@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "architecture.h"
 #include "bsdcapability.h"
 #include "build.h"

@@ -38,6 +38,8 @@
 #define _unused_ __attribute__((unused))
 #define _destructor_ __attribute__((destructor))
 #define _pure_ __attribute__((pure))
+#define _returns_nonnull_ __attribute__((__returns_nonnull__))
+#define _noinline_ __attribute__((noinline))
 #define _const_ __attribute__((const))
 #define _deprecated_ __attribute__((deprecated))
 #define _packed_ __attribute__((packed))
@@ -50,6 +52,7 @@
 #define _weakref_(x) __attribute__((weakref(#x)))
 #define _alignas_(x) __attribute__((aligned(__alignof(x))))
 #define _cleanup_(x) __attribute__((cleanup(x)))
+#define _noreturn_ _Noreturn
 
 /* Temporarily disable some warnings */
 #define DISABLE_WARNING_DECLARATION_AFTER_STATEMENT                            \
@@ -248,28 +251,40 @@ ALIGN_POWER2(unsigned long u)
 		(__x / __y + !!(__x % __y));                                   \
 	})
 
-#define assert_se(expr)                                                        \
-	do {                                                                   \
-		if (_unlikely_(!(expr)))                                       \
-			log_assert_failed(#expr, __FILE__, __LINE__,           \
-				__PRETTY_FUNCTION__);                          \
-	} while (false)
+#define assert_message_se(expr, message)                                \
+        do {                                                            \
+                if (_unlikely_(!(expr)))                                \
+                        log_assert_failed(message, __FILE__, __LINE__, __func__); \
+        } while (false)
+
+#define assert_log(expr, message) ((_likely_(expr))                     \
+        ? (true)                                                        \
+        : (log_assert_failed_return(message, __FILE__, __LINE__, __func__), false))
+
+#define assert_se(expr) assert_message_se(expr, #expr)
+
+// #define assert_se(expr)                                                        \
+// 	do {                                                                   \
+// 		if (_unlikely_(!(expr)))                                       \
+// 			log_assert_failed(#expr, __FILE__, __LINE__,           \
+// 				__PRETTY_FUNCTION__);                          \
+// 	} while (false)
 
 /* We override the glibc assert() here. */
 #undef assert
 #ifdef NDEBUG
-#define assert(expr)                                                           \
-	do {                                                                   \
-	} while (false)
+#define assert(expr) ({ if (!(expr)) __builtin_unreachable(); })
 #else
-#define assert(expr) assert_se(expr)
+#define assert(expr) assert_message_se(expr, #expr)
 #endif
 
-#define assert_not_reached(t)                                                  \
-	do {                                                                   \
-		log_assert_failed_unreachable(t, __FILE__, __LINE__,           \
-			__PRETTY_FUNCTION__);                                  \
-	} while (false)
+// #define assert_not_reached(t)                                                  \
+// 	do {                                                                   \
+// 		log_assert_failed_unreachable(t, __FILE__, __LINE__,           \
+// 			__PRETTY_FUNCTION__);                                  \
+// 	} while (false)
+#define assert_not_reached()                                            \
+        log_assert_failed_unreachable(__FILE__, __LINE__, __func__)
 
 #if defined(static_assert)
 /* static_assert() is sometimes defined in a way that trips up
@@ -288,14 +303,20 @@ ALIGN_POWER2(unsigned long u)
 	REENABLE_WARNING
 #endif
 
-#define assert_return(expr, r)                                                 \
-	do {                                                                   \
-		if (_unlikely_(!(expr))) {                                     \
-			log_assert_failed_return(#expr, __FILE__, __LINE__,    \
-				__PRETTY_FUNCTION__);                          \
-			return (r);                                            \
-		}                                                              \
-	} while (false)
+#define assert_return(expr, r)                                          \
+        do {                                                            \
+                if (!assert_log(expr, #expr))                           \
+                        return (r);                                     \
+        } while (false)
+
+// #define assert_return(expr, r)                                                 \
+// 	do {                                                                   \
+// 		if (_unlikely_(!(expr))) {                                     \
+// 			log_assert_failed_return(#expr, __FILE__, __LINE__,    \
+// 				__PRETTY_FUNCTION__);                          \
+// 			return (r);                                            \
+// 		}                                                              \
+// 	} while (false)
 
 #define PTR_TO_PID(p) ((pid_t)((intptr_t)(p)))
 #define PID_TO_PTR(u) ((void *)((intptr_t)(u)))
@@ -331,7 +352,6 @@ ALIGN_POWER2(unsigned long u)
 #define PTR_TO_GID(p) ((gid_t)(((uintptr_t)(p)) - 1))
 #define GID_TO_PTR(u) ((void *)(((uintptr_t)(u)) + 1))
 
-#define memzero(x, l) (memset((x), 0, (l)))
 #define zero(x) (memzero(&(x), sizeof(x)))
 
 #define CHAR_TO_STR(x) ((char[2]){ x, 0 })
@@ -419,8 +439,7 @@ IOVEC_INCREMENT(struct iovec *i, unsigned n, size_t k)
 				(void)va_arg(ap, long double);                 \
 				break;                                         \
 			default:                                               \
-				assert_not_reached(                            \
-					"Unknown format string argument.");    \
+				assert_not_reached();												    \
 			}                                                      \
 		}                                                              \
 	} while (false)
@@ -551,5 +570,14 @@ GID_IS_INVALID(gid_t gid)
 #define unimplemented() log_debug("%s: unimplemented\n", __FUNCTION__)
 #define unimplemented_msg(...)                                                 \
 	log_debug("%s: %s: unimplemented\n", __FUNCTION__, __VA_ARGS__)
+
+#define _FOREACH_ARRAY(i, array, num, m, end)                           \
+        for (typeof(array[0]) *i = (array), *end = ({                   \
+                                typeof(num) m = (num);                  \
+                                (i && m > 0) ? i + m : NULL;            \
+                        }); end && i < end; i++)
+
+#define FOREACH_ARRAY(i, array, num)                                    \
+        _FOREACH_ARRAY(i, array, num, UNIQ_T(m, UNIQ), UNIQ_T(end, UNIQ))
 
 #include "log.h"

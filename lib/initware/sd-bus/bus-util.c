@@ -23,6 +23,7 @@
 #include "sd-daemon.h"
 #include "sd-event.h"
 
+#include "alloc-util.h"
 #include "bsdglibc.h"
 #include "bus-error.h"
 #include "bus-internal.h"
@@ -1107,7 +1108,7 @@ bus_open_transport(BusTransport transport, const char *host, bool user,
 		break;
 
 	default:
-		assert_not_reached("Hmm, unknown transport type.");
+		assert_not_reached();
 	}
 
 	return r;
@@ -1144,7 +1145,7 @@ bus_open_transport_systemd(BusTransport transport, const char *host, bool user,
 		break;
 
 	default:
-		assert_not_reached("Hmm, unknown transport type.");
+		assert_not_reached();
 	}
 
 	return r;

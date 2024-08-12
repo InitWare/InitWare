@@ -30,6 +30,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "label.h"
 #include "macro.h"
 #include "missing.h"

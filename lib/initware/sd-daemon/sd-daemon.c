@@ -32,6 +32,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "path-util.h"
 #include "sd-daemon.h"
 #include "socket-util.h"
