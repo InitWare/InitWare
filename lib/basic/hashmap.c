@@ -993,18 +993,6 @@ internal_hashmap_free_free(HashmapBase *h)
 }
 
 void
-hashmap_free_free_free(Hashmap *h)
-{
-	/* Free the hashmap and all data and key objects in it */
-
-	if (!h)
-		return;
-
-	hashmap_clear_free_free(h);
-	hashmap_free_no_clear(HASHMAP_BASE(h));
-}
-
-void
 internal_hashmap_clear(HashmapBase *h)
 {
 	if (!h)

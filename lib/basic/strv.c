@@ -88,11 +88,11 @@ strv_clear(char **l)
 	*l = NULL;
 }
 
-void
-strv_free(char **l)
-{
-	strv_clear(l);
-	free(l);
+char** strv_free(char **l) {
+        STRV_FOREACH(k, l)
+                free(*k);
+
+        return mfree(l);
 }
 
 char **

@@ -23,6 +23,11 @@
 #include "path-lookup.h"
 #include "strv.h"
 #include "unit-name.h"
+#include "runtime-scope.h"
+
+typedef enum InstallMode InstallMode;
+typedef struct InstallChange InstallChange;
+typedef struct InstallInfo InstallInfo;
 
 typedef enum UnitFileScope {
 	UNIT_FILE_SYSTEM,
@@ -76,6 +81,17 @@ unit_file_change_is_modification(UnitFileChangeType type)
 	return IN_SET(type, UNIT_FILE_SYMLINK, UNIT_FILE_UNLINK);
 }
 
+/* type can be either one of the INSTALL_CHANGE_SYMLINK, INSTALL_CHANGE_UNLINK, … listed above, or a negative
+ * errno value.
+ *
+ * If source is specified, it should be the contents of the path symlink. In case of an error, source should
+ * be the existing symlink contents or NULL. */
+struct InstallChange {
+        int type; /* INSTALL_CHANGE_SYMLINK, … if positive, errno if negative */
+        char *path;
+        char *source;
+};
+
 typedef struct UnitFileChange {
 	UnitFileChangeType type;
 	char *path;
@@ -95,22 +111,49 @@ typedef enum UnitFileType {
 	_UNIT_FILE_TYPE_INVALID = -1,
 } UnitFileType;
 
-typedef struct {
-	char *name;
-	char *path;
-	char *user;
+enum InstallMode {
+        INSTALL_MODE_REGULAR,
+        INSTALL_MODE_LINKED,
+        INSTALL_MODE_ALIAS,
+        INSTALL_MODE_MASKED,
+        _INSTALL_MODE_MAX,
+        _INSTALL_MODE_INVALID = -EINVAL,
+};
 
-	char **aliases;
-	char **wanted_by;
-	char **required_by;
-	char **also;
+struct InstallInfo {
+        char *name;
+        char *path;
+        char *root;
 
-	char *default_instance;
+        char **aliases;
+        char **wanted_by;
+        char **required_by;
+        char **upheld_by;
+        char **also;
 
-	UnitFileType type;
+        char *default_instance;
+        char *symlink_target;
 
-	char *symlink_target;
-} InstallInfo;
+        InstallMode install_mode;
+        bool auxiliary;
+};
+
+// typedef struct {
+// 	char *name;
+// 	char *path;
+// 	char *user;
+
+// 	char **aliases;
+// 	char **wanted_by;
+// 	char **required_by;
+// 	char **also;
+
+// 	char *default_instance;
+
+// 	UnitFileType type;
+
+// 	char *symlink_target;
+// } InstallInfo;
 
 static inline bool
 UNIT_FILE_INSTALL_INFO_HAS_RULES(InstallInfo *i)
@@ -162,13 +205,18 @@ int unit_file_add_dependency(UnitFileScope scope, UnitFileFlags flags,
 	const char *root_dir, char **files, const char *target,
 	UnitDependency dep, UnitFileChange **changes, unsigned *n_changes);
 
-int unit_file_lookup_state(UnitFileScope scope, const char *root_dir,
-	const LookupPaths *paths, const char *name, UnitFileState *ret);
+// int unit_file_lookup_state(UnitFileScope scope, const char *root_dir,
+// 	const LookupPaths *paths, const char *name, UnitFileState *ret);
+int unit_file_lookup_state(
+                RuntimeScope scope,
+                const LookupPaths *paths,
+                const char *name,
+                UnitFileState *ret);
 int unit_file_get_state(UnitFileScope scope, const char *root_dir,
 	const char *filename, UnitFileState *ret);
 
-int unit_file_get_list(UnitFileScope scope, const char *root_dir, Hashmap *h);
-Hashmap *unit_file_list_free(Hashmap *h);
+// int unit_file_get_list(UnitFileScope scope, const char *root_dir, Hashmap *h);
+int unit_file_get_list(RuntimeScope scope, const char *root_dir, Hashmap *h, char **states, char **patterns);
 
 int unit_file_changes_add(UnitFileChange **changes, unsigned *n_changes,
 	UnitFileChangeType type, const char *path, const char *source);

@@ -22,6 +22,7 @@
 
 #include <stdbool.h>
 
+#include "alloc-util.h"
 #include "macro.h"
 #include "util.h"
 
@@ -147,35 +148,36 @@ OrderedHashmap *internal_ordered_hashmap_new(
 #define ordered_hashmap_new(ops)                                               \
 	internal_ordered_hashmap_new(ops HASHMAP_DEBUG_SRC_ARGS)
 
-void internal_hashmap_free(HashmapBase *h);
-static inline void
-hashmap_free(Hashmap *h)
-{
-	internal_hashmap_free(HASHMAP_BASE(h));
+#define hashmap_free_and_replace(a, b)          \
+        free_and_replace_full(a, b, hashmap_free)
+
+HashmapBase* _hashmap_free(HashmapBase *h, free_func_t default_free_key, free_func_t default_free_value);
+static inline Hashmap* hashmap_free(Hashmap *h) {
+        return (void*) _hashmap_free(HASHMAP_BASE(h), NULL, NULL);
 }
-static inline void
-ordered_hashmap_free(OrderedHashmap *h)
-{
-	internal_hashmap_free(HASHMAP_BASE(h));
+static inline OrderedHashmap* ordered_hashmap_free(OrderedHashmap *h) {
+        return (void*) _hashmap_free(HASHMAP_BASE(h), NULL, NULL);
 }
 
-void internal_hashmap_free_free(HashmapBase *h);
-static inline void
-hashmap_free_free(Hashmap *h)
-{
-	internal_hashmap_free_free(HASHMAP_BASE(h));
+static inline Hashmap* hashmap_free_free(Hashmap *h) {
+        return (void*) _hashmap_free(HASHMAP_BASE(h), NULL, free);
 }
-static inline void
-ordered_hashmap_free_free(OrderedHashmap *h)
-{
-	internal_hashmap_free_free(HASHMAP_BASE(h));
+static inline OrderedHashmap* ordered_hashmap_free_free(OrderedHashmap *h) {
+        return (void*) _hashmap_free(HASHMAP_BASE(h), NULL, free);
 }
 
-void hashmap_free_free_free(Hashmap *h);
-static inline void
-ordered_hashmap_free_free_free(OrderedHashmap *h)
-{
-	hashmap_free_free_free(PLAIN_HASHMAP(h));
+static inline Hashmap* hashmap_free_free_key(Hashmap *h) {
+        return (void*) _hashmap_free(HASHMAP_BASE(h), free, NULL);
+}
+static inline OrderedHashmap* ordered_hashmap_free_free_key(OrderedHashmap *h) {
+        return (void*) _hashmap_free(HASHMAP_BASE(h), free, NULL);
+}
+
+static inline Hashmap* hashmap_free_free_free(Hashmap *h) {
+        return (void*) _hashmap_free(HASHMAP_BASE(h), free, free);
+}
+static inline OrderedHashmap* ordered_hashmap_free_free_free(OrderedHashmap *h) {
+        return (void*) _hashmap_free(HASHMAP_BASE(h), free, free);
 }
 
 HashmapBase *internal_hashmap_copy(HashmapBase *h);
@@ -198,6 +200,17 @@ int internal_ordered_hashmap_ensure_allocated(OrderedHashmap **h,
 	internal_hashmap_ensure_allocated(h, ops HASHMAP_DEBUG_SRC_ARGS)
 #define ordered_hashmap_ensure_allocated(h, ops)                               \
 	internal_ordered_hashmap_ensure_allocated(h, ops HASHMAP_DEBUG_SRC_ARGS)
+
+#define ordered_hashmap_clear_with_destructor(h, f)                     \
+        ({                                                              \
+                OrderedHashmap *_h = (h);                               \
+                void *_item;                                            \
+                while ((_item = ordered_hashmap_steal_first(_h)))       \
+                        f(_item);                                       \
+                _h;                                                     \
+        })
+#define ordered_hashmap_free_with_destructor(h, f)                      \
+        ordered_hashmap_free(ordered_hashmap_clear_with_destructor(h, f))
 
 int hashmap_put(Hashmap *h, const void *key, void *value);
 static inline int
@@ -535,12 +548,14 @@ ordered_hashmap_get_strv(OrderedHashmap *h)
 		(e);                                                           \
 		(e) = ordered_hashmap_iterate((h), &(i), (const void **)&(k)))
 
-DEFINE_TRIVIAL_CLEANUP_FUNC(Hashmap *, hashmap_free);
-DEFINE_TRIVIAL_CLEANUP_FUNC(Hashmap *, hashmap_free_free);
-DEFINE_TRIVIAL_CLEANUP_FUNC(Hashmap *, hashmap_free_free_free);
-DEFINE_TRIVIAL_CLEANUP_FUNC(OrderedHashmap *, ordered_hashmap_free);
-DEFINE_TRIVIAL_CLEANUP_FUNC(OrderedHashmap *, ordered_hashmap_free_free);
-DEFINE_TRIVIAL_CLEANUP_FUNC(OrderedHashmap *, ordered_hashmap_free_free_free);
+DEFINE_TRIVIAL_CLEANUP_FUNC(Hashmap*, hashmap_free);
+DEFINE_TRIVIAL_CLEANUP_FUNC(Hashmap*, hashmap_free_free);
+DEFINE_TRIVIAL_CLEANUP_FUNC(Hashmap*, hashmap_free_free_key);
+DEFINE_TRIVIAL_CLEANUP_FUNC(Hashmap*, hashmap_free_free_free);
+DEFINE_TRIVIAL_CLEANUP_FUNC(OrderedHashmap*, ordered_hashmap_free);
+DEFINE_TRIVIAL_CLEANUP_FUNC(OrderedHashmap*, ordered_hashmap_free_free);
+DEFINE_TRIVIAL_CLEANUP_FUNC(OrderedHashmap*, ordered_hashmap_free_free_key);
+DEFINE_TRIVIAL_CLEANUP_FUNC(OrderedHashmap*, ordered_hashmap_free_free_free);
 
 #define _cleanup_hashmap_free_ _cleanup_(hashmap_freep)
 #define _cleanup_hashmap_free_free_ _cleanup_(hashmap_free_freep)

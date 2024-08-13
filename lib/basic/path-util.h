@@ -56,6 +56,10 @@ int path_is_mount_point(const char *path, bool allow_symlink);
 int path_is_read_only_fs(const char *path);
 int path_is_os_tree(const char *path);
 
+bool dot_or_dot_dot(const char *path);
+
+bool hidden_or_backup_file(const char *filename) _pure_;
+
 int find_binary(const char *name, bool local, char **filename);
 
 bool paths_check_timestamp(const char *const *paths, usec_t *paths_ts_usec,

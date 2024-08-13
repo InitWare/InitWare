@@ -30,6 +30,7 @@
 #include "alloc-util.h"
 #include "bsdglibc.h"
 #include "cgroup-util.h"
+#include "dirent-util.h"
 #include "fileio.h"
 #include "log.h"
 #include "macro.h"

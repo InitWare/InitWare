@@ -799,12 +799,13 @@ close_pairp(int (*p)[2])
 	safe_close_pair(*p);
 }
 
-DEFINE_TRIVIAL_CLEANUP_FUNC(FILE *, fclose);
-DEFINE_TRIVIAL_CLEANUP_FUNC(FILE *, pclose);
-DEFINE_TRIVIAL_CLEANUP_FUNC(DIR *, closedir);
+DEFINE_TRIVIAL_CLEANUP_FUNC_FULL(FILE *, fclose, NULL);
+DEFINE_TRIVIAL_CLEANUP_FUNC_FULL(FILE*, pclose, NULL);
+DEFINE_TRIVIAL_CLEANUP_FUNC_FULL(DIR*, closedir, NULL);
 #ifdef SVC_PLATFORM_Linux
-DEFINE_TRIVIAL_CLEANUP_FUNC(FILE *, endmntent);
-DEFINE_TRIVIAL_CLEANUP_FUNC(cpu_set_t *, CPU_FREE);
+DEFINE_TRIVIAL_CLEANUP_FUNC_FULL(FILE *, endmntent, NULL);
+// REPLACED IN cpu-set-util. steal if needed?
+// DEFINE_TRIVIAL_CLEANUP_FUNC_FULL(cpu_set_t *, CPU_FREE, NULL);
 #endif
 
 #define _cleanup_free_ _cleanup_(freep)
@@ -882,25 +883,25 @@ int search_and_fopen_nulstr(const char *path, const char *mode,
 			break;                                                 \
 		} else
 
-#define FOREACH_DIRENT(de, d, on_error)                                        \
-	for (errno = 0, de = readdir(d);; errno = 0, de = readdir(d))          \
-		if (!de) {                                                     \
-			if (errno > 0) {                                       \
-				on_error;                                      \
-			}                                                      \
-			break;                                                 \
-		} else if (hidden_file((de)->d_name))                          \
-			continue;                                              \
-		else
+// #define FOREACH_DIRENT(de, d, on_error)                                        \
+// 	for (errno = 0, de = readdir(d);; errno = 0, de = readdir(d))          \
+// 		if (!de) {                                                     \
+// 			if (errno > 0) {                                       \
+// 				on_error;                                      \
+// 			}                                                      \
+// 			break;                                                 \
+// 		} else if (hidden_file((de)->d_name))                          \
+// 			continue;                                              \
+// 		else
 
-#define FOREACH_DIRENT_ALL(de, d, on_error)                                    \
-	for (errno = 0, de = readdir(d);; errno = 0, de = readdir(d))          \
-		if (!de) {                                                     \
-			if (errno > 0) {                                       \
-				on_error;                                      \
-			}                                                      \
-			break;                                                 \
-		} else
+// #define FOREACH_DIRENT_ALL(de, d, on_error)                                    \
+// 	for (errno = 0, de = readdir(d);; errno = 0, de = readdir(d))          \
+// 		if (!de) {                                                     \
+// 			if (errno > 0) {                                       \
+// 				on_error;                                      \
+// 			}                                                      \
+// 			break;                                                 \
+// 		} else
 
 char *hexmem(const void *p, size_t l);
 void *unhexmem(const char *p, size_t l);

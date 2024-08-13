@@ -26,6 +26,7 @@
 #include "alloc-util.h"
 #include "conf-files.h"
 #include "conf-parser.h"
+#include "dirent-util.h"
 #include "fileio.h"
 #include "hashmap.h"
 #include "install-printf.h"
@@ -47,9 +48,14 @@ typedef enum SearchFlags {
 	SEARCH_FOLLOW_CONFIG_SYMLINKS = 2,
 } SearchFlags;
 
+// typedef struct {
+// 	OrderedHashmap *will_process;
+// 	OrderedHashmap *have_processed;
+// } InstallContext;
 typedef struct {
-	OrderedHashmap *will_process;
-	OrderedHashmap *have_processed;
+        RuntimeScope scope;
+        OrderedHashmap *will_process;
+        OrderedHashmap *have_processed;
 } InstallContext;
 
 static int
@@ -743,14 +749,21 @@ install_info_hashmap_free(OrderedHashmap *m)
 	return NULL;
 }
 
-static void
-install_context_done(InstallContext *c)
-{
-	assert(c);
+static void install_context_done(InstallContext *ctx) {
+        assert(ctx);
 
-	c->will_process = install_info_hashmap_free(c->will_process);
-	c->have_processed = install_info_hashmap_free(c->have_processed);
+        ctx->will_process = ordered_hashmap_free_with_destructor(ctx->will_process, install_info_free);
+        ctx->have_processed = ordered_hashmap_free_with_destructor(ctx->have_processed, install_info_free);
 }
+
+// static void
+// install_context_done(InstallContext *c)
+// {
+// 	assert(c);
+
+// 	c->will_process = install_info_hashmap_free(c->will_process);
+// 	c->have_processed = install_info_hashmap_free(c->have_processed);
+// }
 
 static InstallInfo *
 install_info_find(InstallContext *c, const char *name)
@@ -764,81 +777,177 @@ install_info_find(InstallContext *c, const char *name)
 	return ordered_hashmap_get(c->will_process, name);
 }
 
-static int
-install_info_add(InstallContext *c, const char *name, const char *path,
-	InstallInfo **ret)
-{
-	InstallInfo *i = NULL;
-	int r;
+// static int
+// install_info_add(InstallContext *c, const char *name, const char *path,
+// 	InstallInfo **ret)
+// {
+// 	InstallInfo *i = NULL;
+// 	int r;
 
-	assert(c);
-	assert(name || path);
+// 	assert(c);
+// 	assert(name || path);
 
-	if (!name)
-		name = lsb_basename(path);
+// 	if (!name)
+// 		name = lsb_basename(path);
 
-	if (!unit_name_is_valid(name, UNIT_NAME_ANY))
-		return -EINVAL;
+// 	if (!unit_name_is_valid(name, UNIT_NAME_ANY))
+// 		return -EINVAL;
 
-	i = install_info_find(c, name);
-	if (i) {
-		if (ret)
-			*ret = i;
-		return 0;
-	}
+// 	i = install_info_find(c, name);
+// 	if (i) {
+// 		if (ret)
+// 			*ret = i;
+// 		return 0;
+// 	}
 
-	r = ordered_hashmap_ensure_allocated(&c->will_process,
-		&string_hash_ops);
-	if (r < 0)
-		return r;
+// 	r = ordered_hashmap_ensure_allocated(&c->will_process,
+// 		&string_hash_ops);
+// 	if (r < 0)
+// 		return r;
 
-	i = new0(InstallInfo, 1);
-	if (!i)
-		return -ENOMEM;
-	i->type = _UNIT_FILE_TYPE_INVALID;
+// 	i = new0(InstallInfo, 1);
+// 	if (!i)
+// 		return -ENOMEM;
+// 	i->type = _UNIT_FILE_TYPE_INVALID;
 
-	i->name = strdup(name);
-	if (!i->name) {
-		r = -ENOMEM;
-		goto fail;
-	}
+// 	i->name = strdup(name);
+// 	if (!i->name) {
+// 		r = -ENOMEM;
+// 		goto fail;
+// 	}
 
-	if (path) {
-		i->path = strdup(path);
-		if (!i->path) {
-			r = -ENOMEM;
-			goto fail;
-		}
-	}
+// 	if (path) {
+// 		i->path = strdup(path);
+// 		if (!i->path) {
+// 			r = -ENOMEM;
+// 			goto fail;
+// 		}
+// 	}
 
-	r = ordered_hashmap_put(c->will_process, i->name, i);
-	if (r < 0)
-		goto fail;
+// 	r = ordered_hashmap_put(c->will_process, i->name, i);
+// 	if (r < 0)
+// 		goto fail;
 
-	if (ret)
-		*ret = i;
+// 	if (ret)
+// 		*ret = i;
 
-	return 0;
+// 	return 0;
 
-fail:
-	if (i)
-		install_info_free(i);
+// fail:
+// 	if (i)
+// 		install_info_free(i);
 
-	return r;
+// 	return r;
+// }
+
+/**
+ * Adds a new InstallInfo entry under name in the InstallContext.will_process
+ * hashmap, or retrieves the existing one if already present.
+ *
+ * Returns negative on error, 0 if the unit was already known, 1 otherwise.
+ */
+static int install_info_add(
+                InstallContext *ctx,
+                const char *name,
+                const char *path,
+                const char *root,
+                bool auxiliary,
+                InstallInfo **ret) {
+
+        int r;
+
+        assert(ctx);
+
+        if (!name) {
+                /* 'name' and 'path' must not both be null. Check here 'path' using assert_se() to
+                 * workaround a bug in gcc that generates a -Wnonnull warning when calling basename(),
+                 * but this cannot be possible in any code path (See #6119). */
+                assert_se(path);
+                name = basename(path);
+        }
+
+        if (!unit_name_is_valid(name, UNIT_NAME_ANY))
+                return -EINVAL;
+
+        InstallInfo *i = install_info_find(ctx, name);
+        if (i) {
+                i->auxiliary = i->auxiliary && auxiliary;
+
+                if (ret)
+                        *ret = i;
+                return 0;
+        }
+
+        _cleanup_(install_info_freep) InstallInfo *alloc = new(InstallInfo, 1);
+        if (!alloc)
+                return -ENOMEM;
+
+        *alloc = (InstallInfo) {
+                .install_mode = _INSTALL_MODE_INVALID,
+                .auxiliary = auxiliary,
+        };
+
+        alloc->name = strdup(name);
+        if (!alloc->name)
+                return -ENOMEM;
+
+        if (root) {
+                alloc->root = strdup(root);
+                if (!alloc->root)
+                        return -ENOMEM;
+        }
+
+        if (path) {
+                alloc->path = strdup(path);
+                if (!alloc->path)
+                        return -ENOMEM;
+        }
+
+        r = ordered_hashmap_ensure_put(&ctx->will_process, &string_hash_ops, alloc->name, alloc);
+        if (r < 0)
+                return r;
+        i = TAKE_PTR(alloc);
+
+        if (ret)
+                *ret = i;
+        return 1;
 }
 
-static int
-install_info_add_auto(InstallContext *c, const char *name_or_path,
-	InstallInfo **ret)
-{
-	assert(c);
-	assert(name_or_path);
+/**
+ * Call install_info_add() with name_or_path as the path (if name_or_path starts with "/")
+ * or the name (otherwise). root_dir is prepended to the path.
+ */
+static int install_info_add_auto(
+                InstallContext *ctx,
+                const LookupPaths *lp,
+                const char *name_or_path,
+                InstallInfo **ret) {
 
-	if (path_is_absolute(name_or_path))
-		return install_info_add(c, NULL, name_or_path, ret);
-	else
-		return install_info_add(c, name_or_path, NULL, ret);
+        assert(ctx);
+        assert(name_or_path);
+
+        if (path_is_absolute(name_or_path)) {
+                const char *pp;
+
+                pp = prefix_roota(lp->root_dir, name_or_path);
+
+                return install_info_add(ctx, NULL, pp, lp->root_dir, /* auxiliary= */ false, ret);
+        } else
+                return install_info_add(ctx, name_or_path, NULL, lp->root_dir, /* auxiliary= */ false, ret);
 }
+
+// static int
+// install_info_add_auto(InstallContext *c, const char *name_or_path,
+// 	InstallInfo **ret)
+// {
+// 	assert(c);
+// 	assert(name_or_path);
+
+// 	if (path_is_absolute(name_or_path))
+// 		return install_info_add(c, NULL, name_or_path, ret);
+// 	else
+// 		return install_info_add(c, name_or_path, NULL, ret);
+// }
 
 static int
 config_parse_also(const char *unit, const char *filename, unsigned line,
@@ -1244,23 +1353,47 @@ install_info_traverse(UnitFileScope scope, InstallContext *c,
 	return 0;
 }
 
-static int
-install_info_discover(UnitFileScope scope, InstallContext *c,
-	const char *root_dir, const LookupPaths *paths, const char *name,
-	SearchFlags flags, InstallInfo **ret)
-{
-	InstallInfo *i;
-	int r;
+// static int
+// install_info_discover(UnitFileScope scope, InstallContext *c,
+// 	const char *root_dir, const LookupPaths *paths, const char *name,
+// 	SearchFlags flags, InstallInfo **ret)
+// {
+// 	InstallInfo *i;
+// 	int r;
 
-	assert(c);
-	assert(paths);
-	assert(name);
+// 	assert(c);
+// 	assert(paths);
+// 	assert(name);
 
-	r = install_info_add_auto(c, name, &i);
-	if (r < 0)
-		return r;
+// 	r = install_info_add_auto(c, name, &i);
+// 	if (r < 0)
+// 		return r;
 
-	return install_info_traverse(scope, c, root_dir, paths, i, flags, ret);
+// 	return install_info_traverse(scope, c, root_dir, paths, i, flags, ret);
+// }
+static int install_info_discover(
+                InstallContext *ctx,
+                const LookupPaths *lp,
+                const char *name_or_path,
+                SearchFlags flags,
+                InstallInfo **ret,
+                InstallChange **changes,
+                size_t *n_changes) {
+
+        InstallInfo *info;
+        int r;
+
+        assert(ctx);
+        assert(lp);
+        assert(name_or_path);
+
+        r = install_info_add_auto(ctx, lp, name_or_path, &info);
+        if (r >= 0)
+                r = install_info_traverse(ctx, lp, info, flags, ret);
+
+        if (r < 0)
+                install_changes_add(changes, n_changes, r, name_or_path, NULL);
+        return r;
 }
 
 static int
@@ -1994,62 +2127,160 @@ unit_file_get_default(UnitFileScope scope, const char *root_dir, char **name)
 	return 0;
 }
 
-UnitFileState
-unit_file_lookup_state(UnitFileScope scope, const char *root_dir,
-	const LookupPaths *paths, const char *name, UnitFileState *ret)
-{
-	_cleanup_(install_context_done) InstallContext c = {};
-	InstallInfo *i;
-	UnitFileState state;
-	int r = 0;
+// UnitFileState
+// unit_file_lookup_state(UnitFileScope scope, const char *root_dir,
+// 	const LookupPaths *paths, const char *name, UnitFileState *ret)
+// {
+// 	_cleanup_(install_context_done) InstallContext c = {};
+// 	InstallInfo *i;
+// 	UnitFileState state;
+// 	int r = 0;
 
-	assert(paths);
-	assert(name);
+// 	assert(paths);
+// 	assert(name);
 
-	if (!unit_name_is_valid(name, UNIT_NAME_ANY))
-		return -EINVAL;
+// 	if (!unit_name_is_valid(name, UNIT_NAME_ANY))
+// 		return -EINVAL;
 
-	r = verify_root_dir(scope, &root_dir);
-	if (r < 0)
-		return r;
+// 	r = verify_root_dir(scope, &root_dir);
+// 	if (r < 0)
+// 		return r;
 
-	r = install_info_discover(scope, &c, root_dir, paths, name,
-		SEARCH_LOAD | SEARCH_FOLLOW_CONFIG_SYMLINKS, &i);
-	if (r < 0)
-		return r;
+// 	r = install_info_discover(scope, &c, root_dir, paths, name,
+// 		SEARCH_LOAD | SEARCH_FOLLOW_CONFIG_SYMLINKS, &i);
+// 	if (r < 0)
+// 		return r;
 
-	/* Shortcut things, if the caller just wants to know if this unit exists. */
-	if (!ret)
-		return 0;
+// 	/* Shortcut things, if the caller just wants to know if this unit exists. */
+// 	if (!ret)
+// 		return 0;
 
-	switch (i->type) {
-	case UNIT_FILE_TYPE_MASKED:
-		state = path_startswith(i->path, "/run") ?
-			      UNIT_FILE_MASKED_RUNTIME :
-			      UNIT_FILE_MASKED;
-		break;
+// 	switch (i->type) {
+// 	case UNIT_FILE_TYPE_MASKED:
+// 		state = path_startswith(i->path, "/run") ?
+// 			      UNIT_FILE_MASKED_RUNTIME :
+// 			      UNIT_FILE_MASKED;
+// 		break;
 
-	case UNIT_FILE_TYPE_REGULAR:
-		r = find_symlinks_in_scope(scope, root_dir, i->name, &state);
-		if (r < 0)
-			return r;
-		if (r == 0) {
-			if (UNIT_FILE_INSTALL_INFO_HAS_RULES(i))
-				state = UNIT_FILE_DISABLED;
-			else if (UNIT_FILE_INSTALL_INFO_HAS_ALSO(i))
-				state = UNIT_FILE_INDIRECT;
-			else
-				state = UNIT_FILE_STATIC;
-		}
+// 	case UNIT_FILE_TYPE_REGULAR:
+// 		r = find_symlinks_in_scope(scope, root_dir, i->name, &state);
+// 		if (r < 0)
+// 			return r;
+// 		if (r == 0) {
+// 			if (UNIT_FILE_INSTALL_INFO_HAS_RULES(i))
+// 				state = UNIT_FILE_DISABLED;
+// 			else if (UNIT_FILE_INSTALL_INFO_HAS_ALSO(i))
+// 				state = UNIT_FILE_INDIRECT;
+// 			else
+// 				state = UNIT_FILE_STATIC;
+// 		}
 
-		break;
+// 		break;
 
-	default:
-		assert_not_reached();
-	}
+// 	default:
+// 		assert_not_reached();
+// 	}
 
-	*ret = state;
-	return 0;
+// 	*ret = state;
+// 	return 0;
+// }
+
+int unit_file_lookup_state(
+                RuntimeScope scope,
+                const LookupPaths *lp,
+                const char *name,
+                UnitFileState *ret) {
+
+        _cleanup_(install_context_done) InstallContext ctx = { .scope = scope };
+        InstallInfo *info;
+        UnitFileState state;
+        int r;
+
+        assert(lp);
+        assert(name);
+
+        if (!unit_name_is_valid(name, UNIT_NAME_ANY))
+                return -EINVAL;
+
+        r = install_info_discover(&ctx, lp, name, SEARCH_LOAD|SEARCH_FOLLOW_CONFIG_SYMLINKS,
+                                  &info, NULL, NULL);
+        if (r < 0)
+                return log_debug_errno(r, "Failed to discover unit %s: %m", name);
+
+        assert(IN_SET(info->install_mode, INSTALL_MODE_REGULAR, INSTALL_MODE_MASKED));
+        log_debug("Found unit %s at %s (%s)", name, strna(info->path),
+                  info->install_mode == INSTALL_MODE_REGULAR ? "regular file" : "mask");
+
+        /* Shortcut things, if the caller just wants to know if this unit exists. */
+        if (!ret)
+                return 0;
+
+        switch (info->install_mode) {
+
+        case INSTALL_MODE_MASKED:
+                r = path_is_runtime(lp, info->path, true);
+                if (r < 0)
+                        return r;
+
+                state = r > 0 ? UNIT_FILE_MASKED_RUNTIME : UNIT_FILE_MASKED;
+                break;
+
+        case INSTALL_MODE_REGULAR:
+                /* Check if the name we were querying is actually an alias */
+                if (!streq(name, basename(info->path)) && !unit_name_is_valid(info->name, UNIT_NAME_INSTANCE)) {
+                        state = UNIT_FILE_ALIAS;
+                        break;
+                }
+
+                r = path_is_generator(lp, info->path);
+                if (r < 0)
+                        return r;
+                if (r > 0) {
+                        state = UNIT_FILE_GENERATED;
+                        break;
+                }
+
+                r = path_is_transient(lp, info->path);
+                if (r < 0)
+                        return r;
+                if (r > 0) {
+                        state = UNIT_FILE_TRANSIENT;
+                        break;
+                }
+
+                /* Check if any of the Alias= symlinks have been created.
+                 * We ignore other aliases, and only check those that would
+                 * be created by systemctl enable for this unit. */
+                r = find_symlinks_in_scope(scope, lp, info, true, &state);
+                if (r < 0)
+                        return r;
+                if (r > 0)
+                        break;
+
+                /* Check if the file is known under other names. If it is,
+                 * it might be in use. Report that as UNIT_FILE_INDIRECT. */
+                r = find_symlinks_in_scope(scope, lp, info, false, &state);
+                if (r < 0)
+                        return r;
+                if (r > 0)
+                        state = UNIT_FILE_INDIRECT;
+                else {
+                        if (install_info_has_rules(info))
+                                state = UNIT_FILE_DISABLED;
+                        else if (install_info_has_also(info))
+                                state = UNIT_FILE_INDIRECT;
+                        else
+                                state = UNIT_FILE_STATIC;
+                }
+
+                break;
+
+        default:
+                assert_not_reached();
+        }
+
+        *ret = state;
+        return 0;
 }
 
 int
@@ -2398,105 +2629,173 @@ unit_file_list_free_one(UnitFileList *f)
 	free(f);
 }
 
-Hashmap *
-unit_file_list_free(Hashmap *h)
-{
-	UnitFileList *i;
+static UnitFileList* unit_file_list_free(UnitFileList *f) {
+        if (!f)
+                return NULL;
 
-	while ((i = hashmap_steal_first(h)))
-		unit_file_list_free_one(i);
-
-	hashmap_free(h);
-
-	return NULL;
+        free(f->path);
+        return mfree(f);
 }
 
-DEFINE_TRIVIAL_CLEANUP_FUNC(UnitFileList *, unit_file_list_free_one);
+DEFINE_TRIVIAL_CLEANUP_FUNC(UnitFileList*, unit_file_list_free);
 
-int
-unit_file_get_list(UnitFileScope scope, const char *root_dir, Hashmap *h)
-{
-	_cleanup_lookup_paths_free_ LookupPaths paths = {};
-	char **i;
-	int r;
+// int
+// unit_file_get_list(UnitFileScope scope, const char *root_dir, Hashmap *h)
+// {
+// 	_cleanup_lookup_paths_free_ LookupPaths paths = {};
+// 	char **i;
+// 	int r;
 
-	assert(scope >= 0);
-	assert(scope < _UNIT_FILE_SCOPE_MAX);
-	assert(h);
+// 	assert(scope >= 0);
+// 	assert(scope < _UNIT_FILE_SCOPE_MAX);
+// 	assert(h);
 
-	r = verify_root_dir(scope, &root_dir);
-	if (r < 0)
-		return r;
+// 	r = verify_root_dir(scope, &root_dir);
+// 	if (r < 0)
+// 		return r;
 
-	r = lookup_paths_init_from_scope(&paths, scope, root_dir);
-	if (r < 0)
-		return r;
+// 	r = lookup_paths_init_from_scope(&paths, scope, root_dir);
+// 	if (r < 0)
+// 		return r;
 
-	STRV_FOREACH (i, paths.unit_path) {
-		_cleanup_closedir_ DIR *d = NULL;
-		_cleanup_free_ char *units_dir;
+// 	STRV_FOREACH (i, paths.unit_path) {
+// 		_cleanup_closedir_ DIR *d = NULL;
+// 		_cleanup_free_ char *units_dir;
 
-		units_dir = path_join(root_dir, *i, NULL);
-		if (!units_dir)
-			return -ENOMEM;
+// 		units_dir = path_join(root_dir, *i, NULL);
+// 		if (!units_dir)
+// 			return -ENOMEM;
 
-		d = opendir(units_dir);
-		if (!d) {
-			if (errno == ENOENT)
-				continue;
+// 		d = opendir(units_dir);
+// 		if (!d) {
+// 			if (errno == ENOENT)
+// 				continue;
 
-			return -errno;
-		}
+// 			return -errno;
+// 		}
 
-		for (;;) {
-			_cleanup_(unit_file_list_free_onep) UnitFileList *f =
-				NULL;
-			struct dirent *de;
+// 		for (;;) {
+// 			_cleanup_(unit_file_list_free_one) UnitFileList *f = NULL;
+// 			struct dirent *de;
 
-			errno = 0;
-			de = readdir(d);
-			if (!de && errno != 0)
-				return -errno;
+// 			errno = 0;
+// 			de = readdir(d);
+// 			if (!de && errno != 0)
+// 				return -errno;
 
-			if (!de)
-				break;
+// 			if (!de)
+// 				break;
 
-			if (hidden_file(de->d_name))
-				continue;
+// 			if (hidden_file(de->d_name))
+// 				continue;
 
-			if (!unit_name_is_valid(de->d_name, UNIT_NAME_ANY))
-				continue;
+// 			if (!unit_name_is_valid(de->d_name, UNIT_NAME_ANY))
+// 				continue;
 
-			if (hashmap_get(h, de->d_name))
-				continue;
+// 			if (hashmap_get(h, de->d_name))
+// 				continue;
 
-			dirent_ensure_type(d, de);
+// 			dirent_ensure_type(d, de);
 
-			if (!IN_SET(de->d_type, DT_LNK, DT_REG))
-				continue;
+// 			if (!IN_SET(de->d_type, DT_LNK, DT_REG))
+// 				continue;
 
-			f = new0(UnitFileList, 1);
-			if (!f)
-				return -ENOMEM;
+// 			f = new0(UnitFileList, 1);
+// 			if (!f)
+// 				return -ENOMEM;
 
-			f->path = path_make_absolute(de->d_name, units_dir);
-			if (!f->path)
-				return -ENOMEM;
+// 			f->path = path_make_absolute(de->d_name, units_dir);
+// 			if (!f->path)
+// 				return -ENOMEM;
 
-			r = unit_file_lookup_state(scope, root_dir, &paths,
-				lsb_basename(f->path), &f->state);
-			if (r < 0)
-				f->state = UNIT_FILE_BAD;
+// 			r = unit_file_lookup_state(scope, root_dir, &paths,
+// 				lsb_basename(f->path), &f->state);
+// 			if (r < 0)
+// 				f->state = UNIT_FILE_BAD;
 
-			r = hashmap_put(h, lsb_basename(f->path), f);
-			if (r < 0)
-				return r;
+// 			r = hashmap_put(h, lsb_basename(f->path), f);
+// 			if (r < 0)
+// 				return r;
 
-			f = NULL; /* prevent cleanup */
-		}
-	}
+// 			f = NULL; /* prevent cleanup */
+// 		}
+// 	}
 
-	return 0;
+// 	return 0;
+// }
+int unit_file_get_list(
+                RuntimeScope scope,
+                const char *root_dir,
+                Hashmap *h,
+                char **states,
+                char **patterns) {
+
+        _cleanup_(lookup_paths_done) LookupPaths lp = {};
+        int r;
+
+        assert(scope >= 0);
+        assert(scope < _RUNTIME_SCOPE_MAX);
+        assert(h);
+
+        r = lookup_paths_init(&lp, scope, 0, root_dir);
+        if (r < 0)
+                return r;
+
+        STRV_FOREACH(dirname, lp.search_path) {
+                _cleanup_closedir_ DIR *d = NULL;
+
+                d = opendir(*dirname);
+                if (!d) {
+                        if (errno == ENOENT)
+                                continue;
+                        if (IN_SET(errno, ENOTDIR, EACCES)) {
+                                log_debug_errno(errno, "Failed to open \"%s\": %m", *dirname);
+                                continue;
+                        }
+
+                        return -errno;
+                }
+
+                FOREACH_DIRENT(de, d, return -errno) {
+                        _cleanup_(unit_file_list_freep) UnitFileList *f = NULL;
+
+                        if (!unit_name_is_valid(de->d_name, UNIT_NAME_ANY))
+                                continue;
+
+                        if (!strv_fnmatch_or_empty(patterns, de->d_name, FNM_NOESCAPE))
+                                continue;
+
+                        if (hashmap_get(h, de->d_name))
+                                continue;
+
+                        if (!IN_SET(de->d_type, DT_LNK, DT_REG))
+                                continue;
+
+                        f = new0(UnitFileList, 1);
+                        if (!f)
+                                return -ENOMEM;
+
+                        f->path = path_make_absolute(de->d_name, *dirname);
+                        if (!f->path)
+                                return -ENOMEM;
+
+                        r = unit_file_lookup_state(scope, &lp, de->d_name, &f->state);
+                        if (r < 0)
+                                f->state = UNIT_FILE_BAD;
+
+                        if (!strv_isempty(states) &&
+                            !strv_contains(states, unit_file_state_to_string(f->state)))
+                                continue;
+
+                        r = hashmap_put(h, basename(f->path), f);
+                        if (r < 0)
+                                return r;
+
+                        f = NULL; /* prevent cleanup */
+                }
+        }
+
+        return 0;
 }
 
 static const char *const unit_file_state_table[_UNIT_FILE_STATE_MAX] = {

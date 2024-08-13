@@ -241,191 +241,423 @@ generator_paths(SystemdRunningAs running_as)
 			SYSTEM_GENERATOR_PATH, NULL);
 }
 
-int
-lookup_paths_init(LookupPaths *p, SystemdRunningAs running_as, bool personal,
-	const char *root_dir, const char *generator,
-	const char *generator_early, const char *generator_late)
-{
-	const char *e;
-	bool append =
-		false; /* Add items from SYSTEMD_UNIT_PATH before normal directories */
+// int
+// lookup_paths_init(LookupPaths *p, SystemdRunningAs running_as, bool personal,
+// 	const char *root_dir, const char *generator,
+// 	const char *generator_early, const char *generator_late)
+// {
+// 	const char *e;
+// 	bool append =
+// 		false; /* Add items from SYSTEMD_UNIT_PATH before normal directories */
 
-	assert(p);
+// 	assert(p);
 
-	/* First priority is whatever has been passed to us via env
-         * vars */
-	e = getenv("SYSTEMD_UNIT_PATH");
-	if (e) {
-		if (endswith(e, ":")) {
-			e = strndupa(e, strlen(e) - 1);
-			append = true;
-		}
+// 	/* First priority is whatever has been passed to us via env
+//          * vars */
+// 	e = getenv("SYSTEMD_UNIT_PATH");
+// 	if (e) {
+// 		if (endswith(e, ":")) {
+// 			e = strndupa(e, strlen(e) - 1);
+// 			append = true;
+// 		}
 
-		/* FIXME: empty components in other places should be
-                 * rejected. */
+// 		/* FIXME: empty components in other places should be
+//                  * rejected. */
 
-		p->unit_path = path_split_and_make_absolute(e);
-		if (!p->unit_path)
-			return -ENOMEM;
-	} else
-		p->unit_path = NULL;
+// 		p->unit_path = path_split_and_make_absolute(e);
+// 		if (!p->unit_path)
+// 			return -ENOMEM;
+// 	} else
+// 		p->unit_path = NULL;
 
-	if (!p->unit_path || append) {
-		/* Let's figure something out. */
+// 	if (!p->unit_path || append) {
+// 		/* Let's figure something out. */
 
-		_cleanup_strv_free_ char **unit_path;
-		int r;
+// 		_cleanup_strv_free_ char **unit_path;
+// 		int r;
 
-		/* For the user units we include share/ in the search
+// 		/* For the user units we include share/ in the search
+//                  * path in order to comply with the XDG basedir spec.
+//                  * For the system stuff we avoid such nonsense. OTOH
+//                  * we include /lib in the search path for the system
+//                  * stuff but avoid it for user stuff. */
+
+// 		if (running_as == SYSTEMD_USER) {
+// 			if (personal)
+// 				unit_path = user_dirs(generator,
+// 					generator_early, generator_late);
+// 			else
+// 				unit_path = strv_new(
+// 					/* If you modify this you also want to modify
+//                                          * systemduserunitpath= in systemd.pc.in, and
+//                                          * the arrays in user_dirs() above! */
+// 					STRV_IFNOTNULL(generator_early),
+// 					USER_CONFIG_UNIT_PATH,
+// 					SVC_PKGSYSCONFDIR "/user",
+// 					SVC_PKGRUNSTATEDIR "/user",
+// 					STRV_IFNOTNULL(generator),
+// #ifdef SVC_USE_systemd_paths
+// 					"/usr/local/lib/" SVC_PKGDIRNAME "/user",
+// 					"/usr/local/share/" SVC_PKGDIRNAME "/user",
+// #endif
+// 					USER_DATA_UNIT_PATH,
+// #ifdef SVC_USE_systemd_paths
+// 					"/usr/lib/" SVC_PKGDIRNAME "/user",
+// 					"/usr/share/" SVC_PKGDIRNAME "/user",
+// #endif
+// 					STRV_IFNOTNULL(generator_late), NULL);
+// 		} else
+// 			unit_path = strv_new(
+// 				/* If you modify this you also want to modify
+//                                  * systemdsystemunitpath= in systemd.pc.in! */
+// 				STRV_IFNOTNULL(generator_early),
+// 				SYSTEM_CONFIG_UNIT_PATH, SVC_PKGSYSCONFDIR "/system",
+// 				SVC_PKGRUNSTATEDIR "/system",
+// 				STRV_IFNOTNULL(generator),
+// #ifdef SVC_USE_systemd_paths
+// 				"/usr/local/lib/" SVC_PKGDIRNAME "/system",
+// #endif
+// 				SYSTEM_DATA_UNIT_PATH,
+// #ifdef SVC_USE_systemd_paths
+// 				"/usr/lib/" SVC_PKGDIRNAME "/system",
+// #ifdef HAVE_SPLIT_USR
+// 				"/lib/" SVC_PKGDIRNAME "/system",
+// #endif
+// #endif
+// 				STRV_IFNOTNULL(generator_late), NULL);
+
+// 		if (!unit_path)
+// 			return -ENOMEM;
+
+// 		r = strv_extend_strv(&p->unit_path, unit_path);
+// 		if (r < 0)
+// 			return r;
+// 	}
+
+// 	if (!path_strv_resolve_uniq(p->unit_path, root_dir))
+// 		return -ENOMEM;
+
+// 	if (!strv_isempty(p->unit_path)) {
+// 		_cleanup_free_ char *t = strv_join(p->unit_path, "\n\t");
+// 		if (!t)
+// 			return -ENOMEM;
+// 		log_debug(
+// 			"Looking for unit files in (higher priority first):\n\t%s",
+// 			t);
+// 	} else {
+// 		log_debug("Ignoring unit files.");
+// 		strv_free(p->unit_path);
+// 		p->unit_path = NULL;
+// 	}
+
+// 	if (running_as == SYSTEMD_SYSTEM) {
+// #ifdef HAVE_SYSV_COMPAT
+// 		/* /etc/init.d/ compatibility does not matter to users */
+
+// 		e = getenv("SYSTEMD_SYSVINIT_PATH");
+// 		if (e) {
+// 			p->sysvinit_path = path_split_and_make_absolute(e);
+// 			if (!p->sysvinit_path)
+// 				return -ENOMEM;
+// 		} else
+// 			p->sysvinit_path = NULL;
+
+// 		if (strv_isempty(p->sysvinit_path)) {
+// 			strv_free(p->sysvinit_path);
+
+// 			p->sysvinit_path = strv_new(
+// 				SYSTEM_SYSVINIT_PATH, /* /etc/init.d/ */
+// 				NULL);
+// 			if (!p->sysvinit_path)
+// 				return -ENOMEM;
+// 		}
+
+// 		e = getenv("SYSTEMD_SYSVRCND_PATH");
+// 		if (e) {
+// 			p->sysvrcnd_path = path_split_and_make_absolute(e);
+// 			if (!p->sysvrcnd_path)
+// 				return -ENOMEM;
+// 		} else
+// 			p->sysvrcnd_path = NULL;
+
+// 		if (strv_isempty(p->sysvrcnd_path)) {
+// 			strv_free(p->sysvrcnd_path);
+
+// 			p->sysvrcnd_path =
+// 				strv_new(SYSTEM_SYSVRCND_PATH, /* /etc/rcN.d/ */
+// 					NULL);
+// 			if (!p->sysvrcnd_path)
+// 				return -ENOMEM;
+// 		}
+
+// 		if (!path_strv_resolve_uniq(p->sysvinit_path, root_dir))
+// 			return -ENOMEM;
+
+// 		if (!path_strv_resolve_uniq(p->sysvrcnd_path, root_dir))
+// 			return -ENOMEM;
+
+// 		if (!strv_isempty(p->sysvinit_path)) {
+// 			_cleanup_free_ char *t =
+// 				strv_join(p->sysvinit_path, "\n\t");
+// 			if (!t)
+// 				return -ENOMEM;
+// 			log_debug("Looking for SysV init scripts in:\n\t%s", t);
+// 		} else {
+// 			log_debug("Ignoring SysV init scripts.");
+// 			strv_free(p->sysvinit_path);
+// 			p->sysvinit_path = NULL;
+// 		}
+
+// 		if (!strv_isempty(p->sysvrcnd_path)) {
+// 			_cleanup_free_ char *t =
+// 				strv_join(p->sysvrcnd_path, "\n\t");
+// 			if (!t)
+// 				return -ENOMEM;
+
+// 			log_debug("Looking for SysV rcN.d links in:\n\t%s", t);
+// 		} else {
+// 			log_debug("Ignoring SysV rcN.d links.");
+// 			strv_free(p->sysvrcnd_path);
+// 			p->sysvrcnd_path = NULL;
+// 		}
+// #else
+// 		log_debug("SysV init scripts and rcN.d links support disabled");
+// #endif
+// 	}
+
+// 	return 0;
+// }
+
+// NOTE: We should respect SVC_USE_systemd_paths here!
+int lookup_paths_init(
+                LookupPaths *lp,
+                RuntimeScope scope,
+                LookupPathsFlags flags,
+                const char *root_dir) {
+
+        _cleanup_(rmdir_and_freep) char *tempdir = NULL;
+        _cleanup_free_ char
+                *root = NULL,
+                *persistent_config = NULL, *runtime_config = NULL,
+                *global_persistent_config = NULL, *global_runtime_config = NULL,
+                *generator = NULL, *generator_early = NULL, *generator_late = NULL,
+                *transient = NULL,
+                *persistent_control = NULL, *runtime_control = NULL,
+                *persistent_attached = NULL, *runtime_attached = NULL;
+        bool append = false; /* Add items from SYSTEMD_UNIT_PATH before normal directories */
+        _cleanup_strv_free_ char **paths = NULL;
+        int r;
+
+        assert(lp);
+        assert(scope >= 0);
+        assert(scope < _RUNTIME_SCOPE_MAX);
+
+        if (!empty_or_root(root_dir)) {
+                if (scope == RUNTIME_SCOPE_USER)
+                        return -EINVAL;
+
+                r = is_dir(root_dir, true);
+                if (r < 0)
+                        return r;
+                if (r == 0)
+                        return -ENOTDIR;
+
+                root = strdup(root_dir);
+                if (!root)
+                        return -ENOMEM;
+        }
+
+        if (flags & LOOKUP_PATHS_TEMPORARY_GENERATED) {
+                r = mkdtemp_malloc("/tmp/systemd-temporary-XXXXXX", &tempdir);
+                if (r < 0)
+                        return log_debug_errno(r, "Failed to create temporary directory: %m");
+        }
+
+        /* Note: when XDG_RUNTIME_DIR is not set this will not return -ENXIO, but simply set runtime_config to NULL */
+        r = acquire_config_dirs(scope, &persistent_config, &runtime_config);
+        if (r < 0)
+                return r;
+
+        if (scope == RUNTIME_SCOPE_USER) {
+                r = acquire_config_dirs(RUNTIME_SCOPE_GLOBAL, &global_persistent_config, &global_runtime_config);
+                if (r < 0)
+                        return r;
+        }
+
+        if ((flags & LOOKUP_PATHS_EXCLUDE_GENERATED) == 0) {
+                /* Note: if XDG_RUNTIME_DIR is not set, this will fail completely with ENXIO */
+                r = acquire_generator_dirs(scope, tempdir,
+                                           &generator, &generator_early, &generator_late);
+                if (r < 0 && !IN_SET(r, -EOPNOTSUPP, -ENXIO))
+                        return r;
+        }
+
+        /* Note: if XDG_RUNTIME_DIR is not set, this will fail completely with ENXIO */
+        r = acquire_transient_dir(scope, tempdir, &transient);
+        if (r < 0 && !IN_SET(r, -EOPNOTSUPP, -ENXIO))
+                return r;
+
+        /* Note: when XDG_RUNTIME_DIR is not set this will not return -ENXIO, but simply set runtime_control to NULL */
+        r = acquire_control_dirs(scope, &persistent_control, &runtime_control);
+        if (r < 0 && r != -EOPNOTSUPP)
+                return r;
+
+        r = acquire_attached_dirs(scope, &persistent_attached, &runtime_attached);
+        if (r < 0 && r != -EOPNOTSUPP)
+                return r;
+
+        /* First priority is whatever has been passed to us via env vars */
+        r = get_paths_from_environ("SYSTEMD_UNIT_PATH", &paths, &append);
+        if (r < 0)
+                return r;
+
+        if (!paths || append) {
+                /* Let's figure something out. */
+
+                _cleanup_strv_free_ char **add = NULL;
+
+                /* For the user units we include share/ in the search
                  * path in order to comply with the XDG basedir spec.
                  * For the system stuff we avoid such nonsense. OTOH
                  * we include /lib in the search path for the system
                  * stuff but avoid it for user stuff. */
 
-		if (running_as == SYSTEMD_USER) {
-			if (personal)
-				unit_path = user_dirs(generator,
-					generator_early, generator_late);
-			else
-				unit_path = strv_new(
-					/* If you modify this you also want to modify
+                switch (scope) {
+
+                case RUNTIME_SCOPE_SYSTEM:
+                        add = strv_new(
+                                        /* If you modify this you also want to modify
+                                         * systemdsystemunitpath= in systemd.pc.in! */
+                                        STRV_IFNOTNULL(persistent_control),
+                                        STRV_IFNOTNULL(runtime_control),
+                                        STRV_IFNOTNULL(transient),
+                                        STRV_IFNOTNULL(generator_early),
+                                        persistent_config,
+                                        SYSTEM_CONFIG_UNIT_DIR,
+                                        "/etc/systemd/system",
+                                        STRV_IFNOTNULL(persistent_attached),
+                                        runtime_config,
+                                        "/run/systemd/system",
+                                        STRV_IFNOTNULL(runtime_attached),
+                                        STRV_IFNOTNULL(generator),
+                                        "/usr/local/lib/systemd/system",
+                                        SYSTEM_DATA_UNIT_DIR,
+                                        "/usr/lib/systemd/system",
+                                        /* To be used ONLY for images which might be legacy split-usr */
+                                        STRV_IFNOTNULL(flags & LOOKUP_PATHS_SPLIT_USR ? "/lib/systemd/system" : NULL),
+                                        STRV_IFNOTNULL(generator_late));
+                        break;
+
+                case RUNTIME_SCOPE_GLOBAL:
+                        add = strv_new(
+                                        /* If you modify this you also want to modify
                                          * systemduserunitpath= in systemd.pc.in, and
                                          * the arrays in user_dirs() above! */
-					STRV_IFNOTNULL(generator_early),
-					USER_CONFIG_UNIT_PATH,
-					SVC_PKGSYSCONFDIR "/user",
-					SVC_PKGRUNSTATEDIR "/user",
-					STRV_IFNOTNULL(generator),
-#ifdef SVC_USE_systemd_paths
-					"/usr/local/lib/" SVC_PKGDIRNAME "/user",
-					"/usr/local/share/" SVC_PKGDIRNAME "/user",
-#endif
-					USER_DATA_UNIT_PATH,
-#ifdef SVC_USE_systemd_paths
-					"/usr/lib/" SVC_PKGDIRNAME "/user",
-					"/usr/share/" SVC_PKGDIRNAME "/user",
-#endif
-					STRV_IFNOTNULL(generator_late), NULL);
-		} else
-			unit_path = strv_new(
-				/* If you modify this you also want to modify
-                                 * systemdsystemunitpath= in systemd.pc.in! */
-				STRV_IFNOTNULL(generator_early),
-				SYSTEM_CONFIG_UNIT_PATH, SVC_PKGSYSCONFDIR "/system",
-				SVC_PKGRUNSTATEDIR "/system",
-				STRV_IFNOTNULL(generator),
-#ifdef SVC_USE_systemd_paths
-				"/usr/local/lib/" SVC_PKGDIRNAME "/system",
-#endif
-				SYSTEM_DATA_UNIT_PATH,
-#ifdef SVC_USE_systemd_paths
-				"/usr/lib/" SVC_PKGDIRNAME "/system",
-#ifdef HAVE_SPLIT_USR
-				"/lib/" SVC_PKGDIRNAME "/system",
-#endif
-#endif
-				STRV_IFNOTNULL(generator_late), NULL);
+                                        STRV_IFNOTNULL(persistent_control),
+                                        STRV_IFNOTNULL(runtime_control),
+                                        STRV_IFNOTNULL(transient),
+                                        STRV_IFNOTNULL(generator_early),
+                                        persistent_config,
+                                        USER_CONFIG_UNIT_DIR,
+                                        "/etc/systemd/user",
+                                        runtime_config,
+                                        "/run/systemd/user",
+                                        STRV_IFNOTNULL(generator),
+                                        "/usr/local/share/systemd/user",
+                                        "/usr/share/systemd/user",
+                                        "/usr/local/lib/systemd/user",
+                                        USER_DATA_UNIT_DIR,
+                                        "/usr/lib/systemd/user",
+                                        STRV_IFNOTNULL(generator_late));
+                        break;
 
-		if (!unit_path)
-			return -ENOMEM;
+                case RUNTIME_SCOPE_USER:
+                        add = user_dirs(persistent_config, runtime_config,
+                                        global_persistent_config, global_runtime_config,
+                                        generator, generator_early, generator_late,
+                                        transient,
+                                        persistent_control, runtime_control);
+                        break;
 
-		r = strv_extend_strv(&p->unit_path, unit_path);
-		if (r < 0)
-			return r;
-	}
+                default:
+                        assert_not_reached();
+                }
 
-	if (!path_strv_resolve_uniq(p->unit_path, root_dir))
-		return -ENOMEM;
+                if (!add)
+                        return -ENOMEM;
 
-	if (!strv_isempty(p->unit_path)) {
-		_cleanup_free_ char *t = strv_join(p->unit_path, "\n\t");
-		if (!t)
-			return -ENOMEM;
-		log_debug(
-			"Looking for unit files in (higher priority first):\n\t%s",
-			t);
-	} else {
-		log_debug("Ignoring unit files.");
-		strv_free(p->unit_path);
-		p->unit_path = NULL;
-	}
+                if (paths) {
+                        r = strv_extend_strv(&paths, add, true);
+                        if (r < 0)
+                                return r;
+                } else
+                        /* Small optimization: if paths is NULL (and it usually is), we can simply assign 'add' to it,
+                         * and don't have to copy anything */
+                        paths = TAKE_PTR(add);
+        }
 
-	if (running_as == SYSTEMD_SYSTEM) {
-#ifdef HAVE_SYSV_COMPAT
-		/* /etc/init.d/ compatibility does not matter to users */
+        r = patch_root_prefix(&persistent_config, root);
+        if (r < 0)
+                return r;
+        r = patch_root_prefix(&runtime_config, root);
+        if (r < 0)
+                return r;
 
-		e = getenv("SYSTEMD_SYSVINIT_PATH");
-		if (e) {
-			p->sysvinit_path = path_split_and_make_absolute(e);
-			if (!p->sysvinit_path)
-				return -ENOMEM;
-		} else
-			p->sysvinit_path = NULL;
+        r = patch_root_prefix(&generator, root);
+        if (r < 0)
+                return r;
+        r = patch_root_prefix(&generator_early, root);
+        if (r < 0)
+                return r;
+        r = patch_root_prefix(&generator_late, root);
+        if (r < 0)
+                return r;
 
-		if (strv_isempty(p->sysvinit_path)) {
-			strv_free(p->sysvinit_path);
+        r = patch_root_prefix(&transient, root);
+        if (r < 0)
+                return r;
 
-			p->sysvinit_path = strv_new(
-				SYSTEM_SYSVINIT_PATH, /* /etc/init.d/ */
-				NULL);
-			if (!p->sysvinit_path)
-				return -ENOMEM;
-		}
+        r = patch_root_prefix(&persistent_control, root);
+        if (r < 0)
+                return r;
+        r = patch_root_prefix(&runtime_control, root);
+        if (r < 0)
+                return r;
 
-		e = getenv("SYSTEMD_SYSVRCND_PATH");
-		if (e) {
-			p->sysvrcnd_path = path_split_and_make_absolute(e);
-			if (!p->sysvrcnd_path)
-				return -ENOMEM;
-		} else
-			p->sysvrcnd_path = NULL;
+        r = patch_root_prefix(&persistent_attached, root);
+        if (r < 0)
+                return r;
+        r = patch_root_prefix(&runtime_attached, root);
+        if (r < 0)
+                return r;
 
-		if (strv_isempty(p->sysvrcnd_path)) {
-			strv_free(p->sysvrcnd_path);
+        r = patch_root_prefix_strv(paths, root);
+        if (r < 0)
+                return -ENOMEM;
 
-			p->sysvrcnd_path =
-				strv_new(SYSTEM_SYSVRCND_PATH, /* /etc/rcN.d/ */
-					NULL);
-			if (!p->sysvrcnd_path)
-				return -ENOMEM;
-		}
+        *lp = (LookupPaths) {
+                .search_path = strv_uniq(TAKE_PTR(paths)),
 
-		if (!path_strv_resolve_uniq(p->sysvinit_path, root_dir))
-			return -ENOMEM;
+                .persistent_config = TAKE_PTR(persistent_config),
+                .runtime_config = TAKE_PTR(runtime_config),
 
-		if (!path_strv_resolve_uniq(p->sysvrcnd_path, root_dir))
-			return -ENOMEM;
+                .generator = TAKE_PTR(generator),
+                .generator_early = TAKE_PTR(generator_early),
+                .generator_late = TAKE_PTR(generator_late),
 
-		if (!strv_isempty(p->sysvinit_path)) {
-			_cleanup_free_ char *t =
-				strv_join(p->sysvinit_path, "\n\t");
-			if (!t)
-				return -ENOMEM;
-			log_debug("Looking for SysV init scripts in:\n\t%s", t);
-		} else {
-			log_debug("Ignoring SysV init scripts.");
-			strv_free(p->sysvinit_path);
-			p->sysvinit_path = NULL;
-		}
+                .transient = TAKE_PTR(transient),
 
-		if (!strv_isempty(p->sysvrcnd_path)) {
-			_cleanup_free_ char *t =
-				strv_join(p->sysvrcnd_path, "\n\t");
-			if (!t)
-				return -ENOMEM;
+                .persistent_control = TAKE_PTR(persistent_control),
+                .runtime_control = TAKE_PTR(runtime_control),
 
-			log_debug("Looking for SysV rcN.d links in:\n\t%s", t);
-		} else {
-			log_debug("Ignoring SysV rcN.d links.");
-			strv_free(p->sysvrcnd_path);
-			p->sysvrcnd_path = NULL;
-		}
-#else
-		log_debug("SysV init scripts and rcN.d links support disabled");
-#endif
-	}
+                .persistent_attached = TAKE_PTR(persistent_attached),
+                .runtime_attached = TAKE_PTR(runtime_attached),
 
-	return 0;
+                .root_dir = TAKE_PTR(root),
+                .temporary_dir = TAKE_PTR(tempdir),
+        };
+
+        return 0;
 }
 
 void
@@ -456,4 +688,28 @@ lookup_paths_init_from_scope(LookupPaths *paths, UnitFileScope scope,
 	return lookup_paths_init(paths,
 		scope == UNIT_FILE_SYSTEM ? SYSTEMD_SYSTEM : SYSTEMD_USER,
 		scope == UNIT_FILE_USER, root_dir, NULL, NULL, NULL);
+}
+
+void lookup_paths_done(LookupPaths *lp) {
+        assert(lp);
+
+        lp->search_path = strv_free(lp->search_path);
+
+        lp->persistent_config = mfree(lp->persistent_config);
+        lp->runtime_config = mfree(lp->runtime_config);
+
+        lp->persistent_attached = mfree(lp->persistent_attached);
+        lp->runtime_attached = mfree(lp->runtime_attached);
+
+        lp->generator = mfree(lp->generator);
+        lp->generator_early = mfree(lp->generator_early);
+        lp->generator_late = mfree(lp->generator_late);
+
+        lp->transient = mfree(lp->transient);
+
+        lp->persistent_control = mfree(lp->persistent_control);
+        lp->runtime_control = mfree(lp->runtime_control);
+
+        lp->root_dir = mfree(lp->root_dir);
+        lp->temporary_dir = mfree(lp->temporary_dir);
 }

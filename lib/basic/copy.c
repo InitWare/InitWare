@@ -21,6 +21,7 @@
 
 #include "alloc-util.h"
 #include "copy.h"
+#include "dirent-util.h"
 #include "util.h"
 
 #ifdef SVC_HAVE_sys_sendfile_h

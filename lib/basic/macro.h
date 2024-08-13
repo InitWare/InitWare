@@ -32,6 +32,21 @@
 #include <sys/sysmacros.h>
 #endif
 
+/* Note: on GCC "no_sanitize_address" is a function attribute only, on llvm it may also be applied to global
+ * variables. We define a specific macro which knows this. Note that on GCC we don't need this decorator so much, since
+ * our primary use case for this attribute is registration structures placed in named ELF sections which shall not be
+ * padded, but GCC doesn't pad those anyway if AddressSanitizer is enabled. */
+// HACK: For now, never
+// #if HAS_FEATURE_ADDRESS_SANITIZER && defined(__clang__)
+#if 0
+#define _variable_no_sanitize_address_ __attribute__((__no_sanitize_address__))
+#else
+#define _variable_no_sanitize_address_
+#endif
+
+#define _align_(x) __attribute__((__aligned__(x)))
+#define _alignas_(x) __attribute__((__aligned__(alignof(x))))
+#define _alignptr_ __attribute__((__aligned__(sizeof(void *))))
 #define _printf_(a, b) __attribute__((format(printf, a, b)))
 #define _alloc_(...) __attribute__((alloc_size(__VA_ARGS__)))
 #define _sentinel_ __attribute__((sentinel))
@@ -50,8 +65,10 @@
 #define _public_ __attribute__((visibility("default")))
 #define _hidden_ __attribute__((visibility("hidden")))
 #define _weakref_(x) __attribute__((weakref(#x)))
-#define _alignas_(x) __attribute__((aligned(__alignof(x))))
 #define _cleanup_(x) __attribute__((cleanup(x)))
+#define _section_(x) __attribute__((__section__(x)))
+#define _used_ __attribute__((__used__))
+#define _retain_ __attribute__((__retain__))
 #define _noreturn_ _Noreturn
 
 /* Temporarily disable some warnings */
@@ -79,6 +96,10 @@
 	_Pragma("GCC diagnostic push");                                        \
 	_Pragma("GCC diagnostic ignored \"-Wincompatible-pointer-types\"")
 
+#define DISABLE_WARNING_ADDRESS                                         \
+        _Pragma("GCC diagnostic push");                                 \
+        _Pragma("GCC diagnostic ignored \"-Waddress\"")
+
 #define REENABLE_WARNING _Pragma("GCC diagnostic pop")
 
 /* automake test harness */
@@ -92,6 +113,26 @@
 
 #define UNIQ_T(x, uniq) CONCATENATE(__unique_prefix_, CONCATENATE(x, uniq))
 #define UNIQ __COUNTER__
+
+/* When func() returns the void value (NULL, -1, …) of the appropriate type */
+#define DEFINE_TRIVIAL_CLEANUP_FUNC(type, func)                 \
+        static inline void func##p(type *p) {                   \
+                if (*p)                                         \
+                        *p = func(*p);                          \
+        }
+
+/* When func() doesn't return the appropriate type, set variable to empty afterwards.
+ * The func() may be provided by a dynamically loaded shared library, hence add an assertion. */
+#define DEFINE_TRIVIAL_CLEANUP_FUNC_FULL(type, func, empty)     \
+        static inline void func##p(type *p) {                   \
+                if (*p != (empty)) {                            \
+                        DISABLE_WARNING_ADDRESS;                \
+                        assert(func);                           \
+                        REENABLE_WARNING;                       \
+                        func(*p);                               \
+                        *p = (empty);                           \
+                }                                               \
+        }
 
 /* Rounds up */
 
@@ -554,14 +595,6 @@ GID_IS_INVALID(gid_t gid)
 {
 	return gid == (gid_t)((uint32_t)-1) || gid == (gid_t)((uint16_t)-1);
 }
-
-#define DEFINE_TRIVIAL_CLEANUP_FUNC(type, func)                                \
-	static inline void func##p(type *p)                                    \
-	{                                                                      \
-		if (*p)                                                        \
-			func(*p);                                              \
-	}                                                                      \
-	struct __useless_struct_to_allow_trailing_semicolon__
 
 #define CMSG_FOREACH(cmsg, mh)                                                 \
 	for ((cmsg) = CMSG_FIRSTHDR(mh); (cmsg);                               \

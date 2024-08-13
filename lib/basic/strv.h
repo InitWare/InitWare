@@ -23,14 +23,15 @@
 #include <stdarg.h>
 #include <stdbool.h>
 
+#include "string-util.h"
 #include "util.h"
 
 char *strv_find(char **l, const char *name) _pure_;
 char *strv_find_prefix(char **l, const char *name) _pure_;
 char *strv_find_startswith(char **l, const char *name) _pure_;
 
-void strv_free(char **l);
-DEFINE_TRIVIAL_CLEANUP_FUNC(char **, strv_free);
+char** strv_free(char **l);
+DEFINE_TRIVIAL_CLEANUP_FUNC(char**, strv_free);
 #define _cleanup_strv_free_ _cleanup_(strv_freep)
 
 void strv_clear(char **l);
@@ -84,8 +85,6 @@ char **strv_parse_nulstr(const char *s, size_t l);
 char **strv_split_nulstr(const char *s);
 
 bool strv_overlap(char **a, char **b) _pure_;
-
-#define STRV_FOREACH(s, l) for ((s) = (l); (s) && *(s); (s)++)
 
 #define STRV_FOREACH_BACKWARDS(s, l)                                           \
 	STRV_FOREACH (s, l)                                                    \

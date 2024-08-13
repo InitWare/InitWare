@@ -25,16 +25,12 @@
 Set *internal_set_new(const struct hash_ops *hash_ops HASHMAP_DEBUG_PARAMS);
 #define set_new(ops) internal_set_new(ops HASHMAP_DEBUG_SRC_ARGS)
 
-static inline void
-set_free(Set *s)
-{
-	internal_hashmap_free(HASHMAP_BASE(s));
+static inline Set* set_free(Set *s) {
+        return (Set*) _hashmap_free(HASHMAP_BASE(s), NULL, NULL);
 }
 
-static inline void
-set_free_free(Set *s)
-{
-	internal_hashmap_free_free(HASHMAP_BASE(s));
+static inline Set* set_free_free(Set *s) {
+        return (Set*) _hashmap_free(HASHMAP_BASE(s), free, NULL);
 }
 
 /* no set_free_free_free */
@@ -162,8 +158,8 @@ int set_put_strdupv(Set *s, char **l);
 	for ((i) = ITERATOR_FIRST, (e) = set_iterate((s), &(i)); (e);          \
 		(e) = set_iterate((s), &(i)))
 
-DEFINE_TRIVIAL_CLEANUP_FUNC(Set *, set_free);
-DEFINE_TRIVIAL_CLEANUP_FUNC(Set *, set_free_free);
+DEFINE_TRIVIAL_CLEANUP_FUNC(Set*, set_free);
+DEFINE_TRIVIAL_CLEANUP_FUNC(Set*, set_free_free);
 
 #define _cleanup_set_free_ _cleanup_(set_freep)
 #define _cleanup_set_free_free_ _cleanup_(set_free_freep)

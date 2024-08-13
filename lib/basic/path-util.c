@@ -124,6 +124,68 @@ path_make_absolute(const char *p, const char *prefix)
 	return strjoin(prefix, "/", p, NULL);
 }
 
+bool dot_or_dot_dot(const char *path) {
+        if (!path)
+                return false;
+        if (path[0] != '.')
+                return false;
+        if (path[1] == 0)
+                return true;
+        if (path[1] != '.')
+                return false;
+
+        return path[2] == 0;
+}
+
+bool hidden_or_backup_file(const char *filename) {
+        assert(filename);
+
+        if (filename[0] == '.' ||
+            STR_IN_SET(filename,
+                       "lost+found",
+                       "aquota.user",
+                       "aquota.group") ||
+            endswith(filename, "~"))
+                return true;
+
+        const char *dot = strrchr(filename, '.');
+        if (!dot)
+                return false;
+
+        /* Please, let's not add more entries to the list below. If external projects think it's a good idea
+         * to come up with always new suffixes and that everybody else should just adjust to that, then it
+         * really should be on them. Hence, in future, let's not add any more entries. Instead, let's ask
+         * those packages to instead adopt one of the generic suffixes/prefixes for hidden files or backups,
+         * possibly augmented with an additional string. Specifically: there's now:
+         *
+         *    The generic suffixes "~" and ".bak" for backup files
+         *    The generic prefix "." for hidden files
+         *
+         * Thus, if a new package manager "foopkg" wants its own set of ".foopkg-new", ".foopkg-old",
+         * ".foopkg-dist" or so registered, let's refuse that and ask them to use ".foopkg.new",
+         * ".foopkg.old" or ".foopkg~" instead.
+         */
+
+        return STR_IN_SET(dot + 1,
+                          "rpmnew",
+                          "rpmsave",
+                          "rpmorig",
+                          "dpkg-old",
+                          "dpkg-new",
+                          "dpkg-tmp",
+                          "dpkg-dist",
+                          "dpkg-bak",
+                          "dpkg-backup",
+                          "dpkg-remove",
+                          "ucf-new",
+                          "ucf-old",
+                          "ucf-dist",
+                          "swp",
+                          "bak",
+                          "old",
+                          "new");
+}
+
 char *
 path_make_absolute_cwd(const char *p)
 {

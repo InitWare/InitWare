@@ -52,7 +52,7 @@ endif ()
 list(APPEND BASIC_SRC MurmurHash2.c acpi-fpdt.c alloc-util.c apparmor-util.c argv-util.c
     async.c audit.c base-filesystem.c bus-label.c calendarspec.c cgroup-util.c
     clock-util.c condition.c conf-files.c conf-parser.c copy.c dev-setup.c
-    device-nodes.c dropin.c efivars.c env-util.c errno-list.c exit-status.c fdset.c
+    device-nodes.c dirent-util.c dropin.c efivars.c env-util.c errno-list.c exit-status.c fdset.c
     fileio-label.c fileio.c fstab-util.c generator.c gunicode.c hashmap.c
     ima-util.c import-util.c in-addr-util.c install-printf.c install.c json.c
     label.c locale-util.c log.c login-shared.c memory-util.c mempool.c mkdir-label.c
