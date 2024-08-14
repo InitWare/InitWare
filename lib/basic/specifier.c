@@ -23,6 +23,7 @@
 #include "sd-id128.h"
 
 #include "alloc-util.h"
+#include "architecture.h"
 #include "chase.h"
 #include "macro.h"
 #include "path-util.h"
