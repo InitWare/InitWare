@@ -29,6 +29,7 @@
 #include "label.h"
 #include "log.h"
 #include "macro.h"
+#include "nulstr-util.h"
 #include "util.h"
 
 int

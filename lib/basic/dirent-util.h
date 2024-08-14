@@ -1,5 +1,6 @@
-#ifndef DIRENT_UTIL_H_
-#define DIRENT_UTIL_H_
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
+// Smaller InitWare version, we add as needed here
+#pragma once
 
 #include <dirent.h>
 #include <errno.h>
@@ -23,5 +24,3 @@ struct dirent *readdir_ensure_type(DIR *d);
              if (hidden_or_backup_file((de)->d_name))                   \
                      continue;                                          \
              else
-
-#endif /* DIRENT_UTIL_H_ */

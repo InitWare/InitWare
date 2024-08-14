@@ -20,11 +20,27 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <stdbool.h>
+
 #include "macro.h"
 
-int conf_files_list(char ***strv, const char *suffix, const char *root,
-	const char *dir, ...);
-int conf_files_list_strv(char ***strv, const char *suffix, const char *root,
-	const char *const *dirs);
-int conf_files_list_nulstr(char ***strv, const char *suffix, const char *root,
-	const char *dirs);
+enum {
+        CONF_FILES_EXECUTABLE    = 1 << 0,
+        CONF_FILES_REGULAR       = 1 << 1,
+        CONF_FILES_DIRECTORY     = 1 << 2,
+        CONF_FILES_BASENAME      = 1 << 3,
+        CONF_FILES_FILTER_MASKED = 1 << 4,
+};
+
+int conf_files_list(char ***ret, const char *suffix, const char *root, unsigned flags, const char *dir);
+int conf_files_list_at(char ***ret, const char *suffix, int rfd, unsigned flags, const char *dir);
+int conf_files_list_strv(char ***ret, const char *suffix, const char *root, unsigned flags, const char* const* dirs);
+int conf_files_list_strv_at(char ***ret, const char *suffix, int rfd, unsigned flags, const char * const *dirs);
+int conf_files_list_nulstr(char ***ret, const char *suffix, const char *root, unsigned flags, const char *dirs);
+int conf_files_list_nulstr_at(char ***ret, const char *suffix, int rfd, unsigned flags, const char *dirs);
+int conf_files_insert(char ***strv, const char *root, char **dirs, const char *path);
+int conf_files_list_dropins(
+                char ***ret,
+                const char *dropin_dirname,
+                const char *root,
+                const char * const *dirs);

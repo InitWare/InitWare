@@ -986,9 +986,7 @@ raw_clone(unsigned long flags, void *child_stack)
 #endif
 }
 
-static inline pid_t
-raw_getpid(void)
-{
+static inline pid_t raw_getpid(void) {
 	return (pid_t)syscall(__NR_getpid);
 }
 

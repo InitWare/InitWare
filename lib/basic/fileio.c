@@ -22,6 +22,7 @@
 #include "alloc-util.h"
 #include "ctype.h"
 #include "def.h"
+#include "escape.h"
 #include "fileio.h"
 #include "strv.h"
 #include "utf8.h"
@@ -129,6 +130,30 @@ read_one_line_file(const char *fn, char **line)
 
 	r = read_line(f, LONG_LINE_MAX, line);
 	return r < 0 ? r : 0;
+}
+
+int read_stripped_line(FILE *f, size_t limit, char **ret) {
+        _cleanup_free_ char *s = NULL;
+        int r, k;
+
+        assert(f);
+
+        r = read_line(f, limit, ret ? &s : NULL);
+        if (r < 0)
+                return r;
+
+        if (ret) {
+                const char *p = strstrip(s);
+                if (p == s)
+                        *ret = TAKE_PTR(s);
+                else {
+                        k = strdup_to(ret, p);
+                        if (k < 0)
+                                return k;
+                }
+        }
+
+        return r > 0;          /* Return 1 if something was read. */
 }
 
 int
@@ -918,4 +943,16 @@ read_line(FILE *f, size_t limit, char **ret)
 	}
 
 	return (int)count;
+}
+
+FILE* take_fdopen(int *fd, const char *options) {
+        assert(fd);
+
+        FILE *f = fdopen(*fd, options);
+        if (!f)
+                return NULL;
+
+        *fd = -EBADF;
+
+        return f;
 }

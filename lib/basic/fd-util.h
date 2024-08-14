@@ -1,14 +1,17 @@
-#ifndef FD_UTIL_H_
-#define FD_UTIL_H_
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
+// Smaller InitWare version, we add as needed here
+#pragma once
 
-#include "util.h"
+#include <dirent.h>
+#include <fcntl.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <sys/socket.h>
 
-/* Like TAKE_PTR() but for file descriptors, resetting them to -1 */
-#define TAKE_FD(fd)                             \
-        ({                                      \
-                int _fd_ = (fd);                \
-                (fd) = -1;                      \
-                _fd_;                           \
-        })
+#include "macro.h"
 
-#endif /* FD_UTIL_H_ */
+int fclose_nointr(FILE *f);
+FILE* safe_fclose(FILE *f);
+
+/* Like TAKE_PTR() but for file descriptors, resetting them to -EBADF */
+#define TAKE_FD(fd) TAKE_GENERIC(fd, int, -EBADF)

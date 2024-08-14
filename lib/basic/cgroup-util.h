@@ -196,8 +196,8 @@ int cg_create_everywhere(CGroupMask supported, CGroupMask mask,
 	const char *path);
 int cg_attach_everywhere(CGroupMask supported, const char *path, pid_t pid,
 	cg_migrate_callback_t callback, void *userdata);
-int cg_attach_many_everywhere(CGroupMask supported, const char *path, Set *pids,
-	cg_migrate_callback_t callback, void *userdata);
+// int cg_attach_many_everywhere(CGroupMask supported, const char *path, Set *pids,
+// 	cg_migrate_callback_t callback, void *userdata);
 int cg_migrate_everywhere(CGroupMask supported, const char *from,
 	const char *to, cg_migrate_callback_t callback, void *userdata);
 int cg_trim_everywhere(CGroupMask supported, const char *path,

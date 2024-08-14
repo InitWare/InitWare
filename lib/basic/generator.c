@@ -23,12 +23,14 @@
 #include "alloc-util.h"
 #include "bsdglibc.h"
 #include "dropin.h"
+#include "escape.h"
 #include "fileio.h"
 #include "fstab-util.h"
 #include "generator.h"
 #include "mkdir.h"
 #include "path-util.h"
 #include "special.h"
+#include "string-util.h"
 #include "unit-name.h"
 #include "util.h"
 
@@ -101,7 +103,7 @@ generator_write_fsck_deps(FILE *f, const char *dir, const char *what,
 
 	if (!isempty(fstype) && !streq(fstype, "auto")) {
 		int r;
-		r = fsck_exists(fstype);
+		r = fsck_exists_for_fstype(fstype);
 		if (r == -ENOENT) {
 			/* treat missing check as essentially OK */
 			log_debug_errno(r,

@@ -19,143 +19,123 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <stdio.h>
+#include <unistd.h>
 
-#include "alloc-util.h"
+// #include "format-util.h"
 #include "install-printf.h"
+#include "install.h"
+#include "macro.h"
 #include "specifier.h"
+#include "string-util.h"
 #include "unit-name.h"
-#include "util.h"
+// #include "user-util.h"
 
-static int
-specifier_prefix_and_instance(char specifier, void *data, void *userdata,
-	char **ret)
-{
-	InstallInfo *i = userdata;
-	char *n;
+// #include "alloc-util.h"
+// #include "install-printf.h"
+// #include "specifier.h"
+// #include "unit-name.h"
+// #include "util.h"
 
-	assert(i);
+static int specifier_prefix_and_instance(char specifier, const void *data, const char *root, const void *userdata, char **ret) {
+        const InstallInfo *i = ASSERT_PTR(userdata);
+        _cleanup_free_ char *prefix = NULL;
+        int r;
 
-	n = unit_name_to_prefix_and_instance(i->name);
-	if (!n)
-		return -ENOMEM;
+        r = unit_name_to_prefix_and_instance(i->name, &prefix);
+        if (r < 0)
+                return r;
 
-	*ret = n;
-	return 0;
+        if (endswith(prefix, "@") && i->default_instance) {
+                char *ans;
+
+                ans = strjoin(prefix, i->default_instance);
+                if (!ans)
+                        return -ENOMEM;
+                *ret = ans;
+        } else
+                *ret = TAKE_PTR(prefix);
+
+        return 0;
 }
 
-static int
-specifier_prefix(char specifier, void *data, void *userdata, char **ret)
-{
-	InstallInfo *i = userdata;
-	char *n;
+static int specifier_name(char specifier, const void *data, const char *root, const void *userdata, char **ret) {
+        const InstallInfo *i = ASSERT_PTR(userdata);
 
-	assert(i);
+        if (unit_name_is_valid(i->name, UNIT_NAME_TEMPLATE) && i->default_instance)
+                return unit_name_replace_instance(i->name, i->default_instance, ret);
 
-	n = unit_name_to_prefix(i->name);
-	if (!n)
-		return -ENOMEM;
-
-	*ret = n;
-	return 0;
+        return strdup_to(ret, i->name);
 }
 
-static int
-specifier_instance(char specifier, void *data, void *userdata, char **ret)
-{
-	InstallInfo *i = userdata;
-	char *instance;
-	int r;
+static int specifier_prefix(char specifier, const void *data, const char *root, const void *userdata, char **ret) {
+        const InstallInfo *i = ASSERT_PTR(userdata);
 
-	assert(i);
-
-	r = unit_name_to_instance(i->name, &instance);
-	if (r < 0)
-		return r;
-
-	if (!instance) {
-		instance = strdup("");
-		if (!instance)
-			return -ENOMEM;
-	}
-
-	*ret = instance;
-	return 0;
+        return unit_name_to_prefix(i->name, ret);
 }
 
-static int
-specifier_user_name(char specifier, void *data, void *userdata, char **ret)
-{
-	InstallInfo *i = userdata;
-	const char *username;
-	_cleanup_free_ char *tmp = NULL;
-	char *printed = NULL;
+static int specifier_instance(char specifier, const void *data, const char *root, const void *userdata, char **ret) {
+        const InstallInfo *i = ASSERT_PTR(userdata);
+        char *instance;
+        int r;
 
-	assert(i);
+        r = unit_name_to_instance(i->name, &instance);
+        if (r < 0)
+                return r;
 
-	if (i->user)
-		username = i->user;
-	else
-		/* get USER env from env or our own uid */
-		username = tmp = getusername_malloc();
+        if (isempty(instance)) {
+                r = free_and_strdup(&instance, strempty(i->default_instance));
+                if (r < 0)
+                        return r;
+        }
 
-	switch (specifier) {
-	case 'u':
-		printed = strdup(username);
-		break;
-	case 'U': {
-		/* fish username from passwd */
-		uid_t uid;
-		int r;
-
-		r = get_user_creds(&username, &uid, NULL, NULL, NULL);
-		if (r < 0)
-			return r;
-
-		if (asprintf(&printed, UID_FMT, uid) < 0)
-			return -ENOMEM;
-		break;
-	}
-	}
-
-	*ret = printed;
-	return 0;
+        *ret = instance;
+        return 0;
 }
 
-int
-install_full_printf(InstallInfo *i, const char *format, char **ret)
-{
-	/* This is similar to unit_full_printf() but does not support
-         * anything path-related.
-         *
-         * %n: the full id of the unit                 (foo@bar.waldo)
-         * %N: the id of the unit without the suffix   (foo@bar)
-         * %p: the prefix                              (foo)
-         * %i: the instance                            (bar)
+static int specifier_last_component(char specifier, const void *data, const char *root, const void *userdata, char **ret) {
+        _cleanup_free_ char *prefix = NULL;
+        char *dash;
+        int r;
 
-         * %U the UID of the configured user or running user
-         * %u the username of the configured user or running user
-         * %m the machine ID of the running system
-         * %H the host name of the running system
-         * %b the boot ID of the running system
-         * %v `uname -r` of the running system
-         */
+        assert(ret);
 
-	const Specifier table[] = { { 'n', specifier_string, i->name },
-		{ 'N', specifier_prefix_and_instance, NULL },
-		{ 'p', specifier_prefix, NULL },
-		{ 'i', specifier_instance, NULL },
+        r = specifier_prefix(specifier, data, root, userdata, &prefix);
+        if (r < 0)
+                return r;
 
-		{ 'U', specifier_user_name, NULL },
-		{ 'u', specifier_user_name, NULL },
+        dash = strrchr(prefix, '-');
+        if (dash)
+                return strdup_to(ret, dash + 1);
 
-		{ 'm', specifier_machine_id, NULL },
-		{ 'H', specifier_host_name, NULL },
-		{ 'b', specifier_boot_id, NULL },
-		{ 'v', specifier_kernel_release, NULL }, {} };
-
-	assert(i);
-	assert(format);
-	assert(ret);
-
-	return specifier_printf(format, table, i, ret);
+        *ret = TAKE_PTR(prefix);
+        return 0;
 }
+
+int install_name_printf(
+                RuntimeScope scope,
+                const InstallInfo *info,
+                const char *format,
+                char **ret) {
+        /* This is similar to unit_name_printf() */
+
+        const Specifier table[] = {
+                { 'i', specifier_instance,            NULL },
+                { 'j', specifier_last_component,      NULL },
+                { 'n', specifier_name,                NULL },
+                { 'N', specifier_prefix_and_instance, NULL },
+                { 'p', specifier_prefix,              NULL },
+
+                COMMON_SYSTEM_SPECIFIERS,
+
+                COMMON_CREDS_SPECIFIERS(scope),
+                {}
+        };
+
+        assert(info);
+        assert(format);
+        assert(ret);
+
+        return specifier_printf(format, UNIT_NAME_MAX, table, info->root, info, ret);
+}	

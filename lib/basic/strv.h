@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 
+#include "extract-word.h"
 #include "string-util.h"
 #include "util.h"
 
@@ -39,8 +40,15 @@ void strv_clear(char **l);
 char **strv_copy(char *const *l);
 unsigned strv_length(char *const *l) _pure_;
 
-int strv_extend_strv(char ***a, char **b);
-int strv_extend_strv_concat(char ***a, char **b, const char *suffix);
+int strv_extend_strv(char ***a, char * const *b, bool filter_duplicates);
+int strv_extend_strv_biconcat(char ***a, const char *prefix, const char* const *b, const char *suffix);
+static inline int strv_extend_strv_concat(char ***a, const char* const *b, const char *suffix) {
+        return strv_extend_strv_biconcat(a, NULL, b, suffix);
+}
+
+int strv_extend_many_internal(char ***l, const char *value, ...);
+#define strv_extend_many(l, ...) strv_extend_many_internal(l, __VA_ARGS__, POINTER_MAX)
+
 int strv_extend(char ***l, const char *value);
 int strv_extendf(char ***l, const char *format, ...) _printf_(2, 0);
 int strv_push(char ***l, char *value);
@@ -49,6 +57,8 @@ int strv_push_prepend(char ***l, char *value);
 int strv_consume(char ***l, char *value);
 int strv_consume_pair(char ***l, char *a, char *b);
 int strv_consume_prepend(char ***l, char *value);
+
+int strv_insert(char ***l, size_t position, char *value);
 
 char **strv_remove(char **l, const char *s);
 char **strv_uniq(char **l);
@@ -73,7 +83,16 @@ strv_isempty(char *const *l)
 	return !l || !*l;
 }
 
-char **strv_split(const char *s, const char *separator);
+int strv_split_full(char ***t, const char *s, const char *separators, ExtractFlags flags);
+static inline char** strv_split(const char *s, const char *separators) {
+        char **ret;
+
+        if (strv_split_full(&ret, s, separators, EXTRACT_RETAIN_ESCAPE) < 0)
+                return NULL;
+
+        return ret;
+}
+
 char **strv_split_newlines(const char *s);
 
 int strv_split_quoted(char ***t, const char *s, bool relax);
@@ -97,10 +116,6 @@ bool strv_overlap(char **a, char **b) _pure_;
 
 char **strv_sort(char **l);
 void strv_print(char **l);
-
-#define STRV_MAKE(...) ((char **)((const char *[]){ __VA_ARGS__, NULL }))
-
-#define STRV_MAKE_EMPTY ((char *[1]){ NULL })
 
 #define strv_from_stdarg_alloca(first)                                         \
 	({                                                                     \
@@ -132,6 +147,11 @@ void strv_print(char **l);
 	})
 
 #define STR_IN_SET(x, ...) strv_contains(STRV_MAKE(__VA_ARGS__), x)
+#define STRPTR_IN_SET(x, ...)                                    \
+      ({                                                       \
+              const char* _x = (x);                            \
+              _x && strv_contains(STRV_MAKE(__VA_ARGS__), _x); \
+      })
 
 #define FOREACH_STRING(x, ...)                                                 \
 	for (char **_l = ({                                                    \
@@ -154,3 +174,6 @@ strv_fnmatch_or_empty(char *const *patterns, const char *s, int flags)
 	assert(s);
 	return strv_isempty(patterns) || strv_fnmatch(patterns, s, flags);
 }
+
+#define strv_free_and_replace(a, b)             \
+        free_and_replace_full(a, b, strv_free)

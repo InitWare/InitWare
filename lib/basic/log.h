@@ -45,6 +45,19 @@ typedef enum LogTarget {
 	_LOG_TARGET_INVALID = -1
 } LogTarget;
 
+#define SYNTHETIC_ERRNO(num)                (1 << 30 | (num))
+#define IS_SYNTHETIC_ERRNO(val)             ((val) >> 30 & 1)
+#define ERRNO_VALUE(val)                    (abs(val) & ~(1 << 30))
+
+/* The callback function to be invoked when syntax warnings are seen
+ * in the unit files. */
+typedef void (*log_syntax_callback_t)(const char *unit, int level, void *userdata);
+void set_log_syntax_callback(log_syntax_callback_t cb, void *userdata);
+
+static inline void clear_log_syntax_callback(dummy_t *dummy) {
+          set_log_syntax_callback(/* cb= */ NULL, /* userdata= */ NULL);
+}
+
 void log_set_target(LogTarget target);
 void log_set_max_level(int level);
 void log_set_facility(int facility);
@@ -167,6 +180,43 @@ bool log_on_console(void) _pure_;
 
 const char *log_target_to_string(LogTarget target) _const_;
 LogTarget log_target_from_string(const char *s) _pure_;
+
+int log_syntax_internal(
+                const char *unit,
+                int level,
+                const char *config_file,
+                unsigned config_line,
+                int error,
+                const char *file,
+                int line,
+                const char *func,
+                const char *format, ...) _printf_(9, 10);
+
+int log_syntax_invalid_utf8_internal(
+                const char *unit,
+                int level,
+                const char *config_file,
+                unsigned config_line,
+                const char *file,
+                int line,
+                const char *func,
+                const char *rvalue);
+
+#define log_syntax(unit, level, config_file, config_line, error, ...)   \
+        ({                                                              \
+                int _level = (level), _e = (error);                     \
+                (log_get_max_level() >= LOG_PRI(_level))                \
+                        ? log_syntax_internal(unit, _level, config_file, config_line, _e, __FILE__, __LINE__, __func__, __VA_ARGS__) \
+                        : -ERRNO_VALUE(_e);                             \
+        })
+
+#define log_syntax_invalid_utf8(unit, level, config_file, config_line, rvalue) \
+        ({                                                              \
+                int _level = (level);                                   \
+                (log_get_max_level() >= LOG_PRI(_level))                \
+                        ? log_syntax_invalid_utf8_internal(unit, _level, config_file, config_line, __FILE__, __LINE__, __func__, rvalue) \
+                        : -EINVAL;                                      \
+        })
 
 /* Helpers to prepare various fields for structured logging */
 #define LOG_MESSAGE(fmt, ...) "MESSAGE=" fmt, ##__VA_ARGS__

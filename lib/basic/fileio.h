@@ -44,3 +44,6 @@ int executable_is_script(const char *path, char **interpreter);
 int get_status_field(const char *filename, const char *pattern, char **field);
 
 int read_line(FILE *f, size_t limit, char **ret);
+int read_stripped_line(FILE *f, size_t limit, char **ret);
+
+FILE* take_fdopen(int *fd, const char *options);

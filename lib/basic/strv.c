@@ -204,42 +204,66 @@ strv_new(const char *x, ...)
 	return r;
 }
 
-int
-strv_extend_strv(char ***a, char **b)
-{
-	int r;
-	char **s;
+int strv_extend_strv(char ***a, char * const *b, bool filter_duplicates) {
+        size_t p, q, i = 0;
+        char **t;
 
-	STRV_FOREACH (s, b) {
-		r = strv_extend(a, *s);
-		if (r < 0)
-			return r;
-	}
+        assert(a);
 
-	return 0;
+        if (strv_isempty(b))
+                return 0;
+
+        p = strv_length(*a);
+        q = strv_length(b);
+
+        if (p >= SIZE_MAX - q)
+                return -ENOMEM;
+
+        t = reallocarray(*a, GREEDY_ALLOC_ROUND_UP(p + q + 1), sizeof(char *));
+        if (!t)
+                return -ENOMEM;
+
+        t[p] = NULL;
+        *a = t;
+
+        STRV_FOREACH(s, b) {
+                if (filter_duplicates && strv_contains(t, *s))
+                        continue;
+
+                t[p+i] = strdup(*s);
+                if (!t[p+i])
+                        goto rollback;
+
+                i++;
+                t[p+i] = NULL;
+        }
+
+        assert(i <= q);
+
+        return (int) i;
+
+rollback:
+        free_many_charp(t + p, i);
+        t[p] = NULL;
+        return -ENOMEM;
 }
 
-int
-strv_extend_strv_concat(char ***a, char **b, const char *suffix)
-{
-	int r;
-	char **s;
+int strv_extend_strv_biconcat(char ***a, const char *prefix, const char* const *b, const char *suffix) {
+        int r;
 
-	STRV_FOREACH (s, b) {
-		char *v;
+        STRV_FOREACH(s, b) {
+                char *v;
 
-		v = strappend(*s, suffix);
-		if (!v)
-			return -ENOMEM;
+                v = strjoin(strempty(prefix), *s, suffix);
+                if (!v)
+                        return -ENOMEM;
 
-		r = strv_push(a, v);
-		if (r < 0) {
-			free(v);
-			return r;
-		}
-	}
+                r = strv_consume(a, v);
+                if (r < 0)
+                        return r;
+        }
 
-	return 0;
+        return 0;
 }
 
 char **
@@ -512,6 +536,37 @@ strv_consume(char ***l, char *value)
 		free(value);
 
 	return r;
+}
+
+int strv_insert(char ***l, size_t position, char *value) {
+        char **c;
+        size_t n, m;
+
+        assert(l);
+
+        if (!value)
+                return 0;
+
+        n = strv_length(*l);
+        position = MIN(position, n);
+
+        /* check for overflow and increase*/
+        if (n > SIZE_MAX - 2)
+                return -ENOMEM;
+        m = n + 2;
+
+        c = reallocarray(*l, GREEDY_ALLOC_ROUND_UP(m), sizeof(char*));
+        if (!c)
+                return -ENOMEM;
+
+        if (n > position)
+                memmove(c + position + 1, c + position, (n - position) * sizeof(char*));
+
+        c[position] = value;
+        c[n + 1] = NULL;
+
+        *l = c;
+        return 0;
 }
 
 int

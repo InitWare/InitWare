@@ -30,6 +30,7 @@
 #include "log.h"
 #include "macro.h"
 #include "mkdir.h"
+#include "nulstr-util.h"
 #include "strv.h"
 #include "util.h"
 

@@ -1,6 +1,16 @@
-#ifndef PROCESS_UTIL_H_
-#define PROCESS_UTIL_H_
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
+// Smaller InitWare version, we add as needed here
+#pragma once
 
-#include "util.h"
+#include <errno.h>
+#include <sched.h>
+#include <signal.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/resource.h>
+#include <sys/types.h>
 
-#endif /* PROCESS_UTIL_H_ */
+pid_t getpid_cached(void);
+void reset_cached_pid(void);

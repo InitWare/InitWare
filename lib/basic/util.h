@@ -103,19 +103,6 @@ rlim_to_uintmax(rlim_t rlim)
 #include "missing.h"
 #include "time-util.h"
 
-/* What is interpreted as whitespace? */
-#define WHITESPACE " \t\n\r"
-#define NEWLINE "\n\r"
-#define QUOTES "\"\'"
-#define COMMENTS "#;"
-#define GLOB_CHARS "*?["
-
-/* What characters are special in the shell? */
-/* must be escaped outside and inside double-quotes */
-#define SHELL_NEED_ESCAPE "\"\\`$"
-/* can be escaped or double-quoted */
-#define SHELL_NEED_QUOTES SHELL_NEED_ESCAPE GLOB_CHARS "'()<>|&;"
-
 #define FORMAT_BYTES_MAX 8
 
 #define ANSI_HIGHLIGHT_ON "\x1B[1;39m"
@@ -146,48 +133,6 @@ mfree(void *memory)
 	return NULL;
 }
 
-static inline const char *
-yes_no(bool b)
-{
-	return b ? "yes" : "no";
-}
-
-static inline const char *
-true_false(bool b)
-{
-	return b ? "true" : "false";
-}
-
-static inline const char *
-one_zero(bool b)
-{
-	return b ? "1" : "0";
-}
-
-static inline const char *
-strempty(const char *s)
-{
-	return s ? s : "";
-}
-
-static inline const char *
-strnull(const char *s)
-{
-	return s ? s : "(null)";
-}
-
-static inline const char *
-strna(const char *s)
-{
-	return s ? s : "n/a";
-}
-
-static inline bool
-isempty(const char *p)
-{
-	return !p || !p[0];
-}
-
 static inline char *
 startswith(const char *s, const char *prefix)
 {
@@ -213,8 +158,6 @@ startswith_no_case(const char *s, const char *prefix)
 }
 
 char *endswith(const char *s, const char *postfix) _pure_;
-
-char *first_word(const char *s, const char *word) _pure_;
 
 int close_nointr(int fd);
 int safe_close(int fd);
@@ -321,7 +264,6 @@ pid_t get_parent_of_pid(pid_t pid, pid_t *ppid);
 int pid_is_my_child(pid_t pid);
 
 char *strappend(const char *s, const char *suffix);
-char *strnappend(const char *s, const char *suffix, size_t length);
 
 char *replace_env(const char *format, char **env);
 char **replace_env_argv(char **argv, char **env);
@@ -364,13 +306,6 @@ int unoctchar(char c) _const_;
 char decchar(int x) _const_;
 int undecchar(char c) _const_;
 
-char *cescape(const char *s);
-char *cunescape(const char *s);
-char *cunescape_length(const char *s, size_t length);
-int cunescape_one(const char *p, size_t length, int32_t *ret, bool *eight_bit);
-char *cunescape_length_with_prefix(const char *s, size_t length,
-	const char *prefix);
-
 char *xescape(const char *s, const char *bad);
 
 char *ascii_strlower(char *path);
@@ -406,73 +341,6 @@ random_u32(void)
 	random_bytes(&u, sizeof(u));
 	return u;
 }
-
-/* For basic lookup tables with strictly enumerated entries */
-#define _DEFINE_STRING_TABLE_LOOKUP_TO_STRING(name, type, scope)               \
-	scope const char *name##_to_string(type i)                             \
-	{                                                                      \
-		if (i < 0 || i >= (type)ELEMENTSOF(name##_table))              \
-			return NULL;                                           \
-		return name##_table[i];                                        \
-	}
-
-ssize_t string_table_lookup(const char *const *table, size_t len,
-	const char *key);
-
-#define _DEFINE_STRING_TABLE_LOOKUP_FROM_STRING(name, type, scope)             \
-	scope inline type name##_from_string(const char *s)                    \
-	{                                                                      \
-		return (type)string_table_lookup(name##_table,                 \
-			ELEMENTSOF(name##_table), s);                          \
-	}
-
-#define _DEFINE_STRING_TABLE_LOOKUP(name, type, scope)                         \
-	_DEFINE_STRING_TABLE_LOOKUP_TO_STRING(name, type, scope)               \
-	_DEFINE_STRING_TABLE_LOOKUP_FROM_STRING(name, type, scope)             \
-	struct __useless_struct_to_allow_trailing_semicolon__
-
-#define DEFINE_STRING_TABLE_LOOKUP(name, type)                                 \
-	_DEFINE_STRING_TABLE_LOOKUP(name, type, )
-#define DEFINE_PRIVATE_STRING_TABLE_LOOKUP(name, type)                         \
-	_DEFINE_STRING_TABLE_LOOKUP(name, type, static)
-#define DEFINE_PRIVATE_STRING_TABLE_LOOKUP_TO_STRING(name, type)               \
-	_DEFINE_STRING_TABLE_LOOKUP_TO_STRING(name, type, static)
-#define DEFINE_PRIVATE_STRING_TABLE_LOOKUP_FROM_STRING(name, type)             \
-	_DEFINE_STRING_TABLE_LOOKUP_FROM_STRING(name, type, static)
-
-/* For string conversions where numbers are also acceptable */
-#define DEFINE_STRING_TABLE_LOOKUP_WITH_FALLBACK(name, type, max)              \
-	int name##_to_string_alloc(type i, char **str)                         \
-	{                                                                      \
-		char *s;                                                       \
-		int r;                                                         \
-		if (i < 0 || i > max)                                          \
-			return -ERANGE;                                        \
-		if (i < (type)ELEMENTSOF(name##_table)) {                      \
-			s = strdup(name##_table[i]);                           \
-			if (!s)                                                \
-				return log_oom();                              \
-		} else {                                                       \
-			r = asprintf(&s, "%i", i);                             \
-			if (r < 0)                                             \
-				return log_oom();                              \
-		}                                                              \
-		*str = s;                                                      \
-		return 0;                                                      \
-	}                                                                      \
-	type name##_from_string(const char *s)                                 \
-	{                                                                      \
-		type i;                                                        \
-		unsigned u = 0;                                                \
-		assert(s);                                                     \
-		for (i = 0; i < (type)ELEMENTSOF(name##_table); i++)           \
-			if (name##_table[i] && streq(name##_table[i], s))      \
-				return i;                                      \
-		if (safe_atou(s, &u) >= 0 && u <= max)                         \
-			return (type)u;                                        \
-		return (type)-1;                                               \
-	}                                                                      \
-	struct __useless_struct_to_allow_trailing_semicolon__
 
 int fd_nonblock(int fd, bool nonblock);
 int fd_cloexec(int fd, bool cloexec);
@@ -715,14 +583,6 @@ in_charset(const char *s, const char *charset)
 
 int block_get_whole_disk(dev_t d, dev_t *ret);
 
-#define NULSTR_FOREACH(i, l)                                                   \
-	for ((i) = (l); (i) && *(i); (i) = strchr((i), 0) + 1)
-
-#define NULSTR_FOREACH_PAIR(i, j, l)                                           \
-	for ((i) = (l), (j) = strchr((i), 0) + 1; (i) && *(i);                 \
-		(i) = strchr((j), 0) + 1,                                      \
-	    (j) = *(i) ? strchr((i), 0) + 1 : (i))
-
 int ioprio_class_to_string_alloc(int i, char **s);
 int ioprio_class_from_string(const char *s);
 
@@ -829,19 +689,8 @@ _alloc_(2, 3) static inline void *realloc_multiply(void *p, size_t a, size_t b)
 	return realloc(p, a * b);
 }
 
-bool filename_is_valid(const char *p) _pure_;
-bool path_is_safe(const char *p) _pure_;
 bool string_is_safe(const char *p) _pure_;
 bool string_has_cc(const char *p, const char *ok) _pure_;
-
-/**
- * Check if a string contains any glob patterns.
- */
-_pure_ static inline bool
-string_is_glob(const char *p)
-{
-	return !!strpbrk(p, GLOB_CHARS);
-}
 
 void *xbsearch_r(const void *key, const void *base, size_t nmemb, size_t size,
 	int (*compar)(const void *, const void *, void *), void *arg);
@@ -861,9 +710,6 @@ typedef enum DrawSpecialChar {
 } DrawSpecialChar;
 
 const char *draw_special_char(DrawSpecialChar ch);
-
-char *strreplace(const char *text, const char *old_string,
-	const char *new_string);
 
 char *strip_tab_ansi(char **p, size_t *l);
 
@@ -908,16 +754,6 @@ void *unhexmem(const char *p, size_t l);
 
 char *strextend(char **x, ...) _sentinel_;
 char *strrep(const char *s, unsigned n);
-
-static inline void
-_reset_errno_(int *saved_errno)
-{
-	errno = *saved_errno;
-}
-
-#define PROTECT_ERRNO                                                          \
-	_cleanup_(_reset_errno_) __attribute__((unused)) int _saved_errno_ =   \
-		errno
 
 static inline int
 negative_errno(void)
@@ -1127,8 +963,6 @@ int is_dir(const char *path, bool follow);
 int unquote_first_word(const char **p, char **ret, bool relax);
 int unquote_many_words(const char **p, ...) _sentinel_;
 
-int free_and_strdup(char **p, const char *s);
-
 int sethostname_idempotent(const char *s);
 
 #define INOTIFY_EVENT_MAX (sizeof(struct inotify_event) + NAME_MAX + 1)
@@ -1202,22 +1036,6 @@ void cmsg_close_all(struct msghdr *mh);
 
 char *shell_maybe_quote(const char *s);
 
-typedef enum ExtractFlags {
-	EXTRACT_RELAX = 1,
-	EXTRACT_CUNESCAPE = 2,
-	EXTRACT_CUNESCAPE_RELAX = 4,
-	EXTRACT_QUOTES = 8,
-	EXTRACT_DONT_COALESCE_SEPARATORS = 16,
-	EXTRACT_RETAIN_ESCAPE = 32,
-} ExtractFlags;
-
-int extract_first_word(const char **p, char **ret, const char *separators,
-	ExtractFlags flags);
-int extract_first_word_and_warn(const char **p, char **ret,
-	const char *separators, ExtractFlags flags, const char *unit,
-	const char *filename, unsigned line, const char *rvalue);
-int extract_many_words(const char **p, const char *separators,
-	ExtractFlags flags, ...) _sentinel_;
 int parse_percent_unbounded(const char *p);
 int parse_percent(const char *p);
 
@@ -1271,19 +1089,3 @@ typedef typeof(((struct statfs *)NULL)->f_type) statfs_f_type_t;
 bool is_fs_type(const struct statfs *s, statfs_f_type_t magic_value) _pure_;
 int fd_is_fs_type(int fd, statfs_f_type_t magic_value);
 #endif
-
-enum {
-	CHASE_PREFIX_ROOT = 1U
-		<< 0, /* If set, the specified path will be prefixed by the specified root before beginning the iteration */
-	CHASE_NONEXISTENT = 1U
-		<< 1, /* If set, it's OK if the path doesn't actually exist. */
-	CHASE_NO_AUTOFS = 1U
-		<< 2, /* If set, return -EREMOTE if autofs mount point found */
-	CHASE_SAFE = 1U
-		<< 3, /* If set, return EPERM if we ever traverse from unprivileged to privileged files or directories */
-	CHASE_OPEN = 1U
-		<< 4, /* If set, return an O_PATH object to the final component */
-};
-
-int chase_symlinks(const char *path_with_prefix, const char *root,
-	unsigned flags, char **ret);

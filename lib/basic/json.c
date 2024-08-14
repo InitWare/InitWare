@@ -24,6 +24,7 @@
 #include "json.h"
 #include "log.h"
 #include "macro.h"
+#include "string-util.h"
 #include "utf8.h"
 #include "util.h"
 

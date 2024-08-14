@@ -36,6 +36,8 @@
 #include "sd-id128.h"
 #include "selinux-util.h"
 #include "smack-util.h"
+#include "string-table.h"
+#include "string-util.h"
 #include "util.h"
 #include "virt.h"
 

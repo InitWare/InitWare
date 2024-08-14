@@ -43,6 +43,8 @@ char *utf16_to_utf8(const void *s, size_t length);
 int utf8_encoded_valid_unichar(const char *str);
 int utf8_encoded_to_unichar(const char *str);
 
+bool unichar_is_valid(int32_t ch);
+
 static inline bool
 utf16_is_surrogate(uint16_t c)
 {

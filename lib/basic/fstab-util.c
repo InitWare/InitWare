@@ -19,6 +19,7 @@
 
 #include "alloc-util.h"
 #include "fstab-util.h"
+#include "nulstr-util.h"
 #include "strv.h"
 #include "util.h"
 

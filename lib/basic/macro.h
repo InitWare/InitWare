@@ -70,6 +70,7 @@
 #define _used_ __attribute__((__used__))
 #define _retain_ __attribute__((__retain__))
 #define _noreturn_ _Noreturn
+#define _fallthrough_ __attribute__((__fallthrough__))
 
 /* Temporarily disable some warnings */
 #define DISABLE_WARNING_DECLARATION_AFTER_STATEMENT                            \
@@ -104,6 +105,47 @@
 
 /* automake test harness */
 #define EXIT_TEST_SKIP 77
+
+/* align to next higher power-of-2 (except for: 0 => 0, overflow => 0) */
+static inline unsigned long ALIGN_POWER2(unsigned long u) {
+
+        /* Avoid subtraction overflow */
+        if (u == 0)
+                return 0;
+
+        /* clz(0) is undefined */
+        if (u == 1)
+                return 1;
+
+        /* left-shift overflow is undefined */
+        if (__builtin_clzl(u - 1UL) < 1)
+                return 0;
+
+        return 1UL << (sizeof(u) * 8 - __builtin_clzl(u - 1UL));
+}
+
+static inline size_t GREEDY_ALLOC_ROUND_UP(size_t l) {
+        size_t m;
+
+        /* Round up allocation sizes a bit to some reasonable, likely larger value. This is supposed to be
+         * used for cases which are likely called in an allocation loop of some form, i.e. that repetitively
+         * grow stuff, for example strv_extend() and suchlike.
+         *
+         * Note the difference to GREEDY_REALLOC() here, as this helper operates on a single size value only,
+         * and rounds up to next multiple of 2, needing no further counter.
+         *
+         * Note the benefits of direct ALIGN_POWER2() usage: type-safety for size_t, sane handling for very
+         * small (i.e. <= 2) and safe handling for very large (i.e. > SSIZE_MAX) values. */
+
+        if (l <= 2)
+                return 2; /* Never allocate less than 2 of something.  */
+
+        m = ALIGN_POWER2(l);
+        if (m == 0) /* overflow? */
+                return l;
+
+        return m;
+}
 
 #define XSTRINGIFY(x) #x
 #define STRINGIFY(x) XSTRINGIFY(x)
@@ -160,21 +202,6 @@ ALIGN_TO(size_t l, size_t ali)
 }
 
 #define ALIGN_TO_PTR(p, ali) ((void *)ALIGN_TO((unsigned long)(p), (ali)))
-
-/* align to next higher power-of-2 (except for: 0 => 0, overflow => 0) */
-static inline unsigned long
-ALIGN_POWER2(unsigned long u)
-{
-	/* clz(0) is undefined */
-	if (u == 1)
-		return 1;
-
-	/* left-shift overflow is undefined */
-	if (__builtin_clzl(u - 1UL) < 1)
-		return 0;
-
-	return 1UL << (sizeof(u) * 8 - __builtin_clzl(u - 1UL));
-}
 
 #define ELEMENTSOF(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -327,6 +354,15 @@ ALIGN_POWER2(unsigned long u)
 #define assert_not_reached()                                            \
         log_assert_failed_unreachable(__FILE__, __LINE__, __func__)
 
+#define ASSERT_PTR(expr) _ASSERT_PTR(expr, UNIQ_T(_expr_, UNIQ), assert)
+#define ASSERT_SE_PTR(expr) _ASSERT_PTR(expr, UNIQ_T(_expr_, UNIQ), assert_se)
+#define _ASSERT_PTR(expr, var, check)      \
+        ({                                 \
+                typeof(expr) var = (expr); \
+                check(var);                \
+                var;                       \
+        })
+
 #if defined(static_assert)
 /* static_assert() is sometimes defined in a way that trips up
  * -Wdeclaration-after-statement, hence let's temporarily turn off
@@ -358,6 +394,12 @@ ALIGN_POWER2(unsigned long u)
 // 			return (r);                                            \
 // 		}                                                              \
 // 	} while (false)
+
+typedef struct {
+        int _empty[0];
+} dummy_t;
+
+assert_cc(sizeof(dummy_t) == 0);
 
 #define PTR_TO_PID(p) ((pid_t)((intptr_t)(p)))
 #define PID_TO_PTR(u) ((void *)((intptr_t)(u)))
@@ -509,6 +551,21 @@ IOVEC_INCREMENT(struct iovec *i, unsigned n, size_t k)
 #define SET_FLAG(v, flag, b) (v) = (b) ? ((v) | (flag)) : ((v) & ~(flag))
 #define FLAGS_SET(v, flags) ((~(v) & (flags)) == 0)
 
+/* Takes inspiration from Rust's Option::take() method: reads and returns a pointer, but at the same time
+ * resets it to NULL. See: https://doc.rust-lang.org/std/option/enum.Option.html#method.take */
+#define TAKE_GENERIC(var, type, nullvalue)                       \
+        ({                                                       \
+                type *_pvar_ = &(var);                           \
+                type _var_ = *_pvar_;                            \
+                type _nullvalue_ = nullvalue;                    \
+                *_pvar_ = _nullvalue_;                           \
+                _var_;                                           \
+        })
+#define TAKE_PTR_TYPE(ptr, type) TAKE_GENERIC(ptr, type, NULL)
+#define TAKE_PTR(ptr) TAKE_PTR_TYPE(ptr, typeof(ptr))
+#define TAKE_STRUCT_TYPE(s, type) TAKE_GENERIC(s, type, {})
+#define TAKE_STRUCT(s) TAKE_STRUCT_TYPE(s, typeof(s))
+
 #define IN_SET(x, y, ...)                                                      \
 	({                                                                     \
 		const typeof(y) _y = (y);                                      \
@@ -603,6 +660,13 @@ GID_IS_INVALID(gid_t gid)
 #define unimplemented() log_debug("%s: unimplemented\n", __FUNCTION__)
 #define unimplemented_msg(...)                                                 \
 	log_debug("%s: %s: unimplemented\n", __FUNCTION__, __VA_ARGS__)
+
+#define STRV_MAKE(...) ((char**) ((const char*[]) { __VA_ARGS__, NULL }))
+#define STRV_MAKE_EMPTY ((char*[1]) { NULL })
+#define STRV_MAKE_CONST(...) ((const char* const*) ((const char*[]) { __VA_ARGS__, NULL }))
+
+/* Pointers range from NULL to POINTER_MAX */
+#define POINTER_MAX ((void*) UINTPTR_MAX)
 
 #define _FOREACH_ARRAY(i, array, num, m, end)                           \
         for (typeof(array[0]) *i = (array), *end = ({                   \

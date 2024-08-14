@@ -129,7 +129,7 @@ int socket_address_parse(SocketAddress *a, const char *s);
 int socket_address_parse_and_warn(SocketAddress *a, const char *s);
 int socket_address_parse_netlink(SocketAddress *a, const char *s);
 int socket_address_print(const SocketAddress *a, char **p);
-int socket_address_verify(const SocketAddress *a) _pure_;
+int socket_address_verify(const SocketAddress *a, bool strict) _pure_;
 int socket_address_unlink(SocketAddress *a);
 
 bool socket_address_can_accept(const SocketAddress *a) _pure_;

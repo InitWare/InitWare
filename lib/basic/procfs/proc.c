@@ -7,6 +7,7 @@
 
 #include "alloc-util.h"
 #include "fileio.h"
+#include "string-util.h"
 #include "util.h"
 
 int

@@ -19,12 +19,13 @@
 
 #include <sys/mman.h>
 
+#include "dirent-util.h"
+#include "locale-util.h"
 #include "set.h"
+#include "string-table.h"
 #include "strv.h"
 #include "utf8.h"
 #include "util.h"
-
-#include "locale-util.h"
 
 static int
 add_locales_from_archive(Set *locales)

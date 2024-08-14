@@ -41,10 +41,8 @@ set_copy(Set *s)
 	return (Set *)internal_hashmap_copy(HASHMAP_BASE(s));
 }
 
-int internal_set_ensure_allocated(Set **s,
-	const struct hash_ops *hash_ops HASHMAP_DEBUG_PARAMS);
-#define set_ensure_allocated(h, ops)                                           \
-	internal_set_ensure_allocated(h, ops HASHMAP_DEBUG_SRC_ARGS)
+int _set_ensure_allocated(Set **s, const struct hash_ops *hash_ops HASHMAP_DEBUG_PARAMS);
+#define set_ensure_allocated(h, ops) _set_ensure_allocated(h, ops HASHMAP_DEBUG_SRC_ARGS)
 
 int set_put(Set *s, const void *key);
 /* no set_update */
@@ -111,7 +109,9 @@ set_buckets(Set *s)
 	return internal_hashmap_buckets(HASHMAP_BASE(s));
 }
 
-void *set_iterate(Set *s, Iterator *i);
+static inline bool set_iterate(const Set *s, Iterator *i, void **value) {
+        return _hashmap_iterate(HASHMAP_BASE((Set*) s), i, value, NULL);
+}
 
 static inline void
 set_clear(Set *s)
@@ -127,19 +127,15 @@ set_clear_free(Set *s)
 
 /* no set_clear_free_free */
 
-static inline void *
-set_steal_first(Set *s)
-{
-	return internal_hashmap_steal_first(HASHMAP_BASE(s));
+static inline void *set_steal_first(Set *s) {
+        return _hashmap_first_key_and_value(HASHMAP_BASE(s), true, NULL);
 }
 
 /* no set_steal_first_key */
 /* no set_first_key */
 
-static inline void *
-set_first(Set *s)
-{
-	return internal_hashmap_first(HASHMAP_BASE(s));
+static inline void *set_first(const Set *s) {
+        return _hashmap_first_key_and_value(HASHMAP_BASE((Set *) s), false, NULL);
 }
 
 /* no set_next */
@@ -150,13 +146,27 @@ set_get_strv(Set *s)
 	return internal_hashmap_get_strv(HASHMAP_BASE(s));
 }
 
-int set_consume(Set *s, void *value);
-int set_put_strdup(Set *s, const char *p);
-int set_put_strdupv(Set *s, char **l);
+int _set_ensure_put(Set **s, const struct hash_ops *hash_ops, const void *key  HASHMAP_DEBUG_PARAMS);
+#define set_ensure_put(s, hash_ops, key) _set_ensure_put(s, hash_ops, key  HASHMAP_DEBUG_SRC_ARGS)
 
-#define SET_FOREACH(e, s, i)                                                   \
-	for ((i) = ITERATOR_FIRST, (e) = set_iterate((s), &(i)); (e);          \
-		(e) = set_iterate((s), &(i)))
+int _set_ensure_consume(Set **s, const struct hash_ops *hash_ops, void *key  HASHMAP_DEBUG_PARAMS);
+#define set_ensure_consume(s, hash_ops, key) _set_ensure_consume(s, hash_ops, key  HASHMAP_DEBUG_SRC_ARGS)
+
+int set_consume(Set *s, void *value);
+int _set_put_strndup_full(Set **s, const struct hash_ops *hash_ops, const char *p, size_t n  HASHMAP_DEBUG_PARAMS);
+#define set_put_strndup_full(s, hash_ops, p, n) _set_put_strndup_full(s, hash_ops, p, n  HASHMAP_DEBUG_SRC_ARGS)
+#define set_put_strdup_full(s, hash_ops, p) set_put_strndup_full(s, hash_ops, p, SIZE_MAX)
+#define set_put_strndup(s, p, n) set_put_strndup_full(s, &string_hash_ops_free, p, n)
+#define set_put_strdup(s, p) set_put_strndup(s, p, SIZE_MAX)
+
+int _set_put_strdupv_full(Set **s, const struct hash_ops *hash_ops, char **l  HASHMAP_DEBUG_PARAMS);
+#define set_put_strdupv_full(s, hash_ops, l) _set_put_strdupv_full(s, hash_ops, l  HASHMAP_DEBUG_SRC_ARGS)
+#define set_put_strdupv(s, l) set_put_strdupv_full(s, &string_hash_ops_free, l)
+
+#define _SET_FOREACH(e, s, i) \
+        for (Iterator i = ITERATOR_FIRST; set_iterate((s), &i, (void**)&(e)); )
+#define SET_FOREACH(e, s) \
+        _SET_FOREACH(e, s, UNIQ_T(i, UNIQ))
 
 DEFINE_TRIVIAL_CLEANUP_FUNC(Set*, set_free);
 DEFINE_TRIVIAL_CLEANUP_FUNC(Set*, set_free_free);

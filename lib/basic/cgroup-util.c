@@ -31,13 +31,16 @@
 #include "bsdglibc.h"
 #include "cgroup-util.h"
 #include "dirent-util.h"
+#include "extract-word.h"
 #include "fileio.h"
 #include "log.h"
 #include "macro.h"
 #include "mkdir.h"
+#include "nulstr-util.h"
 #include "path-util.h"
 #include "set.h"
 #include "special.h"
+#include "string-table.h"
 #include "strv.h"
 #include "unit-name.h"
 #include "util.h"
@@ -1718,6 +1721,7 @@ cg_slice_to_path(const char *unit, char **ret)
 {
 	_cleanup_free_ char *p = NULL, *s = NULL, *e = NULL;
 	const char *dash;
+	int r;
 
 	assert(unit);
 	assert(ret);
@@ -1728,9 +1732,9 @@ cg_slice_to_path(const char *unit, char **ret)
 	if (!endswith(unit, ".slice"))
 		return -EINVAL;
 
-	p = unit_name_to_prefix(unit);
-	if (!p)
-		return -ENOMEM;
+	r = unit_name_to_prefix(unit, &p);
+	if (r < 0)
+		return r;
 
 	dash = strchr(p, '-');
 	while (dash) {
@@ -1872,26 +1876,26 @@ cg_attach_everywhere(CGroupMask supported, const char *path, pid_t pid,
 	return 0;
 }
 
-int
-cg_attach_many_everywhere(CGroupMask supported, const char *path, Set *pids,
-	cg_migrate_callback_t path_callback, void *userdata)
-{
-	Iterator i;
-	void *pidp;
-	int r = 0;
+// int
+// cg_attach_many_everywhere(CGroupMask supported, const char *path, Set *pids,
+// 	cg_migrate_callback_t path_callback, void *userdata)
+// {
+// 	Iterator i;
+// 	void *pidp;
+// 	int r = 0;
 
-	SET_FOREACH (pidp, pids, i) {
-		pid_t pid = PTR_TO_LONG(pidp);
-		int q;
+// 	SET_FOREACH (pidp, pids, i) {
+// 		pid_t pid = PTR_TO_LONG(pidp);
+// 		int q;
 
-		q = cg_attach_everywhere(supported, path, pid, path_callback,
-			userdata);
-		if (q < 0)
-			r = q;
-	}
+// 		q = cg_attach_everywhere(supported, path, pid, path_callback,
+// 			userdata);
+// 		if (q < 0)
+// 			r = q;
+// 	}
 
-	return r;
-}
+// 	return r;
+// }
 
 int
 cg_migrate_everywhere(CGroupMask supported, const char *from, const char *to,

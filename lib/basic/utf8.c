@@ -420,3 +420,18 @@ utf8_encoded_valid_unichar(const char *str)
 
 	return len;
 }
+
+bool
+unichar_is_valid(int32_t ch)
+{
+	if (ch >= 0x110000) /* End of unicode space */
+		return false;
+	if ((ch & 0xFFFFF800) == 0xD800) /* Reserved area for UTF-16 */
+		return false;
+	if ((ch >= 0xFDD0) && (ch <= 0xFDEF)) /* Reserved */
+		return false;
+	if ((ch & 0xFFFE) == 0xFFFE) /* BOM (Byte Order Mark) */
+		return false;
+
+	return true;
+}

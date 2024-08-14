@@ -75,11 +75,12 @@ typedef struct LookupPaths {
 
         /* A temporary directory when running in test mode, to be nuked */
         char *temporary_dir;
-        char **unit_path;
-#ifdef HAVE_SYSV_COMPAT
-				char **sysvinit_path;
-				char **sysvrcnd_path;
-#endif
+// HACK: THIS GOT NUKED BY UPSTREAM, INVESTIGATE IF WE NEED THIS?
+//         char **unit_path;
+// #ifdef HAVE_SYSV_COMPAT
+// 				char **sysvinit_path;
+// 				char **sysvrcnd_path;
+// #endif
 } LookupPaths;
 
 typedef enum SystemdRunningAs {
@@ -92,15 +93,12 @@ typedef enum SystemdRunningAs {
 int user_config_home(char **config_home);
 int user_runtime_dir(char **runtime_dir);
 
+bool path_is_user_config_dir(const char *path);
+
 char **generator_paths(SystemdRunningAs running_as);
 
 int lookup_paths_init(LookupPaths *lp, RuntimeScope scope, LookupPathsFlags flags, const char *root_dir);
-// int lookup_paths_init(LookupPaths *p, SystemdRunningAs running_as,
-// 	bool personal, const char *root_dir, const char *generator,
-// 	const char *generator_early, const char *generator_late);
-void lookup_paths_free(LookupPaths *p);
-int lookup_paths_init_from_scope(LookupPaths *paths, UnitFileScope scope,
-	const char *root_dir);
+void lookup_paths_done(LookupPaths *p);
 
 void lookup_paths_done(LookupPaths *p);
 

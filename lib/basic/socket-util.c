@@ -39,6 +39,7 @@
 #include "mkdir.h"
 #include "path-util.h"
 #include "socket-util.h"
+#include "string-table.h"
 #include "util.h"
 
 int
@@ -228,79 +229,97 @@ socket_address_parse_netlink(SocketAddress *a, const char *s)
 }
 #endif
 
-int
-socket_address_verify(const SocketAddress *a)
-{
-	assert(a);
+int socket_address_verify(const SocketAddress *a, bool strict) {
+        assert(a);
 
-	switch (socket_address_family(a)) {
-	case AF_INET:
-		if (a->size != sizeof(struct sockaddr_in))
-			return -EINVAL;
+        /* With 'strict' we enforce additional sanity constraints which are not set by the standard,
+         * but should only apply to sockets we create ourselves. */
 
-		if (a->sockaddr.in.sin_port == 0)
-			return -EINVAL;
+        switch (socket_address_family(a)) {
 
-		if (a->type != SOCK_STREAM && a->type != SOCK_DGRAM)
-			return -EINVAL;
+        case AF_INET:
+                if (a->size != sizeof(struct sockaddr_in))
+                        return -EINVAL;
 
-		return 0;
+                if (a->sockaddr.in.sin_port == 0)
+                        return -EINVAL;
 
-	case AF_INET6:
-		if (a->size != sizeof(struct sockaddr_in6))
-			return -EINVAL;
+                if (!IN_SET(a->type, 0, SOCK_STREAM, SOCK_DGRAM))
+                        return -EINVAL;
 
-		if (a->sockaddr.in6.sin6_port == 0)
-			return -EINVAL;
+                return 0;
 
-		if (a->type != SOCK_STREAM && a->type != SOCK_DGRAM)
-			return -EINVAL;
+        case AF_INET6:
+                if (a->size != sizeof(struct sockaddr_in6))
+                        return -EINVAL;
 
-		return 0;
+                if (a->sockaddr.in6.sin6_port == 0)
+                        return -EINVAL;
 
-	case AF_UNIX:
-		if (a->size < offsetof(struct sockaddr_un, sun_path))
-			return -EINVAL;
+                if (!IN_SET(a->type, 0, SOCK_STREAM, SOCK_DGRAM))
+                        return -EINVAL;
 
-		if (a->size > offsetof(struct sockaddr_un, sun_path)) {
-			if (a->sockaddr.un.sun_path[0] != 0) {
-				char *e;
+                return 0;
 
-				/* path */
-				e = memchr(a->sockaddr.un.sun_path, 0,
-					sizeof(a->sockaddr.un.sun_path));
-				if (!e)
-					return -EINVAL;
+        case AF_UNIX:
+                if (a->size < offsetof(struct sockaddr_un, sun_path))
+                        return -EINVAL;
+                if (a->size > sizeof(struct sockaddr_un) + !strict)
+                        /* If !strict, allow one extra byte, since getsockname() on Linux will append
+                         * a NUL byte if we have path sockets that are above sun_path's full size. */
+                        return -EINVAL;
 
-				if (a->size !=
-					offsetof(struct sockaddr_un, sun_path) +
-						(e - a->sockaddr.un.sun_path) +
-						1)
-					return -EINVAL;
-			}
-		}
+                if (a->size > offsetof(struct sockaddr_un, sun_path) &&
+                    a->sockaddr.un.sun_path[0] != 0 &&
+                    strict) {
+                        /* Only validate file system sockets here, and only in strict mode */
+                        const char *e;
 
-		if (a->type != SOCK_STREAM && a->type != SOCK_DGRAM &&
-			a->type != SOCK_SEQPACKET)
-			return -EINVAL;
+                        e = memchr(a->sockaddr.un.sun_path, 0, sizeof(a->sockaddr.un.sun_path));
+                        if (e) {
+                                /* If there's an embedded NUL byte, make sure the size of the socket address matches it */
+                                if (a->size != offsetof(struct sockaddr_un, sun_path) + (e - a->sockaddr.un.sun_path) + 1)
+                                        return -EINVAL;
+                        } else {
+                                /* If there's no embedded NUL byte, then the size needs to match the whole
+                                 * structure or the structure with one extra NUL byte suffixed. (Yeah, Linux is awful,
+                                 * and considers both equivalent: getsockname() even extends sockaddr_un beyond its
+                                 * size if the path is non NUL terminated.) */
+                                if (!IN_SET(a->size, sizeof(a->sockaddr.un.sun_path), sizeof(a->sockaddr.un.sun_path)+1))
+                                        return -EINVAL;
+                        }
+                }
 
-		return 0;
+                if (!IN_SET(a->type, 0, SOCK_STREAM, SOCK_DGRAM, SOCK_SEQPACKET))
+                        return -EINVAL;
 
+                return 0;
 #ifdef AF_NETLINK
-	case AF_NETLINK:
+        case AF_NETLINK:
 
-		if (a->size != sizeof(struct sockaddr_nl))
-			return -EINVAL;
+                if (a->size != sizeof(struct sockaddr_nl))
+                        return -EINVAL;
 
-		if (a->type != SOCK_RAW && a->type != SOCK_DGRAM)
-			return -EINVAL;
+                if (!IN_SET(a->type, 0, SOCK_RAW, SOCK_DGRAM))
+                        return -EINVAL;
 
-		return 0;
+                return 0;
 #endif
+// Ignoring...
+// #ifdef AF_VSOCK
+#if 0
+        case AF_VSOCK:
+                if (a->size != sizeof(struct sockaddr_vm))
+                        return -EINVAL;
 
-	default:
-		return -EAFNOSUPPORT;
-	}
+                if (!IN_SET(a->type, 0, SOCK_STREAM, SOCK_DGRAM))
+                        return -EINVAL;
+
+                return 0;
+#endif
+        default:
+                return -EAFNOSUPPORT;
+        }
 }
 
 int
@@ -311,7 +330,7 @@ socket_address_print(const SocketAddress *a, char **ret)
 	assert(a);
 	assert(ret);
 
-	r = socket_address_verify(a);
+	r = socket_address_verify(a, false);
 	if (r < 0)
 		return r;
 
@@ -342,85 +361,92 @@ socket_address_can_accept(const SocketAddress *a)
 	return a->type == SOCK_STREAM || a->type == SOCK_SEQPACKET;
 }
 
-bool
-socket_address_equal(const SocketAddress *a, const SocketAddress *b)
-{
-	assert(a);
-	assert(b);
+bool socket_address_equal(const SocketAddress *a, const SocketAddress *b) {
+        assert(a);
+        assert(b);
 
-	/* Invalid addresses are unequal to all */
-	if (socket_address_verify(a) < 0 || socket_address_verify(b) < 0)
-		return false;
+        /* Invalid addresses are unequal to all */
+        if (socket_address_verify(a, false) < 0 ||
+            socket_address_verify(b, false) < 0)
+                return false;
 
-	if (a->type != b->type)
-		return false;
+        if (a->type != b->type)
+                return false;
 
-	if (socket_address_family(a) != socket_address_family(b))
-		return false;
+        if (socket_address_family(a) != socket_address_family(b))
+                return false;
 
-	switch (socket_address_family(a)) {
-	case AF_INET:
-		if (a->sockaddr.in.sin_addr.s_addr !=
-			b->sockaddr.in.sin_addr.s_addr)
-			return false;
+        switch (socket_address_family(a)) {
 
-		if (a->sockaddr.in.sin_port != b->sockaddr.in.sin_port)
-			return false;
+        case AF_INET:
+                if (a->sockaddr.in.sin_addr.s_addr != b->sockaddr.in.sin_addr.s_addr)
+                        return false;
 
-		break;
+                if (a->sockaddr.in.sin_port != b->sockaddr.in.sin_port)
+                        return false;
 
-	case AF_INET6:
-		if (memcmp(&a->sockaddr.in6.sin6_addr,
-			    &b->sockaddr.in6.sin6_addr,
-			    sizeof(a->sockaddr.in6.sin6_addr)) != 0)
-			return false;
+                break;
 
-		if (a->sockaddr.in6.sin6_port != b->sockaddr.in6.sin6_port)
-			return false;
+        case AF_INET6:
+                if (memcmp(&a->sockaddr.in6.sin6_addr, &b->sockaddr.in6.sin6_addr, sizeof(a->sockaddr.in6.sin6_addr)) != 0)
+                        return false;
 
-		break;
+                if (a->sockaddr.in6.sin6_port != b->sockaddr.in6.sin6_port)
+                        return false;
 
-	case AF_UNIX:
-		if (a->size <= offsetof(struct sockaddr_un, sun_path) ||
-			b->size <= offsetof(struct sockaddr_un, sun_path))
-			return false;
+                break;
 
-		if ((a->sockaddr.un.sun_path[0] == 0) !=
-			(b->sockaddr.un.sun_path[0] == 0))
-			return false;
+        case AF_UNIX:
+                if (a->size <= offsetof(struct sockaddr_un, sun_path) ||
+                    b->size <= offsetof(struct sockaddr_un, sun_path))
+                        return false;
 
-		if (a->sockaddr.un.sun_path[0]) {
-			if (!path_equal_or_files_same(a->sockaddr.un.sun_path,
-				    b->sockaddr.un.sun_path))
-				return false;
-		} else {
-			if (a->size != b->size)
-				return false;
+                if ((a->sockaddr.un.sun_path[0] == 0) != (b->sockaddr.un.sun_path[0] == 0))
+                        return false;
 
-			if (memcmp(a->sockaddr.un.sun_path,
-				    b->sockaddr.un.sun_path, a->size) != 0)
-				return false;
-		}
+                if (a->sockaddr.un.sun_path[0]) {
+                        if (!path_equal_or_inode_same(a->sockaddr.un.sun_path, b->sockaddr.un.sun_path, 0))
+                                return false;
+                } else {
+                        if (a->size != b->size)
+                                return false;
 
-		break;
+                        if (memcmp(a->sockaddr.un.sun_path, b->sockaddr.un.sun_path, a->size) != 0)
+                                return false;
+                }
+
+                break;
 
 #ifdef AF_NETLINK
-	case AF_NETLINK:
-		if (a->protocol != b->protocol)
-			return false;
+        case AF_NETLINK:
+                if (a->protocol != b->protocol)
+                        return false;
 
-		if (a->sockaddr.nl.nl_groups != b->sockaddr.nl.nl_groups)
-			return false;
+                if (a->sockaddr.nl.nl_groups != b->sockaddr.nl.nl_groups)
+                        return false;
 
-		break;
+                break;
 #endif
 
-	default:
-		/* Cannot compare, so we assume the addresses are different */
-		return false;
-	}
+// Ignoring...
+// #ifdef AF_VSOCK
+#if 0
+        case AF_VSOCK:
+                if (a->sockaddr.vm.svm_cid != b->sockaddr.vm.svm_cid)
+                        return false;
 
-	return true;
+                if (a->sockaddr.vm.svm_port != b->sockaddr.vm.svm_port)
+                        return false;
+
+                break;
+#endif
+
+        default:
+                /* Cannot compare, so we assume the addresses are different */
+                return false;
+        }
+
+        return true;
 }
 
 bool

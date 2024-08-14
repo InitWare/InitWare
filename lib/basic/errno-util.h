@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
-/* Copyright 2010-2021 the systemd developers */
-#ifndef ERRNO_UTIL_H_
-#define ERRNO_UTIL_H_
+// Smaller InitWare version, we add as needed here
+#pragma once
+
+#include <inttypes.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "util.h"
 
@@ -76,6 +79,39 @@ static inline bool ERRNO_IS_DISK_SPACE(int r) {
                       EFBIG);
 }
 
+static inline void _reset_errno_(int *saved_errno) {
+        if (*saved_errno < 0) /* Invalidated by UNPROTECT_ERRNO? */
+                return;
 
+        errno = *saved_errno;
+}
 
-#endif /* ERRNO_UTIL_H_ */
+#define PROTECT_ERRNO                           \
+        _cleanup_(_reset_errno_) _unused_ int _saved_errno_ = errno
+
+#define UNPROTECT_ERRNO                         \
+        do {                                    \
+                errno = _saved_errno_;          \
+                _saved_errno_ = -1;             \
+        } while (false)
+
+/* Collect possible errors in <acc>, so that the first error can be returned.
+ * Returns (possibly updated) <acc>. */
+#define RET_GATHER(acc, err)                    \
+        ({                                      \
+                int *__a = &(acc), __e = (err); \
+                if (*__a >= 0 && __e < 0)       \
+                        *__a = __e;             \
+                *__a;                           \
+        })
+
+static inline int errno_or_else(int fallback) {
+        /* To be used when invoking library calls where errno handling is not defined clearly: we return
+         * errno if it is set, and the specified error otherwise. The idea is that the caller initializes
+         * errno to zero before doing an API call, and then uses this helper to retrieve a somewhat useful
+         * error code */
+        if (errno > 0)
+                return -errno;
+
+        return -abs(fallback);
+}

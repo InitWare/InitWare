@@ -19,6 +19,8 @@
 
 #include "alloc-util.h"
 #include "import-util.h"
+#include "nulstr-util.h"
+#include "string-table.h"
 #include "util.h"
 
 int
