@@ -17,6 +17,8 @@
 
 int stat_warn_permissions(const char *path, const struct stat *st);
 
+int get_files_in_directory(const char *path, char ***list);
+
 int tmp_dir(const char **ret);
 int var_tmp_dir(const char **ret);
 

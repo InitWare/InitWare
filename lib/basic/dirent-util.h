@@ -8,6 +8,8 @@
 #include "macro.h"
 #include "path-util.h"
 
+int dirent_ensure_type(int dir_fd, struct dirent *de);
+
 struct dirent *readdir_ensure_type(DIR *d);
 
 #define FOREACH_DIRENT_ALL(de, d, on_error)                             \

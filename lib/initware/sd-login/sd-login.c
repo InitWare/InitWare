@@ -25,8 +25,10 @@
 
 #include "alloc-util.h"
 #include "cgroup-util.h"
+#include "dirent-util.h"
 #include "escape.h"
 #include "fileio.h"
+#include "fs-util.h"
 #include "login-shared.h"
 #include "macro.h"
 #include "sd-login.h"
@@ -758,71 +760,67 @@ sd_get_seats(char ***seats)
 	return get_files_in_directory(SVC_PKGRUNSTATEDIR "/seats/", seats);
 }
 
-_public_ int
-sd_get_sessions(char ***sessions)
-{
-	return get_files_in_directory(SVC_PKGRUNSTATEDIR "/sessions/",
-		sessions);
+_public_ int sd_get_sessions(char ***sessions) {
+        int r;
+
+        r = get_files_in_directory(SVC_PKGRUNSTATEDIR "/sessions/", sessions);
+        if (r == -ENOENT) {
+                if (sessions)
+                        *sessions = NULL;
+                return 0;
+        }
+        return r;
 }
 
-_public_ int
-sd_get_uids(uid_t **users)
-{
-	_cleanup_closedir_ DIR *d;
-	int r = 0;
-	unsigned n = 0;
-	_cleanup_free_ uid_t *l = NULL;
+_public_ int sd_get_uids(uid_t **users) {
+        _cleanup_closedir_ DIR *d = NULL;
+        int r = 0;
+        unsigned n = 0;
+        _cleanup_free_ uid_t *l = NULL;
 
-	d = opendir(SVC_PKGRUNSTATEDIR "/users/");
-	if (!d)
-		return -errno;
+        d = opendir(SVC_PKGRUNSTATEDIR "/users/");
+        if (!d) {
+                if (errno == ENOENT) {
+                        if (users)
+                                *users = NULL;
+                        return 0;
+                }
+                return -errno;
+        }
 
-	for (;;) {
-		struct dirent *de;
-		int k;
-		uid_t uid;
+        FOREACH_DIRENT_ALL(de, d, return -errno) {
+                int k;
+                uid_t uid;
 
-		errno = 0;
-		de = readdir(d);
-		if (!de && errno != 0)
-			return -errno;
+                if (!dirent_is_file(de))
+                        continue;
 
-		if (!de)
-			break;
+                k = parse_uid(de->d_name, &uid);
+                if (k < 0)
+                        continue;
 
-		dirent_ensure_type(d, de);
+                if (users) {
+                        if ((unsigned) r >= n) {
+                                uid_t *t;
 
-		if (!dirent_is_file(de))
-			continue;
+                                n = MAX(16, 2*r);
+                                t = reallocarray(l, n, sizeof(uid_t));
+                                if (!t)
+                                        return -ENOMEM;
 
-		k = parse_uid(de->d_name, &uid);
-		if (k < 0)
-			continue;
+                                l = t;
+                        }
 
-		if (users) {
-			if ((unsigned)r >= n) {
-				uid_t *t;
+                        assert((unsigned) r < n);
+                        l[r++] = uid;
+                } else
+                        r++;
+        }
 
-				n = MAX(16, 2 * r);
-				t = realloc(l, sizeof(uid_t) * n);
-				if (!t)
-					return -ENOMEM;
+        if (users)
+                *users = TAKE_PTR(l);
 
-				l = t;
-			}
-
-			assert((unsigned)r < n);
-			l[r++] = uid;
-		} else
-			r++;
-	}
-
-	if (users) {
-		*users = l;
-		l = NULL;
-	}
-
-	return r;
+        return r;
 }
 
 _public_ int

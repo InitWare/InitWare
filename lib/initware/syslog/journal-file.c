@@ -4002,7 +4002,7 @@ int journal_file_open(
                 goto fail;
 
         if (newly_created) {
-                (void) journal_file_warn_btrfs(f);
+                // (void) journal_file_warn_btrfs(f);
 
                 /* Let's attach the creation time to the journal file, so that the vacuuming code knows the age of this
                  * file even if the file might end up corrupted one day... Ideally we'd just use the creation time many

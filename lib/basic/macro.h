@@ -77,6 +77,25 @@
 #  define _fallthrough_
 #endif
 
+// HACK: Prototypes needed here?
+/* Logging for various assertions */
+_noreturn_ void log_assert_failed(
+                const char *text,
+                const char *file,
+                int line,
+                const char *func);
+
+_noreturn_ void log_assert_failed_unreachable(
+                const char *file,
+                int line,
+                const char *func);
+
+void log_assert_failed_return(
+                const char *text,
+                const char *file,
+                int line,
+                const char *func);
+
 #ifndef __COVERITY__
 #  define VOID_0 ((void)0)
 #else

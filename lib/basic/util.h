@@ -552,10 +552,6 @@ int glob_exists(const char *path);
 int glob_extend(char ***strv, const char *path);
 int safe_glob(const char *path, int flags, glob_t *pglob);
 
-int dirent_ensure_type(DIR *d, struct dirent *de);
-
-int get_files_in_directory(const char *path, char ***list);
-
 char *strjoin(const char *x, ...) _sentinel_;
 
 bool is_main_thread(void);
