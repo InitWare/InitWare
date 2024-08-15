@@ -141,9 +141,11 @@ int unit_name_build(const char *prefix, const char *instance, const char *suffix
 int unit_name_build_from_type(const char *prefix, const char *instance, UnitType type, char **ret);
 
 char *unit_name_escape(const char *f);
-char *unit_name_unescape(const char *f);
+int unit_name_unescape(const char *f, char **ret);
 char *unit_name_path_escape(const char *f);
-char *unit_name_path_unescape(const char *f);
+int unit_name_path_unescape(const char *f, char **ret);
+
+bool unit_name_is_hashed(const char *name);
 
 bool unit_name_is_template(const char *n) _pure_;
 bool unit_name_is_instance(const char *n) _pure_;
@@ -162,7 +164,7 @@ int unit_name_template(const char *f, char **ret);
 char *unit_name_from_path(const char *path, const char *suffix);
 char *unit_name_from_path_instance(const char *prefix, const char *path,
 	const char *suffix);
-char *unit_name_to_path(const char *name);
+int unit_name_to_path(const char *name, char **ret);
 
 char *unit_dbus_path_from_name(const char *name);
 int unit_name_from_dbus_path(const char *path, char **name);

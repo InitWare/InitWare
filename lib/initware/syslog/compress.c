@@ -34,14 +34,23 @@
 #include "journal-def.h"
 #include "macro.h"
 #include "sparse-endian.h"
+#include "string-table.h"
 #include "util.h"
 
 #define ALIGN_8(l) ALIGN_TO(l, sizeof(size_t))
 
-static const char *const object_compressed_table[_OBJECT_COMPRESSED_MAX] = {
+static const char *const object_compressed_table[_OBJECT_COMPRESSED_MASK] = {
 	[OBJECT_COMPRESSED_XZ] = "XZ",
 	[OBJECT_COMPRESSED_LZ4] = "LZ4",
 };
+
+static const char* const compression_table[_COMPRESSION_MAX] = {
+        [COMPRESSION_NONE] = "NONE",
+        [COMPRESSION_XZ]   = "XZ",
+        [COMPRESSION_LZ4]  = "LZ4",
+};
+
+DEFINE_STRING_TABLE_LOOKUP(compression, Compression);
 
 DEFINE_STRING_TABLE_LOOKUP(object_compressed, int);
 

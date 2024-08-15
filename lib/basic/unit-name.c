@@ -25,11 +25,28 @@
 #include "bus-label.h"
 #include "def.h"
 #include "path-util.h"
+#include "string-table.h"
 #include "strv.h"
 #include "unit-name.h"
 #include "util.h"
 
-#define VALID_CHARS DIGITS LETTERS ":-_.\\"
+/* Characters valid in a unit name. */
+#define VALID_CHARS                             \
+        DIGITS                                  \
+        LETTERS                                 \
+        ":-_.\\"
+
+/* The same, but also permits the single @ character that may appear */
+#define VALID_CHARS_WITH_AT                     \
+        "@"                                     \
+        VALID_CHARS
+
+/* All chars valid in a unit name glob */
+#define VALID_CHARS_GLOB                        \
+        VALID_CHARS_WITH_AT                     \
+        "[]!-*?"
+
+#define UNIT_NAME_HASH_LENGTH_CHARS 16
 
 static const char *const unit_type_table[_UNIT_TYPE_MAX] = {
 	[UNIT_SERVICE] = "service",
@@ -368,38 +385,44 @@ unit_name_escape(const char *f)
 	return r;
 }
 
-char *
-unit_name_unescape(const char *f)
-{
-	char *r, *t;
+int unit_name_unescape(const char *f, char **ret) {
+        _cleanup_free_ char *r = NULL;
+        char *t;
 
-	assert(f);
+        assert(f);
 
-	r = strdup(f);
-	if (!r)
-		return NULL;
+        r = strdup(f);
+        if (!r)
+                return -ENOMEM;
 
-	for (t = r; *f; f++) {
-		if (*f == '-')
-			*(t++) = '/';
-		else if (*f == '\\') {
-			int a, b;
+        for (t = r; *f; f++) {
+                if (*f == '-')
+                        *(t++) = '/';
+                else if (*f == '\\') {
+                        int a, b;
 
-			if (f[1] != 'x' || (a = unhexchar(f[2])) < 0 ||
-				(b = unhexchar(f[3])) < 0) {
-				/* Invalid escape code, let's take it literal then */
-				*(t++) = '\\';
-			} else {
-				*(t++) = (char)((a << 4) | b);
-				f += 3;
-			}
-		} else
-			*(t++) = *f;
-	}
+                        if (f[1] != 'x')
+                                return -EINVAL;
 
-	*t = 0;
+                        a = unhexchar(f[2]);
+                        if (a < 0)
+                                return -EINVAL;
 
-	return r;
+                        b = unhexchar(f[3]);
+                        if (b < 0)
+                                return -EINVAL;
+
+                        *(t++) = (char) (((uint8_t) a << 4U) | (uint8_t) b);
+                        f += 3;
+                } else
+                        *(t++) = *f;
+        }
+
+        *t = 0;
+
+        *ret = TAKE_PTR(r);
+
+        return 0;
 }
 
 char *
@@ -421,24 +444,43 @@ unit_name_path_escape(const char *f)
 	return unit_name_escape(p[0] == '/' ? p + 1 : p);
 }
 
-char *
-unit_name_path_unescape(const char *f)
-{
-	char *e, *w;
+int unit_name_path_unescape(const char *f, char **ret) {
+        _cleanup_free_ char *s = NULL;
+        int r;
 
-	assert(f);
+        assert(f);
 
-	e = unit_name_unescape(f);
-	if (!e)
-		return NULL;
+        if (isempty(f))
+                return -EINVAL;
 
-	if (e[0] != '/') {
-		w = strappend("/", e);
-		free(e);
-		return w;
-	}
+        if (streq(f, "-")) {
+                s = strdup("/");
+                if (!s)
+                        return -ENOMEM;
+        } else {
+                _cleanup_free_ char *w = NULL;
 
-	return e;
+                r = unit_name_unescape(f, &w);
+                if (r < 0)
+                        return r;
+
+                /* Don't accept trailing or leading slashes */
+                if (startswith(w, "/") || endswith(w, "/"))
+                        return -EINVAL;
+
+                /* Prefix a slash again */
+                s = strjoin("/", w);
+                if (!s)
+                        return -ENOMEM;
+
+                if (!path_is_normalized(s))
+                        return -EINVAL;
+        }
+
+        if (ret)
+                *ret = TAKE_PTR(s);
+
+        return 0;
 }
 
 bool
@@ -524,6 +566,28 @@ int unit_name_replace_instance_full(
         return 0;
 }
 
+bool unit_name_is_hashed(const char *name) {
+        char *s;
+
+        if (!unit_name_is_valid(name, UNIT_NAME_PLAIN))
+                return false;
+
+        assert_se(s = strrchr(name, '.'));
+
+        if (s - name < UNIT_NAME_HASH_LENGTH_CHARS + 1)
+                return false;
+
+        s -= UNIT_NAME_HASH_LENGTH_CHARS;
+        if (s[-1] != '_')
+                return false;
+
+        for (size_t i = 0; i < UNIT_NAME_HASH_LENGTH_CHARS; i++)
+                if (!strchr(LOWERCASE_HEXDIGITS, s[i]))
+                        return false;
+
+        return true;
+}
+
 int unit_name_template(const char *f, char **ret) {
         const char *p, *e;
         char *s;
@@ -582,18 +646,20 @@ unit_name_from_path_instance(const char *prefix, const char *path,
 	return strjoin(prefix, "@", p, suffix, NULL);
 }
 
-char *
-unit_name_to_path(const char *name)
-{
-	_cleanup_free_ char *w = NULL;
+int unit_name_to_path(const char *name, char **ret) {
+        _cleanup_free_ char *prefix = NULL;
+        int r;
 
-	assert(name);
+        assert(name);
 
-	w = unit_name_to_prefix(name);
-	if (!w)
-		return NULL;
+        r = unit_name_to_prefix(name, &prefix);
+        if (r < 0)
+                return r;
 
-	return unit_name_path_unescape(w);
+        if (unit_name_is_hashed(name))
+                return -ENAMETOOLONG;
+
+        return unit_name_path_unescape(prefix, ret);
 }
 
 char *

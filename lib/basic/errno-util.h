@@ -115,3 +115,10 @@ static inline int errno_or_else(int fallback) {
 
         return -abs(fallback);
 }
+
+#define _DEFINE_ABS_WRAPPER(name)                         \
+        static inline bool ERRNO_IS_##name(intmax_t r) {  \
+                if (r == INTMAX_MIN)                      \
+                        return false;                     \
+                return ERRNO_IS_NEG_##name(-imaxabs(r));  \
+        }

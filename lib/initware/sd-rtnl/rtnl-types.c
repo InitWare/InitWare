@@ -39,6 +39,7 @@
 
 #include "missing.h"
 #include "rtnl-types.h"
+#include "string-table.h"
 
 static const NLTypeSystem rtnl_link_type_system;
 

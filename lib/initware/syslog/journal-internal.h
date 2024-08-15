@@ -29,6 +29,7 @@
 #include "journal-def.h"
 #include "journal-file.h"
 #include "list.h"
+#include "ratelimit.h"
 #include "sd-journal.h"
 #include "set.h"
 
@@ -45,7 +46,7 @@ typedef enum MatchType {
 struct Match {
 	MatchType type;
 	Match *parent;
-	IWLIST_FIELDS(Match, matches);
+	LIST_FIELDS(Match, matches);
 
 	/* For concrete matches */
 	char *data;
@@ -53,7 +54,7 @@ struct Match {
 	le64_t le_hash;
 
 	/* For terms */
-	IWLIST_HEAD(Match, matches);
+	LIST_HEAD(Match, matches);
 };
 
 struct Location {
@@ -126,11 +127,13 @@ struct sd_journal {
 	Hashmap *errors;
 };
 
+#define JOURNAL_LOG_RATELIMIT ((const RateLimit) { .interval = 60 * USEC_PER_SEC, .burst = 3 })
+
 char *journal_make_match_string(sd_journal *j);
 void journal_print_header(sd_journal *j);
 
-DEFINE_TRIVIAL_CLEANUP_FUNC(sd_journal *, sd_journal_close);
-#define _cleanup_journal_close_ _cleanup_(sd_journal_closep)
+// DEFINE_TRIVIAL_CLEANUP_FUNC(sd_journal *, sd_journal_close);
+// #define _cleanup_journal_close_ _cleanup_(sd_journal_closep)
 
 #define JOURNAL_FOREACH_DATA_RETVAL(j, data, l, retval)                        \
 	for (sd_journal_restart_data(j);                                       \

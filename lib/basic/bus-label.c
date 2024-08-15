@@ -24,6 +24,7 @@
 #include "alloc-util.h"
 #include "def.h"
 #include "macro.h"
+#include "string-util.h"
 #include "util.h"
 
 #include "bus-label.h"

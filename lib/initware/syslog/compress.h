@@ -25,6 +25,17 @@
 
 #include "journal-def.h"
 
+typedef enum Compression {
+        COMPRESSION_NONE,
+        COMPRESSION_XZ,
+        COMPRESSION_LZ4,
+        COMPRESSION_ZSTD,
+        _COMPRESSION_MAX,
+        _COMPRESSION_INVALID = -EINVAL,
+} Compression;
+
+const char* compression_to_string(Compression compression);
+
 const char *object_compressed_to_string(int compression);
 int object_compressed_from_string(const char *compression);
 

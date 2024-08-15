@@ -23,6 +23,7 @@
 
 #include "alloc-util.h"
 #include "bsdglibc.h"
+#include "stdio-util.h"
 #include "strv.h"
 #include "time-util.h"
 #include "util.h"
@@ -54,6 +55,22 @@ dual_timestamp_get(dual_timestamp *ts)
 	ts->monotonic = now(CLOCK_MONOTONIC);
 
 	return ts;
+}
+
+dual_timestamp* dual_timestamp_now(dual_timestamp *ts) {
+        assert(ts);
+
+        ts->realtime = now(CLOCK_REALTIME);
+        ts->monotonic = now(CLOCK_MONOTONIC);
+
+        return ts;
+}
+
+struct tm *localtime_or_gmtime_r(const time_t *t, struct tm *tm, bool utc) {
+        assert(t);
+        assert(tm);
+
+        return utc ? gmtime_r(t, tm) : localtime_r(t, tm);
 }
 
 dual_timestamp *
@@ -190,10 +207,133 @@ format_timestamp_internal(char *buf, size_t l, usec_t t, bool utc)
 	return buf;
 }
 
-char *
-format_timestamp(char *buf, size_t l, usec_t t)
-{
-	return format_timestamp_internal(buf, l, t, false);
+char *format_timestamp_style(
+                char *buf,
+                size_t l,
+                usec_t t,
+                TimestampStyle style) {
+
+        /* The weekdays in non-localized (English) form. We use this instead of the localized form, so that
+         * our generated timestamps may be parsed with parse_timestamp(), and always read the same. */
+        static const char * const weekdays[] = {
+                [0] = "Sun",
+                [1] = "Mon",
+                [2] = "Tue",
+                [3] = "Wed",
+                [4] = "Thu",
+                [5] = "Fri",
+                [6] = "Sat",
+        };
+
+        struct tm tm;
+        bool utc, us;
+        time_t sec;
+        size_t n;
+
+        assert(buf);
+        assert(style >= 0);
+        assert(style < _TIMESTAMP_STYLE_MAX);
+
+        if (!timestamp_is_set(t))
+                return NULL; /* Timestamp is unset */
+
+        if (style == TIMESTAMP_UNIX) {
+                if (l < (size_t) (1 + 1 + 1))
+                        return NULL; /* not enough space for even the shortest of forms */
+
+                return snprintf_ok(buf, l, "@" USEC_FMT, t / USEC_PER_SEC);  /* round down μs → s */
+        }
+
+        utc = IN_SET(style, TIMESTAMP_UTC, TIMESTAMP_US_UTC, TIMESTAMP_DATE);
+        us = IN_SET(style, TIMESTAMP_US, TIMESTAMP_US_UTC);
+
+        if (l < (size_t) (3 +                   /* week day */
+                          1 + 10 +              /* space and date */
+                          style == TIMESTAMP_DATE ? 0 :
+                          (1 + 8 +              /* space and time */
+                           (us ? 1 + 6 : 0) +   /* "." and microsecond part */
+                           1 + (utc ? 3 : 1)) + /* space and shortest possible zone */
+                          1))
+                return NULL; /* Not enough space even for the shortest form. */
+
+        /* Let's not format times with years > 9999 */
+        if (t > USEC_TIMESTAMP_FORMATTABLE_MAX) {
+                static const char* const xxx[_TIMESTAMP_STYLE_MAX] = {
+                        [TIMESTAMP_PRETTY] = "--- XXXX-XX-XX XX:XX:XX",
+                        [TIMESTAMP_US]     = "--- XXXX-XX-XX XX:XX:XX.XXXXXX",
+                        [TIMESTAMP_UTC]    = "--- XXXX-XX-XX XX:XX:XX UTC",
+                        [TIMESTAMP_US_UTC] = "--- XXXX-XX-XX XX:XX:XX.XXXXXX UTC",
+                        [TIMESTAMP_DATE]   = "--- XXXX-XX-XX",
+                };
+
+                assert(l >= strlen(xxx[style]) + 1);
+                return strcpy(buf, xxx[style]);
+        }
+
+        sec = (time_t) (t / USEC_PER_SEC); /* Round down */
+
+        if (!localtime_or_gmtime_r(&sec, &tm, utc))
+                return NULL;
+
+        /* Start with the week day */
+        assert((size_t) tm.tm_wday < ELEMENTSOF(weekdays));
+        memcpy(buf, weekdays[tm.tm_wday], 4);
+
+        if (style == TIMESTAMP_DATE) {
+                /* Special format string if only date should be shown. */
+                if (strftime(buf + 3, l - 3, " %Y-%m-%d", &tm) <= 0)
+                        return NULL; /* Doesn't fit */
+
+                return buf;
+        }
+
+        /* Add the main components */
+        if (strftime(buf + 3, l - 3, " %Y-%m-%d %H:%M:%S", &tm) <= 0)
+                return NULL; /* Doesn't fit */
+
+        /* Append the microseconds part, if that's requested */
+        if (us) {
+                n = strlen(buf);
+                if (n + 8 > l)
+                        return NULL; /* Microseconds part doesn't fit. */
+
+                sprintf(buf + n, ".%06"PRI_USEC, t % USEC_PER_SEC);
+        }
+
+        /* Append the timezone */
+        n = strlen(buf);
+        if (utc) {
+                /* If this is UTC then let's explicitly use the "UTC" string here, because gmtime_r()
+                 * normally uses the obsolete "GMT" instead. */
+                if (n + 5 > l)
+                        return NULL; /* "UTC" doesn't fit. */
+
+                strcpy(buf + n, " UTC");
+
+        } else if (!isempty(tm.tm_zone)) {
+                size_t tn;
+
+                /* An explicit timezone is specified, let's use it, if it fits */
+                tn = strlen(tm.tm_zone);
+                if (n + 1 + tn + 1 > l) {
+                        /* The full time zone does not fit in. Yuck. */
+
+                        if (n + 1 + _POSIX_TZNAME_MAX + 1 > l)
+                                return NULL; /* Not even enough space for the POSIX minimum (of 6)? In that
+                                              * case, complain that it doesn't fit. */
+
+                        /* So the time zone doesn't fit in fully, but the caller passed enough space for the
+                         * POSIX minimum time zone length. In this case suppress the timezone entirely, in
+                         * order not to dump an overly long, hard to read string on the user. This should be
+                         * safe, because the user will assume the local timezone anyway if none is shown. And
+                         * so does parse_timestamp(). */
+                } else {
+                        buf[n++] = ' ';
+                        strcpy(buf + n, tm.tm_zone);
+                }
+        }
+
+        return buf;
 }
 
 char *

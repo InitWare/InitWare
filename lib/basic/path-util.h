@@ -157,6 +157,8 @@ static inline bool path_is_safe(const char *p) {
         return path_is_valid_full(p, /* accept_dot_dot= */ false);
 }
 
+bool path_is_normalized(const char *p) _pure_;
+
 /* Similar to prefix_root(), but returns an alloca() buffer, or
  * possibly a const pointer into the path parameter */
 #define prefix_roota(root, path)                                               \

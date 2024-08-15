@@ -64,10 +64,14 @@
 #include "bsdsignal.h"
 #include "bsdxattr.h"
 #include "cgroup-util.h"
+#include "chase.h"
 #include "conf-parser.h"
 #include "def.h"
 #include "device-nodes.h"
+#include "dirent-util.h"
+#include "escape.h"
 #include "env-util.h"
+#include "errno-util.h"
 #include "exit-status.h"
 #include "fileio.h"
 #include "gunicode.h"
@@ -78,6 +82,7 @@
 #include "memfd-util.h"
 #include "missing.h"
 #include "mkdir.h"
+#include "nulstr-util.h"
 #include "path-util.h"
 #include "socket-util.h"
 #include "sparse-endian.h"
@@ -115,20 +120,6 @@
 
 static volatile unsigned cached_columns = 0;
 static volatile unsigned cached_lines = 0;
-
-bool
-streq_ptr(const char *a, const char *b)
-{
-	/* Like streq(), but tries to make sense of NULL pointers */
-
-	if (a && b)
-		return streq(a, b);
-
-	if (!a && !b)
-		return true;
-
-	return false;
-}
 
 char *
 endswith(const char *s, const char *postfix)
@@ -2847,91 +2838,91 @@ file_is_priv_sticky(const char *p)
 		(st.st_mode & S_ISVTX);
 }
 
-static int
-rm_rf_internal(const char *path, bool only_dirs, bool delete_root,
-	bool honour_sticky, bool dangerous)
-{
-	int fd, r;
-	struct statfs s;
+// static int
+// rm_rf_internal(const char *path, bool only_dirs, bool delete_root,
+// 	bool honour_sticky, bool dangerous)
+// {
+// 	int fd, r;
+// 	struct statfs s;
 
-	assert(path);
+// 	assert(path);
 
-	/* We refuse to clean the root file system with this
-         * call. This is extra paranoia to never cause a really
-         * seriously broken system. */
-	if (path_equal_or_files_same(path, "/")) {
-		log_error(
-			"Attempted to remove entire root file system, and we can't allow that.");
-		return -EPERM;
-	}
+// 	/* We refuse to clean the root file system with this
+//          * call. This is extra paranoia to never cause a really
+//          * seriously broken system. */
+// 	if (path_equal_or_files_same(path, "/")) {
+// 		log_error(
+// 			"Attempted to remove entire root file system, and we can't allow that.");
+// 		return -EPERM;
+// 	}
 
-	fd = open(path,
-		O_RDONLY | O_NONBLOCK | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW |
-			O_NOATIME);
-	if (fd < 0) {
-		if (errno != ENOTDIR && errno != ELOOP)
-			return -errno;
+// 	fd = open(path,
+// 		O_RDONLY | O_NONBLOCK | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW |
+// 			O_NOATIME);
+// 	if (fd < 0) {
+// 		if (errno != ENOTDIR && errno != ELOOP)
+// 			return -errno;
 
-		if (!dangerous) {
-			if (statfs(path, &s) < 0)
-				return -errno;
+// 		if (!dangerous) {
+// 			if (statfs(path, &s) < 0)
+// 				return -errno;
 
-			if (!is_temporary_fs(&s)) {
-				log_error(
-					"Attempted to remove disk file system, and we can't allow that.");
-				return -EPERM;
-			}
-		}
+// 			if (!is_temporary_fs(&s)) {
+// 				log_error(
+// 					"Attempted to remove disk file system, and we can't allow that.");
+// 				return -EPERM;
+// 			}
+// 		}
 
-		if (delete_root && !only_dirs)
-			if (unlink(path) < 0 && errno != ENOENT)
-				return -errno;
+// 		if (delete_root && !only_dirs)
+// 			if (unlink(path) < 0 && errno != ENOENT)
+// 				return -errno;
 
-		return 0;
-	}
+// 		return 0;
+// 	}
 
-	if (!dangerous) {
-		if (fstatfs(fd, &s) < 0) {
-			safe_close(fd);
-			return -errno;
-		}
+// 	if (!dangerous) {
+// 		if (fstatfs(fd, &s) < 0) {
+// 			safe_close(fd);
+// 			return -errno;
+// 		}
 
-		if (!is_temporary_fs(&s)) {
-			log_error(
-				"Attempted to remove disk file system, and we can't allow that.");
-			safe_close(fd);
-			return -EPERM;
-		}
-	}
+// 		if (!is_temporary_fs(&s)) {
+// 			log_error(
+// 				"Attempted to remove disk file system, and we can't allow that.");
+// 			safe_close(fd);
+// 			return -EPERM;
+// 		}
+// 	}
 
-	r = rm_rf_children_dangerous(fd, only_dirs, honour_sticky, NULL);
-	if (delete_root) {
-		if (honour_sticky && file_is_priv_sticky(path) > 0)
-			return r;
+// 	r = rm_rf_children_dangerous(fd, only_dirs, honour_sticky, NULL);
+// 	if (delete_root) {
+// 		if (honour_sticky && file_is_priv_sticky(path) > 0)
+// 			return r;
 
-		if (rmdir(path) < 0 && errno != ENOENT) {
-			if (r == 0)
-				r = -errno;
-		}
-	}
+// 		if (rmdir(path) < 0 && errno != ENOENT) {
+// 			if (r == 0)
+// 				r = -errno;
+// 		}
+// 	}
 
-	return r;
-}
+// 	return r;
+// }
 
-int
-rm_rf(const char *path, bool only_dirs, bool delete_root, bool honour_sticky)
-{
-	return rm_rf_internal(path, only_dirs, delete_root, honour_sticky,
-		false);
-}
+// int
+// rm_rf(const char *path, bool only_dirs, bool delete_root, bool honour_sticky)
+// {
+// 	return rm_rf_internal(path, only_dirs, delete_root, honour_sticky,
+// 		false);
+// }
 
-int
-rm_rf_dangerous(const char *path, bool only_dirs, bool delete_root,
-	bool honour_sticky)
-{
-	return rm_rf_internal(path, only_dirs, delete_root, honour_sticky,
-		true);
-}
+// int
+// rm_rf_dangerous(const char *path, bool only_dirs, bool delete_root,
+// 	bool honour_sticky)
+// {
+// 	return rm_rf_internal(path, only_dirs, delete_root, honour_sticky,
+// 		true);
+// }
 
 int
 chmod_and_chown(const char *path, mode_t mode, uid_t uid, gid_t gid)
@@ -3004,64 +2995,64 @@ cpu_set_malloc(unsigned *ncpus)
 	}
 }
 
-int
-parse_cpu_set_and_warn(const char *rvalue, cpu_set_t **cpu_set,
-	const char *unit, const char *filename, unsigned line,
-	const char *lvalue)
-{
-	const char *whole_rvalue = rvalue;
-	_cleanup_cpu_free_ cpu_set_t *c = NULL;
-	unsigned ncpus = 0;
+// int
+// parse_cpu_set_and_warn(const char *rvalue, cpu_set_t **cpu_set,
+// 	const char *unit, const char *filename, unsigned line,
+// 	const char *lvalue)
+// {
+// 	const char *whole_rvalue = rvalue;
+// 	_cleanup_cpu_free_ cpu_set_t *c = NULL;
+// 	unsigned ncpus = 0;
 
-	assert(lvalue);
-	assert(rvalue);
+// 	assert(lvalue);
+// 	assert(rvalue);
 
-	for (;;) {
-		_cleanup_free_ char *word = NULL;
-		unsigned cpu, cpu_lower, cpu_upper;
-		int r;
+// 	for (;;) {
+// 		_cleanup_free_ char *word = NULL;
+// 		unsigned cpu, cpu_lower, cpu_upper;
+// 		int r;
 
-		r = extract_first_word(&rvalue, &word, WHITESPACE ",",
-			EXTRACT_QUOTES);
-		if (r < 0)
-			return log_syntax(unit, LOG_ERR, filename, line, r,
-				"Invalid value for %s: %s", lvalue,
-				whole_rvalue);
-		if (r == 0)
-			break;
+// 		r = extract_first_word(&rvalue, &word, WHITESPACE ",",
+// 			EXTRACT_QUOTES);
+// 		if (r < 0)
+// 			return log_syntax(unit, LOG_ERR, filename, line, r,
+// 				"Invalid value for %s: %s", lvalue,
+// 				whole_rvalue);
+// 		if (r == 0)
+// 			break;
 
-		if (!c) {
-			c = cpu_set_malloc(&ncpus);
-			if (!c)
-				return log_oom();
-		}
+// 		if (!c) {
+// 			c = cpu_set_malloc(&ncpus);
+// 			if (!c)
+// 				return log_oom();
+// 		}
 
-		r = parse_range(word, &cpu_lower, &cpu_upper);
-		if (r < 0)
-			return log_syntax(unit, LOG_ERR, filename, line, r,
-				"Failed to parse CPU affinity '%s'", word);
-		if (cpu_lower >= ncpus || cpu_upper >= ncpus)
-			return log_syntax(unit, LOG_ERR, filename, line, EINVAL,
-				"CPU out of range '%s' ncpus is %u", word,
-				ncpus);
+// 		r = parse_range(word, &cpu_lower, &cpu_upper);
+// 		if (r < 0)
+// 			return log_syntax(unit, LOG_ERR, filename, line, r,
+// 				"Failed to parse CPU affinity '%s'", word);
+// 		if (cpu_lower >= ncpus || cpu_upper >= ncpus)
+// 			return log_syntax(unit, LOG_ERR, filename, line, EINVAL,
+// 				"CPU out of range '%s' ncpus is %u", word,
+// 				ncpus);
 
-		if (cpu_lower > cpu_upper)
-			log_syntax(unit, LOG_WARNING, filename, line, 0,
-				"Range '%s' is invalid, %u > %u", word,
-				cpu_lower, cpu_upper);
-		else
-			for (cpu = cpu_lower; cpu <= cpu_upper; cpu++)
-				CPU_SET_S(cpu, CPU_ALLOC_SIZE(ncpus), c);
-	}
+// 		if (cpu_lower > cpu_upper)
+// 			log_syntax(unit, LOG_WARNING, filename, line, 0,
+// 				"Range '%s' is invalid, %u > %u", word,
+// 				cpu_lower, cpu_upper);
+// 		else
+// 			for (cpu = cpu_lower; cpu <= cpu_upper; cpu++)
+// 				CPU_SET_S(cpu, CPU_ALLOC_SIZE(ncpus), c);
+// 	}
 
-	/* On success, sets *cpu_set and returns ncpus for the system. */
-	if (c) {
-		*cpu_set = c;
-		c = NULL;
-	}
+// 	/* On success, sets *cpu_set and returns ncpus for the system. */
+// 	if (c) {
+// 		*cpu_set = c;
+// 		c = NULL;
+// 	}
 
-	return (int)ncpus;
-}
+// 	return (int)ncpus;
+// }
 #endif
 
 int
@@ -3982,160 +3973,6 @@ dirent_is_file_with_suffix(const struct dirent *de, const char *suffix)
 	return endswith(de->d_name, suffix);
 }
 
-static int
-do_execute(char **directories, usec_t timeout, char *argv[])
-{
-	_cleanup_hashmap_free_free_ Hashmap *pids = NULL;
-	_cleanup_set_free_free_ Set *seen = NULL;
-	char **directory;
-
-	/* We fork this all off from a child process so that we can
-         * somewhat cleanly make use of SIGALRM to set a time limit */
-
-	reset_all_signal_handlers();
-	reset_signal_mask();
-
-#ifdef SVC_HAVE_sys_prctl_h
-	assert_se(prctl(PR_SET_PDEATHSIG, SIGTERM) == 0);
-#endif
-
-	pids = hashmap_new(NULL);
-	if (!pids)
-		return log_oom();
-
-	seen = set_new(&string_hash_ops);
-	if (!seen)
-		return log_oom();
-
-	STRV_FOREACH (directory, directories) {
-		_cleanup_closedir_ DIR *d;
-		struct dirent *de;
-
-		d = opendir(*directory);
-		if (!d) {
-			if (errno == ENOENT)
-				continue;
-
-			return log_error_errno(errno,
-				"Failed to open directory %s: %m", *directory);
-		}
-
-		FOREACH_DIRENT (de, d, break) {
-			_cleanup_free_ char *path = NULL;
-			pid_t pid;
-			int r;
-
-			if (!dirent_is_file(de))
-				continue;
-
-			if (set_contains(seen, de->d_name)) {
-				log_debug(
-					"%1$s/%2$s skipped (%2$s was already seen).",
-					*directory, de->d_name);
-				continue;
-			}
-
-			r = set_put_strdup(seen, de->d_name);
-			if (r < 0)
-				return log_oom();
-
-			path = strjoin(*directory, "/", de->d_name, NULL);
-			if (!path)
-				return log_oom();
-
-			if (null_or_empty_path(path)) {
-				log_debug("%s is empty (a mask).", path);
-				continue;
-			}
-
-			pid = fork();
-			if (pid < 0) {
-				log_error_errno(errno, "Failed to fork: %m");
-				continue;
-			} else if (pid == 0) {
-				char *_argv[2];
-
-#ifdef SVC_HAVE_sys_prctl_h
-				assert_se(
-					prctl(PR_SET_PDEATHSIG, SIGTERM) == 0);
-#endif
-
-				if (!argv) {
-					_argv[0] = path;
-					_argv[1] = NULL;
-					argv = _argv;
-				} else
-					argv[0] = path;
-
-				execv(path, argv);
-				return log_error_errno(errno,
-					"Failed to execute %s: %m", path);
-			}
-
-			log_debug("Spawned %s as " PID_FMT ".", path, pid);
-
-			r = hashmap_put(pids, UINT_TO_PTR(pid), path);
-			if (r < 0)
-				return log_oom();
-			path = NULL;
-		}
-	}
-
-	/* Abort execution of this process after the timout. We simply
-         * rely on SIGALRM as default action terminating the process,
-         * and turn on alarm(). */
-
-	if (timeout != USEC_INFINITY)
-		alarm((timeout + USEC_PER_SEC - 1) / USEC_PER_SEC);
-
-	while (!hashmap_isempty(pids)) {
-		_cleanup_free_ char *path = NULL;
-		pid_t pid;
-
-		pid = PTR_TO_UINT(hashmap_first_key(pids));
-		assert(pid > 0);
-
-		path = hashmap_remove(pids, UINT_TO_PTR(pid));
-		assert(path);
-
-		wait_for_terminate_and_warn(path, pid, true);
-	}
-
-	return 0;
-}
-
-void
-execute_directories(const char *const *directories, usec_t timeout,
-	char *argv[])
-{
-	pid_t executor_pid;
-	int r;
-	char *name;
-	char **dirs = (char **)directories;
-
-	assert(!strv_isempty(dirs));
-
-	name = lsb_basename(dirs[0]);
-	assert(!isempty(name));
-
-	/* Executes all binaries in the directories in parallel and waits
-         * for them to finish. Optionally a timeout is applied. If a file
-         * with the same name exists in more than one directory, the
-         * earliest one wins. */
-
-	executor_pid = fork();
-	if (executor_pid < 0) {
-		log_error_errno(errno, "Failed to fork: %m");
-		return;
-
-	} else if (executor_pid == 0) {
-		r = do_execute(dirs, timeout, argv);
-		_exit(r < 0 ? EXIT_FAILURE : EXIT_SUCCESS);
-	}
-
-	wait_for_terminate_and_warn(name, executor_pid, true);
-}
-
 int
 kill_and_sigcont(pid_t pid, int sig)
 {
@@ -4754,21 +4591,6 @@ closedir_wrapper(void *v)
 	(void)closedir(v);
 }
 
-static bool
-dot_or_dot_dot(const char *path)
-{
-	if (!path)
-		return false;
-	if (path[0] != '.')
-		return false;
-	if (path[1] == 0)
-		return true;
-	if (path[1] != '.')
-		return false;
-
-	return path[2] == 0;
-}
-
 static struct dirent *
 readdir_no_dot(DIR *dirp)
 {
@@ -5295,48 +5117,6 @@ prot_from_flags(int flags)
 	default:
 		return -EINVAL;
 	}
-}
-
-char *
-format_bytes(char *buf, size_t l, off_t t)
-{
-	unsigned i;
-
-	static const struct {
-		const char *suffix;
-		off_t factor;
-	} table[] = {
-		{ "E",
-			1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL *
-				1024ULL },
-		{ "P", 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL },
-		{ "T", 1024ULL * 1024ULL * 1024ULL * 1024ULL },
-		{ "G", 1024ULL * 1024ULL * 1024ULL },
-		{ "M", 1024ULL * 1024ULL },
-		{ "K", 1024ULL },
-	};
-
-	if (t == (off_t)-1)
-		return NULL;
-
-	for (i = 0; i < ELEMENTSOF(table); i++) {
-		if (t >= table[i].factor) {
-			snprintf(buf, l, "%llu.%llu%s",
-				(unsigned long long)(t / table[i].factor),
-				(unsigned long long)(((t * 10ULL) /
-							     table[i].factor) %
-					10ULL),
-				table[i].suffix);
-
-			goto finish;
-		}
-	}
-
-	snprintf(buf, l, "%lluB", (unsigned long long)t);
-
-finish:
-	buf[l - 1] = 0;
-	return buf;
 }
 
 int
@@ -7019,77 +6799,77 @@ update_reboot_param_file(const char *param)
 	return r;
 }
 
-int
-umount_recursive(const char *prefix, int flags)
-{
-#ifdef SVC_PLATFORM_Linux
-	bool again;
-	int n = 0, r;
+// int
+// umount_recursive(const char *prefix, int flags)
+// {
+// #ifdef SVC_PLATFORM_Linux
+// 	bool again;
+// 	int n = 0, r;
 
-	/* Try to umount everything recursively below a
-         * directory. Also, take care of stacked mounts, and keep
-         * unmounting them until they are gone. */
+// 	/* Try to umount everything recursively below a
+//          * directory. Also, take care of stacked mounts, and keep
+//          * unmounting them until they are gone. */
 
-	do {
-		_cleanup_fclose_ FILE *proc_self_mountinfo = NULL;
+// 	do {
+// 		_cleanup_fclose_ FILE *proc_self_mountinfo = NULL;
 
-		again = false;
-		r = 0;
+// 		again = false;
+// 		r = 0;
 
-		proc_self_mountinfo = fopen("/proc/self/mountinfo", "re");
-		if (!proc_self_mountinfo)
-			return -errno;
+// 		proc_self_mountinfo = fopen("/proc/self/mountinfo", "re");
+// 		if (!proc_self_mountinfo)
+// 			return -errno;
 
-		for (;;) {
-			_cleanup_free_ char *path = NULL, *p = NULL;
-			int k;
+// 		for (;;) {
+// 			_cleanup_free_ char *path = NULL, *p = NULL;
+// 			int k;
 
-			k = fscanf(proc_self_mountinfo,
-				"%*s " /* (1) mount id */
-				"%*s " /* (2) parent id */
-				"%*s " /* (3) major:minor */
-				"%*s " /* (4) root */
-				"%ms " /* (5) mount point */
-				"%*s" /* (6) mount options */
-				"%*[^-]" /* (7) optional fields */
-				"- " /* (8) separator */
-				"%*s " /* (9) file system type */
-				"%*s" /* (10) mount source */
-				"%*s" /* (11) mount options 2 */
-				"%*[^\n]", /* some rubbish at the end */
-				&path);
-			if (k != 1) {
-				if (k == EOF)
-					break;
+// 			k = fscanf(proc_self_mountinfo,
+// 				"%*s " /* (1) mount id */
+// 				"%*s " /* (2) parent id */
+// 				"%*s " /* (3) major:minor */
+// 				"%*s " /* (4) root */
+// 				"%ms " /* (5) mount point */
+// 				"%*s" /* (6) mount options */
+// 				"%*[^-]" /* (7) optional fields */
+// 				"- " /* (8) separator */
+// 				"%*s " /* (9) file system type */
+// 				"%*s" /* (10) mount source */
+// 				"%*s" /* (11) mount options 2 */
+// 				"%*[^\n]", /* some rubbish at the end */
+// 				&path);
+// 			if (k != 1) {
+// 				if (k == EOF)
+// 					break;
 
-				continue;
-			}
+// 				continue;
+// 			}
 
-			p = cunescape(path);
-			if (!p)
-				return -ENOMEM;
+// 			p = cunescape(path);
+// 			if (!p)
+// 				return -ENOMEM;
 
-			if (!path_startswith(p, prefix))
-				continue;
+// 			if (!path_startswith(p, prefix))
+// 				continue;
 
-			if (umount2(p, flags) < 0) {
-				r = -errno;
-				continue;
-			}
+// 			if (umount2(p, flags) < 0) {
+// 				r = -errno;
+// 				continue;
+// 			}
 
-			again = true;
-			n++;
+// 			again = true;
+// 			n++;
 
-			break;
-		}
+// 			break;
+// 		}
 
-	} while (again);
+// 	} while (again);
 
-	return r ? r : n;
-#else
-	return -ENOTSUP;
-#endif
-}
+// 	return r ? r : n;
+// #else
+// 	return -ENOTSUP;
+// #endif
+// }
 
 static int
 get_mount_flags(const char *path, unsigned long *flags)
@@ -7102,173 +6882,173 @@ get_mount_flags(const char *path, unsigned long *flags)
 	return 0;
 }
 
-int
-bind_remount_recursive(const char *prefix, bool ro)
-{
-#ifdef SVC_PLATFORM_Linux
-	_cleanup_set_free_free_ Set *done = NULL;
-	_cleanup_free_ char *cleaned = NULL;
-	int r;
+// int
+// bind_remount_recursive(const char *prefix, bool ro)
+// {
+// #ifdef SVC_PLATFORM_Linux
+// 	_cleanup_set_free_free_ Set *done = NULL;
+// 	_cleanup_free_ char *cleaned = NULL;
+// 	int r;
 
-	/* Recursively remount a directory (and all its submounts)
-         * read-only or read-write. If the directory is already
-         * mounted, we reuse the mount and simply mark it
-         * MS_BIND|MS_RDONLY (or remove the MS_RDONLY for read-write
-         * operation). If it isn't we first make it one. Afterwards we
-         * apply MS_BIND|MS_RDONLY (or remove MS_RDONLY) to all
-         * submounts we can access, too. When mounts are stacked on
-         * the same mount point we only care for each individual
-         * "top-level" mount on each point, as we cannot
-         * influence/access the underlying mounts anyway. We do not
-         * have any effect on future submounts that might get
-         * propagated, they migt be writable. This includes future
-         * submounts that have been triggered via autofs. */
+// 	/* Recursively remount a directory (and all its submounts)
+//          * read-only or read-write. If the directory is already
+//          * mounted, we reuse the mount and simply mark it
+//          * MS_BIND|MS_RDONLY (or remove the MS_RDONLY for read-write
+//          * operation). If it isn't we first make it one. Afterwards we
+//          * apply MS_BIND|MS_RDONLY (or remove MS_RDONLY) to all
+//          * submounts we can access, too. When mounts are stacked on
+//          * the same mount point we only care for each individual
+//          * "top-level" mount on each point, as we cannot
+//          * influence/access the underlying mounts anyway. We do not
+//          * have any effect on future submounts that might get
+//          * propagated, they migt be writable. This includes future
+//          * submounts that have been triggered via autofs. */
 
-	cleaned = strdup(prefix);
-	if (!cleaned)
-		return -ENOMEM;
+// 	cleaned = strdup(prefix);
+// 	if (!cleaned)
+// 		return -ENOMEM;
 
-	path_kill_slashes(cleaned);
+// 	path_kill_slashes(cleaned);
 
-	done = set_new(&string_hash_ops);
-	if (!done)
-		return -ENOMEM;
+// 	done = set_new(&string_hash_ops);
+// 	if (!done)
+// 		return -ENOMEM;
 
-	for (;;) {
-		_cleanup_fclose_ FILE *proc_self_mountinfo = NULL;
-		_cleanup_set_free_free_ Set *todo = NULL;
-		bool top_autofs = false;
-		char *x;
-		unsigned long orig_flags;
+// 	for (;;) {
+// 		_cleanup_fclose_ FILE *proc_self_mountinfo = NULL;
+// 		_cleanup_set_free_free_ Set *todo = NULL;
+// 		bool top_autofs = false;
+// 		char *x;
+// 		unsigned long orig_flags;
 
-		todo = set_new(&string_hash_ops);
-		if (!todo)
-			return -ENOMEM;
+// 		todo = set_new(&string_hash_ops);
+// 		if (!todo)
+// 			return -ENOMEM;
 
-		proc_self_mountinfo = fopen("/proc/self/mountinfo", "re");
-		if (!proc_self_mountinfo)
-			return -errno;
+// 		proc_self_mountinfo = fopen("/proc/self/mountinfo", "re");
+// 		if (!proc_self_mountinfo)
+// 			return -errno;
 
-		for (;;) {
-			_cleanup_free_ char *path = NULL, *p = NULL,
-					    *type = NULL;
-			int k;
+// 		for (;;) {
+// 			_cleanup_free_ char *path = NULL, *p = NULL,
+// 					    *type = NULL;
+// 			int k;
 
-			k = fscanf(proc_self_mountinfo,
-				"%*s " /* (1) mount id */
-				"%*s " /* (2) parent id */
-				"%*s " /* (3) major:minor */
-				"%*s " /* (4) root */
-				"%ms " /* (5) mount point */
-				"%*s" /* (6) mount options (superblock) */
-				"%*[^-]" /* (7) optional fields */
-				"- " /* (8) separator */
-				"%ms " /* (9) file system type */
-				"%*s" /* (10) mount source */
-				"%*s" /* (11) mount options (bind mount) */
-				"%*[^\n]", /* some rubbish at the end */
-				&path, &type);
-			if (k != 2) {
-				if (k == EOF)
-					break;
+// 			k = fscanf(proc_self_mountinfo,
+// 				"%*s " /* (1) mount id */
+// 				"%*s " /* (2) parent id */
+// 				"%*s " /* (3) major:minor */
+// 				"%*s " /* (4) root */
+// 				"%ms " /* (5) mount point */
+// 				"%*s" /* (6) mount options (superblock) */
+// 				"%*[^-]" /* (7) optional fields */
+// 				"- " /* (8) separator */
+// 				"%ms " /* (9) file system type */
+// 				"%*s" /* (10) mount source */
+// 				"%*s" /* (11) mount options (bind mount) */
+// 				"%*[^\n]", /* some rubbish at the end */
+// 				&path, &type);
+// 			if (k != 2) {
+// 				if (k == EOF)
+// 					break;
 
-				continue;
-			}
+// 				continue;
+// 			}
 
-			p = cunescape(path);
-			if (!p)
-				return -ENOMEM;
+// 			p = cunescape(path);
+// 			if (!p)
+// 				return -ENOMEM;
 
-			/* Let's ignore autofs mounts.  If they aren't
-                         * triggered yet, we want to avoid triggering
-                         * them, as we don't make any guarantees for
-                         * future submounts anyway.  If they are
-                         * already triggered, then we will find
-                         * another entry for this. */
-			if (streq(type, "autofs")) {
-				top_autofs =
-					top_autofs || path_equal(cleaned, p);
-				continue;
-			}
+// 			/* Let's ignore autofs mounts.  If they aren't
+//                          * triggered yet, we want to avoid triggering
+//                          * them, as we don't make any guarantees for
+//                          * future submounts anyway.  If they are
+//                          * already triggered, then we will find
+//                          * another entry for this. */
+// 			if (streq(type, "autofs")) {
+// 				top_autofs =
+// 					top_autofs || path_equal(cleaned, p);
+// 				continue;
+// 			}
 
-			if (path_startswith(p, cleaned) &&
-				!set_contains(done, p)) {
-				r = set_consume(todo, p);
-				p = NULL;
+// 			if (path_startswith(p, cleaned) &&
+// 				!set_contains(done, p)) {
+// 				r = set_consume(todo, p);
+// 				p = NULL;
 
-				if (r == -EEXIST)
-					continue;
-				if (r < 0)
-					return r;
-			}
-		}
+// 				if (r == -EEXIST)
+// 					continue;
+// 				if (r < 0)
+// 					return r;
+// 			}
+// 		}
 
-		/* If we have no submounts to process anymore and if
-                 * the root is either already done, or an autofs, we
-                 * are done */
-		if (set_isempty(todo) &&
-			(top_autofs || set_contains(done, cleaned)))
-			return 0;
+// 		/* If we have no submounts to process anymore and if
+//                  * the root is either already done, or an autofs, we
+//                  * are done */
+// 		if (set_isempty(todo) &&
+// 			(top_autofs || set_contains(done, cleaned)))
+// 			return 0;
 
-		if (!set_contains(done, cleaned) &&
-			!set_contains(todo, cleaned)) {
-			/* The prefix directory itself is not yet a
-                         * mount, make it one. */
-			if (mount(cleaned, cleaned, NULL, MS_BIND | MS_REC,
-				    NULL) < 0)
-				return -errno;
+// 		if (!set_contains(done, cleaned) &&
+// 			!set_contains(todo, cleaned)) {
+// 			/* The prefix directory itself is not yet a
+//                          * mount, make it one. */
+// 			if (mount(cleaned, cleaned, NULL, MS_BIND | MS_REC,
+// 				    NULL) < 0)
+// 				return -errno;
 
-			orig_flags = 0;
-			(void)get_mount_flags(cleaned, &orig_flags);
-			orig_flags &= ~MS_RDONLY;
+// 			orig_flags = 0;
+// 			(void)get_mount_flags(cleaned, &orig_flags);
+// 			orig_flags &= ~MS_RDONLY;
 
-			if (mount(NULL, prefix, NULL,
-				    orig_flags | MS_BIND | MS_REMOUNT |
-					    (ro ? MS_RDONLY : 0),
-				    NULL) < 0)
-				return -errno;
+// 			if (mount(NULL, prefix, NULL,
+// 				    orig_flags | MS_BIND | MS_REMOUNT |
+// 					    (ro ? MS_RDONLY : 0),
+// 				    NULL) < 0)
+// 				return -errno;
 
-			x = strdup(cleaned);
-			if (!x)
-				return -ENOMEM;
+// 			x = strdup(cleaned);
+// 			if (!x)
+// 				return -ENOMEM;
 
-			r = set_consume(done, x);
-			if (r < 0)
-				return r;
-		}
+// 			r = set_consume(done, x);
+// 			if (r < 0)
+// 				return r;
+// 		}
 
-		while ((x = set_steal_first(todo))) {
-			r = set_consume(done, x);
-			if (r == -EEXIST || r == 0)
-				continue;
-			if (r < 0)
-				return r;
+// 		while ((x = set_steal_first(todo))) {
+// 			r = set_consume(done, x);
+// 			if (r == -EEXIST || r == 0)
+// 				continue;
+// 			if (r < 0)
+// 				return r;
 
-			/* Deal with mount points that are obstructed by a
-                         * later mount */
-			r = path_is_mount_point(x, 0);
-			if (r == -ENOENT || r == 0)
-				continue;
-			if (r < 0)
-				return r;
+// 			/* Deal with mount points that are obstructed by a
+//                          * later mount */
+// 			r = path_is_mount_point(x, 0);
+// 			if (r == -ENOENT || r == 0)
+// 				continue;
+// 			if (r < 0)
+// 				return r;
 
-			/* Try to reuse the original flag set */
-			orig_flags = 0;
-			(void)get_mount_flags(x, &orig_flags);
-			orig_flags &= ~MS_RDONLY;
+// 			/* Try to reuse the original flag set */
+// 			orig_flags = 0;
+// 			(void)get_mount_flags(x, &orig_flags);
+// 			orig_flags &= ~MS_RDONLY;
 
-			if (mount(NULL, x, NULL,
-				    orig_flags | MS_BIND | MS_REMOUNT |
-					    (ro ? MS_RDONLY : 0),
-				    NULL) < 0)
-				return -errno;
-		}
-	}
-#else
-	unimplemented();
-	return -ENOTSUP;
-#endif
-}
+// 			if (mount(NULL, x, NULL,
+// 				    orig_flags | MS_BIND | MS_REMOUNT |
+// 					    (ro ? MS_RDONLY : 0),
+// 				    NULL) < 0)
+// 				return -errno;
+// 		}
+// 	}
+// #else
+// 	unimplemented();
+// 	return -ENOTSUP;
+// #endif
+// }
 
 int
 fflush_and_check(FILE *f)
@@ -8820,293 +8600,4 @@ safe_transition(const struct stat *a, const struct stat *b)
 
 	return a->st_uid ==
 		b->st_uid; /* Otherwise we need to stay within the same UID */
-}
-
-int
-chase_symlinks(const char *path, const char *original_root, unsigned flags,
-	char **ret)
-{
-	_cleanup_free_ char *buffer = NULL, *done = NULL, *root = NULL;
-	_cleanup_close_ int fd = -1;
-	unsigned max_follow =
-		32; /* how many symlinks to follow before giving up and returning ELOOP */
-	struct stat previous_stat;
-	bool exists = true;
-	char *todo;
-	int r;
-
-	assert(path);
-
-	/* Either the file may be missing, or we return an fd to the final object, but both make no sense */
-	if ((flags & (CHASE_NONEXISTENT | CHASE_OPEN)) ==
-		(CHASE_NONEXISTENT | CHASE_OPEN))
-		return -EINVAL;
-
-	/* This is a lot like canonicalize_file_name(), but takes an additional "root" parameter, that allows following
-         * symlinks relative to a root directory, instead of the root of the host.
-         *
-         * Note that "root" primarily matters if we encounter an absolute symlink. It is also used when following
-         * relative symlinks to ensure they cannot be used to "escape" the root directory. The path parameter passed is
-         * assumed to be already prefixed by it, except if the CHASE_PREFIX_ROOT flag is set, in which case it is first
-         * prefixed accordingly.
-         *
-         * Algorithmically this operates on two path buffers: "done" are the components of the path we already
-         * processed and resolved symlinks, "." and ".." of. "todo" are the components of the path we still need to
-         * process. On each iteration, we move one component from "todo" to "done", processing it's special meaning
-         * each time. The "todo" path always starts with at least one slash, the "done" path always ends in no
-         * slash. We always keep an O_PATH fd to the component we are currently processing, thus keeping lookup races
-         * at a minimum.
-         *
-         * Suggested usage: whenever you want to canonicalize a path, use this function. Pass the absolute path you got
-         * as-is: fully qualified and relative to your host's root. Optionally, specify the root parameter to tell this
-         * function what to do when encountering a symlink with an absolute path as directory: prefix it by the
-         * specified path. */
-
-	if (original_root) {
-		root = path_make_absolute_cwd(original_root);
-		if (root == NULL)
-			return -ENOENT;
-
-		if (flags & CHASE_PREFIX_ROOT)
-			path = prefix_roota(root, path);
-	}
-
-	buffer = path_make_absolute_cwd(path);
-	if (buffer == NULL)
-		return -ENOENT;
-
-	fd = open("/", O_CLOEXEC | O_NOFOLLOW | O_PATH);
-	if (fd < 0)
-		return -errno;
-
-	if (flags & CHASE_SAFE) {
-		if (fstat(fd, &previous_stat) < 0)
-			return -errno;
-	}
-
-	todo = buffer;
-	for (;;) {
-		_cleanup_free_ char *first = NULL;
-		_cleanup_close_ int child = -1;
-		struct stat st;
-		size_t n, m;
-
-		/* Determine length of first component in the path */
-		n = strspn(todo, "/"); /* The slashes */
-		m = n +
-			strcspn(todo + n,
-				"/"); /* The entire length of the component */
-
-		/* Extract the first component. */
-		first = strndup(todo, m);
-		if (!first)
-			return -ENOMEM;
-
-		todo += m;
-
-		/* Empty? Then we reached the end. */
-		if (isempty(first))
-			break;
-
-		/* Just a single slash? Then we reached the end. */
-		if (path_equal(first, "/")) {
-			/* Preserve the trailing slash */
-			if (!strextend(&done, "/", NULL))
-				return -ENOMEM;
-
-			break;
-		}
-
-		/* Just a dot? Then let's eat this up. */
-		if (path_equal(first, "/."))
-			continue;
-
-		/* Two dots? Then chop off the last bit of what we already found out. */
-		if (path_equal(first, "/..")) {
-			_cleanup_free_ char *parent = NULL;
-			int fd_parent = -1;
-
-			/* If we already are at the top, then going up will not change anything. This is in-line with
-                         * how the kernel handles this. */
-			if (isempty(done) || path_equal(done, "/"))
-				continue;
-
-			parent = dirname_malloc(done);
-			if (!parent)
-				return -ENOMEM;
-
-			/* Don't allow this to leave the root dir.  */
-			if (root && path_startswith(done, root) &&
-				!path_startswith(parent, root))
-				continue;
-
-			free(done);
-			done = parent;
-			parent = NULL;
-
-			fd_parent = openat(fd, "..",
-				O_CLOEXEC | O_NOFOLLOW | O_PATH);
-			if (fd_parent < 0)
-				return -errno;
-
-			if (flags & CHASE_SAFE) {
-				if (fstat(fd_parent, &st) < 0)
-					return -errno;
-
-				if (!safe_transition(&previous_stat, &st))
-					return -EPERM;
-
-				previous_stat = st;
-			}
-
-			safe_close(fd);
-			fd = fd_parent;
-
-			continue;
-		}
-
-		/* Otherwise let's see what this is. */
-		child = openat(fd, first + n, O_CLOEXEC | O_NOFOLLOW | O_PATH);
-		if (child < 0) {
-			if (errno == ENOENT && (flags & CHASE_NONEXISTENT) &&
-				(isempty(todo) || path_is_safe(todo))) {
-				/* If CHASE_NONEXISTENT is set, and the path does not exist, then that's OK, return
-                                 * what we got so far. But don't allow this if the remaining path contains "../ or "./"
-                                 * or something else weird. */
-
-				/* If done is "/", as first also contains slash at the head, then remove this redundant slash. */
-				if (streq_ptr(done, "/"))
-					*done = '\0';
-
-				if (!strextend(&done, first, todo, NULL))
-					return -ENOMEM;
-
-				exists = false;
-				break;
-			}
-
-			return -errno;
-		}
-
-		if (fstat(child, &st) < 0)
-			return -errno;
-		if ((flags & CHASE_SAFE) &&
-			!safe_transition(&previous_stat, &st))
-			return -EPERM;
-
-		previous_stat = st;
-
-#ifdef AUTOFS_SUPER_MAGIC
-		if ((flags & CHASE_NO_AUTOFS) &&
-			fd_is_fs_type(child, AUTOFS_SUPER_MAGIC) > 0)
-			return -EREMOTE;
-#endif
-
-		if (S_ISLNK(st.st_mode)) {
-			char *joined;
-
-			_cleanup_free_ char *destination = NULL;
-
-			/* This is a symlink, in this case read the destination. But let's make sure we don't follow
-                         * symlinks without bounds. */
-			if (--max_follow <= 0)
-				return -ELOOP;
-
-			r = readlinkat_malloc(fd, first + n, &destination);
-			if (r < 0)
-				return r;
-			if (isempty(destination))
-				return -EINVAL;
-
-			if (path_is_absolute(destination)) {
-				/* An absolute destination. Start the loop from the beginning, but use the root
-                                 * directory as base. */
-
-				safe_close(fd);
-				fd = open(root ?: "/",
-					O_CLOEXEC | O_NOFOLLOW | O_PATH);
-				if (fd < 0)
-					return -errno;
-
-				if (flags & CHASE_SAFE) {
-					if (fstat(fd, &st) < 0)
-						return -errno;
-
-					if (!safe_transition(&previous_stat,
-						    &st))
-						return -EPERM;
-
-					previous_stat = st;
-				}
-
-				free(done);
-
-				/* Note that we do not revalidate the root, we take it as is. */
-				if (isempty(root))
-					done = NULL;
-				else {
-					done = strdup(root);
-					if (!done)
-						return -ENOMEM;
-				}
-
-				/* Prefix what's left to do with what we just read, and start the loop again, but
-                                 * remain in the current directory. */
-				joined = strjoin(destination, todo, NULL);
-			} else
-				joined = strjoin("/", destination, todo, NULL);
-			if (!joined)
-				return -ENOMEM;
-
-			free(buffer);
-			todo = buffer = joined;
-
-			continue;
-		}
-
-		/* If this is not a symlink, then let's just add the name we read to what we already verified. */
-		if (!done) {
-			done = first;
-			first = NULL;
-		} else {
-			/* If done is "/", as first also contains slash at the head, then remove this redundant slash. */
-			if (streq(done, "/"))
-				*done = '\0';
-
-			if (!strextend(&done, first, NULL))
-				return -ENOMEM;
-		}
-
-		/* And iterate again, but go one directory further down. */
-		safe_close(fd);
-		fd = child;
-		child = -1;
-	}
-
-	if (!done) {
-		/* Special case, turn the empty string into "/", to indicate the root directory. */
-		done = strdup("/");
-		if (!done)
-			return -ENOMEM;
-	}
-
-	if (ret) {
-		*ret = done;
-		done = NULL;
-	}
-
-	if (flags & CHASE_OPEN) {
-		int q;
-
-		/* Return the O_PATH fd we currently are looking to the caller. It can translate it to a proper fd by
-                 * opening /proc/self/fd/xyz. */
-
-		assert(fd >= 0);
-		q = fd;
-		fd = -1;
-
-		return q;
-	}
-
-	return exists;
 }

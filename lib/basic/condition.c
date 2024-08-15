@@ -31,6 +31,7 @@
 #include "cap-list.h"
 #include "condition.h"
 #include "fileio.h"
+#include "hostname-util.h"
 #include "ima-util.h"
 #include "path-util.h"
 #include "sd-id128.h"
@@ -78,15 +79,15 @@ condition_free(Condition *c)
 	free(c);
 }
 
-Condition *
-condition_free_list(Condition *first)
-{
-	Condition *c, *n;
+Condition* condition_free_list_type(Condition *head, ConditionType type) {
+        LIST_FOREACH(conditions, c, head)
+                if (type < 0 || c->type == type) {
+                        LIST_REMOVE(conditions, head, c);
+                        condition_free(c);
+                }
 
-	IWLIST_FOREACH_SAFE (conditions, c, n, first)
-		condition_free(c);
-
-	return NULL;
+        assert(type >= 0 || !head);
+        return head;
 }
 
 static int
@@ -503,29 +504,26 @@ condition_test(Condition *c)
 	return b;
 }
 
-void
-condition_dump(Condition *c, FILE *f, const char *prefix,
-	const char *(*to_string)(ConditionType t))
-{
-	assert(c);
-	assert(f);
+void condition_dump(Condition *c, FILE *f, const char *prefix, condition_to_string_t to_string) {
+        assert(c);
+        assert(f);
+        assert(to_string);
 
-	if (!prefix)
-		prefix = "";
+        prefix = strempty(prefix);
 
-	fprintf(f, "%s\t%s: %s%s%s %s\n", prefix, to_string(c->type),
-		c->trigger ? "|" : "", c->negate ? "!" : "", c->parameter,
-		condition_result_to_string(c->result));
+        fprintf(f,
+                "%s\t%s: %s%s%s %s\n",
+                prefix,
+                to_string(c->type),
+                c->trigger ? "|" : "",
+                c->negate ? "!" : "",
+                c->parameter,
+                condition_result_to_string(c->result));
 }
 
-void
-condition_dump_list(Condition *first, FILE *f, const char *prefix,
-	const char *(*to_string)(ConditionType t))
-{
-	Condition *c;
-
-	IWLIST_FOREACH (conditions, c, first)
-		condition_dump(c, f, prefix, to_string);
+void condition_dump_list(Condition *first, FILE *f, const char *prefix, condition_to_string_t to_string) {
+        LIST_FOREACH(conditions, c, first)
+                condition_dump(c, f, prefix, to_string);
 }
 
 static const char *const condition_type_table[_CONDITION_TYPE_MAX] = {

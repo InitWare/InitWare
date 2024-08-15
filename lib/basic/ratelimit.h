@@ -23,9 +23,9 @@
 
 typedef struct RateLimit {
 	usec_t interval;
-	usec_t begin;
 	unsigned burst;
 	unsigned num;
+	usec_t begin;
 } RateLimit;
 
 #define RATELIMIT_DEFINE(_name, _interval, _burst)                             \

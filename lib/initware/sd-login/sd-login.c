@@ -25,6 +25,7 @@
 
 #include "alloc-util.h"
 #include "cgroup-util.h"
+#include "escape.h"
 #include "fileio.h"
 #include "login-shared.h"
 #include "macro.h"
@@ -537,25 +538,21 @@ sd_session_get_class(const char *session, char **class)
 	return session_get_string(session, "CLASS", class);
 }
 
-_public_ int
-sd_session_get_desktop(const char *session, char **desktop)
-{
-	_cleanup_free_ char *escaped = NULL;
-	char *t;
-	int r;
+_public_ int sd_session_get_desktop(const char *session, char **desktop) {
+        _cleanup_free_ char *escaped = NULL;
+        int r;
+        ssize_t l;
 
-	assert_return(desktop, -EINVAL);
+        assert_return(desktop, -EINVAL);
 
-	r = session_get_string(session, "DESKTOP", &escaped);
-	if (r < 0)
-		return r;
+        r = session_get_string(session, "DESKTOP", &escaped);
+        if (r < 0)
+                return r;
 
-	t = cunescape(escaped);
-	if (!t)
-		return -ENOMEM;
-
-	*desktop = t;
-	return 0;
+        l = cunescape(escaped, 0, desktop);
+        if (l < 0)
+                return l;
+        return 0;
 }
 
 _public_ int

@@ -68,9 +68,20 @@
 #define _cleanup_(x) __attribute__((cleanup(x)))
 #define _section_(x) __attribute__((__section__(x)))
 #define _used_ __attribute__((__used__))
+#define _warn_unused_result_ __attribute__((__warn_unused_result__))
 #define _retain_ __attribute__((__retain__))
 #define _noreturn_ _Noreturn
-#define _fallthrough_ __attribute__((__fallthrough__))
+#if __GNUC__ >= 7 || (defined(__clang__) && __clang_major__ >= 10)
+#  define _fallthrough_ __attribute__((__fallthrough__))
+#else
+#  define _fallthrough_
+#endif
+
+#ifndef __COVERITY__
+#  define VOID_0 ((void)0)
+#else
+#  define VOID_0 ((void*)0)
+#endif
 
 /* Temporarily disable some warnings */
 #define DISABLE_WARNING_DECLARATION_AFTER_STATEMENT                            \
@@ -156,6 +167,9 @@ static inline size_t GREEDY_ALLOC_ROUND_UP(size_t l) {
 #define UNIQ_T(x, uniq) CONCATENATE(__unique_prefix_, CONCATENATE(x, uniq))
 #define UNIQ __COUNTER__
 
+#define sizeof_field(struct_type, member) sizeof(((struct_type *) 0)->member)
+#define endoffsetof_field(struct_type, member) (offsetof(struct_type, member) + sizeof_field(struct_type, member))
+
 /* When func() returns the void value (NULL, -1, …) of the appropriate type */
 #define DEFINE_TRIVIAL_CLEANUP_FUNC(type, func)                 \
         static inline void func##p(type *p) {                   \
@@ -176,6 +190,34 @@ static inline size_t GREEDY_ALLOC_ROUND_UP(size_t l) {
                 }                                               \
         }
 
+/* Restriction/bug (see above) was fixed in GCC 15 and clang 19.*/
+#if __GNUC__ >= 15 || (defined(__clang__) && __clang_major__ >= 19)
+#define DECLARE_FLEX_ARRAY(type, name) type name[];
+#else
+/* Declare a flexible array usable in a union.
+ * This is essentially a work-around for a pointless constraint in C99
+ * and might go away in some future version of the standard.
+ *
+ * See https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=3080ea5553cc909b000d1f1d964a9041962f2c5b
+ */
+#define DECLARE_FLEX_ARRAY(type, name)                 \
+        struct {                                       \
+                dummy_t __empty__ ## name;             \
+                type name[];                           \
+        }
+#endif
+
+/* Returns true if the passed integer is a positive power of two */
+#define CONST_ISPOWEROF2(x)                     \
+        ((x) > 0 && ((x) & ((x) - 1)) == 0)
+
+static inline uint64_t u64_multiply_safe(uint64_t a, uint64_t b) {
+        if (_unlikely_(a != 0 && b > (UINT64_MAX / a)))
+                return 0; /* overflow */
+
+        return a * b;
+}
+
 /* Rounds up */
 
 #define ALIGN4(l) (((l) + 3) & ~3)
@@ -195,10 +237,67 @@ static inline size_t GREEDY_ALLOC_ROUND_UP(size_t l) {
 #define ALIGN4_PTR(p) ((void *)ALIGN4((unsigned long)(p)))
 #define ALIGN8_PTR(p) ((void *)ALIGN8((unsigned long)(p)))
 
-static inline size_t
-ALIGN_TO(size_t l, size_t ali)
-{
-	return ((l + ali - 1) & ~(ali - 1));
+#define MUL_SAFE(ret, a, b) (!__builtin_mul_overflow(a, b, ret))
+
+#define ISPOWEROF2(x)                                                  \
+        __builtin_choose_expr(                                         \
+                __builtin_constant_p(x),                               \
+                CONST_ISPOWEROF2(x),                                   \
+                ({                                                     \
+                        const typeof(x) _x = (x);                      \
+                        CONST_ISPOWEROF2(_x);                          \
+                }))
+
+/* Same as ALIGN_TO but callable in constant contexts. */
+#define CONST_ALIGN_TO(l, ali)                                         \
+        __builtin_choose_expr(                                         \
+                __builtin_constant_p(l) &&                             \
+                __builtin_constant_p(ali) &&                           \
+                CONST_ISPOWEROF2(ali) &&                               \
+                (l <= SIZE_MAX - (ali - 1)),      /* overflow? */      \
+                ((l) + (ali) - 1) & ~((ali) - 1),                      \
+                VOID_0)
+
+static inline size_t ALIGN_TO(size_t l, size_t ali) {
+        assert(ISPOWEROF2(ali));
+
+        if (l > SIZE_MAX - (ali - 1))
+                return SIZE_MAX; /* indicate overflow */
+
+        return ((l + (ali - 1)) & ~(ali - 1));
+}
+
+static inline uint64_t ALIGN_TO_U64(uint64_t l, uint64_t ali) {
+        assert(ISPOWEROF2(ali));
+
+        if (l > UINT64_MAX - (ali - 1))
+                return UINT64_MAX; /* indicate overflow */
+
+        return ((l + (ali - 1)) & ~(ali - 1));
+}
+
+static inline size_t ALIGN_DOWN(size_t l, size_t ali) {
+        assert(ISPOWEROF2(ali));
+
+        return l & ~(ali - 1);
+}
+
+static inline uint64_t ALIGN_DOWN_U64(uint64_t l, uint64_t ali) {
+        assert(ISPOWEROF2(ali));
+
+        return l & ~(ali - 1);
+}
+
+static inline size_t ALIGN_OFFSET(size_t l, size_t ali) {
+        assert(ISPOWEROF2(ali));
+
+        return l & (ali - 1);
+}
+
+static inline uint64_t ALIGN_OFFSET_U64(uint64_t l, uint64_t ali) {
+        assert(ISPOWEROF2(ali));
+
+        return l & (ali - 1);
 }
 
 #define ALIGN_TO_PTR(p, ali) ((void *)ALIGN_TO((unsigned long)(p), (ali)))
@@ -312,12 +411,23 @@ ALIGN_TO(size_t l, size_t ali)
  * computation should be possible in the given type. Therefore, we use
  * [x / y + !!(x % y)]. Note that on "Real CPUs" a division returns both the
  * quotient and the remainder, so both should be equally fast. */
-#define DIV_ROUND_UP(_x, _y)                                                   \
-	__extension__({                                                        \
-		const typeof(_x) __x = (_x);                                   \
-		const typeof(_y) __y = (_y);                                   \
-		(__x / __y + !!(__x % __y));                                   \
-	})
+#define DIV_ROUND_UP(x, y) __DIV_ROUND_UP(UNIQ, (x), UNIQ, (y))
+#define __DIV_ROUND_UP(xq, x, yq, y)                                    \
+        ({                                                              \
+                const typeof(x) UNIQ_T(X, xq) = (x);                    \
+                const typeof(y) UNIQ_T(Y, yq) = (y);                    \
+                (UNIQ_T(X, xq) / UNIQ_T(Y, yq) + !!(UNIQ_T(X, xq) % UNIQ_T(Y, yq))); \
+        })
+
+/* Rounds up x to the next multiple of y. Resolves to typeof(x) -1 in case of overflow */
+#define __ROUND_UP(q, x, y)                                             \
+        ({                                                              \
+                const typeof(y) UNIQ_T(A, q) = (y);                     \
+                const typeof(x) UNIQ_T(B, q) = DIV_ROUND_UP((x), UNIQ_T(A, q)); \
+                typeof(x) UNIQ_T(C, q);                                 \
+                MUL_SAFE(&UNIQ_T(C, q), UNIQ_T(B, q), UNIQ_T(A, q)) ? UNIQ_T(C, q) : (typeof(x)) -1; \
+        })
+#define ROUND_UP(x, y) __ROUND_UP(UNIQ, (x), (y))
 
 #define assert_message_se(expr, message)                                \
         do {                                                            \
@@ -386,14 +496,18 @@ ALIGN_TO(size_t l, size_t ali)
                         return (r);                                     \
         } while (false)
 
-// #define assert_return(expr, r)                                                 \
-// 	do {                                                                   \
-// 		if (_unlikely_(!(expr))) {                                     \
-// 			log_assert_failed_return(#expr, __FILE__, __LINE__,    \
-// 				__PRETTY_FUNCTION__);                          \
-// 			return (r);                                            \
-// 		}                                                              \
-// 	} while (false)
+/* A macro to force copying of a variable from memory. This is useful whenever we want to read something from
+ * memory and want to make sure the compiler won't optimize away the destination variable for us. It's not
+ * supposed to be a full CPU memory barrier, i.e. CPU is still allowed to reorder the reads, but it is not
+ * allowed to remove our local copies of the variables. We want this to work for unaligned memory, hence
+ * memcpy() is great for our purposes. */
+#define READ_NOW(x)                                                     \
+        ({                                                              \
+                typeof(x) _copy;                                        \
+                memcpy(&_copy, &(x), sizeof(_copy));                    \
+                asm volatile ("" : : : "memory");                       \
+                _copy;                                                  \
+        })
 
 typedef struct {
         int _empty[0];

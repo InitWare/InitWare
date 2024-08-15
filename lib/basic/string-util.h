@@ -88,6 +88,47 @@ static inline const char* enabled_disabled(bool b) {
         return b ? "enabled" : "disabled";
 }
 
+#define streq(a,b) (strcmp((a),(b)) == 0)
+#define strneq(a, b, n) (strncmp((a), (b), (n)) == 0)
+#define strcaseeq(a,b) (strcasecmp((a),(b)) == 0)
+#define strncaseeq(a, b, n) (strncasecmp((a), (b), (n)) == 0)
+
+static inline int strcmp_ptr(const sd_char *a, const sd_char *b) {
+        if (a && b)
+                return strcmp(a, b);
+
+        return CMP(a, b);
+}
+
+static inline int strcasecmp_ptr(const sd_char *a, const sd_char *b) {
+        if (a && b)
+                return strcasecmp(a, b);
+
+        return CMP(a, b);
+}
+
+static inline bool streq_ptr(const sd_char *a, const sd_char *b) {
+        return strcmp_ptr(a, b) == 0;
+}
+
+static inline bool strcaseeq_ptr(const sd_char *a, const sd_char *b) {
+        return strcasecmp_ptr(a, b) == 0;
+}
+
+static inline bool ascii_isdigit(sd_char a) {
+        /* A pure ASCII, locale independent version of isdigit() */
+        return a >= '0' && a <= '9';
+}
+
+static inline bool ascii_ishex(sd_char a) {
+        return ascii_isdigit(a) || (a >= 'a' && a <= 'f') || (a >= 'A' && a <= 'F');
+}
+
+static inline bool ascii_isalpha(sd_char a) {
+        /* A pure ASCII, locale independent version of isalpha() */
+        return (a >= 'a' && a <= 'z') || (a >= 'A' && a <= 'Z');
+}
+
 static inline size_t strlen_ptr(const sd_char *s) {
         if (!s)
                 return 0;

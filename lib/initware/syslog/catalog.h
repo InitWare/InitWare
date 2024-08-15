@@ -25,7 +25,7 @@
 #include "sd-id128.h"
 #include "strbuf.h"
 
-int catalog_import_file(Hashmap *h, struct strbuf *sb, const char *path);
+int catalog_import_file(OrderedHashmap *h, const char *path);
 int catalog_update(const char *database, const char *root,
 	const char *const *dirs);
 int catalog_get(const char *database, sd_id128_t id, char **data);

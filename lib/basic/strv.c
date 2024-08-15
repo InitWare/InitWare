@@ -24,6 +24,8 @@
 #include <string.h>
 
 #include "alloc-util.h"
+#include "escape.h"
+#include "nulstr-util.h"
 #include "strv.h"
 #include "util.h"
 
@@ -264,40 +266,6 @@ int strv_extend_strv_biconcat(char ***a, const char *prefix, const char* const *
         }
 
         return 0;
-}
-
-char **
-strv_split(const char *s, const char *separator)
-{
-	const char *word, *state;
-	size_t l;
-	unsigned n, i;
-	char **r;
-
-	assert(s);
-
-	n = 0;
-	FOREACH_WORD_SEPARATOR(word, l, s, separator, state)
-	n++;
-
-	r = new (char *, n + 1);
-	if (!r)
-		return NULL;
-
-	i = 0;
-	FOREACH_WORD_SEPARATOR(word, l, s, separator, state)
-	{
-		r[i] = strndup(word, l);
-		if (!r[i]) {
-			strv_free(r);
-			return NULL;
-		}
-
-		i++;
-	}
-
-	r[i] = NULL;
-	return r;
 }
 
 char **

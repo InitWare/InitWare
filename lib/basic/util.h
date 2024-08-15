@@ -103,8 +103,6 @@ rlim_to_uintmax(rlim_t rlim)
 #include "missing.h"
 #include "time-util.h"
 
-#define FORMAT_BYTES_MAX 8
-
 #define ANSI_HIGHLIGHT_ON "\x1B[1;39m"
 #define ANSI_RED_ON "\x1B[31m"
 #define ANSI_HIGHLIGHT_RED_ON "\x1B[1;31m"
@@ -114,13 +112,6 @@ rlim_to_uintmax(rlim_t rlim)
 #define ANSI_HIGHLIGHT_BLUE_ON "\x1B[1;34m"
 #define ANSI_HIGHLIGHT_OFF "\x1B[0m"
 #define ANSI_ERASE_TO_END_OF_LINE "\x1B[K"
-
-#define streq(a, b) (strcmp((a), (b)) == 0)
-#define strneq(a, b, n) (strncmp((a), (b), (n)) == 0)
-#define strcaseeq(a, b) (strcasecmp((a), (b)) == 0)
-#define strncaseeq(a, b, n) (strncasecmp((a), (b), (n)) == 0)
-
-bool streq_ptr(const char *a, const char *b) _pure_;
 
 /* fdset.c */
 #define MAKE_SET(s) ((Set *)s)
@@ -390,7 +381,6 @@ int sigprocmask_many(int how, ...);
 bool hostname_is_set(void);
 
 char *lookup_uid(uid_t uid);
-char *gethostname_malloc(void);
 char *getlogname_malloc(void);
 char *getusername_malloc(void);
 
@@ -409,10 +399,10 @@ int rm_rf_children(int fd, bool only_dirs, bool honour_sticky,
 	struct stat *root_dev);
 int rm_rf_children_dangerous(int fd, bool only_dirs, bool honour_sticky,
 	struct stat *root_dev);
-int rm_rf(const char *path, bool only_dirs, bool delete_root,
-	bool honour_sticky);
-int rm_rf_dangerous(const char *path, bool only_dirs, bool delete_root,
-	bool honour_sticky);
+// int rm_rf(const char *path, bool only_dirs, bool delete_root,
+// 	bool honour_sticky);
+// int rm_rf_dangerous(const char *path, bool only_dirs, bool delete_root,
+// 	bool honour_sticky);
 
 /**
  * Check if EOF has been reached on the FD using poll() checking for POLLHUP.
@@ -425,9 +415,9 @@ int pipe_eof(int fd);
 
 #ifdef SVC_PLATFORM_Linux
 cpu_set_t *cpu_set_malloc(unsigned *ncpus);
-int parse_cpu_set_and_warn(const char *rvalue, cpu_set_t **cpu_set,
-	const char *unit, const char *filename, unsigned line,
-	const char *lvalue);
+// int parse_cpu_set_and_warn(const char *rvalue, cpu_set_t **cpu_set,
+// 	const char *unit, const char *filename, unsigned line,
+// 	const char *lvalue);
 #endif
 
 int status_vprintf(const char *status, bool ellipse, bool ephemeral,
@@ -521,9 +511,6 @@ bool tty_is_console(const char *tty) _pure_;
 int vtnr_from_tty(const char *tty);
 const char *default_term_for_tty(const char *tty);
 
-void execute_directories(const char *const *directories, usec_t timeout,
-	char *argv[]);
-
 int kill_and_sigcont(pid_t pid, int sig);
 
 bool nulstr_contains(const char *nulstr, const char *needle);
@@ -612,8 +599,6 @@ int signal_from_string_try_harder(const char *s);
 bool kexec_loaded(void);
 
 int prot_from_flags(int flags) _const_;
-
-char *format_bytes(char *buf, size_t l, off_t t);
 
 int fd_wait_for_event(int fd, int event, usec_t timeout);
 
@@ -943,9 +928,9 @@ union file_handle_union {
 
 int update_reboot_param_file(const char *param);
 
-int umount_recursive(const char *target, int flags);
+// int umount_recursive(const char *target, int flags);
 
-int bind_remount_recursive(const char *prefix, bool ro);
+// int bind_remount_recursive(const char *prefix, bool ro);
 
 int fflush_and_check(FILE *f);
 

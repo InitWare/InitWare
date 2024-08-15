@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "hash-funcs.h"
 #include "stat-util.h"
 
 void inode_hash_func(const struct stat *q, struct siphash *state) {

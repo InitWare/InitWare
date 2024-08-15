@@ -43,6 +43,9 @@ char *sd_id128_to_string(sd_id128_t id, char s[SD_ID128_STRING_MAX]);
 char *sd_id128_to_uuid_string(sd_id128_t id, char s[SD_ID128_UUID_STRING_MAX]);
 int sd_id128_from_string(const char *s, sd_id128_t *ret);
 
+#define SD_ID128_TO_STRING(id) sd_id128_to_string((id), (char[SD_ID128_STRING_MAX]) {})
+#define SD_ID128_TO_UUID_STRING(id) sd_id128_to_uuid_string((id), (char[SD_ID128_UUID_STRING_MAX]) {})
+
 int sd_id128_randomize(sd_id128_t *ret);
 
 int sd_id128_get_machine(sd_id128_t *ret);

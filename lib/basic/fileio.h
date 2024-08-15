@@ -43,6 +43,12 @@ int executable_is_script(const char *path, char **interpreter);
 
 int get_status_field(const char *filename, const char *pattern, char **field);
 
+static inline bool file_offset_beyond_memory_size(off_t x) {
+        if (x < 0) /* off_t is signed, filter that out */
+                return false;
+        return (uint64_t) x > (uint64_t) SIZE_MAX;
+}
+
 int read_line(FILE *f, size_t limit, char **ret);
 int read_stripped_line(FILE *f, size_t limit, char **ret);
 

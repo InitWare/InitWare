@@ -49,7 +49,7 @@ sd_rtnl_new(sd_rtnl **ret)
 
 	rtnl->original_pid = getpid();
 
-	IWLIST_HEAD_INIT(rtnl->match_callbacks);
+	LIST_HEAD_INIT(rtnl->match_callbacks);
 
 	/* We guarantee that wqueue always has space for at least
          * one entry */
@@ -265,7 +265,7 @@ sd_rtnl_unref(sd_rtnl *rtnl)
 		sd_event_unref(rtnl->event);
 
 		while ((f = rtnl->match_callbacks)) {
-			IWLIST_REMOVE(match_callbacks, rtnl->match_callbacks,
+			LIST_REMOVE(match_callbacks, rtnl->match_callbacks,
 				f);
 			free(f);
 		}
@@ -502,7 +502,7 @@ process_match(sd_rtnl *rtnl, sd_rtnl_message *m)
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH (match_callbacks, c, rtnl->match_callbacks) {
+	LIST_FOREACH (match_callbacks, c, rtnl->match_callbacks) {
 		if (type == c->type) {
 			r = c->callback(rtnl, m, c->userdata);
 			if (r != 0) {
@@ -1099,7 +1099,7 @@ sd_rtnl_add_match(sd_rtnl *rtnl, uint16_t type,
 	c->type = type;
 	c->userdata = userdata;
 
-	IWLIST_PREPEND(match_callbacks, rtnl->match_callbacks, c);
+	LIST_PREPEND(match_callbacks, rtnl->match_callbacks, c);
 
 	return 0;
 }
@@ -1114,10 +1114,10 @@ sd_rtnl_remove_match(sd_rtnl *rtnl, uint16_t type,
 	assert_return(callback, -EINVAL);
 	assert_return(!rtnl_pid_changed(rtnl), -ECHILD);
 
-	IWLIST_FOREACH (match_callbacks, c, rtnl->match_callbacks)
+	LIST_FOREACH (match_callbacks, c, rtnl->match_callbacks)
 		if (c->callback == callback && c->type == type &&
 			c->userdata == userdata) {
-			IWLIST_REMOVE(match_callbacks, rtnl->match_callbacks,
+			LIST_REMOVE(match_callbacks, rtnl->match_callbacks,
 				c);
 			free(c);
 

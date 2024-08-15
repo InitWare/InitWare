@@ -30,6 +30,7 @@
 #include "base-filesystem.h"
 #include "missing.h"
 #include "mkdir.h"
+#include "nulstr-util.h"
 #include "path-util.h"
 #include "switch-root.h"
 #include "util.h"

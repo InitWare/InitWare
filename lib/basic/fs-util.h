@@ -17,6 +17,11 @@
 
 int stat_warn_permissions(const char *path, const struct stat *st);
 
+int tmp_dir(const char **ret);
+int var_tmp_dir(const char **ret);
+
+int posix_fallocate_loop(int fd, uint64_t offset, uint64_t size);
+
 /* Useful for usage with _cleanup_(), removes a directory and frees the pointer */
 static inline char *rmdir_and_free(char *p) {
         PROTECT_ERRNO;

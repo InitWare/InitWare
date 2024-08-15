@@ -29,9 +29,11 @@
 #include "alloc-util.h"
 #include "bsdendian.h"
 #include "bsdprintf.h"
+#include "errno-util.h"
 #include "memfd-util.h"
 #include "sd-journal.h"
 #include "socket-util.h"
+#include "string-util.h"
 #include "util.h"
 
 #define SNDBUF_SIZE (8 * 1024 * 1024)

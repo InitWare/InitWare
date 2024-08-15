@@ -159,6 +159,7 @@ int sd_event_get_iteration(sd_event *e, uint64_t *ret);
 
 sd_event_source *sd_event_source_ref(sd_event_source *s);
 sd_event_source *sd_event_source_unref(sd_event_source *s);
+sd_event_source* sd_event_source_disable_unref(sd_event_source *s);
 
 sd_event *sd_event_source_get_event(sd_event_source *s);
 void *sd_event_source_get_userdata(sd_event_source *s);
@@ -184,6 +185,7 @@ int sd_event_source_get_time(sd_event_source *s, uint64_t *usec);
 int sd_event_source_set_time(sd_event_source *s, uint64_t usec);
 int sd_event_source_get_time_accuracy(sd_event_source *s, uint64_t *usec);
 int sd_event_source_set_time_accuracy(sd_event_source *s, uint64_t usec);
+int sd_event_source_set_time_relative(sd_event_source *s, uint64_t usec);
 int sd_event_source_get_time_clock(sd_event_source *s, clockid_t *clock);
 int sd_event_source_get_signal(sd_event_source *s);
 int sd_event_source_get_child_pid(sd_event_source *s, pid_t *pid);

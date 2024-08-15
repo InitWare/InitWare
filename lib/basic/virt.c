@@ -23,6 +23,8 @@
 
 #include "alloc-util.h"
 #include "fileio.h"
+#include "nulstr-util.h"
+#include "string-util.h"
 #include "util.h"
 #include "virt.h"
 
