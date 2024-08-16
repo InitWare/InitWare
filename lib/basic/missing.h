@@ -23,6 +23,7 @@
 
 #include <sys/resource.h>
 #include <sys/syscall.h>
+#include <sys/socket.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
