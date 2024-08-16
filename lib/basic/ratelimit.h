@@ -52,3 +52,18 @@ typedef struct RateLimit {
 	} while (false)
 
 bool ratelimit_test(RateLimit *r);
+
+static inline void ratelimit_reset(RateLimit *rl) {
+        rl->num = rl->begin = 0;
+}
+
+static inline bool ratelimit_configured(RateLimit *rl) {
+        return rl->interval > 0 && rl->burst > 0;
+}
+
+bool ratelimit_below(RateLimit *r);
+
+unsigned ratelimit_num_dropped(RateLimit *r);
+
+usec_t ratelimit_end(const RateLimit *rl);
+usec_t ratelimit_left(const RateLimit *rl);

@@ -52,6 +52,8 @@ typedef struct OrderedHashmap
 	OrderedHashmap; /* Like Hashmap, but also remembers entry insertion order */
 typedef struct Set Set; /* Stores just keys */
 
+typedef struct IteratedCache IteratedCache;   /* Caches the iterated order of one of the above */
+
 /* Ideally the Iterator would be an opaque struct, but it is instantiated
  * by hashmap users, so the definition has to be here. Do not use its fields
  * directly. */
@@ -180,6 +182,8 @@ static inline Hashmap* hashmap_free_free_free(Hashmap *h) {
 static inline OrderedHashmap* ordered_hashmap_free_free_free(OrderedHashmap *h) {
         return (void*) _hashmap_free(HASHMAP_BASE(h), free, free);
 }
+
+IteratedCache* iterated_cache_free(IteratedCache *cache);
 
 HashmapBase *internal_hashmap_copy(HashmapBase *h);
 static inline Hashmap *
@@ -566,3 +570,7 @@ DEFINE_TRIVIAL_CLEANUP_FUNC(OrderedHashmap*, ordered_hashmap_free_free_free);
 	_cleanup_(ordered_hashmap_free_freep)
 #define _cleanup_ordered_hashmap_free_free_free_                               \
 	_cleanup_(ordered_hashmap_free_free_freep)
+
+DEFINE_TRIVIAL_CLEANUP_FUNC(IteratedCache*, iterated_cache_free);
+
+#define _cleanup_iterated_cache_free_ _cleanup_(iterated_cache_freep)

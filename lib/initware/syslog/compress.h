@@ -54,12 +54,13 @@ compress_blob(const void *src, uint64_t src_size, void *dst, size_t *dst_size)
 	return r;
 }
 
-int decompress_blob_xz(const void *src, uint64_t src_size, void **dst,
-	size_t *dst_alloc_size, size_t *dst_size, size_t dst_max);
-int decompress_blob_lz4(const void *src, uint64_t src_size, void **dst,
-	size_t *dst_alloc_size, size_t *dst_size, size_t dst_max);
-int decompress_blob(int compression, const void *src, uint64_t src_size,
-	void **dst, size_t *dst_alloc_size, size_t *dst_size, size_t dst_max);
+int decompress_blob_xz(const void *src, uint64_t src_size,
+                       void **dst, size_t* dst_size, size_t dst_max);
+int decompress_blob_lz4(const void *src, uint64_t src_size,
+                        void **dst, size_t* dst_size, size_t dst_max);
+int decompress_blob(Compression compression,
+                    const void *src, uint64_t src_size,
+                    void **dst, size_t* dst_size, size_t dst_max);
 
 int decompress_startswith_xz(const void *src, uint64_t src_size, void **buffer,
 	size_t *buffer_size, const void *prefix, size_t prefix_len,

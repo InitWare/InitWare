@@ -27,7 +27,6 @@
 #include <pthread.h>
 
 #include "alloc-util.h"
-#include "compress.h"
 #include "env-util.h"
 #include "fsprg.h"
 #include "fs-util.h"
@@ -52,13 +51,35 @@
 #define DEFAULT_COMPRESS_THRESHOLD (512ULL)
 #define MIN_COMPRESS_THRESHOLD (8ULL)
 
+/* These are the lower and upper bounds if we deduce the max_use value from the file system size */
+#define MAX_USE_LOWER (1 * U64_MB)                       /* 1 MiB */
+#define MAX_USE_UPPER (4 * U64_GB)                       /* 4 GiB */
+
 /* This is the minimum journal file size */
-#define JOURNAL_FILE_SIZE_MIN (4ULL * 1024ULL * 1024ULL) /* 4 MiB */
+#define JOURNAL_FILE_SIZE_MIN (512 * U64_KB)             /* 512 KiB */
+#define JOURNAL_COMPACT_SIZE_MAX ((uint64_t) UINT32_MAX) /* 4 GiB */
 
 /* These are the lower and upper bounds if we deduce the max_use value
  * from the file system size */
 #define DEFAULT_MAX_USE_LOWER (1ULL * 1024ULL * 1024ULL) /* 1 MiB */
 #define DEFAULT_MAX_USE_UPPER (4ULL * 1024ULL * 1024ULL * 1024ULL) /* 4 GiB */
+
+/* Those are the lower and upper bounds for the minimal use limit,
+ * i.e. how much we'll use even if keep_free suggests otherwise. */
+#define MIN_USE_LOW  (1  * U64_MB)                       /* 1 MiB */
+#define MIN_USE_HIGH (16 * U64_MB)                       /* 16 MiB */
+
+/* This is the upper bound if we deduce max_size from max_use */
+#define MAX_SIZE_UPPER (128 * U64_MB)                    /* 128 MiB */
+
+/* This is the upper bound if we deduce the keep_free value from the file system size */
+#define KEEP_FREE_UPPER (4 * U64_GB)                     /* 4 GiB */
+
+/* This is the keep_free value when we can't determine the system size */
+#define DEFAULT_KEEP_FREE (1 * U64_MB)                   /* 1 MB */
+
+/* This is the default maximum number of journal files to keep around. */
+#define DEFAULT_N_MAX_FILES 100
 
 /* This is the upper bound if we deduce max_size from max_use */
 #define DEFAULT_MAX_SIZE_UPPER (128ULL * 1024ULL * 1024ULL) /* 128 MiB */
@@ -66,10 +87,6 @@
 /* This is the upper bound if we deduce the keep_free value from the
  * file system size */
 #define DEFAULT_KEEP_FREE_UPPER (4ULL * 1024ULL * 1024ULL * 1024ULL) /* 4 GiB */
-
-/* This is the keep_free value when we can't determine the system
- * size */
-#define DEFAULT_KEEP_FREE (1024ULL * 1024ULL) /* 1 MB */
 
 /* n_data was the first entry we added after the initial file format design */
 #define HEADER_SIZE_MIN ALIGN64(offsetof(Header, n_data))
@@ -88,6 +105,19 @@
 
 /* Longest hash chain to rotate after */
 #define HASH_CHAIN_DEPTH_MAX 100
+
+static int mmap_prot_from_open_flags(int flags) {
+        switch (flags & O_ACCMODE) {
+        case O_RDONLY:
+                return PROT_READ;
+        case O_WRONLY:
+                return PROT_WRITE;
+        case O_RDWR:
+                return PROT_READ|PROT_WRITE;
+        default:
+                assert_not_reached();
+        }
+}
 
 int journal_file_set_offline_thread_join(JournalFile *f) {
         int r;
@@ -2254,6 +2284,14 @@ journal_file_post_change(JournalFile *f)
 			"Failed to truncate file to its own size: %m");
 }
 
+static int post_change_thunk(sd_event_source *timer, uint64_t usec, void *userdata) {
+        assert(userdata);
+
+        journal_file_post_change(userdata);
+
+        return 1;
+}
+
 static void schedule_post_change(JournalFile *f) {
         sd_event *e;
         int r;
@@ -2292,6 +2330,35 @@ static void schedule_post_change(JournalFile *f) {
 fail:
         /* On failure, let's simply post the change immediately. */
         journal_file_post_change(f);
+}
+
+/* Enable coalesced change posting in a timer on the provided sd_event instance */
+int journal_file_enable_post_change_timer(JournalFile *f, sd_event *e, usec_t t) {
+        _cleanup_(sd_event_source_unrefp) sd_event_source *timer = NULL;
+        int r;
+
+        assert(f);
+        assert_return(!f->post_change_timer, -EINVAL);
+        assert(e);
+        assert(t);
+
+        /* If we are already going down, we cannot install the timer.
+         * In such case, the caller needs to call journal_file_post_change() explicitly. */
+        if (IN_SET(sd_event_get_state(e), SD_EVENT_EXITING, SD_EVENT_FINISHED))
+                return 0;
+
+        r = sd_event_add_time(e, &timer, CLOCK_MONOTONIC, 0, 0, post_change_thunk, f);
+        if (r < 0)
+                return r;
+
+        r = sd_event_source_set_enabled(timer, SD_EVENT_OFF);
+        if (r < 0)
+                return r;
+
+        f->post_change_timer = TAKE_PTR(timer);
+        f->post_change_timer_period = t;
+
+        return 1;
 }
 
 static int entry_item_cmp(const EntryItem *a, const EntryItem *b) {
@@ -3204,6 +3271,26 @@ test_object_offset(JournalFile *f, uint64_t p, uint64_t needle)
 		return TEST_RIGHT;
 }
 
+int journal_file_move_to_entry_by_offset(
+                JournalFile *f,
+                uint64_t p,
+                direction_t direction,
+                Object **ret_object,
+                uint64_t *ret_offset) {
+
+        assert(f);
+        assert(f->header);
+
+        return generic_array_bisect(
+                        f,
+                        le64toh(f->header->entry_array_offset),
+                        le64toh(f->header->n_entries),
+                        p,
+                        test_object_offset,
+                        direction,
+                        ret_object, ret_offset, NULL);
+}
+
 static int
 test_object_seqnum(JournalFile *f, uint64_t p, uint64_t needle)
 {
@@ -3895,6 +3982,87 @@ journal_file_warn_btrfs(JournalFile *f)
 }
 #endif
 
+static void journal_default_metrics(JournalMetrics *m, int fd, bool compact) {
+        struct statvfs ss;
+        uint64_t fs_size = 0;
+
+        assert(m);
+        assert(fd >= 0);
+
+        if (fstatvfs(fd, &ss) >= 0)
+                fs_size = u64_multiply_safe(ss.f_frsize, ss.f_blocks);
+        else
+                log_debug_errno(errno, "Failed to determine disk size: %m");
+
+        if (m->max_use == UINT64_MAX) {
+
+                if (fs_size > 0)
+                        m->max_use = CLAMP(PAGE_ALIGN_U64(fs_size / 10), /* 10% of file system size */
+                                           MAX_USE_LOWER, MAX_USE_UPPER);
+                else
+                        m->max_use = MAX_USE_LOWER;
+        } else {
+                m->max_use = PAGE_ALIGN_U64(m->max_use);
+
+                if (m->max_use != 0 && m->max_use < JOURNAL_FILE_SIZE_MIN*2)
+                        m->max_use = JOURNAL_FILE_SIZE_MIN*2;
+        }
+
+        if (m->min_use == UINT64_MAX) {
+                if (fs_size > 0)
+                        m->min_use = CLAMP(PAGE_ALIGN_U64(fs_size / 50), /* 2% of file system size */
+                                           MIN_USE_LOW, MIN_USE_HIGH);
+                else
+                        m->min_use = MIN_USE_LOW;
+        }
+
+        if (m->min_use > m->max_use)
+                m->min_use = m->max_use;
+
+        if (m->max_size == UINT64_MAX)
+                m->max_size = MIN(PAGE_ALIGN_U64(m->max_use / 8), /* 8 chunks */
+                                  MAX_SIZE_UPPER);
+        else
+                m->max_size = PAGE_ALIGN_U64(m->max_size);
+
+        if (compact && m->max_size > JOURNAL_COMPACT_SIZE_MAX)
+                m->max_size = JOURNAL_COMPACT_SIZE_MAX;
+
+        if (m->max_size != 0) {
+                if (m->max_size < JOURNAL_FILE_SIZE_MIN)
+                        m->max_size = JOURNAL_FILE_SIZE_MIN;
+
+                if (m->max_use != 0 && m->max_size*2 > m->max_use)
+                        m->max_use = m->max_size*2;
+        }
+
+        if (m->min_size == UINT64_MAX)
+                m->min_size = JOURNAL_FILE_SIZE_MIN;
+        else
+                m->min_size = CLAMP(PAGE_ALIGN_U64(m->min_size),
+                                    JOURNAL_FILE_SIZE_MIN,
+                                    m->max_size ?: UINT64_MAX);
+
+        if (m->keep_free == UINT64_MAX) {
+                if (fs_size > 0)
+                        m->keep_free = MIN(PAGE_ALIGN_U64(fs_size / 20), /* 5% of file system size */
+                                           KEEP_FREE_UPPER);
+                else
+                        m->keep_free = DEFAULT_KEEP_FREE;
+        }
+
+        if (m->n_max_files == UINT64_MAX)
+                m->n_max_files = DEFAULT_N_MAX_FILES;
+
+        log_debug("Fixed min_use=%s max_use=%s max_size=%s min_size=%s keep_free=%s n_max_files=%" PRIu64,
+                  FORMAT_BYTES(m->min_use),
+                  FORMAT_BYTES(m->max_use),
+                  FORMAT_BYTES(m->max_size),
+                  FORMAT_BYTES(m->min_size),
+                  FORMAT_BYTES(m->keep_free),
+                  m->n_max_files);
+}
+
 int journal_file_open(
                 int fd,
                 const char *fname,
@@ -4104,25 +4272,26 @@ int journal_file_open(
         /* The file is opened now successfully, thus we take possession of any passed in fd. */
         f->close_fd = true;
 
-        if (DEBUG_LOGGING) {
-                static int last_seal = -1, last_keyed_hash = -1;
-                static Compression last_compression = _COMPRESSION_INVALID;
-                static uint64_t last_bytes = UINT64_MAX;
+        // HACK: Undefined?
+        // if (DEBUG_LOGGING) {
+        //         static int last_seal = -1, last_keyed_hash = -1;
+        //         static Compression last_compression = _COMPRESSION_INVALID;
+        //         static uint64_t last_bytes = UINT64_MAX;
 
-                if (last_seal != JOURNAL_HEADER_SEALED(f->header) ||
-                    last_keyed_hash != JOURNAL_HEADER_KEYED_HASH(f->header) ||
-                    last_compression != JOURNAL_FILE_COMPRESSION(f) ||
-                    last_bytes != f->compress_threshold_bytes) {
+        //         if (last_seal != JOURNAL_HEADER_SEALED(f->header) ||
+        //             last_keyed_hash != JOURNAL_HEADER_KEYED_HASH(f->header) ||
+        //             last_compression != JOURNAL_FILE_COMPRESSION(f) ||
+        //             last_bytes != f->compress_threshold_bytes) {
 
-                        log_debug("Journal effective settings seal=%s keyed_hash=%s compress=%s compress_threshold_bytes=%s",
-                                  yes_no(JOURNAL_HEADER_SEALED(f->header)), yes_no(JOURNAL_HEADER_KEYED_HASH(f->header)),
-                                  compression_to_string(JOURNAL_FILE_COMPRESSION(f)), FORMAT_BYTES(f->compress_threshold_bytes));
-                        last_seal = JOURNAL_HEADER_SEALED(f->header);
-                        last_keyed_hash = JOURNAL_HEADER_KEYED_HASH(f->header);
-                        last_compression = JOURNAL_FILE_COMPRESSION(f);
-                        last_bytes = f->compress_threshold_bytes;
-                }
-        }
+        //                 log_debug("Journal effective settings seal=%s keyed_hash=%s compress=%s compress_threshold_bytes=%s",
+        //                           yes_no(JOURNAL_HEADER_SEALED(f->header)), yes_no(JOURNAL_HEADER_KEYED_HASH(f->header)),
+        //                           compression_to_string(JOURNAL_FILE_COMPRESSION(f)), FORMAT_BYTES(f->compress_threshold_bytes));
+        //                 last_seal = JOURNAL_HEADER_SEALED(f->header);
+        //                 last_keyed_hash = JOURNAL_HEADER_KEYED_HASH(f->header);
+        //                 last_compression = JOURNAL_FILE_COMPRESSION(f);
+        //                 last_bytes = f->compress_threshold_bytes;
+        //         }
+        // }
 
         *ret = f;
         return 0;
@@ -4139,283 +4308,194 @@ fail:
         return r;
 }
 
-int
-journal_file_rotate(JournalFile **f, bool compress, bool seal)
-{
-	_cleanup_free_ char *p = NULL;
-	size_t l;
-	JournalFile *old_file, *new_file = NULL;
-	int r;
+int journal_file_copy_entry(
+                JournalFile *from,
+                JournalFile *to,
+                Object *o,
+                uint64_t p,
+                uint64_t *seqnum,
+                sd_id128_t *seqnum_id) {
 
-	assert(f);
-	assert(*f);
+        _cleanup_free_ EntryItem *items_alloc = NULL;
+        EntryItem *items;
+        uint64_t n, m = 0, xor_hash = 0;
+        sd_id128_t boot_id;
+        dual_timestamp ts;
+        int r;
 
-	old_file = *f;
+        assert(from);
+        assert(to);
+        assert(o);
+        assert(p > 0);
 
-	if (!old_file->writable)
-		return -EINVAL;
+        if (!journal_file_writable(to))
+                return -EPERM;
 
-	if (!endswith(old_file->path, ".journal"))
-		return -EINVAL;
+        ts = (dual_timestamp) {
+                .monotonic = le64toh(o->entry.monotonic),
+                .realtime = le64toh(o->entry.realtime),
+        };
+        boot_id = o->entry.boot_id;
 
-	l = strlen(old_file->path);
-	r = asprintf(&p,
-		"%.*s@" SD_ID128_FORMAT_STR "-%016" PRIx64 "-%016" PRIx64
-		".journal",
-		(int)l - 8, old_file->path,
-		SD_ID128_FORMAT_VAL(old_file->header->seqnum_id),
-		le64toh((*f)->header->head_entry_seqnum),
-		le64toh((*f)->header->head_entry_realtime));
-	if (r < 0)
-		return -ENOMEM;
+        n = journal_file_entry_n_items(from, o);
+        if (n == 0)
+                return 0;
 
-	/* Try to rename the file to the archived version. If the file
-         * already was deleted, we'll get ENOENT, let's ignore that
-         * case. */
-	r = rename(old_file->path, p);
-	if (r < 0 && errno != ENOENT)
-		return -errno;
+        if (n < ALLOCA_MAX / sizeof(EntryItem) / 2)
+                items = newa(EntryItem, n);
+        else {
+                items_alloc = new(EntryItem, n);
+                if (!items_alloc)
+                        return -ENOMEM;
 
-	old_file->header->state = STATE_ARCHIVED;
+                items = items_alloc;
+        }
 
-	/* Currently, btrfs is not very good with out write patterns
-         * and fragments heavily. Let's defrag our journal files when
-         * we archive them */
-	old_file->defrag_on_close = true;
+        for (uint64_t i = 0; i < n; i++) {
+                uint64_t h, q;
+                void *data;
+                size_t l;
+                Object *u;
 
-	r = journal_file_open(old_file->path, old_file->flags, old_file->mode,
-		compress, seal, NULL, old_file->mmap, old_file, &new_file);
-	journal_file_close(old_file);
+                q = journal_file_entry_item_object_offset(from, o, i);
+                r = journal_file_data_payload(from, NULL, q, NULL, 0, 0, &data, &l);
+                if (IN_SET(r, -EADDRNOTAVAIL, -EBADMSG)) {
+                        log_debug_errno(r, "Entry item %"PRIu64" data object is bad, skipping over it: %m", i);
+                        continue;
+                }
+                if (r < 0)
+                        return r;
+                assert(r > 0);
 
-	*f = new_file;
-	return r;
+                if (l == 0)
+                        return -EBADMSG;
+
+                r = journal_file_append_data(to, data, l, &u, &h);
+                if (r < 0)
+                        return r;
+
+                if (JOURNAL_HEADER_KEYED_HASH(to->header))
+                        xor_hash ^= jenkins_hash64(data, l);
+                else
+                        xor_hash ^= le64toh(u->data.hash);
+
+                items[m++] = (EntryItem) {
+                        .object_offset = h,
+                        .hash = le64toh(u->data.hash),
+                };
+        }
+
+        if (m == 0)
+                return 0;
+
+        r = journal_file_append_entry_internal(
+                        to,
+                        &ts,
+                        &boot_id,
+                        &from->header->machine_id,
+                        xor_hash,
+                        items,
+                        m,
+                        seqnum,
+                        seqnum_id,
+                        /* ret_object= */ NULL,
+                        /* ret_offset= */ NULL);
+
+        if (mmap_cache_fd_got_sigbus(to->cache_fd))
+                return -EIO;
+
+        return r;
 }
 
-int
-journal_file_open_reliably(const char *fname, int flags, mode_t mode,
-	bool compress, bool seal, JournalMetrics *metrics,
-	MMapCache *mmap_cache, JournalFile *template, JournalFile **ret)
-{
-	int r;
-	size_t l;
-	_cleanup_free_ char *p = NULL;
+// int
+// journal_file_copy_entry(JournalFile *from, JournalFile *to, Object *o,
+// 	uint64_t p, uint64_t *seqnum, Object **ret, uint64_t *offset)
+// {
+// 	uint64_t i, n;
+// 	uint64_t q, xor_hash = 0;
+// 	int r;
+// 	EntryItem *items;
+// 	dual_timestamp ts;
 
-	r = journal_file_open(fname, flags, mode, compress, seal, metrics,
-		mmap_cache, template, ret);
-	if (r != -EBADMSG && /* corrupted */
-		r != -ENODATA && /* truncated */
-		r != -EHOSTDOWN && /* other machine */
-		r != -EPROTONOSUPPORT && /* incompatible feature */
-		r != -EBUSY && /* unclean shutdown */
-		r != -ESHUTDOWN && /* already archived */
-		r != -EIO && /* IO error, including SIGBUS on mmap */
-		r != -EIDRM /* File has been deleted */)
-		return r;
+// 	assert(from);
+// 	assert(to);
+// 	assert(o);
+// 	assert(p);
 
-	if ((flags & O_ACCMODE) == O_RDONLY)
-		return r;
+// 	if (!to->writable)
+// 		return -EPERM;
 
-	if (!(flags & O_CREAT))
-		return r;
+// 	ts.monotonic = le64toh(o->entry.monotonic);
+// 	ts.realtime = le64toh(o->entry.realtime);
 
-	if (!endswith(fname, ".journal"))
-		return r;
+// 	n = journal_file_entry_n_items(o);
+// 	/* alloca() can't take 0, hence let's allocate at least one */
+// 	items = alloca(sizeof(EntryItem) * MAX(1u, n));
 
-	/* The file is corrupted. Rotate it away and try it again (but only once) */
+// 	for (i = 0; i < n; i++) {
+// 		uint64_t l, h;
+// 		le64_t le_hash;
+// 		size_t t;
+// 		void *data;
+// 		Object *u;
 
-	l = strlen(fname);
-	if (asprintf(&p, "%.*s@%016llx-%016" PRIx64 ".journal~", (int)l - 8,
-		    fname, (unsigned long long)now(CLOCK_REALTIME),
-		    random_u64()) < 0)
-		return -ENOMEM;
+// 		q = le64toh(o->entry.items[i].object_offset);
+// 		le_hash = o->entry.items[i].hash;
 
-	r = rename(fname, p);
-	if (r < 0)
-		return -errno;
+// 		r = journal_file_move_to_object(from, OBJECT_DATA, q, &o);
+// 		if (r < 0)
+// 			return r;
 
-		/* btrfs doesn't cope well with our write pattern and
-         * fragments heavily. Let's defrag all files we rotate */
+// 		if (le_hash != o->data.hash)
+// 			return -EBADMSG;
 
-#if 0
-	(void)chattr_path(p, false, FS_NOCOW_FL);
-	(void)btrfs_defrag(p);
-#endif
+// 		l = le64toh(o->object.size) - offsetof(Object, data.payload);
+// 		t = (size_t)l;
 
-	log_warning(
-		"File %s corrupted or uncleanly shut down, renaming and replacing.",
-		fname);
+// 		/* We hit the limit on 32bit machines */
+// 		if ((uint64_t)t != l)
+// 			return -E2BIG;
 
-	return journal_file_open(fname, flags, mode, compress, seal, metrics,
-		mmap_cache, template, ret);
-}
+// 		if (o->object.flags & OBJECT_COMPRESSION_MASK) {
+// #if defined(HAVE_XZ) || defined(HAVE_LZ4)
+// 			size_t rsize = 0;
 
-int
-journal_file_copy_entry(JournalFile *from, JournalFile *to, Object *o,
-	uint64_t p, uint64_t *seqnum, Object **ret, uint64_t *offset)
-{
-	uint64_t i, n;
-	uint64_t q, xor_hash = 0;
-	int r;
-	EntryItem *items;
-	dual_timestamp ts;
+// 			r = decompress_blob(o->object.flags &
+// 					OBJECT_COMPRESSION_MASK,
+// 				o->data.payload, l, &from->compress_buffer,
+// 				&from->compress_buffer_size, &rsize, 0);
+// 			if (r < 0)
+// 				return r;
 
-	assert(from);
-	assert(to);
-	assert(o);
-	assert(p);
+// 			data = from->compress_buffer;
+// 			l = rsize;
+// #else
+// 			return -EPROTONOSUPPORT;
+// #endif
+// 		} else
+// 			data = o->data.payload;
 
-	if (!to->writable)
-		return -EPERM;
+// 		r = journal_file_append_data(to, data, l, &u, &h);
+// 		if (r < 0)
+// 			return r;
 
-	ts.monotonic = le64toh(o->entry.monotonic);
-	ts.realtime = le64toh(o->entry.realtime);
+// 		xor_hash ^= le64toh(u->data.hash);
+// 		items[i].object_offset = htole64(h);
+// 		items[i].hash = u->data.hash;
 
-	n = journal_file_entry_n_items(o);
-	/* alloca() can't take 0, hence let's allocate at least one */
-	items = alloca(sizeof(EntryItem) * MAX(1u, n));
+// 		r = journal_file_move_to_object(from, OBJECT_ENTRY, p, &o);
+// 		if (r < 0)
+// 			return r;
+// 	}
 
-	for (i = 0; i < n; i++) {
-		uint64_t l, h;
-		le64_t le_hash;
-		size_t t;
-		void *data;
-		Object *u;
+// 	r = journal_file_append_entry_internal(to, &ts, xor_hash, items, n,
+// 		seqnum, ret, offset);
 
-		q = le64toh(o->entry.items[i].object_offset);
-		le_hash = o->entry.items[i].hash;
+// 	if (mmap_cache_got_sigbus(to->mmap, to->fd))
+// 		return -EIO;
 
-		r = journal_file_move_to_object(from, OBJECT_DATA, q, &o);
-		if (r < 0)
-			return r;
-
-		if (le_hash != o->data.hash)
-			return -EBADMSG;
-
-		l = le64toh(o->object.size) - offsetof(Object, data.payload);
-		t = (size_t)l;
-
-		/* We hit the limit on 32bit machines */
-		if ((uint64_t)t != l)
-			return -E2BIG;
-
-		if (o->object.flags & OBJECT_COMPRESSION_MASK) {
-#if defined(HAVE_XZ) || defined(HAVE_LZ4)
-			size_t rsize = 0;
-
-			r = decompress_blob(o->object.flags &
-					OBJECT_COMPRESSION_MASK,
-				o->data.payload, l, &from->compress_buffer,
-				&from->compress_buffer_size, &rsize, 0);
-			if (r < 0)
-				return r;
-
-			data = from->compress_buffer;
-			l = rsize;
-#else
-			return -EPROTONOSUPPORT;
-#endif
-		} else
-			data = o->data.payload;
-
-		r = journal_file_append_data(to, data, l, &u, &h);
-		if (r < 0)
-			return r;
-
-		xor_hash ^= le64toh(u->data.hash);
-		items[i].object_offset = htole64(h);
-		items[i].hash = u->data.hash;
-
-		r = journal_file_move_to_object(from, OBJECT_ENTRY, p, &o);
-		if (r < 0)
-			return r;
-	}
-
-	r = journal_file_append_entry_internal(to, &ts, xor_hash, items, n,
-		seqnum, ret, offset);
-
-	if (mmap_cache_got_sigbus(to->mmap, to->fd))
-		return -EIO;
-
-	return r;
-}
-
-void
-journal_default_metrics(JournalMetrics *m, int fd)
-{
-	uint64_t fs_size = 0;
-	struct statvfs ss;
-	char a[FORMAT_BYTES_MAX], b[FORMAT_BYTES_MAX], c[FORMAT_BYTES_MAX],
-		d[FORMAT_BYTES_MAX];
-
-	assert(m);
-	assert(fd >= 0);
-
-	if (fstatvfs(fd, &ss) >= 0)
-		fs_size = ss.f_frsize * ss.f_blocks;
-
-	if (m->max_use == (uint64_t)-1) {
-		if (fs_size > 0) {
-			m->max_use = PAGE_ALIGN(
-				fs_size / 10); /* 10% of file system size */
-
-			if (m->max_use > DEFAULT_MAX_USE_UPPER)
-				m->max_use = DEFAULT_MAX_USE_UPPER;
-
-			if (m->max_use < DEFAULT_MAX_USE_LOWER)
-				m->max_use = DEFAULT_MAX_USE_LOWER;
-		} else
-			m->max_use = DEFAULT_MAX_USE_LOWER;
-	} else {
-		m->max_use = PAGE_ALIGN(m->max_use);
-
-		if (m->max_use < JOURNAL_FILE_SIZE_MIN * 2)
-			m->max_use = JOURNAL_FILE_SIZE_MIN * 2;
-	}
-
-	if (m->max_size == (uint64_t)-1) {
-		m->max_size = PAGE_ALIGN(m->max_use / 8); /* 8 chunks */
-
-		if (m->max_size > DEFAULT_MAX_SIZE_UPPER)
-			m->max_size = DEFAULT_MAX_SIZE_UPPER;
-	} else
-		m->max_size = PAGE_ALIGN(m->max_size);
-
-	if (m->max_size < JOURNAL_FILE_SIZE_MIN)
-		m->max_size = JOURNAL_FILE_SIZE_MIN;
-
-	if (m->max_size * 2 > m->max_use)
-		m->max_use = m->max_size * 2;
-
-	if (m->min_size == (uint64_t)-1)
-		m->min_size = JOURNAL_FILE_SIZE_MIN;
-	else {
-		m->min_size = PAGE_ALIGN(m->min_size);
-
-		if (m->min_size < JOURNAL_FILE_SIZE_MIN)
-			m->min_size = JOURNAL_FILE_SIZE_MIN;
-
-		if (m->min_size > m->max_size)
-			m->max_size = m->min_size;
-	}
-
-	if (m->keep_free == (uint64_t)-1) {
-		if (fs_size > 0) {
-			m->keep_free = PAGE_ALIGN(
-				fs_size * 3 / 20); /* 15% of file system size */
-
-			if (m->keep_free > DEFAULT_KEEP_FREE_UPPER)
-				m->keep_free = DEFAULT_KEEP_FREE_UPPER;
-
-		} else
-			m->keep_free = DEFAULT_KEEP_FREE;
-	}
-
-	log_debug("Fixed max_use=%s max_size=%s min_size=%s keep_free=%s",
-		format_bytes(a, sizeof(a), m->max_use),
-		format_bytes(b, sizeof(b), m->max_size),
-		format_bytes(c, sizeof(c), m->min_size),
-		format_bytes(d, sizeof(d), m->keep_free));
-}
+// 	return r;
+// }
 
 int journal_file_get_cutoff_realtime_usec(JournalFile *f, usec_t *ret_from, usec_t *ret_to) {
         assert(f);

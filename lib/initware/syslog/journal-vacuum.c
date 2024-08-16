@@ -25,6 +25,7 @@
 
 #include "alloc-util.h"
 #include "bsdxattr.h"
+#include "format-util.h"
 #include "journal-def.h"
 #include "journal-file.h"
 #include "journal-vacuum.h"

@@ -28,6 +28,7 @@
 #include "sd-event.h"
 #include "sd-id128.h"
 
+#include "compress.h"
 #include "hashmap.h"
 #include "journal-def.h"
 #include "macro.h"
@@ -45,11 +46,13 @@
 #endif
 
 typedef struct JournalMetrics {
-	uint64_t max_use;
-	uint64_t use;
-	uint64_t max_size;
-	uint64_t min_size;
-	uint64_t keep_free;
+        /* For all these: UINT64_MAX means "pick automatically", and 0 means "no limit enforced" */
+        uint64_t max_size;     /* how large journal files grow at max */
+        uint64_t min_size;     /* how large journal files grow at least */
+        uint64_t max_use;      /* how much disk space to use in total at max, keep_free permitting */
+        uint64_t min_use;      /* how much disk space to use in total at least, even if keep_free says not to */
+        uint64_t keep_free;    /* how much to keep free on disk */
+        uint64_t n_max_files;  /* how many files to keep around at max */
 } JournalMetrics;
 
 typedef enum direction {
@@ -249,10 +252,6 @@ int journal_file_set_offline_thread_join(JournalFile *f);
 JournalFile* journal_file_close(JournalFile *f);
 int journal_file_fstat(JournalFile *j);
 
-int journal_file_open_reliably(const char *fname, int flags, mode_t mode,
-	bool compress, bool seal, JournalMetrics *metrics,
-	MMapCache *mmap_cache, JournalFile *template, JournalFile **ret);
-
 #define ALIGN64(x) (((x) + 7ULL) & ~7ULL)
 #define VALID64(x) (((x)&7ULL) == 0ULL)
 
@@ -408,22 +407,21 @@ int journal_file_move_to_entry_by_monotonic(JournalFile *f, sd_id128_t boot_id, 
 
 int journal_file_move_to_entry_for_data(JournalFile *f, Object *d, direction_t direction, Object **ret_object, uint64_t *ret_offset);
 
+int journal_file_move_to_entry_by_offset(JournalFile *f, uint64_t p, direction_t direction, Object **ret_object, uint64_t *ret_offset);
+
 int journal_file_move_to_entry_by_offset_for_data(JournalFile *f, Object *d, uint64_t p, direction_t direction, Object **ret_object, uint64_t *ret_offset);
 int journal_file_move_to_entry_by_seqnum_for_data(JournalFile *f, Object *d, uint64_t seqnum, direction_t direction, Object **ret_object, uint64_t *ret_offset);
 int journal_file_move_to_entry_by_realtime_for_data(JournalFile *f, Object *d, uint64_t realtime, direction_t direction, Object **ret_object, uint64_t *ret_offset);
 int journal_file_move_to_entry_by_monotonic_for_data(JournalFile *f, Object *d, sd_id128_t boot_id, uint64_t monotonic, direction_t direction, Object **ret_object, uint64_t *ret_offset);
 
-int journal_file_copy_entry(JournalFile *from, JournalFile *to, Object *o,
-	uint64_t p, uint64_t *seqnum, Object **ret, uint64_t *offset);
+int journal_file_copy_entry(JournalFile *from, JournalFile *to, Object *o, uint64_t p, uint64_t *seqnum, sd_id128_t *seqnum_id);
 
 void journal_file_dump(JournalFile *f);
 void journal_file_print_header(JournalFile *f);
 
-int journal_file_rotate(JournalFile **f, bool compress, bool seal);
-
 void journal_file_post_change(JournalFile *f);
 
-void journal_default_metrics(JournalMetrics *m, int fd);
+int journal_file_enable_post_change_timer(JournalFile *f, sd_event *e, usec_t t);
 
 int journal_file_get_cutoff_realtime_usec(JournalFile *f, usec_t *ret_from, usec_t *ret_to);
 int journal_file_get_cutoff_monotonic_usec(JournalFile *f, sd_id128_t boot, usec_t *ret_from, usec_t *ret_to);

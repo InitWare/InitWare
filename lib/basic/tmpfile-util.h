@@ -6,4 +6,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+int open_tmpfile_unlinkable(const char *directory, int flags);
+
 int mkdtemp_malloc(const char *template, char **ret);

@@ -28,6 +28,7 @@
 #include "macro.h"
 #include "memory-util.h"
 #include "mempool.h"
+#include "random-util.h"
 #include "set.h"
 #include "siphash24.h"
 #include "strv.h"
@@ -240,6 +241,17 @@ struct OrderedHashmap {
 
 struct Set {
 	struct HashmapBase b;
+};
+
+typedef struct CacheMem {
+        const void **ptr;
+        size_t n_populated;
+        bool active:1;
+} CacheMem;
+
+struct IteratedCache {
+        HashmapBase *hashmap;
+        CacheMem keys, values;
 };
 
 DEFINE_MEMPOOL(hashmap_pool, Hashmap, 8);

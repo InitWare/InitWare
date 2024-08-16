@@ -6,7 +6,6 @@
 #include <poll.h>
 #include <signal.h>
 
-#include "_sd-common.h"
 #include "svc-config.h"
 
 #ifdef SVC_HAVE_epoll
@@ -25,6 +24,15 @@
 #endif
 
 #include "bsdsigfd.h"
+
+#include "_sd-common.h"
+
+#define _SD_DEFINE_POINTER_CLEANUP_FUNC(type, func)             \
+        static __inline__ void func##p(type **p) {              \
+                if (*p)                                         \
+                        func(*p);                               \
+        }                                                       \
+        struct _sd_useless_struct_to_allow_trailing_semicolon_
 
 _SD_BEGIN_DECLARATIONS;
 
@@ -189,6 +197,11 @@ int sd_event_source_set_time_relative(sd_event_source *s, uint64_t usec);
 int sd_event_source_get_time_clock(sd_event_source *s, clockid_t *clock);
 int sd_event_source_get_signal(sd_event_source *s);
 int sd_event_source_get_child_pid(sd_event_source *s, pid_t *pid);
+
+/* Define helpers so that __attribute__((cleanup(sd_event_unrefp))) and similar may be used. */
+_SD_DEFINE_POINTER_CLEANUP_FUNC(sd_event, sd_event_unref);
+_SD_DEFINE_POINTER_CLEANUP_FUNC(sd_event_source, sd_event_source_unref);
+_SD_DEFINE_POINTER_CLEANUP_FUNC(sd_event_source, sd_event_source_disable_unref);
 
 _SD_END_DECLARATIONS;
 

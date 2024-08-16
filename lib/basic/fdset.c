@@ -22,15 +22,12 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "fd-util.h"
 #include "fdset.h"
 #include "macro.h"
 #include "sd-daemon.h"
 #include "set.h"
 #include "util.h"
-
-/* Make sure we can distuingish fd 0 and NULL */
-#define FD_TO_PTR(fd) INT_TO_PTR((fd) + 1)
-#define PTR_TO_FD(p) (PTR_TO_INT(p) - 1)
 
 FDSet *
 fdset_new(void)

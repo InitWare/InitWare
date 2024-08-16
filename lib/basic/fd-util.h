@@ -10,6 +10,10 @@
 
 #include "macro.h"
 
+/* Make sure we can distuingish fd 0 and NULL */
+#define FD_TO_PTR(fd) INT_TO_PTR((fd) + 1)
+#define PTR_TO_FD(p) (PTR_TO_INT(p) - 1)
+
 int fclose_nointr(FILE *f);
 FILE* safe_fclose(FILE *f);
 

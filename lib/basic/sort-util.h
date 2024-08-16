@@ -5,6 +5,26 @@
 #include <stdlib.h>
 
 /**
+ * Normal bsearch requires base to be nonnull. Here were require
+ * that only if nmemb > 0.
+ */
+static inline void* bsearch_safe(const void *key, const void *base,
+                                 size_t nmemb, size_t size, comparison_fn_t compar) {
+        if (nmemb <= 0)
+                return NULL;
+
+        assert(base);
+        return bsearch(key, base, nmemb, size, compar);
+}
+
+#define typesafe_bsearch(k, b, n, func)                                 \
+        ({                                                              \
+                const typeof((b)[0]) *_k = k;                           \
+                int (*_func_)(const typeof((b)[0])*, const typeof((b)[0])*) = func; \
+                (typeof((b)[0])*) bsearch_safe((const void*) _k, (b), (n), sizeof((b)[0]), (comparison_fn_t) _func_); \
+        })
+
+/**
  * Normal qsort requires base to be nonnull. Here were require
  * that only if nmemb > 0.
  */
