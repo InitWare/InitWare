@@ -90,6 +90,10 @@ const char* last_path_component(const char *path);
 int path_extract_filename(const char *path, char **ret);
 int path_extract_directory(const char *path, char **ret);
 
+static inline char* skip_leading_slash(const char *p) {
+        return skip_leading_chars(p, "/");
+}
+
 typedef enum PathSimplifyFlags {
         PATH_SIMPLIFY_KEEP_TRAILING_SLASH = 1 << 0,
 } PathSimplifyFlags;

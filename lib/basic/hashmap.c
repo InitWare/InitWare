@@ -224,6 +224,8 @@ struct HashmapBase {
 	unsigned n_direct_entries: 3; /* Number of entries in direct storage.
                                       * Only valid if !has_indirect. */
 	bool from_pool: 1; /* whether was allocated from mempool */
+	bool dirty:1;                /* whether dirtied since last iterated_cache_get() */
+        bool cached:1;               /* whether this hashmap is being cached */
 	HASHMAP_DEBUG_FIELDS /* optional hashmap_debug_info */
 };
 
@@ -789,6 +791,25 @@ bool _hashmap_iterate(HashmapBase *h, Iterator *i, void **value, const void **ke
 #define HASHMAP_FOREACH_IDX(idx, h, i)                                         \
 	for ((i) = ITERATOR_FIRST, (idx) = hashmap_iterate_entry((h), &(i));   \
 		(idx != IDX_NIL); (idx) = hashmap_iterate_entry((h), &(i)))
+
+IteratedCache* _hashmap_iterated_cache_new(HashmapBase *h) {
+        IteratedCache *cache;
+
+        assert(h);
+        assert(!h->cached);
+
+        if (h->cached)
+                return NULL;
+
+        cache = new0(IteratedCache, 1);
+        if (!cache)
+                return NULL;
+
+        cache->hashmap = h;
+        h->cached = true;
+
+        return cache;
+}
 
 static void
 reset_direct_storage(HashmapBase *h)
@@ -1967,6 +1988,97 @@ int _set_put_strndup_full(Set **s, const struct hash_ops *hash_ops, const char *
                 return -ENOMEM;
 
         return set_consume(*s, c);
+}
+
+/* expand the cachemem if needed, return true if newly (re)activated. */
+static int cachemem_maintain(CacheMem *mem, size_t size) {
+        assert(mem);
+
+        if (!GREEDY_REALLOC(mem->ptr, size)) {
+                if (size > 0)
+                        return -ENOMEM;
+        }
+
+        if (!mem->active) {
+                mem->active = true;
+                return true;
+        }
+
+        return false;
+}
+
+int iterated_cache_get(IteratedCache *cache, const void ***res_keys, const void ***res_values, unsigned *res_n_entries) {
+        bool sync_keys = false, sync_values = false;
+        size_t size;
+        int r;
+
+        assert(cache);
+        assert(cache->hashmap);
+
+        size = n_entries(cache->hashmap);
+
+        if (res_keys) {
+                r = cachemem_maintain(&cache->keys, size);
+                if (r < 0)
+                        return r;
+
+                sync_keys = r;
+        } else
+                cache->keys.active = false;
+
+        if (res_values) {
+                r = cachemem_maintain(&cache->values, size);
+                if (r < 0)
+                        return r;
+
+                sync_values = r;
+        } else
+                cache->values.active = false;
+
+        if (cache->hashmap->dirty) {
+                if (cache->keys.active)
+                        sync_keys = true;
+                if (cache->values.active)
+                        sync_values = true;
+
+                cache->hashmap->dirty = false;
+        }
+
+        if (sync_keys || sync_values) {
+                unsigned i, idx;
+                Iterator iter;
+
+                i = 0;
+                HASHMAP_FOREACH_IDX(idx, cache->hashmap, iter) {
+                        struct hashmap_base_entry *e;
+
+                        e = bucket_at(cache->hashmap, idx);
+
+                        if (sync_keys)
+                                cache->keys.ptr[i] = e->key;
+                        if (sync_values)
+                                cache->values.ptr[i] = entry_value(cache->hashmap, e);
+                        i++;
+                }
+        }
+
+        if (res_keys)
+                *res_keys = cache->keys.ptr;
+        if (res_values)
+                *res_values = cache->values.ptr;
+        if (res_n_entries)
+                *res_n_entries = size;
+
+        return 0;
+}
+
+IteratedCache* iterated_cache_free(IteratedCache *cache) {
+        if (cache) {
+                free(cache->keys.ptr);
+                free(cache->values.ptr);
+        }
+
+        return mfree(cache);
 }
 
 int _set_put_strdupv_full(Set **s, const struct hash_ops *hash_ops, char **l  HASHMAP_DEBUG_PARAMS) {

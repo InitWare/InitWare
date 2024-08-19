@@ -184,6 +184,7 @@ static inline OrderedHashmap* ordered_hashmap_free_free_free(OrderedHashmap *h) 
 }
 
 IteratedCache* iterated_cache_free(IteratedCache *cache);
+int iterated_cache_get(IteratedCache *cache, const void ***res_keys, const void ***res_values, unsigned *res_n_entries);
 
 HashmapBase *internal_hashmap_copy(HashmapBase *h);
 static inline Hashmap *
@@ -211,6 +212,14 @@ int _ordered_hashmap_ensure_allocated(OrderedHashmap **h, const struct hash_ops 
 
 int _ordered_hashmap_ensure_put(OrderedHashmap **h, const struct hash_ops *hash_ops, const void *key, void *value  HASHMAP_DEBUG_PARAMS);
 #define ordered_hashmap_ensure_put(s, ops, key, value) _ordered_hashmap_ensure_put(s, ops, key, value  HASHMAP_DEBUG_SRC_ARGS)
+
+IteratedCache* _hashmap_iterated_cache_new(HashmapBase *h);
+static inline IteratedCache* hashmap_iterated_cache_new(Hashmap *h) {
+        return (IteratedCache*) _hashmap_iterated_cache_new(HASHMAP_BASE(h));
+}
+static inline IteratedCache* ordered_hashmap_iterated_cache_new(OrderedHashmap *h) {
+        return (IteratedCache*) _hashmap_iterated_cache_new(HASHMAP_BASE(h));
+}
 
 #define ordered_hashmap_clear_with_destructor(h, f)                     \
         ({                                                              \

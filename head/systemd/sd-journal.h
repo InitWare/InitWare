@@ -42,6 +42,14 @@
 #  endif
 #endif
 
+// HACK: This should be brought in by _sd-common.h
+#define _SD_DEFINE_POINTER_CLEANUP_FUNC(type, func)             \
+        static __inline__ void func##p(type **p) {              \
+                if (*p)                                         \
+                        func(*p);                               \
+        }                                                       \
+        struct _sd_useless_struct_to_allow_trailing_semicolon_
+
 /* Journal APIs. See sd-journal(3) for more information. */
 
 _SD_BEGIN_DECLARATIONS;
@@ -120,6 +128,7 @@ enum {
 };
 
 int sd_journal_open(sd_journal **ret, int flags);
+int sd_journal_open_namespace(sd_journal **ret, const char *name_space, int flags);
 int sd_journal_open_directory(sd_journal **ret, const char *path, int flags);
 int sd_journal_open_files(sd_journal **ret, const char **paths, int flags);
 int sd_journal_open_container(sd_journal **ret, const char *machine, int flags);
@@ -201,6 +210,8 @@ int sd_journal_has_persistent_files(sd_journal *j);
 #define SD_JOURNAL_FOREACH_UNIQUE(j, data, l)                                  \
 	for (sd_journal_restart_unique(j);                                     \
 		sd_journal_enumerate_unique((j), &(data), &(l)) > 0;)
+
+_SD_DEFINE_POINTER_CLEANUP_FUNC(sd_journal, sd_journal_close);
 
 _SD_END_DECLARATIONS;
 

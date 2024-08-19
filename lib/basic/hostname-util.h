@@ -31,4 +31,12 @@ static inline char* gethostname_short_malloc(void) {
         return s;
 }
 
+typedef enum ValidHostnameFlags {
+        VALID_HOSTNAME_TRAILING_DOT = 1 << 0,   /* Accept trailing dot on multi-label names */
+        VALID_HOSTNAME_DOT_HOST     = 1 << 1,   /* Accept ".host" as valid hostname */
+} ValidHostnameFlags;
+
+bool hostname_is_valid(const char *s, ValidHostnameFlags flags) _pure_;
+char* hostname_cleanup(char *s);
+
 int get_pretty_hostname(char **ret);

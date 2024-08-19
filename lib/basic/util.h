@@ -517,9 +517,6 @@ bool nulstr_contains(const char *nulstr, const char *needle);
 
 bool plymouth_running(void);
 
-bool hostname_is_valid(const char *s) _pure_;
-char *hostname_cleanup(char *s, bool lowercase);
-
 bool machine_name_is_valid(const char *s) _pure_;
 
 char *strshorten(char *s, size_t l);
@@ -945,19 +942,6 @@ int unquote_first_word(const char **p, char **ret, bool relax);
 int unquote_many_words(const char **p, ...) _sentinel_;
 
 int sethostname_idempotent(const char *s);
-
-#define INOTIFY_EVENT_MAX (sizeof(struct inotify_event) + NAME_MAX + 1)
-
-#define FOREACH_INOTIFY_EVENT(e, buffer, sz)                                   \
-	for ((e) = &buffer.ev;                                                 \
-		(uint8_t *)(e) < (uint8_t *)(buffer.raw) + (sz);               \
-		(e) = (struct inotify_event *)((uint8_t *)(e) +                \
-			sizeof(struct inotify_event) + (e)->len))
-
-union inotify_event_buffer {
-	struct inotify_event ev;
-	uint8_t raw[INOTIFY_EVENT_MAX];
-};
 
 #if defined(SVC_PLATFORM_NetBSD) || defined(SVC_PLATFORM_Linux)
 #define laccess(path, mode)                                                    \

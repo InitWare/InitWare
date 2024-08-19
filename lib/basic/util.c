@@ -76,6 +76,8 @@
 #include "fileio.h"
 #include "gunicode.h"
 #include "hashmap.h"
+#include "hostname-util.h"
+#include "inotify-util.h"
 #include "label.h"
 #include "log.h"
 #include "macro.h"
@@ -1749,7 +1751,6 @@ acquire_terminal(const char *name, bool fail, bool force,
 
 		for (;;) {
 			union inotify_event_buffer buffer;
-			struct inotify_event *e;
 			ssize_t l;
 
 			if (timeout != USEC_INFINITY) {
@@ -2447,19 +2448,6 @@ sigprocmask_many(int how, ...)
 		return -errno;
 
 	return 0;
-}
-
-char *
-gethostname_malloc(void)
-{
-	struct utsname u;
-
-	assert_se(uname(&u) >= 0);
-
-	if (!isempty(u.nodename) && !streq(u.nodename, "(none)"))
-		return strdup(u.nodename);
-
-	return strdup(u.sysname);
 }
 
 bool
@@ -4019,83 +4007,10 @@ strshorten(char *s, size_t l)
 	return s;
 }
 
-static bool
-hostname_valid_char(char c)
-{
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-		(c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.';
-}
-
-bool
-hostname_is_valid(const char *s)
-{
-	const char *p;
-	bool dot;
-
-	if (isempty(s))
-		return false;
-
-	/* Doesn't accept empty hostnames, hostnames with trailing or
-         * leading dots, and hostnames with multiple dots in a
-         * sequence. Also ensures that the length stays below
-         * HOST_NAME_MAX. */
-
-	for (p = s, dot = true; *p; p++) {
-		if (*p == '.') {
-			if (dot)
-				return false;
-
-			dot = true;
-		} else {
-			if (!hostname_valid_char(*p))
-				return false;
-
-			dot = false;
-		}
-	}
-
-	if (dot)
-		return false;
-
-	if (p - s > HOST_NAME_MAX)
-		return false;
-
-	return true;
-}
-
-char *
-hostname_cleanup(char *s, bool lowercase)
-{
-	char *p, *d;
-	bool dot;
-
-	strshorten(s, HOST_NAME_MAX);
-
-	for (p = s, d = s, dot = true; *p; p++) {
-		if (*p == '.') {
-			if (dot)
-				continue;
-
-			*(d++) = '.';
-			dot = true;
-		} else if (hostname_valid_char(*p)) {
-			*(d++) = lowercase ? tolower(*p) : *p;
-			dot = false;
-		}
-	}
-
-	if (dot && d > s)
-		d[-1] = 0;
-	else
-		*d = 0;
-
-	return s;
-}
-
 bool
 machine_name_is_valid(const char *s)
 {
-	if (!hostname_is_valid(s))
+	if (!hostname_is_valid(s, VALID_HOSTNAME_TRAILING_DOT | VALID_HOSTNAME_DOT_HOST))
 		return false;
 
 	/* Machine names should be useful hostnames, but also be

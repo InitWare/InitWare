@@ -122,3 +122,11 @@ static inline int errno_or_else(int fallback) {
                         return false;                     \
                 return ERRNO_IS_NEG_##name(-imaxabs(r));  \
         }
+
+/* For send()/recv() or read()/write(). */
+static inline bool ERRNO_IS_NEG_TRANSIENT(intmax_t r) {
+        return IN_SET(r,
+                      -EAGAIN,
+                      -EINTR);
+}
+_DEFINE_ABS_WRAPPER(TRANSIENT);

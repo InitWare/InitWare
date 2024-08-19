@@ -26,6 +26,16 @@ static inline int inode_same(const char *filea, const char *fileb, int flags) {
         return inode_same_at(AT_FDCWD, filea, AT_FDCWD, fileb, flags);
 }
 
+/* Because statfs.t_type can be int on some architectures, we have to cast
+ * the const magic to the type, otherwise the compiler warns about
+ * signed/unsigned comparison, because the magic can be 32 bit unsigned.
+ */
+#define F_TYPE_EQUAL(a, b) (a == (typeof(a)) b)
+
+int proc_mounted(void);
+
+bool stat_inode_same(const struct stat *a, const struct stat *b);
+
 int statx_fallback(int dfd, const char *path, int flags, unsigned mask, struct statx *sx);
 
 #  define STRUCT_STATX_DEFINE(var)              \

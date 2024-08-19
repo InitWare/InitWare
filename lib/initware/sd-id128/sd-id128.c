@@ -21,7 +21,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "id128-util.h"
 #include "macro.h"
+#include "random-util.h"
 #include "sd-id128.h"
 #include "util.h"
 
@@ -112,21 +114,6 @@ sd_id128_from_string(const char s[], sd_id128_t *ret)
 
 	*ret = t;
 	return 0;
-}
-
-static sd_id128_t
-make_v4_uuid(sd_id128_t id)
-{
-	/* Stolen from generate_random_uuid() of drivers/char/random.c
-         * in the kernel sources */
-
-	/* Set UUID version to 4 --- truly random generation */
-	id.bytes[6] = (id.bytes[6] & 0x0F) | 0x40;
-
-	/* Set the UUID variant to DCE */
-	id.bytes[8] = (id.bytes[8] & 0x3F) | 0x80;
-
-	return id;
 }
 
 _public_ int
@@ -245,22 +232,17 @@ sd_id128_get_boot(sd_id128_t *ret)
 	return 0;
 }
 
-_public_ int
-sd_id128_randomize(sd_id128_t *ret)
-{
-	sd_id128_t t;
-	int r;
+_public_ int sd_id128_randomize(sd_id128_t *ret) {
+        sd_id128_t t;
 
-	assert_return(ret, -EINVAL);
+        assert_return(ret, -EINVAL);
 
-	r = dev_urandom(&t, sizeof(t));
-	if (r < 0)
-		return r;
+        random_bytes(&t, sizeof(t));
 
-	/* Turn this into a valid v4 UUID, to be nice. Note that we
+        /* Turn this into a valid v4 UUID, to be nice. Note that we
          * only guarantee this for newly generated UUIDs, not for
          * pre-existing ones. */
 
-	*ret = make_v4_uuid(t);
-	return 0;
+        *ret = id128_make_v4_uuid(t);
+        return 0;
 }

@@ -27,6 +27,7 @@
 
 #include "_sd-common.h"
 
+// HACK: This should be brought in by _sd-common.h
 #define _SD_DEFINE_POINTER_CLEANUP_FUNC(type, func)             \
         static __inline__ void func##p(type **p) {              \
                 if (*p)                                         \

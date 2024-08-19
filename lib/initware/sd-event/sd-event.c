@@ -31,6 +31,7 @@
 #include "sd-daemon.h"
 #include "sd-id128.h"
 #include "set.h"
+#include "string-table.h"
 #include "time-util.h"
 #include "util.h"
 
@@ -38,22 +39,61 @@
 
 #define DEFAULT_ACCURACY_USEC (250 * USEC_PER_MSEC)
 
+static bool EVENT_SOURCE_WATCH_PIDFD(sd_event_source *s) {
+        /* Returns true if this is a PID event source and can be implemented by watching EPOLLIN */
+        return s &&
+                s->type == SOURCE_CHILD &&
+                s->child.pidfd >= 0 &&
+                s->child.options == WEXITED;
+}
+
+static bool event_source_is_online(sd_event_source *s) {
+        assert(s);
+        return s->enabled != SD_EVENT_OFF && !s->ratelimited;
+}
+
+static bool event_source_is_offline(sd_event_source *s) {
+        assert(s);
+        return s->enabled == SD_EVENT_OFF || s->ratelimited;
+}
+
 typedef enum EventSourceType {
-	SOURCE_IO,
-	SOURCE_TIME_REALTIME,
-	SOURCE_TIME_MONOTONIC,
-	SOURCE_TIME_BOOTTIME,
-	SOURCE_TIME_REALTIME_ALARM,
-	SOURCE_TIME_BOOTTIME_ALARM,
-	SOURCE_SIGNAL,
-	SOURCE_CHILD,
-	SOURCE_DEFER,
-	SOURCE_POST,
-	SOURCE_EXIT,
-	SOURCE_WATCHDOG,
-	_SOURCE_EVENT_SOURCE_TYPE_MAX,
-	_SOURCE_EVENT_SOURCE_TYPE_INVALID = -1
+        SOURCE_IO,
+        SOURCE_TIME_REALTIME,
+        SOURCE_TIME_BOOTTIME,
+        SOURCE_TIME_MONOTONIC,
+        SOURCE_TIME_REALTIME_ALARM,
+        SOURCE_TIME_BOOTTIME_ALARM,
+        SOURCE_SIGNAL,
+        SOURCE_CHILD,
+        SOURCE_DEFER,
+        SOURCE_POST,
+        SOURCE_EXIT,
+        SOURCE_WATCHDOG,
+        SOURCE_INOTIFY,
+        SOURCE_MEMORY_PRESSURE,
+        _SOURCE_EVENT_SOURCE_TYPE_MAX,
+        _SOURCE_EVENT_SOURCE_TYPE_INVALID = -EINVAL,
 } EventSourceType;
+
+static const char* const event_source_type_table[_SOURCE_EVENT_SOURCE_TYPE_MAX] = {
+        [SOURCE_IO]                  = "io",
+        [SOURCE_TIME_REALTIME]       = "realtime",
+        [SOURCE_TIME_BOOTTIME]       = "boottime",
+        [SOURCE_TIME_MONOTONIC]      = "monotonic",
+        [SOURCE_TIME_REALTIME_ALARM] = "realtime-alarm",
+        [SOURCE_TIME_BOOTTIME_ALARM] = "boottime-alarm",
+        [SOURCE_SIGNAL]              = "signal",
+        [SOURCE_CHILD]               = "child",
+        [SOURCE_DEFER]               = "defer",
+        [SOURCE_POST]                = "post",
+        [SOURCE_EXIT]                = "exit",
+        [SOURCE_WATCHDOG]            = "watchdog",
+        [SOURCE_INOTIFY]             = "inotify",
+        [SOURCE_MEMORY_PRESSURE]     = "memory-pressure",
+};
+
+DEFINE_PRIVATE_STRING_TABLE_LOOKUP_TO_STRING(event_source_type, int);
 
 #define EVENT_SOURCE_IS_TIME(t)                                                \
 	IN_SET((t), SOURCE_TIME_REALTIME, SOURCE_TIME_BOOTTIME,                \
@@ -81,7 +121,7 @@ struct sd_event_source {
 	uint64_t pending_iteration;
 	uint64_t prepare_iteration;
 
-	IWLIST_FIELDS(sd_event_source, sources);
+	LIST_FIELDS(sd_event_source, sources);
 
 	union {
 		struct {
@@ -189,7 +229,7 @@ struct sd_event {
 
 	unsigned n_sources;
 
-	IWLIST_HEAD(sd_event_source, sources);
+	LIST_HEAD(sd_event_source, sources);
 };
 
 static void source_disconnect(sd_event_source *s);
@@ -761,7 +801,7 @@ source_disconnect(sd_event_source *s)
 
 	s->type = _SOURCE_EVENT_SOURCE_TYPE_INVALID;
 	s->event = NULL;
-	IWLIST_REMOVE(sources, event->sources, s);
+	LIST_REMOVE(sources, event->sources, s);
 	event->n_sources--;
 
 	if (!s->floating)
@@ -837,7 +877,7 @@ source_new(sd_event *e, bool floating, EventSourceType type)
 	if (!floating)
 		sd_event_ref(e);
 
-	IWLIST_PREPEND(sources, e->sources, s);
+	LIST_PREPEND(sources, e->sources, s);
 	e->n_sources++;
 
 	return s;
@@ -2074,78 +2114,85 @@ process_timer(sd_event *e, usec_t n, struct clock_data *d)
 	return 0;
 }
 
-static int
-process_child(sd_event *e)
-{
-	sd_event_source *s;
-	Iterator i;
-	int r;
+static int process_child(sd_event *e, int64_t threshold, int64_t *ret_min_priority) {
+        int64_t min_priority = threshold;
+        bool something_new = false;
+        sd_event_source *s;
+        int r;
 
-	assert(e);
+        assert(e);
+        assert(ret_min_priority);
 
-	e->need_process_child = false;
+        if (!e->need_process_child) {
+                *ret_min_priority = min_priority;
+                return 0;
+        }
 
-	/*
-           So, this is ugly. We iteratively invoke waitid() with P_PID
-           + WNOHANG for each PID we wait for, instead of using
-           P_ALL. This is because we only want to get child
-           information of very specific child processes, and not all
-           of them. We might not have processed the SIGCHLD even of a
-           previous invocation and we don't want to maintain a
-           unbounded *per-child* event queue, hence we really don't
-           want anything flushed out of the kernel's queue that we
-           don't care about. Since this is O(n) this means that if you
-           have a lot of processes you probably want to handle SIGCHLD
-           yourself.
+        e->need_process_child = false;
 
-           We do not reap the children here (by using WNOWAIT), this
-           is only done after the event source is dispatched so that
-           the callback still sees the process as a zombie.
-        */
+        /* So, this is ugly. We iteratively invoke waitid() with P_PID + WNOHANG for each PID we wait
+         * for, instead of using P_ALL. This is because we only want to get child information of very
+         * specific child processes, and not all of them. We might not have processed the SIGCHLD event
+         * of a previous invocation and we don't want to maintain a unbounded *per-child* event queue,
+         * hence we really don't want anything flushed out of the kernel's queue that we don't care
+         * about. Since this is O(n) this means that if you have a lot of processes you probably want
+         * to handle SIGCHLD yourself.
+         *
+         * We do not reap the children here (by using WNOWAIT), this is only done after the event
+         * source is dispatched so that the callback still sees the process as a zombie. */
 
-	HASHMAP_FOREACH (s, e->child_sources, i) {
-		assert(s->type == SOURCE_CHILD);
+        HASHMAP_FOREACH(s, e->child_sources) {
+                assert(s->type == SOURCE_CHILD);
 
-		if (s->pending)
-			continue;
+                if (s->priority > threshold)
+                        continue;
 
-		if (s->enabled == SD_EVENT_OFF)
-			continue;
+                if (s->pending)
+                        continue;
 
-		zero(s->child.siginfo);
-		r = waitid(P_PID, s->child.pid, &s->child.siginfo,
-			WNOHANG | (s->child.options & WEXITED ? WNOWAIT : 0) |
-				s->child.options);
-		if (r < 0)
-			return -errno;
+                if (event_source_is_offline(s))
+                        continue;
 
-		if (s->child.siginfo.si_pid != 0) {
-			bool zombie = s->child.siginfo.si_code == CLD_EXITED ||
-				s->child.siginfo.si_code == CLD_KILLED ||
-				s->child.siginfo.si_code == CLD_DUMPED;
+                if (s->child.exited)
+                        continue;
 
-			if (!zombie && (s->child.options & WEXITED)) {
-				/* If the child isn't dead then let's
-                                 * immediately remove the state change
-                                 * from the queue, since there's no
-                                 * benefit in leaving it queued */
+                if (EVENT_SOURCE_WATCH_PIDFD(s))
+                        /* There's a usable pidfd known for this event source? Then don't waitid() for
+                         * it here */
+                        continue;
 
-				assert(s->child.options &
-					(WSTOPPED | WCONTINUED));
-				waitid(P_PID, s->child.pid, &s->child.siginfo,
-					WNOHANG |
-						(s->child.options &
-							(WSTOPPED |
-								WCONTINUED)));
-			}
+                zero(s->child.siginfo);
+                if (waitid(P_PID, s->child.pid, &s->child.siginfo,
+                           WNOHANG | (s->child.options & WEXITED ? WNOWAIT : 0) | s->child.options) < 0)
+                        return negative_errno();
 
-			r = source_set_pending(s, true);
-			if (r < 0)
-				return r;
-		}
-	}
+                if (s->child.siginfo.si_pid != 0) {
+                        bool zombie = IN_SET(s->child.siginfo.si_code, CLD_EXITED, CLD_KILLED, CLD_DUMPED);
 
-	return 0;
+                        if (zombie)
+                                s->child.exited = true;
+
+                        if (!zombie && (s->child.options & WEXITED)) {
+                                /* If the child isn't dead then let's immediately remove the state
+                                 * change from the queue, since there's no benefit in leaving it
+                                 * queued. */
+
+                                assert(s->child.options & (WSTOPPED|WCONTINUED));
+                                (void) waitid(P_PID, s->child.pid, &s->child.siginfo, WNOHANG|(s->child.options & (WSTOPPED|WCONTINUED)));
+                        }
+
+                        r = source_set_pending(s, true);
+                        if (r < 0)
+                                return r;
+                        if (r > 0) {
+                                something_new = true;
+                                min_priority = MIN(min_priority, s->priority);
+                        }
+                }
+        }
+
+        *ret_min_priority = min_priority;
+        return something_new;
 }
 
 static int
