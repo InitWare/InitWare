@@ -167,6 +167,8 @@ check_function_exists(strchrnul HAVE_strchrnul)
 check_function_exists(strtod_l HAVE_strtod_l)
 check_symbol_exists(waitid "sys/wait.h" HAVE_waitid)
 check_symbol_exists(reallocarray "stdlib.h" HAVE_REALLOCARRAY)
+check_symbol_exists(pidfd_send_signal "stdlib.h;unistd.h;signal.h;sys/wait.h;sys/pidfd.h" HAVE_PIDFD_SEND_SIGNAL)
+check_symbol_exists(pidfd_open "stdlib.h;unistd.h;signal.h;sys/wait.h;sys/pidfd.h" HAVE_PIDFD_OPEN)
 
 # ------------------------------------------------------------------------------
 # options configurable by the user

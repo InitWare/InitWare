@@ -17,5 +17,7 @@
 int fclose_nointr(FILE *f);
 FILE* safe_fclose(FILE *f);
 
+int fd_move_above_stdio(int fd);
+
 /* Like TAKE_PTR() but for file descriptors, resetting them to -EBADF */
 #define TAKE_FD(fd) TAKE_GENERIC(fd, int, -EBADF)

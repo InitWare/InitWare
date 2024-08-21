@@ -1040,6 +1040,32 @@ missing_kcmp(pid_t pid1, pid_t pid2, int type, unsigned long idx1,
 #define kcmp missing_kcmp
 #endif
 
+#ifndef HAVE_PIDFD_SEND_SIGNAL
+static inline int missing_pidfd_send_signal(int fd, int sig, siginfo_t *info, unsigned flags) {
+#  ifdef __NR_pidfd_send_signal
+        return syscall(__NR_pidfd_send_signal, fd, sig, info, flags);
+#  else
+        errno = ENOSYS;
+        return -1;
+#  endif
+}
+
+#  define pidfd_send_signal missing_pidfd_send_signal
+#endif
+
+#ifndef HAVE_PIDFD_OPEN
+static inline int missing_pidfd_open(pid_t pid, unsigned flags) {
+#  ifdef __NR_pidfd_open
+        return syscall(__NR_pidfd_open, pid, flags);
+#  else
+        errno = ENOSYS;
+        return -1;
+#  endif
+}
+
+#  define pidfd_open missing_pidfd_open
+#endif
+
 #ifndef KCMP_FILE
 #define KCMP_FILE 0
 #endif

@@ -1,6 +1,7 @@
 #ifndef SD_EVENT_H_
 #define SD_EVENT_H_
 
+#include <sys/inotify.h>
 #include <sys/types.h>
 #include <inttypes.h>
 #include <poll.h>
@@ -36,6 +37,8 @@
         struct _sd_useless_struct_to_allow_trailing_semicolon_
 
 _SD_BEGIN_DECLARATIONS;
+
+#define SD_EVENT_DEFAULT ((sd_event *) 1)
 
 #define sd_evloop sd_event
 
@@ -75,6 +78,10 @@ typedef int (*sd_event_signal_handler_t)(sd_event_source *s,
 	const struct sigfd_siginfo *si, void *userdata);
 typedef int (*sd_event_child_handler_t)(sd_event_source *s, const siginfo_t *si,
 	void *userdata);
+typedef int (*sd_event_inotify_handler_t)(sd_event_source *s, const struct inotify_event *event, void *userdata);
+
+typedef void (*_sd_destroy_t)(void *userdata);
+typedef _sd_destroy_t sd_event_destroy_t;
 
 int sd_event_default(sd_event **e);
 

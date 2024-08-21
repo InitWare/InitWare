@@ -39,6 +39,12 @@ typedef struct dual_timestamp {
 	usec_t monotonic;
 } dual_timestamp;
 
+typedef struct triple_timestamp {
+        usec_t realtime;
+        usec_t monotonic;
+        usec_t boottime;
+} triple_timestamp;
+
 typedef enum TimestampStyle {
         TIMESTAMP_PRETTY,
         TIMESTAMP_US,
@@ -92,6 +98,7 @@ char* format_timespan(char *buf, size_t l, usec_t t, usec_t accuracy) _warn_unus
 #define TIME_T_MAX (time_t)((1UL << ((sizeof(time_t) << 3) - 1)) - 1)
 
 #define DUAL_TIMESTAMP_NULL ((struct dual_timestamp){ 0ULL, 0ULL })
+#define TRIPLE_TIMESTAMP_NULL ((triple_timestamp) {})
 
 usec_t now(clockid_t clock);
 
@@ -99,6 +106,16 @@ dual_timestamp* dual_timestamp_now(dual_timestamp *ts);
 dual_timestamp *dual_timestamp_get(dual_timestamp *ts);
 dual_timestamp *dual_timestamp_from_realtime(dual_timestamp *ts, usec_t u);
 dual_timestamp *dual_timestamp_from_monotonic(dual_timestamp *ts, usec_t u);
+
+triple_timestamp* triple_timestamp_now(triple_timestamp *ts);
+triple_timestamp* triple_timestamp_from_realtime(triple_timestamp *ts, usec_t u);
+triple_timestamp* triple_timestamp_from_boottime(triple_timestamp *ts, usec_t u);
+
+#define DUAL_TIMESTAMP_HAS_CLOCK(clock)                               \
+        IN_SET(clock, CLOCK_REALTIME, CLOCK_REALTIME_ALARM, CLOCK_MONOTONIC)
+
+#define TRIPLE_TIMESTAMP_HAS_CLOCK(clock)                               \
+        IN_SET(clock, CLOCK_REALTIME, CLOCK_REALTIME_ALARM, CLOCK_MONOTONIC, CLOCK_BOOTTIME, CLOCK_BOOTTIME_ALARM)
 
 static inline bool timestamp_is_set(usec_t timestamp) {
         return timestamp > 0 && timestamp != USEC_INFINITY;
@@ -110,6 +127,14 @@ dual_timestamp_is_set(dual_timestamp *ts)
 	return ((ts->realtime > 0 && ts->realtime != USEC_INFINITY) ||
 		(ts->monotonic > 0 && ts->monotonic != USEC_INFINITY));
 }
+
+static inline bool triple_timestamp_is_set(const triple_timestamp *ts) {
+        return timestamp_is_set(ts->realtime) ||
+               timestamp_is_set(ts->monotonic) ||
+               timestamp_is_set(ts->boottime);
+}
+
+usec_t triple_timestamp_by_clock(triple_timestamp *ts, clockid_t clock);
 
 usec_t timespec_load(const struct timespec *ts) _pure_;
 struct timespec *timespec_store(struct timespec *ts, usec_t u);

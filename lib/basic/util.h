@@ -733,17 +733,6 @@ void *unhexmem(const char *p, size_t l);
 char *strextend(char **x, ...) _sentinel_;
 char *strrep(const char *s, unsigned n);
 
-static inline int
-negative_errno(void)
-{
-	/* This helper should be used to shut up gcc if you know 'errno' is
-         * negative. Instead of "return -errno;", use "return negative_errno();"
-         * It will suppress bogus gcc warnings in case it assumes 'errno' might
-         * be 0 and thus the caller's error-handling might not be triggered. */
-	assert_return(errno > 0, -EINVAL);
-	return -errno;
-}
-
 struct _umask_struct_ {
 	mode_t mask;
 	bool quit;
@@ -768,43 +757,6 @@ u64log2(uint64_t n)
 #else
 #error "Wut?"
 #endif
-}
-
-static inline unsigned
-u32ctz(uint32_t n)
-{
-#if __SIZEOF_INT__ == 4
-	return __builtin_ctz(n);
-#else
-#error "Wut?"
-#endif
-}
-
-static inline unsigned
-log2i(int x)
-{
-	assert(x > 0);
-
-	return __SIZEOF_INT__ * 8 - __builtin_clz(x) - 1;
-}
-
-static inline unsigned
-log2u(unsigned x)
-{
-	assert(x > 0);
-
-	return sizeof(unsigned) * 8 - __builtin_clz(x) - 1;
-}
-
-static inline unsigned
-log2u_round_up(unsigned x)
-{
-	assert(x > 0);
-
-	if (x == 1)
-		return 0;
-
-	return log2u(x - 1) + 1;
 }
 
 static inline bool

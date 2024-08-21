@@ -59,6 +59,8 @@
 #cmakedefine HAVE_strtod_l
 #cmakedefine HAVE_waitid
 #cmakedefine HAVE_REALLOCARRAY
+#cmakedefine HAVE_PIDFD_SEND_SIGNAL
+#cmakedefine HAVE_PIDFD_OPEN
 
 /* paths */
 #define SVC_PKGDIRNAME "@SVC_PKGDIRNAME@"
