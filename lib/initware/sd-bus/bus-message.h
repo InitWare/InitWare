@@ -67,85 +67,82 @@ struct bus_body_part {
 };
 
 struct sd_bus_message {
-	unsigned n_ref;
+        /* Caveat: a message can be referenced in two different ways: the main (user-facing) way will also
+         * pin the bus connection object the message is associated with. The secondary way ("queued") is used
+         * when a message is in the read or write queues of the bus connection object, which will not pin the
+         * bus connection object. This is necessary so that we don't have to have a pair of cyclic references
+         * between a message that is queued and its connection: as soon as a message is only referenced by
+         * the connection (by means of being queued) and the connection itself has no other references it
+         * will be freed. */
 
-	sd_bus *bus;
+        unsigned n_ref;     /* Counter of references that pin the connection */
+        unsigned n_queued;  /* Counter of references that do not pin the connection */
 
-	uint64_t reply_cookie;
+        sd_bus *bus;
 
-	const char *path;
-	const char *interface;
-	const char *member;
-	const char *destination;
-	const char *sender;
+        uint64_t reply_cookie;
 
-	sd_bus_error error;
+        const char *path;
+        const char *interface;
+        const char *member;
+        const char *destination;
+        const char *sender;
 
-	sd_bus_creds creds;
+        sd_bus_error error;
 
-	usec_t monotonic;
-	usec_t realtime;
-	uint64_t seqnum;
-	int64_t priority;
-	uint64_t verify_destination_id;
+        sd_bus_creds creds;
 
-	bool sealed: 1;
-	bool dont_send: 1;
-	bool allow_fds: 1;
-	bool free_header: 1;
-	bool free_kdbus: 1;
-	bool free_fds: 1;
-	bool release_kdbus: 1;
-	bool poisoned: 1;
+        usec_t monotonic;
+        usec_t realtime;
+        uint64_t seqnum;
+        uint64_t verify_destination_id;
 
-	/* The first and last bytes of the message */
-	struct bus_header *header;
-	void *footer;
+        bool sealed:1;
+        bool dont_send:1;
+        bool allow_fds:1;
+        bool free_header:1;
+        bool free_fds:1;
+        bool poisoned:1;
+        bool sensitive:1;
 
-	/* How many bytes are accessible in the above pointers */
-	size_t header_accessible;
-	size_t footer_accessible;
+        /* The first bytes of the message */
+        struct bus_header *header;
 
-	size_t fields_size;
-	size_t body_size;
-	size_t user_body_size;
+        size_t fields_size;
+        size_t body_size;
+        size_t user_body_size;
 
-	struct bus_body_part body;
-	struct bus_body_part *body_end;
-	unsigned n_body_parts;
+        struct bus_body_part body;
+        struct bus_body_part *body_end;
+        unsigned n_body_parts;
 
-	size_t rindex;
-	struct bus_body_part *cached_rindex_part;
-	size_t cached_rindex_part_begin;
+        size_t rindex;
+        struct bus_body_part *cached_rindex_part;
+        size_t cached_rindex_part_begin;
 
-	uint32_t n_fds;
-	int *fds;
+        uint32_t n_fds;
+        int *fds;
 
-	struct bus_container root_container, *containers;
-	size_t n_containers;
-	size_t containers_allocated;
+        struct bus_container root_container, *containers;
+        size_t n_containers;
 
-	struct iovec *iovec;
-	struct iovec iovec_fixed[2];
-	unsigned n_iovec;
+        struct iovec *iovec;
+        struct iovec iovec_fixed[2];
+        unsigned n_iovec;
 
-	struct kdbus_msg *kdbus;
+        char *peeked_signature;
 
-	char *peeked_signature;
-
-	/* If set replies to this message must carry the signature
+        /* If set replies to this message must carry the signature
          * specified here to successfully seal. This is initialized
          * from the vtable data */
-	const char *enforced_reply_signature;
+        const char *enforced_reply_signature;
 
-	usec_t timeout;
+        usec_t timeout;
 
-	char sender_buffer[3 + DECIMAL_STR_MAX(uint64_t) + 1];
-	char destination_buffer[3 + DECIMAL_STR_MAX(uint64_t) + 1];
-	char *destination_ptr;
+        size_t header_offsets[_BUS_MESSAGE_HEADER_MAX];
+        unsigned n_header_offsets;
 
-	size_t header_offsets[_BUS_MESSAGE_HEADER_MAX];
-	unsigned n_header_offsets;
+        uint64_t read_counter;
 };
 
 static inline bool

@@ -217,3 +217,13 @@ static inline int strdup_to(char **ret, const char *src) {
         int r = strdup_to_full(ASSERT_PTR(ret), src);
         return r < 0 ? r : 0;  /* Suppress return value of 1. */
 }
+
+typedef enum MakeCStringMode {
+        MAKE_CSTRING_REFUSE_TRAILING_NUL,
+        MAKE_CSTRING_ALLOW_TRAILING_NUL,
+        MAKE_CSTRING_REQUIRE_TRAILING_NUL,
+        _MAKE_CSTRING_MODE_MAX,
+        _MAKE_CSTRING_MODE_INVALID = -1,
+} MakeCStringMode;
+
+int make_cstring(const char *s, size_t n, MakeCStringMode mode, char **ret);

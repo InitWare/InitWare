@@ -105,6 +105,7 @@ enum {
 	"org.freedesktop.DBus.Error.MatchRuleInvalid"
 #define SD_BUS_ERROR_INTERACTIVE_AUTHORIZATION_REQUIRED                        \
 	"org.freedesktop.DBus.Error.InteractiveAuthorizationRequired"
+#define SD_BUS_ERROR_SELINUX_SECURITY_CONTEXT_UNKNOWN   "org.freedesktop.DBus.Error.SELinuxSecurityContextUnknown"
 
 _SD_END_DECLARATIONS;
 

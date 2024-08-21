@@ -656,6 +656,48 @@ _public_ int sd_bus_get_name_creds(
         return 0;
 }
 
+static int parse_sockaddr_string(const char *t, char **ret_comm, char **ret_description) {
+        _cleanup_free_ char *comm = NULL, *description = NULL;
+        const char *e, *sl;
+
+        assert(t);
+        assert(ret_comm);
+        assert(ret_description);
+
+        e = strstrafter(t, "/bus/");
+        if (!e) {
+                log_debug("Didn't find /bus/ substring in peer socket address, ignoring.");
+                goto not_found;
+        }
+
+        sl = strchr(e, '/');
+        if (!sl) {
+                log_debug("Didn't find / substring after /bus/ in peer socket address, ignoring.");
+                goto not_found;
+        }
+
+        if (sl - e > 0) {
+                comm = strndup(e, sl - e);
+                if (!comm)
+                        return -ENOMEM;
+        }
+
+        sl++;
+        if (!isempty(sl)) {
+                description = strdup(sl);
+                if (!description)
+                        return -ENOMEM;
+        }
+
+        *ret_comm = TAKE_PTR(comm);
+        *ret_description = TAKE_PTR(description);
+        return 0;
+
+not_found:
+        *ret_comm = *ret_description = NULL;
+        return 0;
+}
+
 _public_ int sd_bus_get_owner_creds(sd_bus *bus, uint64_t mask, sd_bus_creds **ret) {
         _cleanup_(sd_bus_creds_unrefp) sd_bus_creds *c = NULL;
         _cleanup_(pidref_done) PidRef pidref = PIDREF_NULL;
@@ -777,95 +819,129 @@ _public_ int sd_bus_get_owner_creds(sd_bus *bus, uint64_t mask, sd_bus_creds **r
         return 0;
 }
 
-#define internal_match(bus, m)                                                 \
-	((bus)->hello_flags & KDBUS_HELLO_MONITOR ?                            \
-			      (isempty(m) ? "eavesdrop='true'" :                     \
-					    strjoina((m), ",eavesdrop='true'")) :    \
-			      (m))
+#define append_eavesdrop(bus, m)                                        \
+        ((bus)->is_monitor                                              \
+         ? (isempty(m) ? "eavesdrop='true'" : strjoina((m), ",eavesdrop='true'")) \
+         : (m))
 
-static int
-bus_add_match_internal_dbus1(sd_bus *bus, const char *match)
-{
-	const char *e;
+int bus_add_match_internal(
+                sd_bus *bus,
+                const char *match,
+                uint64_t timeout_usec,
+                uint64_t *ret_counter) {
 
-	assert(bus);
-	assert(match);
+        _cleanup_(sd_bus_message_unrefp) sd_bus_message *m = NULL, *reply = NULL;
+        const char *e;
+        int r;
 
-	e = internal_match(bus, match);
+        assert(bus);
 
-	return sd_bus_call_method(bus, "org.freedesktop.DBus",
-		"/org/freedesktop/DBus", "org.freedesktop.DBus", "AddMatch",
-		NULL, NULL, "s", e);
+        if (!bus->bus_client)
+                return -EINVAL;
+
+        e = append_eavesdrop(bus, match);
+
+        r = sd_bus_message_new_method_call(
+                        bus,
+                        &m,
+                        "org.freedesktop.DBus",
+                        "/org/freedesktop/DBus",
+                        "org.freedesktop.DBus",
+                        "AddMatch");
+        if (r < 0)
+                return r;
+
+        r = sd_bus_message_append(m, "s", e);
+        if (r < 0)
+                return r;
+
+        r = sd_bus_call(
+                        bus,
+                        m,
+                        timeout_usec,
+                        NULL,
+                        &reply);
+        if (r < 0)
+                return r;
+
+        /* If the caller asked for it, return the read counter of the reply */
+        if (ret_counter)
+                *ret_counter = reply->read_counter;
+
+        return r;
 }
 
-int
-bus_add_match_internal(sd_bus *bus, const char *match,
-	struct bus_match_component *components, unsigned n_components,
-	uint64_t cookie)
-{
-	assert(bus);
+int bus_remove_match_internal(
+                sd_bus *bus,
+                const char *match) {
 
-	return bus_add_match_internal_dbus1(bus, match);
+        const char *e;
+
+        assert(bus);
+        assert(match);
+
+        if (!bus->bus_client)
+                return -EINVAL;
+
+        e = append_eavesdrop(bus, match);
+
+        /* Fire and forget */
+
+        return sd_bus_call_method_async(
+                        bus,
+                        NULL,
+                        "org.freedesktop.DBus",
+                        "/org/freedesktop/DBus",
+                        "org.freedesktop.DBus",
+                        "RemoveMatch",
+                        NULL,
+                        NULL,
+                        "s",
+                        e);
 }
 
-static int
-bus_remove_match_internal_dbus1(sd_bus *bus, const char *match)
-{
-	const char *e;
+_public_ int sd_bus_get_name_machine_id(sd_bus *bus, const char *name, sd_id128_t *machine) {
+        _cleanup_(sd_bus_message_unrefp) sd_bus_message *reply = NULL, *m = NULL;
+        const char *mid;
+        int r;
 
-	assert(bus);
-	assert(match);
+        assert_return(bus, -EINVAL);
+        assert_return(bus = bus_resolve(bus), -ENOPKG);
+        assert_return(name, -EINVAL);
+        assert_return(machine, -EINVAL);
+        assert_return(!bus_origin_changed(bus), -ECHILD);
+        assert_return(service_name_is_valid(name), -EINVAL);
 
-	e = internal_match(bus, match);
+        if (!bus->bus_client)
+                return -EINVAL;
 
-	return sd_bus_call_method(bus, "org.freedesktop.DBus",
-		"/org/freedesktop/DBus", "org.freedesktop.DBus", "RemoveMatch",
-		NULL, NULL, "s", e);
-}
+        if (!BUS_IS_OPEN(bus->state))
+                return -ENOTCONN;
 
-int
-bus_remove_match_internal(sd_bus *bus, const char *match, uint64_t cookie)
-{
-	assert(bus);
+        if (streq_ptr(name, bus->unique_name))
+                return sd_id128_get_machine(machine);
 
-	return bus_remove_match_internal_dbus1(bus, match);
-}
+        r = sd_bus_message_new_method_call(
+                        bus,
+                        &m,
+                        name,
+                        "/",
+                        "org.freedesktop.DBus.Peer",
+                        "GetMachineId");
+        if (r < 0)
+                return r;
 
-_public_ int
-sd_bus_get_name_machine_id(sd_bus *bus, const char *name, sd_id128_t *machine)
-{
-	_cleanup_bus_message_unref_ sd_bus_message *reply = NULL, *m = NULL;
-	const char *mid;
-	int r;
+        r = sd_bus_message_set_auto_start(m, false);
+        if (r < 0)
+                return r;
 
-	assert_return(bus, -EINVAL);
-	assert_return(name, -EINVAL);
-	assert_return(machine, -EINVAL);
-	assert_return(!bus_pid_changed(bus), -ECHILD);
-	assert_return(service_name_is_valid(name), -EINVAL);
+        r = sd_bus_call(bus, m, 0, NULL, &reply);
+        if (r < 0)
+                return r;
 
-	if (!BUS_IS_OPEN(bus->state))
-		return -ENOTCONN;
+        r = sd_bus_message_read(reply, "s", &mid);
+        if (r < 0)
+                return r;
 
-	if (streq_ptr(name, bus->unique_name))
-		return sd_id128_get_machine(machine);
-
-	r = sd_bus_message_new_method_call(bus, &m, name, "/",
-		"org.freedesktop.DBus.Peer", "GetMachineId");
-	if (r < 0)
-		return r;
-
-	r = sd_bus_message_set_auto_start(m, false);
-	if (r < 0)
-		return r;
-
-	r = sd_bus_call(bus, m, 0, NULL, &reply);
-	if (r < 0)
-		return r;
-
-	r = sd_bus_message_read(reply, "s", &mid);
-	if (r < 0)
-		return r;
-
-	return sd_id128_from_string(mid, machine);
+        return sd_id128_from_string(mid, machine);
 }
