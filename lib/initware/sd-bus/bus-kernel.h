@@ -2,6 +2,15 @@
 
 #include "sd-bus.h"
 
+#define MEMFD_CACHE_MAX 32
+
+struct memfd_cache {
+        int fd;
+        void *address;
+        size_t mapped;
+        size_t allocated;
+};
+
 uint64_t request_name_flags_to_kdbus(uint64_t sd_bus_flags);
 uint64_t attach_flags_to_kdbus(uint64_t sd_bus_flags);
 

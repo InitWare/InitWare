@@ -1063,28 +1063,25 @@ bus_match_find(struct bus_match_node *root,
 	return 1;
 }
 
-void
-bus_match_free(struct bus_match_node *node)
-{
-	struct bus_match_node *c;
+void bus_match_free(struct bus_match_node *node) {
+        struct bus_match_node *c;
 
-	if (!node)
-		return;
+        if (!node)
+                return;
 
-	if (BUS_MATCH_CAN_HASH(node->type)) {
-		Iterator i;
+        if (BUS_MATCH_CAN_HASH(node->type)) {
 
-		HASHMAP_FOREACH (c, node->compare.children, i)
-			bus_match_free(c);
+                HASHMAP_FOREACH(c, node->compare.children)
+                        bus_match_free(c);
 
-		assert(hashmap_isempty(node->compare.children));
-	}
+                assert(hashmap_isempty(node->compare.children));
+        }
 
-	while ((c = node->child))
-		bus_match_free(c);
+        while ((c = node->child))
+                bus_match_free(c);
 
-	if (node->type != BUS_MATCH_ROOT)
-		bus_match_node_free(node);
+        if (node->type != BUS_MATCH_ROOT)
+                bus_match_node_free(node);
 }
 
 const char *
@@ -1138,42 +1135,33 @@ bus_match_node_type_to_string(enum bus_match_node_type t, char buf[], size_t l)
 	}
 }
 
-void
-bus_match_dump(struct bus_match_node *node, unsigned level)
-{
-	struct bus_match_node *c;
-	_cleanup_free_ char *pfx = NULL;
-	char buf[32];
+void bus_match_dump(FILE *out, struct bus_match_node *node, unsigned level) {
+        char buf[32];
 
-	if (!node)
-		return;
+        if (!node)
+                return;
 
-	pfx = strrep("  ", level);
-	printf("%s[%s]", strempty(pfx),
-		bus_match_node_type_to_string(node->type, buf, sizeof(buf)));
+        fprintf(out, "%*s[%s]", 2 * (int) level, "", bus_match_node_type_to_string(node->type, buf, sizeof(buf)));
 
-	if (node->type == BUS_MATCH_VALUE) {
-		if (node->parent->type == BUS_MATCH_MESSAGE_TYPE)
-			printf(" <%u>\n", node->value.u8);
-		else
-			printf(" <%s>\n", node->value.str);
-	} else if (node->type == BUS_MATCH_ROOT)
-		puts(" root");
-	else if (node->type == BUS_MATCH_LEAF)
-		printf(" %p/%p\n", node->leaf.callback->callback,
-			container_of(node->leaf.callback, sd_bus_slot,
-				match_callback)
-				->userdata);
-	else
-		putchar('\n');
+        if (node->type == BUS_MATCH_VALUE) {
+                if (node->parent->type == BUS_MATCH_MESSAGE_TYPE)
+                        fprintf(out, " <%u>\n", node->value.u8);
+                else
+                        fprintf(out, " <%s>\n", node->value.str);
+        } else if (node->type == BUS_MATCH_ROOT)
+                fputs(" root\n", out);
+        else if (node->type == BUS_MATCH_LEAF)
+                fprintf(out, " %p/%p\n", node->leaf.callback->callback,
+                        container_of(node->leaf.callback, sd_bus_slot, match_callback)->userdata);
+        else
+                putc('\n', out);
 
-	if (BUS_MATCH_CAN_HASH(node->type)) {
-		Iterator i;
+        if (BUS_MATCH_CAN_HASH(node->type)) {
+                struct bus_match_node *c;
+                HASHMAP_FOREACH(c, node->compare.children)
+                        bus_match_dump(out, c, level + 1);
+        }
 
-		HASHMAP_FOREACH (c, node->compare.children, i)
-			bus_match_dump(c, level + 1);
-	}
-
-	for (c = node->child; c; c = c->next)
-		bus_match_dump(c, level + 1);
+        for (struct bus_match_node *c = node->child; c; c = c->next)
+                bus_match_dump(out, c, level + 1);
 }

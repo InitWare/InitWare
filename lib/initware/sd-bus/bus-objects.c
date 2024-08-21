@@ -27,6 +27,7 @@
 #include "bus-slot.h"
 #include "bus-type.h"
 #include "bus-util.h"
+#include "ordered-set.h"
 #include "set.h"
 #include "strv.h"
 
@@ -95,133 +96,150 @@ vtable_property_get_userdata(sd_bus *bus, const char *path,
 	return 1;
 }
 
-static int
-add_enumerated_to_set(sd_bus *bus, const char *prefix,
-	struct node_enumerator *first, Set *s, sd_bus_error *error)
-{
-	struct node_enumerator *c;
-	int r;
+static int add_enumerated_to_set(
+                sd_bus *bus,
+                const char *prefix,
+                struct node_enumerator *first,
+                OrderedSet *s,
+                sd_bus_error *error) {
 
-	assert(bus);
-	assert(prefix);
-	assert(s);
+        int r;
 
-	IWLIST_FOREACH (enumerators, c, first) {
-		char **children = NULL, **k;
-		sd_bus_slot *slot;
+        assert(bus);
+        assert(prefix);
+        assert(s);
 
-		if (bus->nodes_modified)
-			return 0;
+        LIST_FOREACH(enumerators, c, first) {
+                char **children = NULL;
+                sd_bus_slot *slot;
 
-		slot = container_of(c, sd_bus_slot, node_enumerator);
+                if (bus->nodes_modified)
+                        return 0;
 
-		bus->current_slot = sd_bus_slot_ref(slot);
-		bus->current_userdata = slot->userdata;
-		r = c->callback(bus, prefix, slot->userdata, &children, error);
-		bus->current_userdata = NULL;
-		bus->current_slot = sd_bus_slot_unref(slot);
+                slot = container_of(c, sd_bus_slot, node_enumerator);
 
-		if (r < 0)
-			return r;
-		if (sd_bus_error_is_set(error))
-			return -sd_bus_error_get_errno(error);
+                bus->current_slot = sd_bus_slot_ref(slot);
+                bus->current_userdata = slot->userdata;
+                r = c->callback(bus, prefix, slot->userdata, &children, error);
+                bus->current_userdata = NULL;
+                bus->current_slot = sd_bus_slot_unref(slot);
 
-		STRV_FOREACH (k, children) {
-			if (r < 0) {
-				free(*k);
-				continue;
-			}
+                if (r < 0)
+                        return r;
+                if (sd_bus_error_is_set(error))
+                        return -sd_bus_error_get_errno(error);
 
-			if (!object_path_is_valid(*k)) {
-				free(*k);
-				r = -EINVAL;
-				continue;
-			}
+                STRV_FOREACH(k, children) {
+                        if (r < 0) {
+                                free(*k);
+                                continue;
+                        }
 
-			if (!object_path_startswith(*k, prefix)) {
-				free(*k);
-				continue;
-			}
+                        if (!object_path_is_valid(*k)) {
+                                free(*k);
+                                r = -EINVAL;
+                                continue;
+                        }
 
-			r = set_consume(s, *k);
-			if (r == -EEXIST)
-				r = 0;
-		}
+                        if (!object_path_startswith(*k, prefix)) {
+                                free(*k);
+                                continue;
+                        }
 
-		free(children);
-		if (r < 0)
-			return r;
-	}
+                        r = ordered_set_consume(s, *k);
+                        if (r == -EEXIST)
+                                r = 0;
+                }
 
-	return 0;
+                free(children);
+                if (r < 0)
+                        return r;
+        }
+
+        return 0;
 }
 
-static int
-add_subtree_to_set(sd_bus *bus, const char *prefix, struct node *n, Set *s,
-	sd_bus_error *error)
-{
-	struct node *i;
-	int r;
+enum {
+        /* if set, add_subtree() works recursively */
+        CHILDREN_RECURSIVE      = 1 << 0,
+        /* if set, add_subtree() scans object-manager hierarchies recursively */
+        CHILDREN_SUBHIERARCHIES = 1 << 1,
+};
 
-	assert(bus);
-	assert(prefix);
-	assert(n);
-	assert(s);
+static int add_subtree_to_set(
+                sd_bus *bus,
+                const char *prefix,
+                struct node *n,
+                unsigned flags,
+                OrderedSet *s,
+                sd_bus_error *error) {
 
-	r = add_enumerated_to_set(bus, prefix, n->enumerators, s, error);
-	if (r < 0)
-		return r;
-	if (bus->nodes_modified)
-		return 0;
+        int r;
 
-	IWLIST_FOREACH (siblings, i, n->child) {
-		char *t;
+        assert(bus);
+        assert(prefix);
+        assert(n);
+        assert(s);
 
-		if (!object_path_startswith(i->path, prefix))
-			continue;
+        r = add_enumerated_to_set(bus, prefix, n->enumerators, s, error);
+        if (r < 0)
+                return r;
+        if (bus->nodes_modified)
+                return 0;
 
-		t = strdup(i->path);
-		if (!t)
-			return -ENOMEM;
+        LIST_FOREACH(siblings, i, n->child) {
+                char *t;
 
-		r = set_consume(s, t);
-		if (r < 0 && r != -EEXIST)
-			return r;
+                if (!object_path_startswith(i->path, prefix))
+                        continue;
 
-		r = add_subtree_to_set(bus, prefix, i, s, error);
-		if (r < 0)
-			return r;
-		if (bus->nodes_modified)
-			return 0;
-	}
+                t = strdup(i->path);
+                if (!t)
+                        return -ENOMEM;
 
-	return 0;
+                r = ordered_set_consume(s, t);
+                if (r < 0 && r != -EEXIST)
+                        return r;
+
+                if ((flags & CHILDREN_RECURSIVE) &&
+                    ((flags & CHILDREN_SUBHIERARCHIES) || !i->object_managers)) {
+                        r = add_subtree_to_set(bus, prefix, i, flags, s, error);
+                        if (r < 0)
+                                return r;
+                        if (bus->nodes_modified)
+                                return 0;
+                }
+        }
+
+        return 0;
 }
 
-static int
-get_child_nodes(sd_bus *bus, const char *prefix, struct node *n, Set **_s,
-	sd_bus_error *error)
-{
-	Set *s = NULL;
-	int r;
+static int get_child_nodes(
+                sd_bus *bus,
+                const char *prefix,
+                struct node *n,
+                unsigned flags,
+                OrderedSet **ret,
+                sd_bus_error *error) {
 
-	assert(bus);
-	assert(prefix);
-	assert(n);
-	assert(_s);
+        _cleanup_ordered_set_free_free_ OrderedSet *s = NULL;
+        int r;
 
-	s = set_new(&string_hash_ops);
-	if (!s)
-		return -ENOMEM;
+        assert(bus);
+        assert(prefix);
+        assert(n);
+        assert(ret);
 
-	r = add_subtree_to_set(bus, prefix, n, s, error);
-	if (r < 0) {
-		set_free_free(s);
-		return r;
-	}
+        s = ordered_set_new(&string_hash_ops);
+        if (!s)
+                return -ENOMEM;
 
-	*_s = s;
-	return 0;
+        r = add_subtree_to_set(bus, prefix, n, flags, s, error);
+        if (r < 0)
+                return r;
+
+        *ret = TAKE_PTR(s);
+        return 0;
 }
 
 static int
@@ -235,7 +253,7 @@ node_callbacks_run(sd_bus *bus, sd_bus_message *m, struct node_callback *first,
 	assert(m);
 	assert(found_object);
 
-	IWLIST_FOREACH (callbacks, c, first) {
+	LIST_FOREACH (callbacks, c, first) {
 		_cleanup_bus_error_free_ sd_bus_error error_buffer =
 			SD_BUS_ERROR_NULL;
 		sd_bus_slot *slot;
@@ -743,7 +761,7 @@ property_get_all_callbacks_run(sd_bus *bus, sd_bus_message *m,
 		streq(iface, "org.freedesktop.DBus.Peer") ||
 		streq(iface, "org.freedesktop.DBus.Introspectable");
 
-	IWLIST_FOREACH (vtables, c, first) {
+	LIST_FOREACH (vtables, c, first) {
 		_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
 		void *u;
 
@@ -811,14 +829,14 @@ bus_node_exists(sd_bus *bus, struct node *n, const char *path,
 	if (!require_fallback && (n->enumerators || n->object_managers))
 		return true;
 
-	IWLIST_FOREACH (callbacks, k, n->callbacks) {
+	LIST_FOREACH (callbacks, k, n->callbacks) {
 		if (require_fallback && !k->is_fallback)
 			continue;
 
 		return 1;
 	}
 
-	IWLIST_FOREACH (vtables, c, n->vtables) {
+	LIST_FOREACH (vtables, c, n->vtables) {
 		_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
 
 		if (require_fallback && !c->is_fallback)
@@ -834,111 +852,126 @@ bus_node_exists(sd_bus *bus, struct node *n, const char *path,
 	return 0;
 }
 
-static int
-process_introspect(sd_bus *bus, sd_bus_message *m, struct node *n,
-	bool require_fallback, bool *found_object)
-{
-	_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
-	_cleanup_bus_message_unref_ sd_bus_message *reply = NULL;
-	_cleanup_set_free_free_ Set *s = NULL;
-	const char *previous_interface = NULL;
-	struct introspect intro;
-	struct node_vtable *c;
-	bool empty;
-	int r;
+int introspect_path(
+                sd_bus *bus,
+                const char *path,
+                struct node *n,
+                bool require_fallback,
+                bool ignore_nodes_modified,
+                bool *found_object,
+                char **ret,
+                sd_bus_error *error) {
 
-	assert(bus);
-	assert(m);
-	assert(n);
-	assert(found_object);
+        _cleanup_ordered_set_free_free_ OrderedSet *s = NULL;
+        _cleanup_(introspect_done) struct introspect intro = {};
+        bool empty;
+        int r;
 
-	r = get_child_nodes(bus, m->path, n, &s, &error);
-	if (r < 0)
-		return bus_maybe_reply_error(m, r, &error);
-	if (bus->nodes_modified)
-		return 0;
+        if (!n) {
+                n = hashmap_get(bus->nodes, path);
+                if (!n)
+                        return -ENOENT;
+        }
 
-	r = introspect_begin(&intro, bus->trusted);
-	if (r < 0)
-		return r;
+        r = get_child_nodes(bus, path, n, 0, &s, error);
+        if (r < 0)
+                return r;
+        if (bus->nodes_modified && !ignore_nodes_modified)
+                return 0;
 
-	r = introspect_write_default_interfaces(&intro,
-		!require_fallback && n->object_managers);
-	if (r < 0)
-		return r;
+        r = introspect_begin(&intro, bus->trusted);
+        if (r < 0)
+                return r;
 
-	empty = set_isempty(s);
+        r = introspect_write_default_interfaces(&intro, !require_fallback && n->object_managers);
+        if (r < 0)
+                return r;
 
-	IWLIST_FOREACH (vtables, c, n->vtables) {
-		if (require_fallback && !c->is_fallback)
-			continue;
+        empty = ordered_set_isempty(s);
 
-		r = node_vtable_get_userdata(bus, m->path, c, NULL, &error);
-		if (r < 0) {
-			r = bus_maybe_reply_error(m, r, &error);
-			goto finish;
-		}
-		if (bus->nodes_modified) {
-			r = 0;
-			goto finish;
-		}
-		if (r == 0)
-			continue;
+        LIST_FOREACH(vtables, c, n->vtables) {
+                if (require_fallback && !c->is_fallback)
+                        continue;
 
-		empty = false;
+                r = node_vtable_get_userdata(bus, path, c, NULL, error);
+                if (r < 0)
+                        return r;
+                if (bus->nodes_modified && !ignore_nodes_modified)
+                        return 0;
+                if (r == 0)
+                        continue;
 
-		if (c->vtable[0].flags & SD_BUS_VTABLE_HIDDEN)
-			continue;
+                empty = false;
 
-		if (!streq_ptr(previous_interface, c->interface)) {
-			if (previous_interface)
-				fputs(" </interface>\n", intro.f);
+                if (c->vtable[0].flags & SD_BUS_VTABLE_HIDDEN)
+                        continue;
 
-			fprintf(intro.f, " <interface name=\"%s\">\n",
-				c->interface);
-		}
+                r = introspect_write_interface(&intro, c->interface, c->vtable);
+                if (r < 0)
+                        return r;
+        }
 
-		r = introspect_write_interface(&intro, c->vtable);
-		if (r < 0)
-			goto finish;
-
-		previous_interface = c->interface;
-	}
-
-	if (previous_interface)
-		fputs(" </interface>\n", intro.f);
-
-	if (empty) {
-		/* Nothing?, let's see if we exist at all, and if not
+        if (empty) {
+                /* Nothing?, let's see if we exist at all, and if not
                  * refuse to do anything */
-		r = bus_node_exists(bus, n, m->path, require_fallback);
-		if (r <= 0)
-			goto finish;
-		if (bus->nodes_modified) {
-			r = 0;
-			goto finish;
-		}
-	}
+                r = bus_node_exists(bus, n, path, require_fallback);
+                if (r <= 0)
+                        return r;
+                if (bus->nodes_modified && !ignore_nodes_modified)
+                        return 0;
+        }
 
-	*found_object = true;
+        if (found_object)
+                *found_object = true;
 
-	r = introspect_write_child_nodes(&intro, s, m->path);
-	if (r < 0)
-		goto finish;
+        r = introspect_write_child_nodes(&intro, s, path);
+        if (r < 0)
+                return r;
 
-	r = introspect_finish(&intro, bus, m, &reply);
-	if (r < 0)
-		goto finish;
+        r = introspect_finish(&intro, ret);
+        if (r < 0)
+                return r;
 
-	r = sd_bus_send(bus, reply, NULL);
-	if (r < 0)
-		goto finish;
+        return 1;
+}
 
-	r = 1;
+static int process_introspect(
+                sd_bus *bus,
+                sd_bus_message *m,
+                struct node *n,
+                bool require_fallback,
+                bool *found_object) {
 
-finish:
-	introspect_free(&intro);
-	return r;
+        _cleanup_free_ char *s = NULL;
+        _cleanup_(sd_bus_error_free) sd_bus_error error = SD_BUS_ERROR_NULL;
+        _cleanup_(sd_bus_message_unrefp) sd_bus_message *reply = NULL;
+        int r;
+
+        assert(bus);
+        assert(m);
+        assert(n);
+        assert(found_object);
+
+        r = introspect_path(bus, m->path, n, require_fallback, false, found_object, &s, &error);
+        if (r < 0)
+                return bus_maybe_reply_error(m, r, &error);
+        if (r == 0)
+                /* nodes_modified == true */
+                return 0;
+
+        r = sd_bus_message_new_method_return(m, &reply);
+        if (r < 0)
+                return r;
+
+        r = sd_bus_message_append(reply, "s", s);
+        if (r < 0)
+                return r;
+
+        r = sd_bus_send(bus, reply, NULL);
+        if (r < 0)
+                return r;
+
+        return 1;
 }
 
 static int
@@ -962,7 +995,7 @@ object_manager_serialize_path(sd_bus *bus, sd_bus_message *reply,
 	if (!n)
 		return 0;
 
-	IWLIST_FOREACH (vtables, i, n->vtables) {
+	LIST_FOREACH (vtables, i, n->vtables) {
 		void *u;
 
 		if (require_fallback && !i->is_fallback)
@@ -1095,62 +1128,63 @@ object_manager_serialize_path_and_fallbacks(sd_bus *bus, sd_bus_message *reply,
 	return 0;
 }
 
-static int
-process_get_managed_objects(sd_bus *bus, sd_bus_message *m, struct node *n,
-	bool require_fallback, bool *found_object)
-{
-	_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
-	_cleanup_bus_message_unref_ sd_bus_message *reply = NULL;
-	_cleanup_set_free_free_ Set *s = NULL;
-	Iterator i;
-	char *path;
-	int r;
+static int process_get_managed_objects(
+                sd_bus *bus,
+                sd_bus_message *m,
+                struct node *n,
+                bool require_fallback,
+                bool *found_object) {
 
-	assert(bus);
-	assert(m);
-	assert(n);
-	assert(found_object);
+        _cleanup_(sd_bus_error_free) sd_bus_error error = SD_BUS_ERROR_NULL;
+        _cleanup_(sd_bus_message_unrefp) sd_bus_message *reply = NULL;
+        _cleanup_ordered_set_free_free_ OrderedSet *s = NULL;
+        char *path;
+        int r;
 
-	/* Spec says, GetManagedObjects() is only implemented on the root of a
+        assert(bus);
+        assert(m);
+        assert(n);
+        assert(found_object);
+
+        /* Spec says, GetManagedObjects() is only implemented on the root of a
          * sub-tree. Therefore, we require a registered object-manager on
          * exactly the queried path, otherwise, we refuse to respond. */
 
-	if (require_fallback || !n->object_managers)
-		return 0;
+        if (require_fallback || !n->object_managers)
+                return 0;
 
-	r = get_child_nodes(bus, m->path, n, &s, &error);
-	if (r < 0)
-		return r;
-	if (bus->nodes_modified)
-		return 0;
+        r = get_child_nodes(bus, m->path, n, CHILDREN_RECURSIVE, &s, &error);
+        if (r < 0)
+                return bus_maybe_reply_error(m, r, &error);
+        if (bus->nodes_modified)
+                return 0;
 
-	r = sd_bus_message_new_method_return(m, &reply);
-	if (r < 0)
-		return r;
+        r = sd_bus_message_new_method_return(m, &reply);
+        if (r < 0)
+                return r;
 
-	r = sd_bus_message_open_container(reply, 'a', "{oa{sa{sv}}}");
-	if (r < 0)
-		return r;
+        r = sd_bus_message_open_container(reply, 'a', "{oa{sa{sv}}}");
+        if (r < 0)
+                return r;
 
-	SET_FOREACH (path, s, i) {
-		r = object_manager_serialize_path_and_fallbacks(bus, reply,
-			path, &error);
-		if (r < 0)
-			return r;
+        ORDERED_SET_FOREACH(path, s) {
+                r = object_manager_serialize_path_and_fallbacks(bus, reply, path, &error);
+                if (r < 0)
+                        return bus_maybe_reply_error(m, r, &error);
 
-		if (bus->nodes_modified)
-			return 0;
-	}
+                if (bus->nodes_modified)
+                        return 0;
+        }
 
-	r = sd_bus_message_close_container(reply);
-	if (r < 0)
-		return r;
+        r = sd_bus_message_close_container(reply);
+        if (r < 0)
+                return r;
 
-	r = sd_bus_send(bus, reply, NULL);
-	if (r < 0)
-		return r;
+        r = sd_bus_send(bus, reply, NULL);
+        if (r < 0)
+                return r;
 
-	return 1;
+        return 1;
 }
 
 static int
@@ -1416,7 +1450,7 @@ bus_node_allocate(sd_bus *bus, const char *path)
 	}
 
 	if (parent)
-		IWLIST_PREPEND(siblings, parent->child, n);
+		LIST_PREPEND(siblings, parent->child, n);
 
 	return n;
 }
@@ -1436,7 +1470,7 @@ bus_node_gc(sd_bus *b, struct node *n)
 	assert(hashmap_remove(b->nodes, n->path) == n);
 
 	if (n->parent)
-		IWLIST_REMOVE(siblings, n->parent->child, n);
+		LIST_REMOVE(siblings, n->parent->child, n);
 
 	free(n->path);
 	bus_node_gc(b, n->parent);
@@ -1471,7 +1505,7 @@ bus_add_object(sd_bus *bus, sd_bus_slot **slot, bool fallback, const char *path,
 	s->node_callback.is_fallback = fallback;
 
 	s->node_callback.node = n;
-	IWLIST_PREPEND(callbacks, n->callbacks, &s->node_callback);
+	LIST_PREPEND(callbacks, n->callbacks, &s->node_callback);
 	bus->nodes_modified = true;
 
 	if (slot)
@@ -1500,53 +1534,32 @@ sd_bus_add_fallback(sd_bus *bus, sd_bus_slot **slot, const char *prefix,
 	return bus_add_object(bus, slot, true, prefix, callback, userdata);
 }
 
-static unsigned long
-vtable_member_hash_func(const void *a, const uint8_t hash_key[HASH_KEY_SIZE])
-{
-	const struct vtable_member *m = a;
-	uint8_t hash_key2[HASH_KEY_SIZE];
-	unsigned long ret;
+static void vtable_member_hash_func(const struct vtable_member *m, struct siphash *state) {
+        assert(m);
 
-	assert(m);
-
-	ret = string_hash_func(m->path, hash_key);
-
-	/* Use a slightly different hash key for the interface */
-	memcpy(hash_key2, hash_key, HASH_KEY_SIZE);
-	hash_key2[0]++;
-	ret ^= string_hash_func(m->interface, hash_key2);
-
-	/* And an even different one for the  member */
-	hash_key2[0]++;
-	ret ^= string_hash_func(m->member, hash_key2);
-
-	return ret;
+        string_hash_func(m->path, state);
+        string_hash_func(m->interface, state);
+        string_hash_func(m->member, state);
 }
 
-static int
-vtable_member_compare_func(const void *a, const void *b)
-{
-	const struct vtable_member *x = a, *y = b;
-	int r;
+static int vtable_member_compare_func(const struct vtable_member *x, const struct vtable_member *y) {
+        int r;
 
-	assert(x);
-	assert(y);
+        assert(x);
+        assert(y);
 
-	r = strcmp(x->path, y->path);
-	if (r != 0)
-		return r;
+        r = strcmp(x->path, y->path);
+        if (r != 0)
+                return r;
 
-	r = strcmp(x->interface, y->interface);
-	if (r != 0)
-		return r;
+        r = strcmp(x->interface, y->interface);
+        if (r != 0)
+                return r;
 
-	return strcmp(x->member, y->member);
+        return strcmp(x->member, y->member);
 }
 
-static const struct hash_ops vtable_member_hash_ops = {
-	.hash = vtable_member_hash_func,
-	.compare = vtable_member_compare_func
-};
+DEFINE_PRIVATE_HASH_OPS(vtable_member_hash_ops, struct vtable_member, vtable_member_hash_func, vtable_member_compare_func);
 
 static int
 add_object_vtable_internal(sd_bus *bus, sd_bus_slot **slot, const char *path,
@@ -1589,7 +1602,7 @@ add_object_vtable_internal(sd_bus *bus, sd_bus_slot **slot, const char *path,
 	if (!n)
 		return -ENOMEM;
 
-	IWLIST_FOREACH (vtables, i, n->vtables) {
+	LIST_FOREACH (vtables, i, n->vtables) {
 		if (i->is_fallback != fallback) {
 			r = -EPROTOTYPE;
 			goto fail;
@@ -1746,7 +1759,7 @@ add_object_vtable_internal(sd_bus *bus, sd_bus_slot **slot, const char *path,
 	}
 
 	s->node_vtable.node = n;
-	IWLIST_INSERT_AFTER(vtables, n->vtables, existing, &s->node_vtable);
+	LIST_INSERT_AFTER(vtables, n->vtables, existing, &s->node_vtable);
 	bus->nodes_modified = true;
 
 	if (slot)
@@ -1805,7 +1818,7 @@ sd_bus_add_node_enumerator(sd_bus *bus, sd_bus_slot **slot, const char *path,
 	s->node_enumerator.callback = callback;
 
 	s->node_enumerator.node = n;
-	IWLIST_PREPEND(enumerators, n->enumerators, &s->node_enumerator);
+	LIST_PREPEND(enumerators, n->enumerators, &s->node_enumerator);
 	bus->nodes_modified = true;
 
 	if (slot)
@@ -1861,7 +1874,7 @@ emit_properties_changed_on_interface(sd_bus *bus, const char *prefix,
 	key.path = prefix;
 	key.interface = interface;
 
-	IWLIST_FOREACH (vtables, c, n->vtables) {
+	LIST_FOREACH (vtables, c, n->vtables) {
 		if (require_fallback && !c->is_fallback)
 			continue;
 
@@ -1976,7 +1989,7 @@ emit_properties_changed_on_interface(sd_bus *bus, const char *prefix,
 		return r;
 
 	if (has_invalidating) {
-		IWLIST_FOREACH (vtables, c, n->vtables) {
+		LIST_FOREACH (vtables, c, n->vtables) {
 			if (require_fallback && !c->is_fallback)
 				continue;
 
@@ -2144,7 +2157,7 @@ object_added_append_all_prefix(sd_bus *bus, sd_bus_message *m, Set *s,
 	if (!n)
 		return 0;
 
-	IWLIST_FOREACH (vtables, c, n->vtables) {
+	LIST_FOREACH (vtables, c, n->vtables) {
 		_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
 		void *u = NULL;
 
@@ -2363,7 +2376,7 @@ object_removed_append_all_prefix(sd_bus *bus, sd_bus_message *m, Set *s,
 	if (!n)
 		return 0;
 
-	IWLIST_FOREACH (vtables, c, n->vtables) {
+	LIST_FOREACH (vtables, c, n->vtables) {
 		_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
 		void *u = NULL;
 
@@ -2539,7 +2552,7 @@ interfaces_added_append_one_prefix(sd_bus *bus, sd_bus_message *m,
 	if (!n)
 		return 0;
 
-	IWLIST_FOREACH (vtables, c, n->vtables) {
+	LIST_FOREACH (vtables, c, n->vtables) {
 		if (require_fallback && !c->is_fallback)
 			continue;
 
@@ -2781,7 +2794,7 @@ sd_bus_add_object_manager(sd_bus *bus, sd_bus_slot **slot, const char *path)
 	}
 
 	s->node_object_manager.node = n;
-	IWLIST_PREPEND(object_managers, n->object_managers,
+	LIST_PREPEND(object_managers, n->object_managers,
 		&s->node_object_manager);
 	bus->nodes_modified = true;
 

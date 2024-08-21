@@ -44,7 +44,7 @@ bus_slot_allocate(sd_bus *bus, bool floating, BusSlotType type, size_t extra,
 	if (!floating)
 		sd_bus_ref(bus);
 
-	IWLIST_PREPEND(slots, bus->slots, slot);
+	LIST_PREPEND(slots, bus->slots, slot);
 
 	return slot;
 }
@@ -86,7 +86,7 @@ bus_slot_disconnect(sd_bus_slot *slot)
 
 	case BUS_FILTER_CALLBACK:
 		slot->bus->filter_callbacks_modified = true;
-		IWLIST_REMOVE(callbacks, slot->bus->filter_callbacks,
+		LIST_REMOVE(callbacks, slot->bus->filter_callbacks,
 			&slot->filter_callback);
 		break;
 
@@ -108,7 +108,7 @@ bus_slot_disconnect(sd_bus_slot *slot)
 	case BUS_NODE_CALLBACK:
 
 		if (slot->node_callback.node) {
-			IWLIST_REMOVE(callbacks,
+			LIST_REMOVE(callbacks,
 				slot->node_callback.node->callbacks,
 				&slot->node_callback);
 			slot->bus->nodes_modified = true;
@@ -121,7 +121,7 @@ bus_slot_disconnect(sd_bus_slot *slot)
 	case BUS_NODE_ENUMERATOR:
 
 		if (slot->node_enumerator.node) {
-			IWLIST_REMOVE(enumerators,
+			LIST_REMOVE(enumerators,
 				slot->node_enumerator.node->enumerators,
 				&slot->node_enumerator);
 			slot->bus->nodes_modified = true;
@@ -134,7 +134,7 @@ bus_slot_disconnect(sd_bus_slot *slot)
 	case BUS_NODE_OBJECT_MANAGER:
 
 		if (slot->node_object_manager.node) {
-			IWLIST_REMOVE(object_managers,
+			LIST_REMOVE(object_managers,
 				slot->node_object_manager.node->object_managers,
 				&slot->node_object_manager);
 			slot->bus->nodes_modified = true;
@@ -192,7 +192,7 @@ bus_slot_disconnect(sd_bus_slot *slot)
 		free(slot->node_vtable.interface);
 
 		if (slot->node_vtable.node) {
-			IWLIST_REMOVE(vtables, slot->node_vtable.node->vtables,
+			LIST_REMOVE(vtables, slot->node_vtable.node->vtables,
 				&slot->node_vtable);
 			slot->bus->nodes_modified = true;
 
@@ -209,7 +209,7 @@ bus_slot_disconnect(sd_bus_slot *slot)
 
 	slot->type = _BUS_SLOT_INVALID;
 	slot->bus = NULL;
-	IWLIST_REMOVE(slots, bus->slots, slot);
+	LIST_REMOVE(slots, bus->slots, slot);
 
 	if (!slot->floating)
 		sd_bus_unref(bus);

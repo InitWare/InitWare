@@ -201,6 +201,9 @@ struct sd_journal {
 char *journal_make_match_string(sd_journal *j);
 void journal_print_header(sd_journal *j);
 
+int journal_add_match_pair(sd_journal *j, const char *field, const char *value);
+int journal_add_matchf(sd_journal *j, const char *format, ...) _printf_(2, 3);
+
 // DEFINE_TRIVIAL_CLEANUP_FUNC(sd_journal *, sd_journal_close);
 // #define _cleanup_journal_close_ _cleanup_(sd_journal_closep)
 

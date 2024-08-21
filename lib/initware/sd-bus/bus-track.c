@@ -30,7 +30,7 @@ struct sd_bus_track {
 	sd_bus_track_handler_t handler;
 	void *userdata;
 	Hashmap *names;
-	IWLIST_FIELDS(sd_bus_track, queue);
+	LIST_FIELDS(sd_bus_track, queue);
 	Iterator iterator;
 	bool in_queue;
 	bool modified;
@@ -67,7 +67,7 @@ bus_track_add_to_queue(sd_bus_track *track)
 	if (!track->handler)
 		return;
 
-	IWLIST_PREPEND(queue, track->bus->track_queue, track);
+	LIST_PREPEND(queue, track->bus->track_queue, track);
 	track->in_queue = true;
 }
 
@@ -79,7 +79,7 @@ bus_track_remove_from_queue(sd_bus_track *track)
 	if (!track->in_queue)
 		return;
 
-	IWLIST_REMOVE(queue, track->bus->track_queue, track);
+	LIST_REMOVE(queue, track->bus->track_queue, track);
 	track->in_queue = false;
 }
 
@@ -255,34 +255,30 @@ sd_bus_track_contains(sd_bus_track *track, const char *name)
 	return hashmap_get(track->names, (void *)name) ? name : NULL;
 }
 
-_public_ const char *
-sd_bus_track_first(sd_bus_track *track)
-{
-	const char *n = NULL;
+_public_ const char* sd_bus_track_first(sd_bus_track *track) {
+        const char *n = NULL;
 
-	if (!track)
-		return NULL;
+        if (!track)
+                return NULL;
 
-	track->modified = false;
-	track->iterator = ITERATOR_FIRST;
+        track->modified = false;
+        track->iterator = ITERATOR_FIRST;
 
-	hashmap_iterate(track->names, &track->iterator, (const void **)&n);
-	return n;
+        (void) hashmap_iterate(track->names, &track->iterator, NULL, (const void**) &n);
+        return n;
 }
 
-_public_ const char *
-sd_bus_track_next(sd_bus_track *track)
-{
-	const char *n = NULL;
+_public_ const char* sd_bus_track_next(sd_bus_track *track) {
+        const char *n = NULL;
 
-	if (!track)
-		return NULL;
+        if (!track)
+                return NULL;
 
-	if (track->modified)
-		return NULL;
+        if (track->modified)
+                return NULL;
 
-	hashmap_iterate(track->names, &track->iterator, (const void **)&n);
-	return n;
+        (void) hashmap_iterate(track->names, &track->iterator, NULL, (const void**) &n);
+        return n;
 }
 
 _public_ int

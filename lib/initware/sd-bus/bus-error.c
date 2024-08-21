@@ -27,6 +27,8 @@
 #include "alloc-util.h"
 #include "bsdglibc.h"
 #include "errno-list.h"
+#include "errno-util.h"
+#include "string-util.h"
 #include "util.h"
 
 #include "bus-error.h"

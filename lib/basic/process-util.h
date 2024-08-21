@@ -22,6 +22,10 @@ typedef enum WaitFlags {
 
 int wait_for_terminate_and_check(const char *name, pid_t pid, WaitFlags flags);
 
+static inline bool pid_is_valid(pid_t p) {
+        return p > 0;
+}
+
 pid_t getpid_cached(void);
 void reset_cached_pid(void);
 

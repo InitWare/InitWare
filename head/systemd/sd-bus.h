@@ -52,41 +52,44 @@ typedef struct {
 
 /* Flags */
 
-enum {
-	SD_BUS_CREDS_PID = 1ULL << 0,
-	SD_BUS_CREDS_TID = 1ULL << 1,
-	SD_BUS_CREDS_UID = 1ULL << 2,
-	SD_BUS_CREDS_EUID = 1ULL << 3,
-	SD_BUS_CREDS_SUID = 1ULL << 4,
-	SD_BUS_CREDS_FSUID = 1ULL << 5,
-	SD_BUS_CREDS_GID = 1ULL << 6,
-	SD_BUS_CREDS_EGID = 1ULL << 7,
-	SD_BUS_CREDS_SGID = 1ULL << 8,
-	SD_BUS_CREDS_FSGID = 1ULL << 9,
-	SD_BUS_CREDS_SUPPLEMENTARY_GIDS = 1ULL << 10,
-	SD_BUS_CREDS_COMM = 1ULL << 11,
-	SD_BUS_CREDS_TID_COMM = 1ULL << 12,
-	SD_BUS_CREDS_EXE = 1ULL << 13,
-	SD_BUS_CREDS_CMDLINE = 1ULL << 14,
-	SD_BUS_CREDS_CGROUP = 1ULL << 15,
-	SD_BUS_CREDS_UNIT = 1ULL << 16,
-	SD_BUS_CREDS_USER_UNIT = 1ULL << 17,
-	SD_BUS_CREDS_SLICE = 1ULL << 18,
-	SD_BUS_CREDS_SESSION = 1ULL << 19,
-	SD_BUS_CREDS_OWNER_UID = 1ULL << 20,
-	SD_BUS_CREDS_EFFECTIVE_CAPS = 1ULL << 21,
-	SD_BUS_CREDS_PERMITTED_CAPS = 1ULL << 22,
-	SD_BUS_CREDS_INHERITABLE_CAPS = 1ULL << 23,
-	SD_BUS_CREDS_BOUNDING_CAPS = 1ULL << 24,
-	SD_BUS_CREDS_SELINUX_CONTEXT = 1ULL << 25,
-	SD_BUS_CREDS_AUDIT_SESSION_ID = 1ULL << 26,
-	SD_BUS_CREDS_AUDIT_LOGIN_UID = 1ULL << 27,
-	SD_BUS_CREDS_UNIQUE_NAME = 1ULL << 28,
-	SD_BUS_CREDS_WELL_KNOWN_NAMES = 1ULL << 29,
-	SD_BUS_CREDS_DESCRIPTION = 1ULL << 30,
-	SD_BUS_CREDS_AUGMENT = 1ULL
-		<< 63, /* special flag, if on sd-bus will augment creds struct, in a potentially race-full way. */
-	_SD_BUS_CREDS_ALL = (1ULL << 32) - 1,
+__extension__ enum {
+        SD_BUS_CREDS_PID                = 1ULL << 0,
+        SD_BUS_CREDS_TID                = 1ULL << 1,
+        SD_BUS_CREDS_PPID               = 1ULL << 2,
+        SD_BUS_CREDS_UID                = 1ULL << 3,
+        SD_BUS_CREDS_EUID               = 1ULL << 4,
+        SD_BUS_CREDS_SUID               = 1ULL << 5,
+        SD_BUS_CREDS_FSUID              = 1ULL << 6,
+        SD_BUS_CREDS_GID                = 1ULL << 7,
+        SD_BUS_CREDS_EGID               = 1ULL << 8,
+        SD_BUS_CREDS_SGID               = 1ULL << 9,
+        SD_BUS_CREDS_FSGID              = 1ULL << 10,
+        SD_BUS_CREDS_SUPPLEMENTARY_GIDS = 1ULL << 11,
+        SD_BUS_CREDS_COMM               = 1ULL << 12,
+        SD_BUS_CREDS_TID_COMM           = 1ULL << 13,
+        SD_BUS_CREDS_EXE                = 1ULL << 14,
+        SD_BUS_CREDS_CMDLINE            = 1ULL << 15,
+        SD_BUS_CREDS_CGROUP             = 1ULL << 16,
+        SD_BUS_CREDS_UNIT               = 1ULL << 17,
+        SD_BUS_CREDS_SLICE              = 1ULL << 18,
+        SD_BUS_CREDS_USER_UNIT          = 1ULL << 19,
+        SD_BUS_CREDS_USER_SLICE         = 1ULL << 20,
+        SD_BUS_CREDS_SESSION            = 1ULL << 21,
+        SD_BUS_CREDS_OWNER_UID          = 1ULL << 22,
+        SD_BUS_CREDS_EFFECTIVE_CAPS     = 1ULL << 23,
+        SD_BUS_CREDS_PERMITTED_CAPS     = 1ULL << 24,
+        SD_BUS_CREDS_INHERITABLE_CAPS   = 1ULL << 25,
+        SD_BUS_CREDS_BOUNDING_CAPS      = 1ULL << 26,
+        SD_BUS_CREDS_SELINUX_CONTEXT    = 1ULL << 27,
+        SD_BUS_CREDS_AUDIT_SESSION_ID   = 1ULL << 28,
+        SD_BUS_CREDS_AUDIT_LOGIN_UID    = 1ULL << 29,
+        SD_BUS_CREDS_TTY                = 1ULL << 30,
+        SD_BUS_CREDS_UNIQUE_NAME        = 1ULL << 31,
+        SD_BUS_CREDS_WELL_KNOWN_NAMES   = 1ULL << 32,
+        SD_BUS_CREDS_DESCRIPTION        = 1ULL << 33,
+        SD_BUS_CREDS_PIDFD              = 1ULL << 34,
+        SD_BUS_CREDS_AUGMENT            = 1ULL << 63, /* special flag, if on sd-bus will augment creds struct, in a potentially race-full way. */
+        _SD_BUS_CREDS_ALL               = (1ULL << 35) -1
 };
 
 enum {
@@ -158,6 +161,8 @@ void sd_bus_close(sd_bus *bus);
 
 sd_bus *sd_bus_ref(sd_bus *bus);
 sd_bus *sd_bus_unref(sd_bus *bus);
+sd_bus* sd_bus_close_unref(sd_bus *bus);
+sd_bus* sd_bus_flush_close_unref(sd_bus *bus);
 
 int sd_bus_is_open(sd_bus *bus);
 
@@ -506,6 +511,14 @@ unsigned sd_bus_track_count(sd_bus_track *track);
 const char *sd_bus_track_contains(sd_bus_track *track, const char *names);
 const char *sd_bus_track_first(sd_bus_track *track);
 const char *sd_bus_track_next(sd_bus_track *track);
+
+_SD_DEFINE_POINTER_CLEANUP_FUNC(sd_bus, sd_bus_unref);
+_SD_DEFINE_POINTER_CLEANUP_FUNC(sd_bus, sd_bus_close_unref);
+_SD_DEFINE_POINTER_CLEANUP_FUNC(sd_bus, sd_bus_flush_close_unref);
+_SD_DEFINE_POINTER_CLEANUP_FUNC(sd_bus_slot, sd_bus_slot_unref);
+_SD_DEFINE_POINTER_CLEANUP_FUNC(sd_bus_message, sd_bus_message_unref);
+_SD_DEFINE_POINTER_CLEANUP_FUNC(sd_bus_creds, sd_bus_creds_unref);
+_SD_DEFINE_POINTER_CLEANUP_FUNC(sd_bus_track, sd_bus_track_unref);
 
 _SD_END_DECLARATIONS;
 

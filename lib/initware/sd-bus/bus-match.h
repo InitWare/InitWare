@@ -86,7 +86,7 @@ int bus_match_find(struct bus_match_node *root,
 
 void bus_match_free(struct bus_match_node *node);
 
-void bus_match_dump(struct bus_match_node *node, unsigned level);
+void bus_match_dump(FILE *out, struct bus_match_node *node, unsigned level);
 
 const char *bus_match_node_type_to_string(enum bus_match_node_type t,
 	char buf[], size_t l);

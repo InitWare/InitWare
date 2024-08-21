@@ -1631,52 +1631,52 @@ bus_wait_for_jobs_free(BusWaitForJobs *d)
 	free(d);
 }
 
-int
-bus_wait_for_jobs_new(sd_bus *bus, BusWaitForJobs **ret)
-{
-	_cleanup_(bus_wait_for_jobs_freep) BusWaitForJobs *d = NULL;
-	int r;
+// int
+// bus_wait_for_jobs_new(sd_bus *bus, BusWaitForJobs **ret)
+// {
+// 	_cleanup_(bus_wait_for_jobs_freep) BusWaitForJobs *d = NULL;
+// 	int r;
 
-	assert(bus);
-	assert(ret);
+// 	assert(bus);
+// 	assert(ret);
 
-	d = new0(BusWaitForJobs, 1);
-	if (!d)
-		return -ENOMEM;
+// 	d = new0(BusWaitForJobs, 1);
+// 	if (!d)
+// 		return -ENOMEM;
 
-	d->bus = sd_bus_ref(bus);
+// 	d->bus = sd_bus_ref(bus);
 
-	/* When we are a bus client we match by sender. Direct
-         * connections OTOH have no initialized sender field, and
-         * hence we ignore the sender then */
-	r = sd_bus_add_match(bus, &d->slot_job_removed,
-		bus->bus_client ? "type='signal',"
-				  "interface='" SVC_DBUS_BUSNAME "',"
-				  "interface='" SVC_DBUS_INTERFACE ".Manager',"
-				  "member='JobRemoved',"
-				  "path='/org/freedesktop/systemd1'" :
-					"type='signal',"
-				  "interface='" SVC_DBUS_INTERFACE ".Manager',"
-				  "member='JobRemoved',"
-				  "path='/org/freedesktop/systemd1'",
-		match_job_removed, d);
-	if (r < 0)
-		return r;
+// 	/* When we are a bus client we match by sender. Direct
+//          * connections OTOH have no initialized sender field, and
+//          * hence we ignore the sender then */
+// 	r = sd_bus_add_match(bus, &d->slot_job_removed,
+// 		bus->bus_client ? "type='signal',"
+// 				  "interface='" SVC_DBUS_BUSNAME "',"
+// 				  "interface='" SVC_DBUS_INTERFACE ".Manager',"
+// 				  "member='JobRemoved',"
+// 				  "path='/org/freedesktop/systemd1'" :
+// 					"type='signal',"
+// 				  "interface='" SVC_DBUS_INTERFACE ".Manager',"
+// 				  "member='JobRemoved',"
+// 				  "path='/org/freedesktop/systemd1'",
+// 		match_job_removed, d);
+// 	if (r < 0)
+// 		return r;
 
-	r = sd_bus_add_match(bus, &d->slot_disconnected,
-		"type='signal',"
-		"sender='org.freedesktop.DBus.Local',"
-		"interface='org.freedesktop.DBus.Local',"
-		"member='Disconnected'",
-		match_disconnected, d);
-	if (r < 0)
-		return r;
+// 	r = sd_bus_add_match(bus, &d->slot_disconnected,
+// 		"type='signal',"
+// 		"sender='org.freedesktop.DBus.Local',"
+// 		"interface='org.freedesktop.DBus.Local',"
+// 		"member='Disconnected'",
+// 		match_disconnected, d);
+// 	if (r < 0)
+// 		return r;
 
-	*ret = d;
-	d = NULL;
+// 	*ret = d;
+// 	d = NULL;
 
-	return 0;
-}
+// 	return 0;
+// }
 
 static int
 bus_process_wait(sd_bus *bus)
@@ -1863,31 +1863,31 @@ bus_wait_for_jobs(BusWaitForJobs *d, bool quiet)
 	return r;
 }
 
-int
-bus_wait_for_jobs_add(BusWaitForJobs *d, const char *path)
-{
-	int r;
+// int
+// bus_wait_for_jobs_add(BusWaitForJobs *d, const char *path)
+// {
+// 	int r;
 
-	assert(d);
+// 	assert(d);
 
-	r = set_ensure_allocated(&d->jobs, &string_hash_ops);
-	if (r < 0)
-		return r;
+// 	r = set_ensure_allocated(&d->jobs, &string_hash_ops);
+// 	if (r < 0)
+// 		return r;
 
-	return set_put_strdup(d->jobs, path);
-}
+// 	return set_put_strdup(d->jobs, path);
+// }
 
-int
-bus_wait_for_jobs_one(BusWaitForJobs *d, const char *path, bool quiet)
-{
-	int r;
+// int
+// bus_wait_for_jobs_one(BusWaitForJobs *d, const char *path, bool quiet)
+// {
+// 	int r;
 
-	r = bus_wait_for_jobs_add(d, path);
-	if (r < 0)
-		return log_oom();
+// 	r = bus_wait_for_jobs_add(d, path);
+// 	if (r < 0)
+// 		return log_oom();
 
-	return bus_wait_for_jobs(d, quiet);
-}
+// 	return bus_wait_for_jobs(d, quiet);
+// }
 
 int
 bus_deserialize_and_dump_unit_file_changes(sd_bus_message *m, bool quiet,

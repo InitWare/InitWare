@@ -162,30 +162,6 @@ typedef struct UnitInfo {
 
 int bus_parse_unit_info(sd_bus_message *message, UnitInfo *u);
 
-static inline void
-sd_bus_close_unrefp(sd_bus **bus)
-{
-	if (*bus) {
-		sd_bus_flush(*bus);
-		sd_bus_close(*bus);
-		sd_bus_unref(*bus);
-	}
-}
-
-DEFINE_TRIVIAL_CLEANUP_FUNC(sd_bus *, sd_bus_unref);
-DEFINE_TRIVIAL_CLEANUP_FUNC(sd_bus_slot *, sd_bus_slot_unref);
-DEFINE_TRIVIAL_CLEANUP_FUNC(sd_bus_message *, sd_bus_message_unref);
-DEFINE_TRIVIAL_CLEANUP_FUNC(sd_bus_creds *, sd_bus_creds_unref);
-DEFINE_TRIVIAL_CLEANUP_FUNC(sd_bus_track *, sd_bus_track_unref);
-
-#define _cleanup_bus_unref_ _cleanup_(sd_bus_unrefp)
-#define _cleanup_bus_close_unref_ _cleanup_(sd_bus_close_unrefp)
-#define _cleanup_bus_slot_unref_ _cleanup_(sd_bus_slot_unrefp)
-#define _cleanup_bus_message_unref_ _cleanup_(sd_bus_message_unrefp)
-#define _cleanup_bus_creds_unref_ _cleanup_(sd_bus_creds_unrefp)
-#define _cleanup_bus_track_unref_ _cleanup_(sd_bus_slot_unrefp)
-#define _cleanup_bus_error_free_ _cleanup_(sd_bus_error_free)
-
 #define BUS_DEFINE_PROPERTY_GET_ENUM(function, name, type)                     \
 	int function(sd_bus *bus, const char *path, const char *interface,     \
 		const char *property, sd_bus_message *reply, void *userdata,   \
@@ -224,13 +200,13 @@ int bus_append_unit_property_assignment(sd_bus_message *m,
 
 typedef struct BusWaitForJobs BusWaitForJobs;
 
-int bus_wait_for_jobs_new(sd_bus *bus, BusWaitForJobs **ret);
+// int bus_wait_for_jobs_new(sd_bus *bus, BusWaitForJobs **ret);
 void bus_wait_for_jobs_free(BusWaitForJobs *d);
-int bus_wait_for_jobs_add(BusWaitForJobs *d, const char *path);
+// int bus_wait_for_jobs_add(BusWaitForJobs *d, const char *path);
 int bus_wait_for_jobs(BusWaitForJobs *d, bool quiet);
-int bus_wait_for_jobs_one(BusWaitForJobs *d, const char *path, bool quiet);
+// int bus_wait_for_jobs_one(BusWaitForJobs *d, const char *path, bool quiet);
 
-DEFINE_TRIVIAL_CLEANUP_FUNC(BusWaitForJobs *, bus_wait_for_jobs_free);
+// DEFINE_TRIVIAL_CLEANUP_FUNC(BusWaitForJobs *, bus_wait_for_jobs_free);
 
 int bus_deserialize_and_dump_unit_file_changes(sd_bus_message *m, bool quiet,
 	UnitFileChange **changes, unsigned *n_changes);

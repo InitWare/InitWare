@@ -2496,7 +2496,7 @@ process_filter(sd_bus *bus, sd_bus_message *m)
 	do {
 		bus->filter_callbacks_modified = false;
 
-		IWLIST_FOREACH (callbacks, l, bus->filter_callbacks) {
+		LIST_FOREACH (callbacks, l, bus->filter_callbacks) {
 			sd_bus_slot *slot;
 
 			if (bus->filter_callbacks_modified)
@@ -3093,7 +3093,7 @@ sd_bus_add_filter(sd_bus *bus, sd_bus_slot **slot,
 	s->filter_callback.callback = callback;
 
 	bus->filter_callbacks_modified = true;
-	IWLIST_PREPEND(callbacks, bus->filter_callbacks, &s->filter_callback);
+	LIST_PREPEND(callbacks, bus->filter_callbacks, &s->filter_callback);
 
 	if (slot)
 		*slot = s;

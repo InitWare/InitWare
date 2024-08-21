@@ -27,10 +27,12 @@
 
 #include "alloc-util.h"
 #include "fileio.h"
+#include "format-util.h"
 #include "hashmap.h"
 #include "journal-internal.h"
 #include "log.h"
 #include "logs-show.h"
+#include "string-table.h"
 #include "utf8.h"
 #include "util.h"
 
@@ -1086,54 +1088,45 @@ add_matches_for_unit(sd_journal *j, const char *unit)
 	return r;
 }
 
-int
-add_matches_for_user_unit(sd_journal *j, const char *unit, uid_t uid)
-{
-	int r;
-	char *m1, *m2, *m3, *m4;
-	char muid[sizeof("_UID=") + DECIMAL_STR_MAX(uid_t)];
+int add_matches_for_user_unit(sd_journal *j, const char *unit) {
+        uid_t uid = getuid();
+        int r;
 
-	assert(j);
-	assert(unit);
+        assert(j);
+        assert(unit);
 
-	m1 = strjoina("_SYSTEMD_USER_UNIT=", unit);
-	m2 = strjoina("USER_UNIT=", unit);
-	m3 = strjoina("COREDUMP_USER_UNIT=", unit);
-	m4 = strjoina("OBJECT_SYSTEMD_USER_UNIT=", unit);
-	sprintf(muid, "_UID=" UID_FMT, uid);
+        (void) (
+                /* Look for messages from the user service itself */
+                (r = journal_add_match_pair(j, "_SYSTEMD_USER_UNIT", unit)) ||
+                (r = journal_add_matchf(j, "_UID="UID_FMT, uid)) ||
 
-	(void)(
-		/* Look for messages from the user service itself */
-		(r = sd_journal_add_match(j, m1, 0)) ||
-		(r = sd_journal_add_match(j, muid, 0)) ||
+                /* Look for messages from systemd about this service */
+                (r = sd_journal_add_disjunction(j)) ||
+                (r = journal_add_match_pair(j, "USER_UNIT", unit)) ||
+                (r = journal_add_matchf(j, "_UID="UID_FMT, uid)) ||
 
-		/* Look for messages from systemd about this service */
-		(r = sd_journal_add_disjunction(j)) ||
-		(r = sd_journal_add_match(j, m2, 0)) ||
-		(r = sd_journal_add_match(j, muid, 0)) ||
+                /* Look for coredumps of the service */
+                (r = sd_journal_add_disjunction(j)) ||
+                (r = journal_add_match_pair(j, "COREDUMP_USER_UNIT", unit)) ||
+                (r = journal_add_matchf(j, "_UID="UID_FMT, uid)) ||
+                (r = sd_journal_add_match(j, "_UID=0", SIZE_MAX)) ||
 
-		/* Look for coredumps of the service */
-		(r = sd_journal_add_disjunction(j)) ||
-		(r = sd_journal_add_match(j, m3, 0)) ||
-		(r = sd_journal_add_match(j, muid, 0)) ||
-		(r = sd_journal_add_match(j, "_UID=0", 0)) ||
+                /* Look for messages from authorized daemons about this service */
+                (r = sd_journal_add_disjunction(j)) ||
+                (r = journal_add_match_pair(j, "OBJECT_SYSTEMD_USER_UNIT", unit)) ||
+                (r = journal_add_matchf(j, "_UID="UID_FMT, uid)) ||
+                (r = sd_journal_add_match(j, "_UID=0", SIZE_MAX))
+        );
 
-		/* Look for messages from authorized daemons about this service */
-		(r = sd_journal_add_disjunction(j)) ||
-		(r = sd_journal_add_match(j, m4, 0)) ||
-		(r = sd_journal_add_match(j, muid, 0)) ||
-		(r = sd_journal_add_match(j, "_UID=0", 0)));
+        if (r == 0 && endswith(unit, ".slice"))
+                /* Show all messages belonging to a slice */
+                (void) (
+                        (r = sd_journal_add_disjunction(j)) ||
+                        (r = journal_add_match_pair(j, "_SYSTEMD_USER_SLICE", unit)) ||
+                        (r = journal_add_matchf(j, "_UID="UID_FMT, uid))
+                );
 
-	if (r == 0 && endswith(unit, ".slice")) {
-		char *m5 = strappend("_SYSTEMD_SLICE=", unit);
-
-		/* Show all messages belonging to a slice */
-		(void)((r = sd_journal_add_disjunction(j)) ||
-			(r = sd_journal_add_match(j, m5, 0)) ||
-			(r = sd_journal_add_match(j, muid, 0)));
-	}
-
-	return r;
+        return r;
 }
 
 static int
@@ -1245,46 +1238,64 @@ add_match_this_boot(sd_journal *j, const char *machine)
 	return 0;
 }
 
-int
-show_journal_by_unit(FILE *f, const char *unit, OutputMode mode,
-	unsigned n_columns, usec_t not_before, unsigned how_many, uid_t uid,
-	OutputFlags flags, int journal_open_flags, bool system_unit,
-	bool *ellipsized)
-{
-	_cleanup_journal_close_ sd_journal *j = NULL;
-	int r;
+int show_journal_by_unit(
+                FILE *f,
+                const char *unit,
+                const char *log_namespace,
+                OutputMode mode,
+                unsigned n_columns,
+                usec_t not_before,
+                unsigned how_many,
+                OutputFlags flags,
+                int journal_open_flags,
+                bool system_unit,
+                bool *ellipsized) {
 
-	assert(mode >= 0);
-	assert(mode < _OUTPUT_MODE_MAX);
-	assert(unit);
+        _cleanup_(sd_journal_closep) sd_journal *j = NULL;
+        int r;
 
-	if (how_many <= 0)
-		return 0;
+        assert(mode >= 0);
+        assert(mode < _OUTPUT_MODE_MAX);
+        assert(unit);
 
-	r = sd_journal_open(&j, journal_open_flags);
-	if (r < 0)
-		return r;
+        if (how_many <= 0)
+                return 0;
 
-	r = add_match_this_boot(j, NULL);
-	if (r < 0)
-		return r;
+        r = sd_journal_open_namespace(&j, log_namespace,
+                                      journal_open_flags |
+                                      SD_JOURNAL_INCLUDE_DEFAULT_NAMESPACE |
+                                      SD_JOURNAL_ASSUME_IMMUTABLE);
+        if (r < 0)
+                return log_error_errno(r, "Failed to open journal: %m");
 
-	if (system_unit)
-		r = add_matches_for_unit(j, unit);
-	else
-		r = add_matches_for_user_unit(j, unit, uid);
-	if (r < 0)
-		return r;
+        if (system_unit)
+                r = add_matches_for_unit(j, unit);
+        else
+                r = add_matches_for_user_unit(j, unit);
+        if (r < 0)
+                return log_error_errno(r, "Failed to add unit matches: %m");
 
-	if (_unlikely_(log_get_max_level() >= LOG_DEBUG)) {
-		_cleanup_free_ char *filter;
+        r = sd_journal_add_conjunction(j);
+        if (r < 0)
+                return log_error_errno(r, "Failed to add conjunction: %m");
 
-		filter = journal_make_match_string(j);
-		log_debug("Journal filter: %s", filter);
-	}
+        r = add_match_this_boot(j, NULL);
+        if (r < 0)
+                return r;
 
-	return show_journal(f, j, mode, n_columns, not_before, how_many, flags,
-		ellipsized);
+#if 0
+        if (DEBUG_LOGGING) {
+                _cleanup_free_ char *filter = NULL;
+
+                filter = journal_make_match_string(j);
+                if (!filter)
+                        return log_oom();
+
+                log_debug("Journal filter: %s", filter);
+        }
+#endif
+
+        return show_journal(f, j, mode, n_columns, not_before, how_many, flags, ellipsized);
 }
 
 static const char *const output_mode_table[_OUTPUT_MODE_MAX] = {

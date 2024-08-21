@@ -19,6 +19,7 @@
 
 #include "alloc-util.h"
 #include "sd-bus-vtable.h"
+#include "string-util.h"
 #include "util.h"
 #include "xml.h"
 
