@@ -32,3 +32,5 @@ bool inotify_event_next(
                 size_t size,
                 struct inotify_event **iterator,
                 int log_level);
+
+int inotify_add_watch_fd(int fd, int what, uint32_t mask);

@@ -37,6 +37,7 @@
 #include "sd-daemon.h"
 #include "sd-id128.h"
 #include "set.h"
+#include "signal-util.h"
 #include "string-table.h"
 #include "strxcpyx.h"
 #include "time-util.h"
@@ -92,6 +93,19 @@ DEFINE_PRIVATE_STRING_TABLE_LOOKUP_TO_STRING(event_source_type, int);
 	IN_SET((t), SOURCE_TIME_REALTIME, SOURCE_TIME_BOOTTIME,                \
 		SOURCE_TIME_MONOTONIC, SOURCE_TIME_REALTIME_ALARM,             \
 		SOURCE_TIME_BOOTTIME_ALARM)
+
+#define EVENT_SOURCE_CAN_RATE_LIMIT(t)          \
+        IN_SET((t),                             \
+               SOURCE_IO,                       \
+               SOURCE_TIME_REALTIME,            \
+               SOURCE_TIME_BOOTTIME,            \
+               SOURCE_TIME_MONOTONIC,           \
+               SOURCE_TIME_REALTIME_ALARM,      \
+               SOURCE_TIME_BOOTTIME_ALARM,      \
+               SOURCE_SIGNAL,                   \
+               SOURCE_DEFER,                    \
+               SOURCE_INOTIFY,                  \
+               SOURCE_MEMORY_PRESSURE)
 
 /* All objects we use in epoll events start with this value, so that
  * we know how to dispatch it */
@@ -353,6 +367,8 @@ struct clock_data {
 
 // 	LIST_HEAD(sd_event_source, sources);
 // };
+
+#define EVENT_SOURCE_USES_TIME_PRIOQ(t) EVENT_SOURCE_CAN_RATE_LIMIT(t)
 
 struct sd_event {
         unsigned n_ref;
@@ -1290,6 +1306,19 @@ static void event_gc_signal_data(sd_event *e, const int64_t *priority, int sig) 
 // 	return 0;
 // }
 
+static void event_source_pp_prioq_reshuffle(sd_event_source *s) {
+        assert(s);
+
+        /* Reshuffles the pending + prepare prioqs. Called whenever the dispatch order changes, i.e. when
+         * they are enabled/disabled or marked pending and such. */
+
+        if (s->pending)
+                prioq_reshuffle(s->event->pending, s, &s->pending_index);
+
+        if (s->prepare)
+                prioq_reshuffle(s->event->prepare, s, &s->prepare_index);
+}
+
 static void event_source_time_prioq_reshuffle(sd_event_source *s) {
         struct clock_data *d;
 
@@ -1743,112 +1772,118 @@ static int setup_clock_data(sd_event *e, struct clock_data *d, clockid_t clock) 
         return 0;
 }
 
-_public_ int
-sd_event_add_time(sd_event *e, sd_event_source **ret, clockid_t clock,
-	uint64_t usec, uint64_t accuracy, sd_event_time_handler_t callback,
-	void *userdata)
-{
-	EventSourceType type;
-	sd_event_source *s;
-	struct clock_data *d;
-	int r;
+static int event_source_time_prioq_put(
+                sd_event_source *s,
+                struct clock_data *d) {
 
-	assert_return(e, -EINVAL);
-	assert_return(usec != (uint64_t)-1, -EINVAL);
-	assert_return(accuracy != (uint64_t)-1, -EINVAL);
-	assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
-	assert_return(!event_pid_changed(e), -ECHILD);
+        int r;
 
-	if (!callback)
-		callback = time_exit_callback;
+        assert(s);
+        assert(d);
+        assert(EVENT_SOURCE_USES_TIME_PRIOQ(s->type));
 
-	type = clock_to_event_source_type(clock);
-	assert_return(type >= 0, -ENOTSUP);
+        r = prioq_put(d->earliest, s, &s->earliest_index);
+        if (r < 0)
+                return r;
 
-	d = event_get_clock_data(e, type);
-	assert(d);
+        r = prioq_put(d->latest, s, &s->latest_index);
+        if (r < 0) {
+                assert_se(prioq_remove(d->earliest, s, &s->earliest_index) > 0);
+                s->earliest_index = PRIOQ_IDX_NULL;
+                return r;
+        }
 
-	if (!d->earliest) {
-		d->earliest = prioq_new(earliest_time_prioq_compare);
-		if (!d->earliest)
-			return -ENOMEM;
-	}
-
-	if (!d->latest) {
-		d->latest = prioq_new(latest_time_prioq_compare);
-		if (!d->latest)
-			return -ENOMEM;
-	}
-
-	if (d->fd < 0) {
-		r = event_setup_timer_fd(e, d, clock);
-		if (r < 0)
-			return r;
-	}
-
-	s = source_new(e, !ret, type);
-	if (!s)
-		return -ENOMEM;
-
-	s->time.next = usec;
-	s->time.accuracy = accuracy == 0 ? DEFAULT_ACCURACY_USEC : accuracy;
-	s->time.callback = callback;
-	s->time.earliest_index = s->time.latest_index = PRIOQ_IDX_NULL;
-	s->userdata = userdata;
-	s->enabled = SD_EVENT_ONESHOT;
-
-	d->needs_rearm = true;
-
-	r = prioq_put(d->earliest, s, &s->time.earliest_index);
-	if (r < 0)
-		goto fail;
-
-	r = prioq_put(d->latest, s, &s->time.latest_index);
-	if (r < 0)
-		goto fail;
-
-	if (ret)
-		*ret = s;
-
-	return 0;
-
-fail:
-	source_free(s);
-	return r;
+        d->needs_rearm = true;
+        return 0;
 }
 
-_public_ int
-sd_event_add_time_relative(sd_event *e, sd_event_source **ret, clockid_t clock,
-	uint64_t usec, uint64_t accuracy, sd_event_time_handler_t callback,
-	void *userdata)
-{
-	usec_t t;
-	int r;
+_public_ int sd_event_add_time(
+                sd_event *e,
+                sd_event_source **ret,
+                clockid_t clock,
+                uint64_t usec,
+                uint64_t accuracy,
+                sd_event_time_handler_t callback,
+                void *userdata) {
 
-	/*
-	 * Same as sd_event_add_time() but operates relative to the event loop's
-	 * time of last iteration, and checks for overflow.
-	 */
+        EventSourceType type;
+        _cleanup_(source_freep) sd_event_source *s = NULL;
+        struct clock_data *d;
+        int r;
 
-	r = sd_event_now(e, clock, &t);
-	if (r < 0)
-		return r;
+        assert_return(e, -EINVAL);
+        assert_return(e = event_resolve(e), -ENOPKG);
+        assert_return(accuracy != UINT64_MAX, -EINVAL);
+        assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
+        assert_return(!event_origin_changed(e), -ECHILD);
 
-	if (usec >= USEC_INFINITY - t)
-		return -EOVERFLOW;
+        if (!clock_supported(clock)) /* Checks whether the kernel supports the clock */
+                return -EOPNOTSUPP;
 
-	return sd_event_add_time(e, ret, clock, t + usec, accuracy, callback,
-		userdata);
+        type = clock_to_event_source_type(clock); /* checks whether sd-event supports this clock */
+        if (type < 0)
+                return -EOPNOTSUPP;
+
+        if (!callback)
+                callback = time_exit_callback;
+
+        assert_se(d = event_get_clock_data(e, type));
+
+        r = setup_clock_data(e, d, clock);
+        if (r < 0)
+                return r;
+
+        s = source_new(e, !ret, type);
+        if (!s)
+                return -ENOMEM;
+
+        s->time.next = usec;
+        s->time.accuracy = accuracy == 0 ? DEFAULT_ACCURACY_USEC : accuracy;
+        s->time.callback = callback;
+        s->earliest_index = s->latest_index = PRIOQ_IDX_NULL;
+        s->userdata = userdata;
+        s->enabled = SD_EVENT_ONESHOT;
+
+        r = event_source_time_prioq_put(s, d);
+        if (r < 0)
+                return r;
+
+        if (ret)
+                *ret = s;
+        TAKE_PTR(s);
+
+        return 0;
 }
 
-static int
-signal_exit_callback(sd_event_source *s, const struct signalfd_siginfo *si,
-	void *userdata)
-{
-	assert(s);
+_public_ int sd_event_add_time_relative(
+                sd_event *e,
+                sd_event_source **ret,
+                clockid_t clock,
+                uint64_t usec,
+                uint64_t accuracy,
+                sd_event_time_handler_t callback,
+                void *userdata) {
 
-	return sd_event_exit(sd_event_source_get_event(s),
-		PTR_TO_INT(userdata));
+        usec_t t;
+        int r;
+
+        /* Same as sd_event_add_time() but operates relative to the event loop's current point in time, and
+         * checks for overflow. */
+
+        r = sd_event_now(e, clock, &t);
+        if (r < 0)
+                return r;
+
+        if (usec >= USEC_INFINITY - t)
+                return -EOVERFLOW;
+
+        return sd_event_add_time(e, ret, clock, t + usec, accuracy, callback, userdata);
+}
+
+static int signal_exit_callback(sd_event_source *s, const struct signalfd_siginfo *si, void *userdata) {
+        assert(s);
+
+        return sd_event_exit(sd_event_source_get_event(s), PTR_TO_INT(userdata));
 }
 
 _public_ int sd_event_add_signal(
@@ -1949,173 +1984,345 @@ _public_ int sd_event_add_signal(
         return 0;
 }
 
-_public_ int
-sd_event_add_child(sd_event *e, sd_event_source **ret, pid_t pid, int options,
-	sd_event_child_handler_t callback, void *userdata)
-{
-	sd_event_source *s;
-	int r;
-	bool previous;
+static int child_exit_callback(sd_event_source *s, const siginfo_t *si, void *userdata) {
+        assert(s);
 
-	assert_return(e, -EINVAL);
-	assert_return(pid > 1, -EINVAL);
-	assert_return(!(options & ~(WEXITED | WSTOPPED | WCONTINUED)), -EINVAL);
-	assert_return(options != 0, -EINVAL);
-	assert_return(callback, -EINVAL);
-	assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
-	assert_return(!event_pid_changed(e), -ECHILD);
-
-	r = hashmap_ensure_allocated(&e->child_sources, NULL);
-	if (r < 0)
-		return r;
-
-	if (hashmap_contains(e->child_sources, INT_TO_PTR(pid)))
-		return -EBUSY;
-
-	previous = need_signal(e, SIGCHLD);
-
-	s = source_new(e, !ret, SOURCE_CHILD);
-	if (!s)
-		return -ENOMEM;
-
-	s->child.pid = pid;
-	s->child.options = options;
-	s->child.callback = callback;
-	s->userdata = userdata;
-	s->enabled = SD_EVENT_ONESHOT;
-
-	r = hashmap_put(e->child_sources, INT_TO_PTR(pid), s);
-	if (r < 0) {
-		source_free(s);
-		return r;
-	}
-
-	e->n_enabled_child_sources++;
-
-	if (!previous) {
-		assert_se(sigaddset(&e->sigset, SIGCHLD) == 0);
-
-		r = event_update_signal_fd(e);
-		if (r < 0) {
-			source_free(s);
-			return r;
-		}
-	}
-
-	e->need_process_child = true;
-
-	if (ret)
-		*ret = s;
-
-	return 0;
+        return sd_event_exit(sd_event_source_get_event(s), PTR_TO_INT(userdata));
 }
 
-_public_ int
-sd_event_add_defer(sd_event *e, sd_event_source **ret,
-	sd_event_handler_t callback, void *userdata)
-{
-	sd_event_source *s;
-	int r;
-
-	assert_return(e, -EINVAL);
-	assert_return(callback, -EINVAL);
-	assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
-	assert_return(!event_pid_changed(e), -ECHILD);
-
-	s = source_new(e, !ret, SOURCE_DEFER);
-	if (!s)
-		return -ENOMEM;
-
-	s->defer.callback = callback;
-	s->userdata = userdata;
-	s->enabled = SD_EVENT_ONESHOT;
-
-	r = source_set_pending(s, true);
-	if (r < 0) {
-		source_free(s);
-		return r;
-	}
-
-	if (ret)
-		*ret = s;
-
-	return 0;
+static bool shall_use_pidfd(void) {
+        /* Mostly relevant for debugging, i.e. this is used in test-event.c to test the event loop once with and once without pidfd */
+// HACK: Disable pidfd
+#if 0
+        return secure_getenv_bool("SYSTEMD_PIDFD") != 0;
+#else
+				return 0;
+#endif
 }
 
-_public_ int
-sd_event_add_post(sd_event *e, sd_event_source **ret,
-	sd_event_handler_t callback, void *userdata)
-{
-	sd_event_source *s;
-	int r;
+_public_ int sd_event_add_child(
+                sd_event *e,
+                sd_event_source **ret,
+                pid_t pid,
+                int options,
+                sd_event_child_handler_t callback,
+                void *userdata) {
 
-	assert_return(e, -EINVAL);
-	assert_return(callback, -EINVAL);
-	assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
-	assert_return(!event_pid_changed(e), -ECHILD);
+        _cleanup_(source_freep) sd_event_source *s = NULL;
+        int r;
 
-	r = set_ensure_allocated(&e->post_sources, NULL);
-	if (r < 0)
-		return r;
+        assert_return(e, -EINVAL);
+        assert_return(e = event_resolve(e), -ENOPKG);
+        assert_return(pid > 1, -EINVAL);
+        assert_return(!(options & ~(WEXITED|WSTOPPED|WCONTINUED)), -EINVAL);
+        assert_return(options != 0, -EINVAL);
+        assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
+        assert_return(!event_origin_changed(e), -ECHILD);
 
-	s = source_new(e, !ret, SOURCE_POST);
-	if (!s)
-		return -ENOMEM;
+        if (!callback)
+                callback = child_exit_callback;
 
-	s->post.callback = callback;
-	s->userdata = userdata;
-	s->enabled = SD_EVENT_ON;
+        if (e->n_online_child_sources == 0) {
+                /* Caller must block SIGCHLD before using us to watch children, even if pidfd is available,
+                 * for compatibility with pre-pidfd and because we don't want the reap the child processes
+                 * ourselves, i.e. call waitid(), and don't want Linux' default internal logic for that to
+                 * take effect.
+                 *
+                 * (As an optimization we only do this check on the first child event source created.) */
+                r = signal_is_blocked(SIGCHLD);
+                if (r < 0)
+                        return r;
+                if (r == 0)
+                        return -EBUSY;
+        }
 
-	r = set_put(e->post_sources, s);
-	if (r < 0) {
-		source_free(s);
-		return r;
-	}
+        r = hashmap_ensure_allocated(&e->child_sources, NULL);
+        if (r < 0)
+                return r;
 
-	if (ret)
-		*ret = s;
+        if (hashmap_contains(e->child_sources, PID_TO_PTR(pid)))
+                return -EBUSY;
 
-	return 0;
+        s = source_new(e, !ret, SOURCE_CHILD);
+        if (!s)
+                return -ENOMEM;
+
+        s->wakeup = WAKEUP_EVENT_SOURCE;
+        s->child.options = options;
+        s->child.callback = callback;
+        s->userdata = userdata;
+        s->enabled = SD_EVENT_ONESHOT;
+
+        /* We always take a pidfd here if we can, even if we wait for anything else than WEXITED, so that we
+         * pin the PID, and make regular waitid() handling race-free. */
+
+        if (shall_use_pidfd()) {
+                s->child.pidfd = pidfd_open(pid, 0);
+                if (s->child.pidfd < 0) {
+                        /* Propagate errors unless the syscall is not supported or blocked */
+                        if (!ERRNO_IS_NOT_SUPPORTED(errno) && !ERRNO_IS_PRIVILEGE(errno))
+                                return -errno;
+                } else
+                        s->child.pidfd_owned = true; /* If we allocate the pidfd we own it by default */
+        } else
+                s->child.pidfd = -EBADF;
+
+        if (EVENT_SOURCE_WATCH_PIDFD(s)) {
+                /* We have a pidfd and we only want to watch for exit */
+                r = source_child_pidfd_register(s, s->enabled);
+                if (r < 0)
+                        return r;
+
+        } else {
+                /* We have no pidfd or we shall wait for some other event than WEXITED */
+                r = event_make_signal_data(e, SIGCHLD, NULL);
+                if (r < 0)
+                        return r;
+
+                e->need_process_child = true;
+        }
+
+        r = hashmap_put(e->child_sources, PID_TO_PTR(pid), s);
+        if (r < 0)
+                return r;
+
+        /* These must be done after everything succeeds. */
+        s->child.pid = pid;
+        e->n_online_child_sources++;
+
+        if (ret)
+                *ret = s;
+        TAKE_PTR(s);
+        return 0;
 }
 
-_public_ int
-sd_event_add_exit(sd_event *e, sd_event_source **ret,
-	sd_event_handler_t callback, void *userdata)
-{
-	sd_event_source *s;
-	int r;
+static int generic_exit_callback(sd_event_source *s, void *userdata) {
+        assert(s);
 
-	assert_return(e, -EINVAL);
-	assert_return(callback, -EINVAL);
-	assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
-	assert_return(!event_pid_changed(e), -ECHILD);
-
-	if (!e->exit) {
-		e->exit = prioq_new(exit_prioq_compare);
-		if (!e->exit)
-			return -ENOMEM;
-	}
-
-	s = source_new(e, !ret, SOURCE_EXIT);
-	if (!s)
-		return -ENOMEM;
-
-	s->exit.callback = callback;
-	s->userdata = userdata;
-	s->exit.prioq_index = PRIOQ_IDX_NULL;
-	s->enabled = SD_EVENT_ONESHOT;
-
-	r = prioq_put(s->event->exit, s, &s->exit.prioq_index);
-	if (r < 0) {
-		source_free(s);
-		return r;
-	}
-
-	if (ret)
-		*ret = s;
-
-	return 0;
+        return sd_event_exit(sd_event_source_get_event(s), PTR_TO_INT(userdata));
 }
+
+_public_ int sd_event_add_defer(
+                sd_event *e,
+                sd_event_source **ret,
+                sd_event_handler_t callback,
+                void *userdata) {
+
+        _cleanup_(source_freep) sd_event_source *s = NULL;
+        int r;
+
+        assert_return(e, -EINVAL);
+        assert_return(e = event_resolve(e), -ENOPKG);
+        assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
+        assert_return(!event_origin_changed(e), -ECHILD);
+
+        if (!callback)
+                callback = generic_exit_callback;
+
+        s = source_new(e, !ret, SOURCE_DEFER);
+        if (!s)
+                return -ENOMEM;
+
+        s->defer.callback = callback;
+        s->userdata = userdata;
+        s->enabled = SD_EVENT_ONESHOT;
+
+        r = source_set_pending(s, true);
+        if (r < 0)
+                return r;
+
+        if (ret)
+                *ret = s;
+        TAKE_PTR(s);
+
+        return 0;
+}
+
+_public_ int sd_event_add_post(
+                sd_event *e,
+                sd_event_source **ret,
+                sd_event_handler_t callback,
+                void *userdata) {
+
+        _cleanup_(source_freep) sd_event_source *s = NULL;
+        int r;
+
+        assert_return(e, -EINVAL);
+        assert_return(e = event_resolve(e), -ENOPKG);
+        assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
+        assert_return(!event_origin_changed(e), -ECHILD);
+
+        if (!callback)
+                callback = generic_exit_callback;
+
+        s = source_new(e, !ret, SOURCE_POST);
+        if (!s)
+                return -ENOMEM;
+
+        s->post.callback = callback;
+        s->userdata = userdata;
+        s->enabled = SD_EVENT_ON;
+
+        r = set_ensure_put(&e->post_sources, NULL, s);
+        if (r < 0)
+                return r;
+        assert(r > 0);
+
+        if (ret)
+                *ret = s;
+        TAKE_PTR(s);
+
+        return 0;
+}
+
+_public_ int sd_event_add_exit(
+                sd_event *e,
+                sd_event_source **ret,
+                sd_event_handler_t callback,
+                void *userdata) {
+
+        _cleanup_(source_freep) sd_event_source *s = NULL;
+        int r;
+
+        assert_return(e, -EINVAL);
+        assert_return(e = event_resolve(e), -ENOPKG);
+        assert_return(callback, -EINVAL);
+        assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
+        assert_return(!event_origin_changed(e), -ECHILD);
+
+        r = prioq_ensure_allocated(&e->exit, exit_prioq_compare);
+        if (r < 0)
+                return r;
+
+        s = source_new(e, !ret, SOURCE_EXIT);
+        if (!s)
+                return -ENOMEM;
+
+        s->exit.callback = callback;
+        s->userdata = userdata;
+        s->exit.prioq_index = PRIOQ_IDX_NULL;
+        s->enabled = SD_EVENT_ONESHOT;
+
+        r = prioq_put(s->event->exit, s, &s->exit.prioq_index);
+        if (r < 0)
+                return r;
+
+        if (ret)
+                *ret = s;
+        TAKE_PTR(s);
+
+        return 0;
+}
+
+static void event_free_inotify_data(sd_event *e, struct inotify_data *d) {
+        assert(e);
+
+        if (!d)
+                return;
+
+        assert(hashmap_isempty(d->inodes));
+        assert(hashmap_isempty(d->wd));
+
+        if (d->buffer_filled > 0)
+                LIST_REMOVE(buffered, e->buffered_inotify_data_list, d);
+
+        hashmap_free(d->inodes);
+        hashmap_free(d->wd);
+
+        assert_se(hashmap_remove(e->inotify_data, &d->priority) == d);
+
+        if (d->fd >= 0) {
+                if (!event_origin_changed(e) &&
+                    epoll_ctl(e->epoll_fd, EPOLL_CTL_DEL, d->fd, NULL) < 0)
+                        log_debug_errno(errno, "Failed to remove inotify fd from epoll, ignoring: %m");
+
+                safe_close(d->fd);
+        }
+        free(d);
+}
+
+static int event_make_inotify_data(
+                sd_event *e,
+                int64_t priority,
+                struct inotify_data **ret) {
+
+        _cleanup_close_ int fd = -EBADF;
+        struct inotify_data *d;
+        int r;
+
+        assert(e);
+
+        d = hashmap_get(e->inotify_data, &priority);
+        if (d) {
+                if (ret)
+                        *ret = d;
+                return 0;
+        }
+
+        fd = inotify_init1(IN_NONBLOCK|O_CLOEXEC);
+        if (fd < 0)
+                return -errno;
+
+        fd = fd_move_above_stdio(fd);
+
+        d = new(struct inotify_data, 1);
+        if (!d)
+                return -ENOMEM;
+
+        *d = (struct inotify_data) {
+                .wakeup = WAKEUP_INOTIFY_DATA,
+                .fd = TAKE_FD(fd),
+                .priority = priority,
+        };
+
+        r = hashmap_ensure_put(&e->inotify_data, &uint64_hash_ops, &d->priority, d);
+        if (r < 0) {
+                d->fd = safe_close(d->fd);
+                free(d);
+                return r;
+        }
+
+        struct epoll_event ev = {
+                .events = EPOLLIN,
+                .data.ptr = d,
+        };
+
+        if (epoll_ctl(e->epoll_fd, EPOLL_CTL_ADD, d->fd, &ev) < 0) {
+                r = -errno;
+                d->fd = safe_close(d->fd); /* let's close this ourselves, as event_free_inotify_data() would otherwise
+                                            * remove the fd from the epoll first, which we don't want as we couldn't
+                                            * add it in the first place. */
+                event_free_inotify_data(e, d);
+                return r;
+        }
+
+        if (ret)
+                *ret = d;
+
+        return 1;
+}
+
+static int inode_data_compare(const struct inode_data *x, const struct inode_data *y) {
+        int r;
+
+        assert(x);
+        assert(y);
+
+        r = CMP(x->dev, y->dev);
+        if (r != 0)
+                return r;
+
+        return CMP(x->ino, y->ino);
+}
+
+static void inode_data_hash_func(const struct inode_data *d, struct siphash *state) {
+        assert(d);
+
+        siphash24_compress_typesafe(d->dev, state);
+        siphash24_compress_typesafe(d->ino, state);
+}
+
+DEFINE_PRIVATE_HASH_OPS(inode_data_hash_ops, struct inode_data, inode_data_hash_func, inode_data_compare);
 
 _public_ sd_event_source *
 sd_event_source_ref(sd_event_source *s)
@@ -2240,92 +2447,200 @@ static void event_gc_inode_data(
         event_gc_inotify_data(e, inotify_data);
 }
 
-_public_ int
-sd_event_source_set_description(sd_event_source *s, const char *description)
-{
-	assert_return(s, -EINVAL);
-	assert_return(!event_pid_changed(s->event), -ECHILD);
+static int event_make_inode_data(
+                sd_event *e,
+                struct inotify_data *inotify_data,
+                dev_t dev,
+                ino_t ino,
+                struct inode_data **ret) {
 
-	return free_and_strdup(&s->description, description);
+        struct inode_data *d, key;
+        int r;
+
+        assert(e);
+        assert(inotify_data);
+
+        key = (struct inode_data) {
+                .ino = ino,
+                .dev = dev,
+        };
+
+        d = hashmap_get(inotify_data->inodes, &key);
+        if (d) {
+                if (ret)
+                        *ret = d;
+
+                return 0;
+        }
+
+        r = hashmap_ensure_allocated(&inotify_data->inodes, &inode_data_hash_ops);
+        if (r < 0)
+                return r;
+
+        d = new(struct inode_data, 1);
+        if (!d)
+                return -ENOMEM;
+
+        *d = (struct inode_data) {
+                .dev = dev,
+                .ino = ino,
+                .wd = -1,
+                .fd = -EBADF,
+                .inotify_data = inotify_data,
+        };
+
+        r = hashmap_put(inotify_data->inodes, d, d);
+        if (r < 0) {
+                free(d);
+                return r;
+        }
+
+        if (ret)
+                *ret = d;
+
+        return 1;
 }
 
-_public_ int
-sd_event_source_get_description(sd_event_source *s, const char **description)
-{
-	assert_return(s, -EINVAL);
-	assert_return(description, -EINVAL);
-	assert_return(s->description, -ENXIO);
-	assert_return(!event_pid_changed(s->event), -ECHILD);
+static uint32_t inode_data_determine_mask(struct inode_data *d) {
+        bool excl_unlink = true;
+        uint32_t combined = 0;
 
-	*description = s->description;
-	return 0;
+        assert(d);
+
+        /* Combines the watch masks of all event sources watching this inode. We generally just OR them together, but
+         * the IN_EXCL_UNLINK flag is ANDed instead.
+         *
+         * Note that we add all sources to the mask here, regardless whether enabled, disabled or oneshot. That's
+         * because we cannot change the mask anymore after the event source was created once, since the kernel has no
+         * API for that. Hence we need to subscribe to the maximum mask we ever might be interested in, and suppress
+         * events we don't care for client-side. */
+
+        LIST_FOREACH(inotify.by_inode_data, s, d->event_sources) {
+
+                if ((s->inotify.mask & IN_EXCL_UNLINK) == 0)
+                        excl_unlink = false;
+
+                combined |= s->inotify.mask;
+        }
+
+        return (combined & ~(IN_ONESHOT|IN_DONT_FOLLOW|IN_ONLYDIR|IN_EXCL_UNLINK)) | (excl_unlink ? IN_EXCL_UNLINK : 0);
 }
 
-_public_ sd_event *
-sd_event_source_get_event(sd_event_source *s)
-{
-	assert_return(s, NULL);
+static int inode_data_realize_watch(sd_event *e, struct inode_data *d) {
+        uint32_t combined_mask;
+        int wd, r;
 
-	return s->event;
+        assert(d);
+        assert(d->fd >= 0);
+
+        combined_mask = inode_data_determine_mask(d);
+
+        if (d->wd >= 0 && combined_mask == d->combined_mask)
+                return 0;
+
+        r = hashmap_ensure_allocated(&d->inotify_data->wd, NULL);
+        if (r < 0)
+                return r;
+
+        wd = inotify_add_watch_fd(d->inotify_data->fd, d->fd, combined_mask);
+        if (wd < 0)
+                return wd;
+
+        if (d->wd < 0) {
+                r = hashmap_put(d->inotify_data->wd, INT_TO_PTR(wd), d);
+                if (r < 0) {
+                        (void) inotify_rm_watch(d->inotify_data->fd, wd);
+                        return r;
+                }
+
+                d->wd = wd;
+
+        } else if (d->wd != wd) {
+
+                log_debug("Weird, the watch descriptor we already knew for this inode changed?");
+                (void) inotify_rm_watch(d->fd, wd);
+                return -EINVAL;
+        }
+
+        d->combined_mask = combined_mask;
+        return 1;
 }
 
-_public_ int
-sd_event_source_get_pending(sd_event_source *s)
-{
-	assert_return(s, -EINVAL);
-	assert_return(s->type != SOURCE_EXIT, -EDOM);
-	assert_return(s->event->state != SD_EVENT_FINISHED, -ESTALE);
-	assert_return(!event_pid_changed(s->event), -ECHILD);
+_public_ int sd_event_source_set_description(sd_event_source *s, const char *description) {
+        assert_return(s, -EINVAL);
+        assert_return(!event_origin_changed(s->event), -ECHILD);
 
-	return s->pending;
+        return free_and_strdup(&s->description, description);
 }
 
-_public_ int
-sd_event_source_get_io_fd(sd_event_source *s)
-{
-	assert_return(s, -EINVAL);
-	assert_return(s->type == SOURCE_IO, -EDOM);
-	assert_return(!event_pid_changed(s->event), -ECHILD);
+_public_ int sd_event_source_get_description(sd_event_source *s, const char **description) {
+        assert_return(s, -EINVAL);
+        assert_return(description, -EINVAL);
 
-	return s->io.fd;
+        if (!s->description)
+                return -ENXIO;
+
+        *description = s->description;
+        return 0;
 }
 
-_public_ int
-sd_event_source_set_io_fd(sd_event_source *s, int fd)
-{
-	int r;
+_public_ sd_event *sd_event_source_get_event(sd_event_source *s) {
+        assert_return(s, NULL);
+        assert_return(!event_origin_changed(s->event), NULL);
 
-	assert_return(s, -EINVAL);
-	assert_return(fd >= 0, -EINVAL);
-	assert_return(s->type == SOURCE_IO, -EDOM);
-	assert_return(!event_pid_changed(s->event), -ECHILD);
+        return s->event;
+}
 
-	if (s->io.fd == fd)
-		return 0;
+_public_ int sd_event_source_get_pending(sd_event_source *s) {
+        assert_return(s, -EINVAL);
+        assert_return(s->type != SOURCE_EXIT, -EDOM);
+        assert_return(s->event->state != SD_EVENT_FINISHED, -ESTALE);
+        assert_return(!event_origin_changed(s->event), -ECHILD);
 
-	if (s->enabled == SD_EVENT_OFF) {
-		s->io.fd = fd;
-		s->io.registered = false;
-	} else {
-		int saved_fd;
+        return s->pending;
+}
 
-		saved_fd = s->io.fd;
-		assert(s->io.registered);
+_public_ int sd_event_source_get_io_fd(sd_event_source *s) {
+        assert_return(s, -EINVAL);
+        assert_return(s->type == SOURCE_IO, -EDOM);
+        assert_return(!event_origin_changed(s->event), -ECHILD);
 
-		s->io.fd = fd;
-		s->io.registered = false;
+        return s->io.fd;
+}
 
-		r = source_io_register(s, s->enabled, s->io.events);
-		if (r < 0) {
-			s->io.fd = saved_fd;
-			s->io.registered = true;
-			return r;
-		}
+_public_ int sd_event_source_set_io_fd(sd_event_source *s, int fd) {
+        int saved_fd, r;
 
-		epoll_ctl(s->event->epoll_fd, EPOLL_CTL_DEL, saved_fd, NULL);
-	}
+        assert_return(s, -EINVAL);
+        assert_return(fd >= 0, -EBADF);
+        assert_return(s->type == SOURCE_IO, -EDOM);
+        assert_return(!event_origin_changed(s->event), -ECHILD);
 
-	return 0;
+        if (s->io.fd == fd)
+                return 0;
+
+        saved_fd = s->io.fd;
+        s->io.fd = fd;
+
+        assert(event_source_is_offline(s) == !s->io.registered);
+
+        if (s->io.registered) {
+                s->io.registered = false;
+
+                r = source_io_register(s, s->enabled, s->io.events);
+                if (r < 0) {
+                        s->io.fd = saved_fd;
+                        s->io.registered = true;
+                        return r;
+                }
+
+                (void) epoll_ctl(s->event->epoll_fd, EPOLL_CTL_DEL, saved_fd, NULL);
+        }
+
+        if (s->io.owned)
+                safe_close(saved_fd);
+
+        return 0;
 }
 
 _public_ int sd_event_source_get_io_events(sd_event_source *s, uint32_t* events) {
@@ -2692,322 +3007,154 @@ static int event_source_online(
         return 1;
 }
 
-_public_ int
-sd_event_source_set_enabled(sd_event_source *s, int m)
-{
-	int r;
+_public_ int sd_event_source_set_enabled(sd_event_source *s, int m) {
+        int r;
 
-	assert_return(s, -EINVAL);
-	assert_return(m == SD_EVENT_OFF || m == SD_EVENT_ON ||
-			m == SD_EVENT_ONESHOT,
-		-EINVAL);
-	assert_return(!event_pid_changed(s->event), -ECHILD);
+        assert_return(IN_SET(m, SD_EVENT_OFF, SD_EVENT_ON, SD_EVENT_ONESHOT), -EINVAL);
 
-	/* If we are dead anyway, we are fine with turning off
-         * sources, but everything else needs to fail. */
-	if (s->event->state == SD_EVENT_FINISHED)
-		return m == SD_EVENT_OFF ? 0 : -ESTALE;
+        /* Quick mode: if the source doesn't exist, SD_EVENT_OFF is a noop. */
+        if (m == SD_EVENT_OFF && !s)
+                return 0;
 
-	if (s->enabled == m)
-		return 0;
+        assert_return(s, -EINVAL);
+        assert_return(!event_origin_changed(s->event), -ECHILD);
 
-	if (m == SD_EVENT_OFF) {
-		switch (s->type) {
-		case SOURCE_IO:
-			r = source_io_unregister(s);
-			if (r < 0)
-				return r;
+        /* If we are dead anyway, we are fine with turning off sources, but everything else needs to fail. */
+        if (s->event->state == SD_EVENT_FINISHED)
+                return m == SD_EVENT_OFF ? 0 : -ESTALE;
 
-			s->enabled = m;
-			break;
+        if (s->enabled == m) /* No change? */
+                return 0;
 
-		case SOURCE_TIME_REALTIME:
-		case SOURCE_TIME_BOOTTIME:
-		case SOURCE_TIME_MONOTONIC:
-		case SOURCE_TIME_REALTIME_ALARM:
-		case SOURCE_TIME_BOOTTIME_ALARM: {
-			struct clock_data *d;
+        if (m == SD_EVENT_OFF)
+                r = event_source_offline(s, m, s->ratelimited);
+        else {
+                if (s->enabled != SD_EVENT_OFF) {
+                        /* Switching from "on" to "oneshot" or back? If that's the case, we can take a shortcut, the
+                         * event source is already enabled after all. */
+                        s->enabled = m;
+                        return 0;
+                }
 
-			s->enabled = m;
-			d = event_get_clock_data(s->event, s->type);
-			assert(d);
+                r = event_source_online(s, m, s->ratelimited);
+        }
+        if (r < 0)
+                return r;
 
-			prioq_reshuffle(d->earliest, s,
-				&s->time.earliest_index);
-			prioq_reshuffle(d->latest, s, &s->time.latest_index);
-			d->needs_rearm = true;
-			break;
-		}
-
-		case SOURCE_SIGNAL:
-			assert(need_signal(s->event, s->signal.sig));
-
-			s->enabled = m;
-
-			if (!need_signal(s->event, s->signal.sig)) {
-				assert_se(sigdelset(&s->event->sigset,
-						  s->signal.sig) == 0);
-
-				(void)event_update_signal_fd(s->event);
-				/* If disabling failed, we might get a spurious event,
-                                 * but otherwise nothing bad should happen. */
-			}
-
-			break;
-
-		case SOURCE_CHILD:
-			assert(need_signal(s->event, SIGCHLD));
-
-			s->enabled = m;
-
-			assert(s->event->n_enabled_child_sources > 0);
-			s->event->n_enabled_child_sources--;
-
-			if (!need_signal(s->event, SIGCHLD)) {
-				assert_se(sigdelset(&s->event->sigset,
-						  SIGCHLD) == 0);
-
-				(void)event_update_signal_fd(s->event);
-			}
-
-			break;
-
-		case SOURCE_EXIT:
-			s->enabled = m;
-			prioq_reshuffle(s->event->exit, s,
-				&s->exit.prioq_index);
-			break;
-
-		case SOURCE_DEFER:
-		case SOURCE_POST:
-			s->enabled = m;
-			break;
-
-		default:
-			assert_not_reached();
-		}
-
-	} else {
-		switch (s->type) {
-		case SOURCE_IO:
-			r = source_io_register(s, m, s->io.events);
-			if (r < 0)
-				return r;
-
-			s->enabled = m;
-			break;
-
-		case SOURCE_TIME_REALTIME:
-		case SOURCE_TIME_BOOTTIME:
-		case SOURCE_TIME_MONOTONIC:
-		case SOURCE_TIME_REALTIME_ALARM:
-		case SOURCE_TIME_BOOTTIME_ALARM: {
-			struct clock_data *d;
-
-			s->enabled = m;
-			d = event_get_clock_data(s->event, s->type);
-			assert(d);
-
-			prioq_reshuffle(d->earliest, s,
-				&s->time.earliest_index);
-			prioq_reshuffle(d->latest, s, &s->time.latest_index);
-			d->needs_rearm = true;
-			break;
-		}
-
-		case SOURCE_SIGNAL:
-			/* Check status before enabling. */
-			if (!need_signal(s->event, s->signal.sig)) {
-				assert_se(sigaddset(&s->event->sigset,
-						  s->signal.sig) == 0);
-
-				r = event_update_signal_fd(s->event);
-				if (r < 0) {
-					s->enabled = SD_EVENT_OFF;
-					return r;
-				}
-			}
-
-			s->enabled = m;
-			break;
-
-		case SOURCE_CHILD:
-			/* Check status before enabling. */
-			if (s->enabled == SD_EVENT_OFF) {
-				if (!need_signal(s->event, SIGCHLD)) {
-					assert_se(sigaddset(&s->event->sigset,
-							  s->signal.sig) == 0);
-
-					r = event_update_signal_fd(s->event);
-					if (r < 0) {
-						s->enabled = SD_EVENT_OFF;
-						return r;
-					}
-				}
-
-				s->event->n_enabled_child_sources++;
-			}
-
-			s->enabled = m;
-			break;
-
-		case SOURCE_EXIT:
-			s->enabled = m;
-			prioq_reshuffle(s->event->exit, s,
-				&s->exit.prioq_index);
-			break;
-
-		case SOURCE_DEFER:
-		case SOURCE_POST:
-			s->enabled = m;
-			break;
-
-		default:
-			assert_not_reached();
-		}
-	}
-
-	if (s->pending)
-		prioq_reshuffle(s->event->pending, s, &s->pending_index);
-
-	if (s->prepare)
-		prioq_reshuffle(s->event->prepare, s, &s->prepare_index);
-
-	return 0;
+        event_source_pp_prioq_reshuffle(s);
+        return 0;
 }
 
-_public_ int
-sd_event_source_get_time(sd_event_source *s, uint64_t *usec)
-{
-	assert_return(s, -EINVAL);
-	assert_return(usec, -EINVAL);
-	assert_return(EVENT_SOURCE_IS_TIME(s->type), -EDOM);
-	assert_return(!event_pid_changed(s->event), -ECHILD);
+_public_ int sd_event_source_get_time(sd_event_source *s, uint64_t *usec) {
+        assert_return(s, -EINVAL);
+        assert_return(usec, -EINVAL);
+        assert_return(EVENT_SOURCE_IS_TIME(s->type), -EDOM);
+        assert_return(!event_origin_changed(s->event), -ECHILD);
 
-	*usec = s->time.next;
-	return 0;
+        *usec = s->time.next;
+        return 0;
 }
 
-_public_ int
-sd_event_source_set_time(sd_event_source *s, uint64_t usec)
-{
-	struct clock_data *d;
+_public_ int sd_event_source_set_time(sd_event_source *s, uint64_t usec) {
+        int r;
 
-	assert_return(s, -EINVAL);
-	assert_return(usec != (uint64_t)-1, -EINVAL);
-	assert_return(EVENT_SOURCE_IS_TIME(s->type), -EDOM);
-	assert_return(s->event->state != SD_EVENT_FINISHED, -ESTALE);
-	assert_return(!event_pid_changed(s->event), -ECHILD);
+        assert_return(s, -EINVAL);
+        assert_return(EVENT_SOURCE_IS_TIME(s->type), -EDOM);
+        assert_return(s->event->state != SD_EVENT_FINISHED, -ESTALE);
+        assert_return(!event_origin_changed(s->event), -ECHILD);
 
-	s->time.next = usec;
+        r = source_set_pending(s, false);
+        if (r < 0)
+                return r;
 
-	source_set_pending(s, false);
+        s->time.next = usec;
 
-	d = event_get_clock_data(s->event, s->type);
-	assert(d);
-
-	prioq_reshuffle(d->earliest, s, &s->time.earliest_index);
-	prioq_reshuffle(d->latest, s, &s->time.latest_index);
-	d->needs_rearm = true;
-
-	return 0;
+        event_source_time_prioq_reshuffle(s);
+        return 0;
 }
 
-_public_ int
-sd_event_source_get_time_accuracy(sd_event_source *s, uint64_t *usec)
-{
-	assert_return(s, -EINVAL);
-	assert_return(usec, -EINVAL);
-	assert_return(EVENT_SOURCE_IS_TIME(s->type), -EDOM);
-	assert_return(!event_pid_changed(s->event), -ECHILD);
+_public_ int sd_event_source_get_time_accuracy(sd_event_source *s, uint64_t *usec) {
+        assert_return(s, -EINVAL);
+        assert_return(usec, -EINVAL);
+        assert_return(EVENT_SOURCE_IS_TIME(s->type), -EDOM);
+        assert_return(!event_origin_changed(s->event), -ECHILD);
 
-	*usec = s->time.accuracy;
-	return 0;
+        *usec = s->time.accuracy;
+        return 0;
 }
 
-_public_ int
-sd_event_source_set_time_accuracy(sd_event_source *s, uint64_t usec)
-{
-	struct clock_data *d;
+_public_ int sd_event_source_set_time_accuracy(sd_event_source *s, uint64_t usec) {
+        int r;
 
-	assert_return(s, -EINVAL);
-	assert_return(usec != (uint64_t)-1, -EINVAL);
-	assert_return(EVENT_SOURCE_IS_TIME(s->type), -EDOM);
-	assert_return(s->event->state != SD_EVENT_FINISHED, -ESTALE);
-	assert_return(!event_pid_changed(s->event), -ECHILD);
+        assert_return(s, -EINVAL);
+        assert_return(usec != UINT64_MAX, -EINVAL);
+        assert_return(EVENT_SOURCE_IS_TIME(s->type), -EDOM);
+        assert_return(s->event->state != SD_EVENT_FINISHED, -ESTALE);
+        assert_return(!event_origin_changed(s->event), -ECHILD);
 
-	if (usec == 0)
-		usec = DEFAULT_ACCURACY_USEC;
+        r = source_set_pending(s, false);
+        if (r < 0)
+                return r;
 
-	s->time.accuracy = usec;
+        if (usec == 0)
+                usec = DEFAULT_ACCURACY_USEC;
 
-	source_set_pending(s, false);
+        s->time.accuracy = usec;
 
-	d = event_get_clock_data(s->event, s->type);
-	assert(d);
-
-	prioq_reshuffle(d->latest, s, &s->time.latest_index);
-	d->needs_rearm = true;
-
-	return 0;
+        event_source_time_prioq_reshuffle(s);
+        return 0;
 }
 
-_public_ int
-sd_event_source_get_time_clock(sd_event_source *s, clockid_t *clock)
-{
-	assert_return(s, -EINVAL);
-	assert_return(clock, -EINVAL);
-	assert_return(EVENT_SOURCE_IS_TIME(s->type), -EDOM);
-	assert_return(!event_pid_changed(s->event), -ECHILD);
+_public_ int sd_event_source_get_time_clock(sd_event_source *s, clockid_t *clock) {
+        assert_return(s, -EINVAL);
+        assert_return(clock, -EINVAL);
+        assert_return(EVENT_SOURCE_IS_TIME(s->type), -EDOM);
+        assert_return(!event_origin_changed(s->event), -ECHILD);
 
-	*clock = event_source_type_to_clock(s->type);
-	return 0;
+        *clock = event_source_type_to_clock(s->type);
+        return 0;
 }
 
-_public_ int
-sd_event_source_get_child_pid(sd_event_source *s, pid_t *pid)
-{
-	assert_return(s, -EINVAL);
-	assert_return(pid, -EINVAL);
-	assert_return(s->type == SOURCE_CHILD, -EDOM);
-	assert_return(!event_pid_changed(s->event), -ECHILD);
+_public_ int sd_event_source_get_child_pid(sd_event_source *s, pid_t *pid) {
+        assert_return(s, -EINVAL);
+        assert_return(pid, -EINVAL);
+        assert_return(s->type == SOURCE_CHILD, -EDOM);
+        assert_return(!event_origin_changed(s->event), -ECHILD);
 
-	*pid = s->child.pid;
-	return 0;
+        *pid = s->child.pid;
+        return 0;
 }
 
-_public_ int
-sd_event_source_set_prepare(sd_event_source *s, sd_event_handler_t callback)
-{
-	int r;
+_public_ int sd_event_source_set_prepare(sd_event_source *s, sd_event_handler_t callback) {
+        int r;
 
-	assert_return(s, -EINVAL);
-	assert_return(s->type != SOURCE_EXIT, -EDOM);
-	assert_return(s->event->state != SD_EVENT_FINISHED, -ESTALE);
-	assert_return(!event_pid_changed(s->event), -ECHILD);
+        assert_return(s, -EINVAL);
+        assert_return(s->type != SOURCE_EXIT, -EDOM);
+        assert_return(s->event->state != SD_EVENT_FINISHED, -ESTALE);
+        assert_return(!event_origin_changed(s->event), -ECHILD);
 
-	if (s->prepare == callback)
-		return 0;
+        if (s->prepare == callback)
+                return 0;
 
-	if (callback && s->prepare) {
-		s->prepare = callback;
-		return 0;
-	}
+        if (callback && s->prepare) {
+                s->prepare = callback;
+                return 0;
+        }
 
-	r = prioq_ensure_allocated(&s->event->prepare, prepare_prioq_compare);
-	if (r < 0)
-		return r;
+        r = prioq_ensure_allocated(&s->event->prepare, prepare_prioq_compare);
+        if (r < 0)
+                return r;
 
-	s->prepare = callback;
+        s->prepare = callback;
 
-	if (callback) {
-		r = prioq_put(s->event->prepare, s, &s->prepare_index);
-		if (r < 0)
-			return r;
-	} else
-		prioq_remove(s->event->prepare, s, &s->prepare_index);
+        if (callback) {
+                r = prioq_put(s->event->prepare, s, &s->prepare_index);
+                if (r < 0)
+                        return r;
+        } else
+                prioq_remove(s->event->prepare, s, &s->prepare_index);
 
-	return 0;
+        return 0;
 }
 
 _public_ void* sd_event_source_get_userdata(sd_event_source *s) {
@@ -4066,104 +4213,154 @@ event_next_pending(sd_event *e)
 	return p;
 }
 
-static int
-arm_watchdog(sd_event *e)
-{
-	struct itimerspec its = {};
-	usec_t t;
-	int r;
+static int arm_watchdog(sd_event *e) {
+        struct itimerspec its = {};
+        usec_t t;
 
-	assert(e);
-	assert(e->watchdog_fd >= 0);
+        assert(e);
+        assert(e->watchdog_fd >= 0);
 
-	t = sleep_between(e, e->watchdog_last + (e->watchdog_period / 2),
-		e->watchdog_last + (e->watchdog_period * 3 / 4));
+        t = sleep_between(e,
+                          usec_add(e->watchdog_last, (e->watchdog_period / 2)),
+                          usec_add(e->watchdog_last, (e->watchdog_period * 3 / 4)));
 
-	timespec_store(&its.it_value, t);
+        timespec_store(&its.it_value, t);
 
-	/* Make sure we never set the watchdog to 0, which tells the
+        /* Make sure we never set the watchdog to 0, which tells the
          * kernel to disable it. */
-	if (its.it_value.tv_sec == 0 && its.it_value.tv_nsec == 0)
-		its.it_value.tv_nsec = 1;
+        if (its.it_value.tv_sec == 0 && its.it_value.tv_nsec == 0)
+                its.it_value.tv_nsec = 1;
 
-	r = timerfd_settime(e->watchdog_fd, TFD_TIMER_ABSTIME, &its, NULL);
-	if (r < 0)
-		return -errno;
-
-	return 0;
+        return RET_NERRNO(timerfd_settime(e->watchdog_fd, TFD_TIMER_ABSTIME, &its, NULL));
 }
 
-static int
-process_watchdog(sd_event *e)
-{
-	assert(e);
+static int process_watchdog(sd_event *e) {
+        assert(e);
 
-	if (!e->watchdog)
-		return 0;
+        if (!e->watchdog)
+                return 0;
 
-	/* Don't notify watchdog too often */
-	if (e->watchdog_last + e->watchdog_period / 4 > e->timestamp.monotonic)
-		return 0;
+        /* Don't notify watchdog too often */
+        if (e->watchdog_last + e->watchdog_period / 4 > e->timestamp.monotonic)
+                return 0;
 
-	sd_notify(false, "WATCHDOG=1");
-	e->watchdog_last = e->timestamp.monotonic;
+        sd_notify(false, "WATCHDOG=1");
+        e->watchdog_last = e->timestamp.monotonic;
 
-	return arm_watchdog(e);
+        return arm_watchdog(e);
 }
 
-_public_ int
-sd_event_prepare(sd_event *e)
-{
-	int r;
+static void event_close_inode_data_fds(sd_event *e) {
+        struct inode_data *d;
 
-	assert_return(e, -EINVAL);
-	assert_return(!event_pid_changed(e), -ECHILD);
-	assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
-	assert_return(e->state == SD_EVENT_INITIAL, -EBUSY);
+        assert(e);
 
-	if (e->exit_requested)
-		goto pending;
+        /* Close the fds pointing to the inodes to watch now. We need to close them as they might otherwise pin
+         * filesystems. But we can't close them right-away as we need them as long as the user still wants to make
+         * adjustments to the event source, such as changing the priority (which requires us to remove and re-add a watch
+         * for the inode). Hence, let's close them when entering the first iteration after they were added, as a
+         * compromise. */
 
-	e->iteration++;
+        while ((d = e->inode_data_to_close_list)) {
+                assert(d->fd >= 0);
+                d->fd = safe_close(d->fd);
 
-	r = event_prepare(e);
-	if (r < 0)
-		return r;
+                LIST_REMOVE(to_close, e->inode_data_to_close_list, d);
+        }
+}
 
-	r = event_arm_timer(e, &e->realtime);
-	if (r < 0)
-		return r;
+static int event_memory_pressure_write_list(sd_event *e) {
+        int r;
 
-	r = event_arm_timer(e, &e->boottime);
-	if (r < 0)
-		return r;
+        assert(e);
 
-	r = event_arm_timer(e, &e->monotonic);
-	if (r < 0)
-		return r;
+        for (;;) {
+                sd_event_source *s;
 
-	r = event_arm_timer(e, &e->realtime_alarm);
-	if (r < 0)
-		return r;
+                s = LIST_POP(memory_pressure.write_list, e->memory_pressure_write_list);
+                if (!s)
+                        break;
 
-	r = event_arm_timer(e, &e->boottime_alarm);
-	if (r < 0)
-		return r;
+                assert(s->type == SOURCE_MEMORY_PRESSURE);
+                assert(s->memory_pressure.write_buffer_size > 0);
+                s->memory_pressure.in_write_list = false;
 
-	if (event_next_pending(e) || e->need_process_child)
-		goto pending;
+                r = source_memory_pressure_write(s);
+                if (r < 0)
+                        return r;
+        }
 
-	e->state = SD_EVENT_ARMED;
+        return 0;
+}
 
-	return 0;
+_public_ int sd_event_prepare(sd_event *e) {
+        int r;
+
+        assert_return(e, -EINVAL);
+        assert_return(e = event_resolve(e), -ENOPKG);
+        assert_return(!event_origin_changed(e), -ECHILD);
+        assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
+        assert_return(e->state == SD_EVENT_INITIAL, -EBUSY);
+
+        /* Let's check that if we are a default event loop we are executed in the correct thread. We only do
+         * this check here once, since gettid() is typically not cached, and thus want to minimize
+         * syscalls */
+        assert_return(!e->default_event_ptr || e->tid == gettid(), -EREMOTEIO);
+
+        /* Make sure that none of the preparation callbacks ends up freeing the event source under our feet */
+        PROTECT_EVENT(e);
+
+        if (e->exit_requested)
+                goto pending;
+
+        e->iteration++;
+
+        e->state = SD_EVENT_PREPARING;
+        r = event_prepare(e);
+        e->state = SD_EVENT_INITIAL;
+        if (r < 0)
+                return r;
+
+        r = event_memory_pressure_write_list(e);
+        if (r < 0)
+                return r;
+
+        r = event_arm_timer(e, &e->realtime);
+        if (r < 0)
+                return r;
+
+        r = event_arm_timer(e, &e->boottime);
+        if (r < 0)
+                return r;
+
+        r = event_arm_timer(e, &e->monotonic);
+        if (r < 0)
+                return r;
+
+        r = event_arm_timer(e, &e->realtime_alarm);
+        if (r < 0)
+                return r;
+
+        r = event_arm_timer(e, &e->boottime_alarm);
+        if (r < 0)
+                return r;
+
+        event_close_inode_data_fds(e);
+
+        if (event_next_pending(e) || e->need_process_child || e->buffered_inotify_data_list)
+                goto pending;
+
+        e->state = SD_EVENT_ARMED;
+
+        return 0;
 
 pending:
-	e->state = SD_EVENT_ARMED;
-	r = sd_event_wait(e, 0);
-	if (r == 0)
-		e->state = SD_EVENT_ARMED;
+        e->state = SD_EVENT_ARMED;
+        r = sd_event_wait(e, 0);
+        if (r == 0)
+                e->state = SD_EVENT_ARMED;
 
-	return r;
+        return r;
 }
 
 static int epoll_wait_usec(
