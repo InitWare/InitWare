@@ -17,6 +17,8 @@
 int fclose_nointr(FILE *f);
 FILE* safe_fclose(FILE *f);
 
+int fd_get_path(int fd, char **ret);
+
 int fd_move_above_stdio(int fd);
 
 /* Like TAKE_PTR() but for file descriptors, resetting them to -EBADF */
