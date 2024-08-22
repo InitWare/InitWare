@@ -54,14 +54,21 @@ struct filter_callback {
 };
 
 struct match_callback {
-	sd_bus_message_handler_t callback;
+        sd_bus_message_handler_t callback;
+        sd_bus_message_handler_t install_callback;
 
-	uint64_t cookie;
-	unsigned last_iteration;
+        sd_bus_slot *install_slot; /* The AddMatch() call */
 
-	char *match_string;
+        unsigned last_iteration;
 
-	struct bus_match_node *match_node;
+        /* Don't dispatch this slot with messages that arrived in any iteration before or at the this
+         * one. We use this to ensure that matches don't apply "retroactively" and confuse the caller:
+         * only messages received after the match was installed will be considered. */
+        uint64_t after;
+
+        char *match_string;
+
+        struct bus_match_node *match_node;
 };
 
 struct node {
@@ -401,3 +408,11 @@ int bus_remove_match_by_string(sd_bus *bus, const char *match,
 	sd_bus_message_handler_t callback, void *userdata);
 
 int bus_get_root_path(sd_bus *bus);
+
+int bus_maybe_reply_error(sd_bus_message *m, int r, sd_bus_error *error);
+
+#define bus_assert_return(expr, r, error)                               \
+        do {                                                            \
+                if (!assert_log(expr, #expr))                           \
+                        return sd_bus_error_set_errno(error, r);        \
+        } while (false)

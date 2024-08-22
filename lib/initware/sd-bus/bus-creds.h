@@ -84,6 +84,18 @@ struct sd_bus_creds {
         char *description, *unescaped_description;
 };
 
+#define SD_BUS_CREDS_INIT_FIELDS        \
+        .uid = UID_INVALID,             \
+        .euid = UID_INVALID,            \
+        .suid = UID_INVALID,            \
+        .fsuid = UID_INVALID,           \
+        .gid = GID_INVALID,             \
+        .egid = GID_INVALID,            \
+        .sgid = GID_INVALID,            \
+        .fsgid = GID_INVALID,           \
+        .pidfd = -EBADF,                \
+        .audit_login_uid = UID_INVALID
+
 sd_bus_creds *bus_creds_new(void);
 
 void bus_creds_done(sd_bus_creds *c);

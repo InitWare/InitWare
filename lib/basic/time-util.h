@@ -91,6 +91,13 @@ static inline char* format_timestamp(char *buf, size_t l, usec_t t) {
         return format_timestamp_style(buf, l, t, TIMESTAMP_PRETTY);
 }
 #define FORMAT_TIMESTAMP(t) format_timestamp((char[FORMAT_TIMESTAMP_MAX]){}, FORMAT_TIMESTAMP_MAX, t)
+#define FORMAT_TIMESTAMP_RELATIVE(t)                                    \
+        format_timestamp_relative((char[FORMAT_TIMESTAMP_RELATIVE_MAX]){}, FORMAT_TIMESTAMP_RELATIVE_MAX, t)
+#define FORMAT_TIMESTAMP_RELATIVE_MONOTONIC(t)                          \
+        format_timestamp_relative_monotonic((char[FORMAT_TIMESTAMP_RELATIVE_MAX]){}, FORMAT_TIMESTAMP_RELATIVE_MAX, t)
+#define FORMAT_TIMESPAN(t, accuracy) format_timespan((char[FORMAT_TIMESPAN_MAX]){}, FORMAT_TIMESPAN_MAX, t, accuracy)
+#define FORMAT_TIMESTAMP_STYLE(t, style) \
+        format_timestamp_style((char[FORMAT_TIMESTAMP_MAX]){}, FORMAT_TIMESTAMP_MAX, t, style)
 
 char* format_timespan(char *buf, size_t l, usec_t t, usec_t accuracy) _warn_unused_result_;
 #define FORMAT_TIMESPAN(t, accuracy) format_timespan((char[FORMAT_TIMESPAN_MAX]){}, FORMAT_TIMESPAN_MAX, t, accuracy)

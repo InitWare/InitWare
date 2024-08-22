@@ -22,6 +22,7 @@ static inline bool pidref_is_set(const PidRef *pidref) {
 
 bool pidref_equal(const PidRef *a, const PidRef *b);
 
+int pidref_set_pid(PidRef *pidref, pid_t pid);
 int pidref_set_pidfd(PidRef *pidref, int fd);
 
 bool pidref_is_self(const PidRef *pidref);
@@ -29,3 +30,5 @@ bool pidref_is_self(const PidRef *pidref);
 void pidref_done(PidRef *pidref);
 PidRef *pidref_free(PidRef *pidref);
 DEFINE_TRIVIAL_CLEANUP_FUNC(PidRef*, pidref_free);
+
+int pidref_verify(const PidRef *pidref);

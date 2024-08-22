@@ -12,6 +12,8 @@
 #include <sys/resource.h>
 #include <sys/types.h>
 
+int pid_get_comm(pid_t pid, char **ret);
+
 typedef enum WaitFlags {
         WAIT_LOG_ABNORMAL             = 1 << 0,
         WAIT_LOG_NON_ZERO_EXIT_STATUS = 1 << 1,

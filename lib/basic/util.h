@@ -46,6 +46,7 @@
 #include "bsducred.h"
 #include "def.h"
 #include "log.h"
+#include "terminal-util.h"
 
 #ifdef HAVE_alloca_h
 #include <alloca.h>
@@ -436,7 +437,6 @@ unsigned lines(void);
 void columns_lines_cache_reset(int _unused_ signum);
 
 bool on_tty(void);
-bool colors_enabled(void);
 
 static inline const char *
 ansi_highlight(void)

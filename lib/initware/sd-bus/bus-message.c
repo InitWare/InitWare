@@ -645,6 +645,54 @@ message_new(sd_bus *bus, uint8_t type)
 	return m;
 }
 
+_public_ int sd_bus_message_new_signal_to(
+                sd_bus *bus,
+                sd_bus_message **m,
+                const char *destination,
+                const char *path,
+                const char *interface,
+                const char *member) {
+
+        _cleanup_(sd_bus_message_unrefp) sd_bus_message *t = NULL;
+        int r;
+
+        assert_return(bus, -ENOTCONN);
+        assert_return(bus = bus_resolve(bus), -ENOPKG);
+        assert_return(bus->state != BUS_UNSET, -ENOTCONN);
+        assert_return(!destination || service_name_is_valid(destination), -EINVAL);
+        assert_return(object_path_is_valid(path), -EINVAL);
+        assert_return(interface_name_is_valid(interface), -EINVAL);
+        assert_return(member_name_is_valid(member), -EINVAL);
+        assert_return(m, -EINVAL);
+
+        r = sd_bus_message_new(bus, &t, SD_BUS_MESSAGE_SIGNAL);
+        if (r < 0)
+                return -ENOMEM;
+
+        assert(t);
+
+        t->header->flags |= BUS_MESSAGE_NO_REPLY_EXPECTED;
+
+        r = message_append_field_string(t, BUS_MESSAGE_HEADER_PATH, SD_BUS_TYPE_OBJECT_PATH, path, &t->path);
+        if (r < 0)
+                return r;
+        r = message_append_field_string(t, BUS_MESSAGE_HEADER_INTERFACE, SD_BUS_TYPE_STRING, interface, &t->interface);
+        if (r < 0)
+                return r;
+        r = message_append_field_string(t, BUS_MESSAGE_HEADER_MEMBER, SD_BUS_TYPE_STRING, member, &t->member);
+        if (r < 0)
+                return r;
+
+        if (destination) {
+                r = message_append_field_string(t, BUS_MESSAGE_HEADER_DESTINATION, SD_BUS_TYPE_STRING, destination, &t->destination);
+                if (r < 0)
+                        return r;
+        }
+
+        *m = TAKE_PTR(t);
+        return 0;
+}
+
 _public_ int
 sd_bus_message_new_signal(sd_bus *bus, sd_bus_message **m, const char *path,
 	const char *interface, const char *member)
@@ -2589,6 +2637,212 @@ bus_message_append_ap(sd_bus_message *m, const char *types, va_list ap)
 	}
 
 	return 1;
+}
+
+_public_ int sd_bus_message_appendv(
+                sd_bus_message *m,
+                const char *types,
+                va_list ap) {
+
+        unsigned n_array, n_struct;
+        TypeStack stack[BUS_CONTAINER_DEPTH];
+        unsigned stack_ptr = 0;
+        int r;
+
+        assert_return(m, -EINVAL);
+        assert_return(types, -EINVAL);
+        assert_return(!m->sealed, -EPERM);
+        assert_return(!m->poisoned, -ESTALE);
+
+        n_array = UINT_MAX;
+        n_struct = strlen(types);
+
+        for (;;) {
+                const char *t;
+
+                if (n_array == 0 || (n_array == UINT_MAX && n_struct == 0)) {
+                        r = type_stack_pop(stack, ELEMENTSOF(stack), &stack_ptr, &types, &n_struct, &n_array);
+                        if (r < 0)
+                                return r;
+                        if (r == 0)
+                                break;
+
+                        r = sd_bus_message_close_container(m);
+                        if (r < 0)
+                                return r;
+
+                        continue;
+                }
+
+                t = types;
+                if (n_array != UINT_MAX)
+                        n_array--;
+                else {
+                        types++;
+                        n_struct--;
+                }
+
+                switch (*t) {
+
+                case SD_BUS_TYPE_BYTE: {
+                        uint8_t x;
+
+                        x = (uint8_t) va_arg(ap, int);
+                        r = sd_bus_message_append_basic(m, *t, &x);
+                        break;
+                }
+
+                case SD_BUS_TYPE_BOOLEAN:
+                case SD_BUS_TYPE_INT32:
+                case SD_BUS_TYPE_UINT32:
+                case SD_BUS_TYPE_UNIX_FD: {
+                        uint32_t x;
+
+                        /* We assume a boolean is the same as int32_t */
+                        assert_cc(sizeof(int32_t) == sizeof(int));
+
+                        x = va_arg(ap, uint32_t);
+                        r = sd_bus_message_append_basic(m, *t, &x);
+                        break;
+                }
+
+                case SD_BUS_TYPE_INT16:
+                case SD_BUS_TYPE_UINT16: {
+                        uint16_t x;
+
+                        x = (uint16_t) va_arg(ap, int);
+                        r = sd_bus_message_append_basic(m, *t, &x);
+                        break;
+                }
+
+                case SD_BUS_TYPE_INT64:
+                case SD_BUS_TYPE_UINT64: {
+                        uint64_t x;
+
+                        x = va_arg(ap, uint64_t);
+                        r = sd_bus_message_append_basic(m, *t, &x);
+                        break;
+                }
+
+                case SD_BUS_TYPE_DOUBLE: {
+                        double x;
+
+                        x = va_arg(ap, double);
+                        r = sd_bus_message_append_basic(m, *t, &x);
+                        break;
+                }
+
+                case SD_BUS_TYPE_STRING:
+                case SD_BUS_TYPE_OBJECT_PATH:
+                case SD_BUS_TYPE_SIGNATURE: {
+                        const char *x;
+
+                        x = va_arg(ap, const char*);
+                        r = sd_bus_message_append_basic(m, *t, x);
+                        break;
+                }
+
+                case SD_BUS_TYPE_ARRAY: {
+                        size_t k;
+
+                        r = signature_element_length(t + 1, &k);
+                        if (r < 0)
+                                return r;
+
+                        {
+                                char s[k + 1];
+                                memcpy(s, t + 1, k);
+                                s[k] = 0;
+
+                                r = sd_bus_message_open_container(m, SD_BUS_TYPE_ARRAY, s);
+                                if (r < 0)
+                                        return r;
+                        }
+
+                        if (n_array == UINT_MAX) {
+                                types += k;
+                                n_struct -= k;
+                        }
+
+                        r = type_stack_push(stack, ELEMENTSOF(stack), &stack_ptr, types, n_struct, n_array);
+                        if (r < 0)
+                                return r;
+
+                        types = t + 1;
+                        n_struct = k;
+                        n_array = va_arg(ap, unsigned);
+
+                        break;
+                }
+
+                case SD_BUS_TYPE_VARIANT: {
+                        const char *s;
+
+                        s = va_arg(ap, const char*);
+                        if (!s)
+                                return -EINVAL;
+
+                        r = sd_bus_message_open_container(m, SD_BUS_TYPE_VARIANT, s);
+                        if (r < 0)
+                                return r;
+
+                        r = type_stack_push(stack, ELEMENTSOF(stack), &stack_ptr, types, n_struct, n_array);
+                        if (r < 0)
+                                return r;
+
+                        types = s;
+                        n_struct = strlen(s);
+                        n_array = UINT_MAX;
+
+                        break;
+                }
+
+                case SD_BUS_TYPE_STRUCT_BEGIN:
+                case SD_BUS_TYPE_DICT_ENTRY_BEGIN: {
+                        size_t k;
+
+                        r = signature_element_length(t, &k);
+                        if (r < 0)
+                                return r;
+                        if (k < 2)
+                                return -ERANGE;
+
+                        {
+                                char s[k - 1];
+
+                                memcpy(s, t + 1, k - 2);
+                                s[k - 2] = 0;
+
+                                r = sd_bus_message_open_container(m, *t == SD_BUS_TYPE_STRUCT_BEGIN ? SD_BUS_TYPE_STRUCT : SD_BUS_TYPE_DICT_ENTRY, s);
+                                if (r < 0)
+                                        return r;
+                        }
+
+                        if (n_array == UINT_MAX) {
+                                types += k - 1;
+                                n_struct -= k - 1;
+                        }
+
+                        r = type_stack_push(stack, ELEMENTSOF(stack), &stack_ptr, types, n_struct, n_array);
+                        if (r < 0)
+                                return r;
+
+                        types = t + 1;
+                        n_struct = k - 2;
+                        n_array = UINT_MAX;
+
+                        break;
+                }
+
+                default:
+                        r = -EINVAL;
+                }
+
+                if (r < 0)
+                        return r;
+        }
+
+        return 1;
 }
 
 _public_ int

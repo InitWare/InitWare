@@ -21,8 +21,11 @@
 #include "audit.h"
 #include "cap-list.h"
 #include "capability.h"
+#include "format-util.h"
+#include "glyph-util.h"
 #include "macro.h"
 #include "strv.h"
+#include "terminal-util.h"
 #include "util.h"
 
 #include "bus-dump.h"
@@ -70,75 +73,73 @@ bus_message_dump(sd_bus_message *m, FILE *f, unsigned flags)
 	if (!f)
 		f = stdout;
 
-	if (flags & BUS_MESSAGE_DUMP_WITH_HEADER) {
-		fprintf(f,
-			"%s%s%s Type=%s%s%s  Endian=%c  Flags=%u  Version=%u  Priority=%" PRIi64,
-			m->header->type == SD_BUS_MESSAGE_METHOD_ERROR ?
-				      ansi_highlight_red() :
-				m->header->type ==
-					SD_BUS_MESSAGE_METHOD_RETURN ?
-				      ansi_highlight_green() :
-				m->header->type != SD_BUS_MESSAGE_SIGNAL ?
-				      ansi_highlight() :
-				      "",
-			draw_special_char(DRAW_TRIANGULAR_BULLET),
-			ansi_highlight_off(), ansi_highlight(),
-			bus_message_type_to_string(m->header->type),
-			ansi_highlight_off(), m->header->endian,
-			m->header->flags, m->header->version, m->priority);
+	if (flags & SD_BUS_MESSAGE_DUMP_WITH_HEADER) {
+                usec_t ts = m->realtime;
 
-		/* Display synthetic message serial number in a more readable
-                 * format than (uint32_t) -1 */
-		if (BUS_MESSAGE_COOKIE(m) == 0xFFFFFFFFULL)
-			fprintf(f, " Cookie=-1");
-		else
-			fprintf(f, " Cookie=%" PRIu64, BUS_MESSAGE_COOKIE(m));
+                if (ts == 0)
+                        ts = now(CLOCK_REALTIME);
 
-		if (m->reply_cookie != 0)
-			fprintf(f, "  ReplyCookie=%" PRIu64, m->reply_cookie);
+                fprintf(f,
+                        "%s%s%s Type=%s%s%s  Endian=%c  Flags=%u  Version=%u",
+                        m->header->type == SD_BUS_MESSAGE_METHOD_ERROR ? ansi_highlight_red() :
+                        m->header->type == SD_BUS_MESSAGE_METHOD_RETURN ? ansi_highlight_green() :
+                        m->header->type != SD_BUS_MESSAGE_SIGNAL ? ansi_highlight() : "",
+                        special_glyph(SPECIAL_GLYPH_TRIANGULAR_BULLET),
+                        ansi_normal(),
 
-		fputs("\n", f);
+                        ansi_highlight(),
+                        bus_message_type_to_string(m->header->type) ?: "(unknown)",
+                        ansi_normal(),
 
-		if (m->sender)
-			fprintf(f, "  Sender=%s%s%s", ansi_highlight(),
-				m->sender, ansi_highlight_off());
-		if (m->destination)
-			fprintf(f, "  Destination=%s%s%s", ansi_highlight(),
-				m->destination, ansi_highlight_off());
-		if (m->path)
-			fprintf(f, "  Path=%s%s%s", ansi_highlight(), m->path,
-				ansi_highlight_off());
-		if (m->interface)
-			fprintf(f, "  Interface=%s%s%s", ansi_highlight(),
-				m->interface, ansi_highlight_off());
-		if (m->member)
-			fprintf(f, "  Member=%s%s%s", ansi_highlight(),
-				m->member, ansi_highlight_off());
+                        m->header->endian,
+                        m->header->flags,
+                        m->header->version);
 
-		if (m->sender || m->destination || m->path || m->interface ||
-			m->member)
-			fputs("\n", f);
+                /* Display synthetic message serial number in a more readable
+                 * format than UINT32_MAX */
+                if (BUS_MESSAGE_COOKIE(m) == UINT32_MAX)
+                        fprintf(f, " Cookie=-1");
+                else
+                        fprintf(f, " Cookie=%" PRIu64, BUS_MESSAGE_COOKIE(m));
 
-		if (sd_bus_error_is_set(&m->error))
-			fprintf(f,
-				"  ErrorName=%s%s%s"
-				"  ErrorMessage=%s\"%s\"%s\n",
-				ansi_highlight_red(), strna(m->error.name),
-				ansi_highlight_off(), ansi_highlight_red(),
-				strna(m->error.message), ansi_highlight_off());
+                if (m->reply_cookie != 0)
+                        fprintf(f, "  ReplyCookie=%" PRIu64, m->reply_cookie);
 
-		if (m->monotonic != 0)
-			fprintf(f, "  Monotonic=" USEC_FMT, m->monotonic);
-		if (m->realtime != 0)
-			fprintf(f, "  Realtime=" USEC_FMT, m->realtime);
-		if (m->seqnum != 0)
-			fprintf(f, "  SequenceNumber=%" PRIu64, m->seqnum);
+                fprintf(f, "  Timestamp=\"%s\"\n", strna(FORMAT_TIMESTAMP_STYLE(ts, TIMESTAMP_US_UTC)));
 
-		if (m->monotonic != 0 || m->realtime != 0 || m->seqnum != 0)
-			fputs("\n", f);
+                if (m->sender)
+                        fprintf(f, "  Sender=%s%s%s", ansi_highlight(), m->sender, ansi_normal());
+                if (m->destination)
+                        fprintf(f, "  Destination=%s%s%s", ansi_highlight(), m->destination, ansi_normal());
+                if (m->path)
+                        fprintf(f, "  Path=%s%s%s", ansi_highlight(), m->path, ansi_normal());
+                if (m->interface)
+                        fprintf(f, "  Interface=%s%s%s", ansi_highlight(), m->interface, ansi_normal());
+                if (m->member)
+                        fprintf(f, "  Member=%s%s%s", ansi_highlight(), m->member, ansi_normal());
 
-		bus_creds_dump(&m->creds, f, true);
-	}
+                if (m->sender || m->destination || m->path || m->interface || m->member)
+                        fputs("\n", f);
+
+                if (sd_bus_error_is_set(&m->error))
+                        fprintf(f,
+                                "  ErrorName=%s%s%s"
+                                "  ErrorMessage=%s\"%s\"%s\n",
+                                ansi_highlight_red(), strna(m->error.name), ansi_normal(),
+                                ansi_highlight_red(), strna(m->error.message), ansi_normal());
+
+                if (m->monotonic != 0)
+                        fprintf(f, "  Monotonic="USEC_FMT, m->monotonic);
+                if (m->realtime != 0)
+                        fprintf(f, "  Realtime="USEC_FMT, m->realtime);
+                if (m->seqnum != 0)
+                        fprintf(f, "  SequenceNumber=%"PRIu64, m->seqnum);
+
+                if (m->monotonic != 0 || m->realtime != 0 || m->seqnum != 0)
+                        fputs("\n", f);
+
+                bus_creds_dump(&m->creds, f, true);
+        }
 
 	r = sd_bus_message_rewind(m, !(flags & BUS_MESSAGE_DUMP_SUBTREE_ONLY));
 	if (r < 0)
