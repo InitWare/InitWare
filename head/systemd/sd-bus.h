@@ -119,6 +119,7 @@ typedef int (*sd_bus_object_find_t)(sd_bus *bus, const char *path,
 typedef int (*sd_bus_node_enumerator_t)(sd_bus *bus, const char *path,
 	void *userdata, char ***ret_nodes, sd_bus_error *ret_error);
 typedef int (*sd_bus_track_handler_t)(sd_bus_track *track, void *userdata);
+typedef _sd_destroy_t sd_bus_destroy_t;
 
 #include "sd-bus-protocol.h"
 #include "sd-bus-vtable.h"
@@ -210,6 +211,7 @@ int sd_bus_add_filter(sd_bus *bus, sd_bus_slot **slot,
 	sd_bus_message_handler_t callback, void *userdata);
 int sd_bus_add_match(sd_bus *bus, sd_bus_slot **slot, const char *match,
 	sd_bus_message_handler_t callback, void *userdata);
+int sd_bus_add_match_async(sd_bus *bus, sd_bus_slot **slot, const char *match, sd_bus_message_handler_t callback, sd_bus_message_handler_t install_callback, void *userdata);
 int sd_bus_add_object(sd_bus *bus, sd_bus_slot **slot, const char *path,
 	sd_bus_message_handler_t callback, void *userdata);
 int sd_bus_add_fallback(sd_bus *bus, sd_bus_slot **slot, const char *prefix,
@@ -227,7 +229,7 @@ int sd_bus_add_object_manager(sd_bus *bus, sd_bus_slot **slot,
 /* Slot object */
 
 sd_bus_slot *sd_bus_slot_ref(sd_bus_slot *slot);
-sd_bus_slot *sd_bus_slot_unref(sd_bus_slot *slot);
+sd_bus_slot* sd_bus_slot_unref(sd_bus_slot *slot);
 
 sd_bus *sd_bus_slot_get_bus(sd_bus_slot *slot);
 void *sd_bus_slot_get_userdata(sd_bus_slot *slot);
@@ -344,6 +346,7 @@ int sd_bus_message_verify_type(sd_bus_message *m, char type,
 	const char *contents);
 int sd_bus_message_at_end(sd_bus_message *m, int complete);
 int sd_bus_message_rewind(sd_bus_message *m, int complete);
+int sd_bus_message_sensitive(sd_bus_message *m);
 
 /* Bus management */
 

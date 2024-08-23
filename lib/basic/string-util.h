@@ -218,6 +218,22 @@ static inline int strdup_to(char **ret, const char *src) {
         return r < 0 ? r : 0;  /* Suppress return value of 1. */
 }
 
+/* Like startswith(), but operates on arbitrary memory blocks */
+static inline void *memory_startswith(const void *p, size_t sz, const sd_char *token) {
+        assert(token);
+
+        size_t n = strlen(token) * sizeof(sd_char);
+        if (sz < n)
+                return NULL;
+
+        assert(p);
+
+        if (memcmp(p, token, n) != 0)
+                return NULL;
+
+        return (uint8_t*) p + n;
+}
+
 typedef enum MakeCStringMode {
         MAKE_CSTRING_REFUSE_TRAILING_NUL,
         MAKE_CSTRING_ALLOW_TRAILING_NUL,

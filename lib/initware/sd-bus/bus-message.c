@@ -1101,6 +1101,41 @@ sd_bus_message_unref(sd_bus_message *m)
 	return NULL;
 }
 
+sd_bus_message* bus_message_ref_queued(sd_bus_message *m, sd_bus *bus) {
+        if (!m)
+                return NULL;
+
+        /* If this is a different bus than the message is associated with, then implicitly turn this into a
+         * regular reference. This means that you can create a memory leak by enqueuing a message generated
+         * on one bus onto another at the same time as enqueueing a message from the second one on the first,
+         * as we'll not detect the cyclic references there. */
+        if (bus != m->bus)
+                return sd_bus_message_ref(m);
+
+        assert(m->n_ref > 0 || m->n_queued > 0);
+        m->n_queued++;
+
+        return m;
+}
+
+sd_bus_message* bus_message_unref_queued(sd_bus_message *m, sd_bus *bus) {
+        if (!m)
+                return NULL;
+
+        if (bus != m->bus)
+                return sd_bus_message_unref(m);
+
+        assert(m->n_queued > 0);
+        m->n_queued--;
+
+        if (m->n_ref > 0 || m->n_queued > 0)
+                return NULL;
+
+        m->bus = NULL;
+
+        return message_free(m);
+}
+
 _public_ int
 sd_bus_message_get_type(sd_bus_message *m, uint8_t *type)
 {
@@ -6370,5 +6405,12 @@ _public_ int sd_bus_message_set_priority(sd_bus_message *m, int64_t priority) {
                 warned = true;
         }
 
+        return 0;
+}
+
+_public_ int sd_bus_message_sensitive(sd_bus_message *m) {
+        assert_return(m, -EINVAL);
+
+        m->sensitive = true;
         return 0;
 }

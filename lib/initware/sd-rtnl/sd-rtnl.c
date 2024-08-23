@@ -24,6 +24,7 @@
 #include "hashmap.h"
 #include "macro.h"
 #include "missing.h"
+#include "socket-util.h"
 #include "util.h"
 
 #include "rtnl-internal.h"
@@ -210,12 +211,6 @@ sd_rtnl_open(sd_rtnl **ret, unsigned n_groups, ...)
 	}
 
 	return 0;
-}
-
-int
-sd_rtnl_inc_rcvbuf(const sd_rtnl *const rtnl, const int size)
-{
-	return fd_inc_rcvbuf(rtnl->fd, size);
 }
 
 sd_rtnl *

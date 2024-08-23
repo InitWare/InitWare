@@ -42,20 +42,15 @@
 
 #include "bus-util.h"
 
-static int
-name_owner_change_callback(sd_bus *bus, sd_bus_message *m, void *userdata,
-	sd_bus_error *ret_error)
-{
-	sd_event *e = userdata;
+static int name_owner_change_callback(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
+        sd_event *e = ASSERT_PTR(userdata);
 
-	assert(bus);
-	assert(m);
-	assert(e);
+        assert(m);
 
-	sd_bus_close(bus);
-	sd_event_exit(e, 0);
+        sd_bus_close(sd_bus_message_get_bus(m));
+        sd_event_exit(e, 0);
 
-	return 1;
+        return 1;
 }
 
 int
@@ -170,26 +165,30 @@ bus_event_loop_with_idle(sd_event *e, sd_bus *bus, const char *name,
 	return code;
 }
 
-int
-bus_name_has_owner(sd_bus *c, const char *name, sd_bus_error *error)
-{
-	_cleanup_bus_message_unref_ sd_bus_message *rep = NULL;
-	int r, has_owner = 0;
+int bus_name_has_owner(sd_bus *c, const char *name, sd_bus_error *error) {
+        _cleanup_(sd_bus_message_unrefp) sd_bus_message *rep = NULL;
+        int r, has_owner = 0;
 
-	assert(c);
-	assert(name);
+        assert(c);
+        assert(name);
 
-	r = sd_bus_call_method(c, "org.freedesktop.DBus",
-		"/org/freedesktop/dbus", "org.freedesktop.DBus", "NameHasOwner",
-		error, &rep, "s", name);
-	if (r < 0)
-		return r;
+        r = sd_bus_call_method(c,
+                               "org.freedesktop.DBus",
+                               "/org/freedesktop/dbus",
+                               "org.freedesktop.DBus",
+                               "NameHasOwner",
+                               error,
+                               &rep,
+                               "s",
+                               name);
+        if (r < 0)
+                return r;
 
-	r = sd_bus_message_read_basic(rep, 'b', &has_owner);
-	if (r < 0)
-		return sd_bus_error_set_errno(error, r);
+        r = sd_bus_message_read_basic(rep, 'b', &has_owner);
+        if (r < 0)
+                return sd_bus_error_set_errno(error, r);
 
-	return has_owner;
+        return has_owner;
 }
 
 int
@@ -489,84 +488,84 @@ bus_check_peercred(sd_bus *c)
 	return 1;
 }
 
-int
-bus_open_system_systemd(sd_bus **_bus)
-{
-	_cleanup_bus_unref_ sd_bus *bus = NULL;
-	int r;
+// int
+// bus_open_system_systemd(sd_bus **_bus)
+// {
+// 	_cleanup_bus_unref_ sd_bus *bus = NULL;
+// 	int r;
 
-	assert(_bus);
+// 	assert(_bus);
 
-	if (geteuid() != 0)
-		return sd_bus_open_system(_bus);
+// 	if (geteuid() != 0)
+// 		return sd_bus_open_system(_bus);
 
-	/* If we are root and kdbus is not available, then let's talk
-         * directly to the system instance, instead of going via the
-         * bus */
+// 	/* If we are root and kdbus is not available, then let's talk
+//          * directly to the system instance, instead of going via the
+//          * bus */
 
-	r = sd_bus_new(&bus);
-	if (r < 0)
-		return r;
+// 	r = sd_bus_new(&bus);
+// 	if (r < 0)
+// 		return r;
 
-	r = sd_bus_set_address(bus, "unix:path=" SVC_PKGRUNSTATEDIR "/private");
-	if (r < 0)
-		return r;
+// 	r = sd_bus_set_address(bus, "unix:path=" SVC_PKGRUNSTATEDIR "/private");
+// 	if (r < 0)
+// 		return r;
 
-	r = sd_bus_start(bus);
-	if (r < 0)
-		return sd_bus_open_system(_bus);
+// 	r = sd_bus_start(bus);
+// 	if (r < 0)
+// 		return sd_bus_open_system(_bus);
 
-	r = bus_check_peercred(bus);
-	if (r < 0)
-		return r;
+// 	r = bus_check_peercred(bus);
+// 	if (r < 0)
+// 		return r;
 
-	*_bus = bus;
-	bus = NULL;
+// 	*_bus = bus;
+// 	bus = NULL;
 
-	return 0;
-}
+// 	return 0;
+// }
 
-int
-bus_open_user_systemd(sd_bus **_bus)
-{
-	_cleanup_bus_unref_ sd_bus *bus = NULL;
-	_cleanup_free_ char *ee = NULL;
-	const char *e;
-	int r;
+// int
+// bus_open_user_systemd(sd_bus **_bus)
+// {
+// 	_cleanup_bus_unref_ sd_bus *bus = NULL;
+// 	_cleanup_free_ char *ee = NULL;
+// 	const char *e;
+// 	int r;
 
-	/* Try via kdbus first, and then directly */
+// 	/* Try via kdbus first, and then directly */
 
-	assert(_bus);
+// 	assert(_bus);
 
-	e = secure_getenv("XDG_RUNTIME_DIR");
-	if (!e)
-		return sd_bus_open_user(_bus);
+// 	e = secure_getenv("XDG_RUNTIME_DIR");
+// 	if (!e)
+// 		return sd_bus_open_user(_bus);
 
-	ee = bus_address_escape(e);
-	if (!ee)
-		return -ENOMEM;
+// 	ee = bus_address_escape(e);
+// 	if (!ee)
+// 		return -ENOMEM;
 
-	r = sd_bus_new(&bus);
-	if (r < 0)
-		return r;
+// 	r = sd_bus_new(&bus);
+// 	if (r < 0)
+// 		return r;
 
-	bus->address = strjoin("unix:path=", ee, "/" SVC_PKGDIRNAME "/private", NULL);
-	if (!bus->address)
-		return -ENOMEM;
+// 	bus->address = strjoin("unix:path=", ee, "/" SVC_PKGDIRNAME "/private", NULL);
+// 	if (!bus->address)
+// 		return -ENOMEM;
 
-	r = sd_bus_start(bus);
-	if (r < 0)
-		return sd_bus_open_user(_bus);
+// 	r = sd_bus_start(bus);
+// 	if (r < 0)
+// 		return sd_bus_open_user(_bus);
 
-	r = bus_check_peercred(bus);
-	if (r < 0)
-		return r;
+// 	r = bus_check_peercred(bus);
+// 	if (r < 0)
+// 		return r;
 
-	*_bus = bus;
-	bus = NULL;
+// 	*_bus = bus;
+// 	bus = NULL;
 
-	return 0;
-}
+// 	return 0;
+// }
 
 int
 bus_print_property(const char *name, sd_bus_message *property, bool all)
@@ -758,80 +757,80 @@ bus_print_property(const char *name, sd_bus_message *property, bool all)
 	return 0;
 }
 
-int
-bus_print_all_properties(sd_bus *bus, const char *dest, const char *path,
-	char **filter, bool all)
-{
-	_cleanup_bus_message_unref_ sd_bus_message *reply = NULL;
-	_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
-	int r;
+// int
+// bus_print_all_properties(sd_bus *bus, const char *dest, const char *path,
+// 	char **filter, bool all)
+// {
+// 	_cleanup_bus_message_unref_ sd_bus_message *reply = NULL;
+// 	_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
+// 	int r;
 
-	assert(bus);
-	assert(path);
+// 	assert(bus);
+// 	assert(path);
 
-	r = sd_bus_call_method(bus, dest, path,
-		"org.freedesktop.DBus.Properties", "GetAll", &error, &reply,
-		"s", "");
-	if (r < 0)
-		return r;
+// 	r = sd_bus_call_method(bus, dest, path,
+// 		"org.freedesktop.DBus.Properties", "GetAll", &error, &reply,
+// 		"s", "");
+// 	if (r < 0)
+// 		return r;
 
-	r = sd_bus_message_enter_container(reply, SD_BUS_TYPE_ARRAY, "{sv}");
-	if (r < 0)
-		return r;
+// 	r = sd_bus_message_enter_container(reply, SD_BUS_TYPE_ARRAY, "{sv}");
+// 	if (r < 0)
+// 		return r;
 
-	while ((r = sd_bus_message_enter_container(reply,
-			SD_BUS_TYPE_DICT_ENTRY, "sv")) > 0) {
-		const char *name;
-		const char *contents;
+// 	while ((r = sd_bus_message_enter_container(reply,
+// 			SD_BUS_TYPE_DICT_ENTRY, "sv")) > 0) {
+// 		const char *name;
+// 		const char *contents;
 
-		r = sd_bus_message_read_basic(reply, SD_BUS_TYPE_STRING, &name);
-		if (r < 0)
-			return r;
+// 		r = sd_bus_message_read_basic(reply, SD_BUS_TYPE_STRING, &name);
+// 		if (r < 0)
+// 			return r;
 
-		if (!filter || strv_find(filter, name)) {
-			r = sd_bus_message_peek_type(reply, NULL, &contents);
-			if (r < 0)
-				return r;
+// 		if (!filter || strv_find(filter, name)) {
+// 			r = sd_bus_message_peek_type(reply, NULL, &contents);
+// 			if (r < 0)
+// 				return r;
 
-			r = sd_bus_message_enter_container(reply,
-				SD_BUS_TYPE_VARIANT, contents);
-			if (r < 0)
-				return r;
+// 			r = sd_bus_message_enter_container(reply,
+// 				SD_BUS_TYPE_VARIANT, contents);
+// 			if (r < 0)
+// 				return r;
 
-			r = bus_print_property(name, reply, all);
-			if (r < 0)
-				return r;
-			if (r == 0) {
-				if (all)
-					printf("%s=[unprintable]\n", name);
-				/* skip what we didn't read */
-				r = sd_bus_message_skip(reply, contents);
-				if (r < 0)
-					return r;
-			}
+// 			r = bus_print_property(name, reply, all);
+// 			if (r < 0)
+// 				return r;
+// 			if (r == 0) {
+// 				if (all)
+// 					printf("%s=[unprintable]\n", name);
+// 				/* skip what we didn't read */
+// 				r = sd_bus_message_skip(reply, contents);
+// 				if (r < 0)
+// 					return r;
+// 			}
 
-			r = sd_bus_message_exit_container(reply);
-			if (r < 0)
-				return r;
-		} else {
-			r = sd_bus_message_skip(reply, "v");
-			if (r < 0)
-				return r;
-		}
+// 			r = sd_bus_message_exit_container(reply);
+// 			if (r < 0)
+// 				return r;
+// 		} else {
+// 			r = sd_bus_message_skip(reply, "v");
+// 			if (r < 0)
+// 				return r;
+// 		}
 
-		r = sd_bus_message_exit_container(reply);
-		if (r < 0)
-			return r;
-	}
-	if (r < 0)
-		return r;
+// 		r = sd_bus_message_exit_container(reply);
+// 		if (r < 0)
+// 			return r;
+// 	}
+// 	if (r < 0)
+// 		return r;
 
-	r = sd_bus_message_exit_container(reply);
-	if (r < 0)
-		return r;
+// 	r = sd_bus_message_exit_container(reply);
+// 	if (r < 0)
+// 		return r;
 
-	return 0;
-}
+// 	return 0;
+// }
 
 int
 bus_map_id128(sd_bus *bus, const char *member, sd_bus_message *m,
@@ -952,130 +951,130 @@ map_basic(sd_bus *bus, const char *member, sd_bus_message *m,
 	return r;
 }
 
-int
-bus_message_map_all_properties(sd_bus *bus, sd_bus_message *m,
-	const struct bus_properties_map *map, void *userdata)
-{
-	_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
-	int r;
+// int
+// bus_message_map_all_properties(sd_bus *bus, sd_bus_message *m,
+// 	const struct bus_properties_map *map, void *userdata)
+// {
+// 	_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
+// 	int r;
 
-	assert(bus);
-	assert(m);
-	assert(map);
+// 	assert(bus);
+// 	assert(m);
+// 	assert(map);
 
-	r = sd_bus_message_enter_container(m, SD_BUS_TYPE_ARRAY, "{sv}");
-	if (r < 0)
-		return r;
+// 	r = sd_bus_message_enter_container(m, SD_BUS_TYPE_ARRAY, "{sv}");
+// 	if (r < 0)
+// 		return r;
 
-	while ((r = sd_bus_message_enter_container(m, SD_BUS_TYPE_DICT_ENTRY,
-			"sv")) > 0) {
-		const struct bus_properties_map *prop;
-		const char *member;
-		const char *contents;
-		void *v;
-		unsigned i;
+// 	while ((r = sd_bus_message_enter_container(m, SD_BUS_TYPE_DICT_ENTRY,
+// 			"sv")) > 0) {
+// 		const struct bus_properties_map *prop;
+// 		const char *member;
+// 		const char *contents;
+// 		void *v;
+// 		unsigned i;
 
-		r = sd_bus_message_read_basic(m, SD_BUS_TYPE_STRING, &member);
-		if (r < 0)
-			return r;
+// 		r = sd_bus_message_read_basic(m, SD_BUS_TYPE_STRING, &member);
+// 		if (r < 0)
+// 			return r;
 
-		for (i = 0, prop = NULL; map[i].member; i++)
-			if (streq(map[i].member, member)) {
-				prop = &map[i];
-				break;
-			}
+// 		for (i = 0, prop = NULL; map[i].member; i++)
+// 			if (streq(map[i].member, member)) {
+// 				prop = &map[i];
+// 				break;
+// 			}
 
-		if (prop) {
-			r = sd_bus_message_peek_type(m, NULL, &contents);
-			if (r < 0)
-				return r;
+// 		if (prop) {
+// 			r = sd_bus_message_peek_type(m, NULL, &contents);
+// 			if (r < 0)
+// 				return r;
 
-			r = sd_bus_message_enter_container(m,
-				SD_BUS_TYPE_VARIANT, contents);
-			if (r < 0)
-				return r;
+// 			r = sd_bus_message_enter_container(m,
+// 				SD_BUS_TYPE_VARIANT, contents);
+// 			if (r < 0)
+// 				return r;
 
-			v = (uint8_t *)userdata + prop->offset;
-			if (map[i].set)
-				r = prop->set(bus, member, m, &error, v);
-			else
-				r = map_basic(bus, member, m, &error, v);
-			if (r < 0)
-				return r;
+// 			v = (uint8_t *)userdata + prop->offset;
+// 			if (map[i].set)
+// 				r = prop->set(bus, member, m, &error, v);
+// 			else
+// 				r = map_basic(bus, member, m, &error, v);
+// 			if (r < 0)
+// 				return r;
 
-			r = sd_bus_message_exit_container(m);
-			if (r < 0)
-				return r;
-		} else {
-			r = sd_bus_message_skip(m, "v");
-			if (r < 0)
-				return r;
-		}
+// 			r = sd_bus_message_exit_container(m);
+// 			if (r < 0)
+// 				return r;
+// 		} else {
+// 			r = sd_bus_message_skip(m, "v");
+// 			if (r < 0)
+// 				return r;
+// 		}
 
-		r = sd_bus_message_exit_container(m);
-		if (r < 0)
-			return r;
-	}
+// 		r = sd_bus_message_exit_container(m);
+// 		if (r < 0)
+// 			return r;
+// 	}
 
-	return sd_bus_message_exit_container(m);
-}
+// 	return sd_bus_message_exit_container(m);
+// }
 
-int
-bus_message_map_properties_changed(sd_bus *bus, sd_bus_message *m,
-	const struct bus_properties_map *map, void *userdata)
-{
-	const char *member;
-	int r, invalidated, i;
+// int
+// bus_message_map_properties_changed(sd_bus *bus, sd_bus_message *m,
+// 	const struct bus_properties_map *map, void *userdata)
+// {
+// 	const char *member;
+// 	int r, invalidated, i;
 
-	assert(bus);
-	assert(m);
-	assert(map);
+// 	assert(bus);
+// 	assert(m);
+// 	assert(map);
 
-	r = bus_message_map_all_properties(bus, m, map, userdata);
-	if (r < 0)
-		return r;
+// 	r = bus_message_map_all_properties(bus, m, map, userdata);
+// 	if (r < 0)
+// 		return r;
 
-	r = sd_bus_message_enter_container(m, SD_BUS_TYPE_ARRAY, "s");
-	if (r < 0)
-		return r;
+// 	r = sd_bus_message_enter_container(m, SD_BUS_TYPE_ARRAY, "s");
+// 	if (r < 0)
+// 		return r;
 
-	invalidated = 0;
-	while ((r = sd_bus_message_read_basic(m, SD_BUS_TYPE_STRING, &member)) >
-		0)
-		for (i = 0; map[i].member; i++)
-			if (streq(map[i].member, member)) {
-				++invalidated;
-				break;
-			}
+// 	invalidated = 0;
+// 	while ((r = sd_bus_message_read_basic(m, SD_BUS_TYPE_STRING, &member)) >
+// 		0)
+// 		for (i = 0; map[i].member; i++)
+// 			if (streq(map[i].member, member)) {
+// 				++invalidated;
+// 				break;
+// 			}
 
-	r = sd_bus_message_exit_container(m);
-	if (r < 0)
-		return r;
+// 	r = sd_bus_message_exit_container(m);
+// 	if (r < 0)
+// 		return r;
 
-	return invalidated;
-}
+// 	return invalidated;
+// }
 
-int
-bus_map_all_properties(sd_bus *bus, const char *destination, const char *path,
-	const struct bus_properties_map *map, void *userdata)
-{
-	_cleanup_bus_message_unref_ sd_bus_message *m = NULL;
-	_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
-	int r;
+// int
+// bus_map_all_properties(sd_bus *bus, const char *destination, const char *path,
+// 	const struct bus_properties_map *map, void *userdata)
+// {
+// 	_cleanup_bus_message_unref_ sd_bus_message *m = NULL;
+// 	_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
+// 	int r;
 
-	assert(bus);
-	assert(destination);
-	assert(path);
-	assert(map);
+// 	assert(bus);
+// 	assert(destination);
+// 	assert(path);
+// 	assert(map);
 
-	r = sd_bus_call_method(bus, destination, path,
-		"org.freedesktop.DBus.Properties", "GetAll", &error, &m, "s",
-		"");
-	if (r < 0)
-		return r;
+// 	r = sd_bus_call_method(bus, destination, path,
+// 		"org.freedesktop.DBus.Properties", "GetAll", &error, &m, "s",
+// 		"");
+// 	if (r < 0)
+// 		return r;
 
-	return bus_message_map_all_properties(bus, m, map, userdata);
-}
+// 	return bus_message_map_all_properties(bus, m, map, userdata);
+// }
 
 int
 bus_open_transport(BusTransport transport, const char *host, bool user,
@@ -1114,42 +1113,42 @@ bus_open_transport(BusTransport transport, const char *host, bool user,
 	return r;
 }
 
-int
-bus_open_transport_systemd(BusTransport transport, const char *host, bool user,
-	sd_bus **bus)
-{
-	int r;
+// int
+// bus_open_transport_systemd(BusTransport transport, const char *host, bool user,
+// 	sd_bus **bus)
+// {
+// 	int r;
 
-	assert(transport >= 0);
-	assert(transport < _BUS_TRANSPORT_MAX);
-	assert(bus);
+// 	assert(transport >= 0);
+// 	assert(transport < _BUS_TRANSPORT_MAX);
+// 	assert(bus);
 
-	assert_return((transport == BUS_TRANSPORT_LOCAL) == !host, -EINVAL);
-	assert_return(transport == BUS_TRANSPORT_LOCAL || !user, -ENOTSUP);
+// 	assert_return((transport == BUS_TRANSPORT_LOCAL) == !host, -EINVAL);
+// 	assert_return(transport == BUS_TRANSPORT_LOCAL || !user, -ENOTSUP);
 
-	switch (transport) {
-	case BUS_TRANSPORT_LOCAL:
-		if (user)
-			r = bus_open_user_systemd(bus);
-		else
-			r = bus_open_system_systemd(bus);
+// 	switch (transport) {
+// 	case BUS_TRANSPORT_LOCAL:
+// 		if (user)
+// 			r = bus_open_user_systemd(bus);
+// 		else
+// 			r = bus_open_system_systemd(bus);
 
-		break;
+// 		break;
 
-	case BUS_TRANSPORT_REMOTE:
-		r = sd_bus_open_system_remote(bus, host);
-		break;
+// 	case BUS_TRANSPORT_REMOTE:
+// 		r = sd_bus_open_system_remote(bus, host);
+// 		break;
 
-	case BUS_TRANSPORT_MACHINE:
-		r = sd_bus_open_system_machine(bus, host);
-		break;
+// 	case BUS_TRANSPORT_MACHINE:
+// 		r = sd_bus_open_system_machine(bus, host);
+// 		break;
 
-	default:
-		assert_not_reached();
-	}
+// 	default:
+// 		assert_not_reached();
+// 	}
 
-	return r;
-}
+// 	return r;
+// }
 
 int
 bus_property_get_bool(sd_bus *bus, const char *path, const char *interface,

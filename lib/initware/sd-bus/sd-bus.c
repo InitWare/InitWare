@@ -32,6 +32,7 @@
 #include "def.h"
 #include "macro.h"
 #include "missing.h"
+#include "origin-id.h"
 #include "set.h"
 #include "strv.h"
 #include "util.h"
@@ -55,200 +56,199 @@
 
 static int bus_poll(sd_bus *bus, bool need_more, uint64_t timeout_usec);
 static int attach_io_events(sd_bus *b);
-static void detach_io_events(sd_bus *b);
+static void bus_detach_io_events(sd_bus *b);
 
-static void
-bus_close_fds(sd_bus *b)
-{
-	assert(b);
+void bus_close_io_fds(sd_bus *b) {
+        assert(b);
 
-	detach_io_events(b);
+        bus_detach_io_events(b);
 
-	if (b->input_fd >= 0)
-		safe_close(b->input_fd);
-
-	if (b->output_fd >= 0 && b->output_fd != b->input_fd)
-		safe_close(b->output_fd);
-
-	b->input_fd = b->output_fd = -1;
+        if (b->input_fd != b->output_fd)
+                safe_close(b->output_fd);
+        b->output_fd = b->input_fd = safe_close(b->input_fd);
 }
 
-static void
-bus_reset_queues(sd_bus *b)
-{
-	assert(b);
+void bus_close_inotify_fd(sd_bus *b) {
+        assert(b);
 
-	while (b->rqueue_size > 0)
-		sd_bus_message_unref(b->rqueue[--b->rqueue_size]);
+        b->inotify_event_source = sd_event_source_disable_unref(b->inotify_event_source);
 
-	free(b->rqueue);
-	b->rqueue = NULL;
-	b->rqueue_allocated = 0;
-
-	while (b->wqueue_size > 0)
-		sd_bus_message_unref(b->wqueue[--b->wqueue_size]);
-
-	free(b->wqueue);
-	b->wqueue = NULL;
-	b->wqueue_allocated = 0;
+        b->inotify_fd = safe_close(b->inotify_fd);
+        b->inotify_watches = mfree(b->inotify_watches);
+        b->n_inotify_watches = 0;
 }
 
-static void
-bus_free(sd_bus *b)
-{
-	sd_bus_slot *s;
+static void bus_close_fds(sd_bus *b) {
+        assert(b);
 
-	assert(b);
-	assert(!b->track_queue);
+        bus_close_io_fds(b);
+        bus_close_inotify_fd(b);
+        b->pidfd = safe_close(b->pidfd);
+}
 
-	b->state = BUS_CLOSED;
+static void bus_reset_queues(sd_bus *b) {
+        assert(b);
 
-	sd_bus_detach_event(b);
+        while (b->rqueue_size > 0)
+                bus_message_unref_queued(b->rqueue[--b->rqueue_size], b);
 
-	while ((s = b->slots)) {
-		/* At this point only floating slots can still be
+        b->rqueue = mfree(b->rqueue);
+
+        while (b->wqueue_size > 0)
+                bus_message_unref_queued(b->wqueue[--b->wqueue_size], b);
+
+        b->wqueue = mfree(b->wqueue);
+}
+
+static sd_bus* bus_free(sd_bus *b) {
+        sd_bus_slot *s;
+
+        assert(b);
+        assert(!b->track_queue);
+        assert(!b->tracks);
+
+        b->state = BUS_CLOSED;
+
+        sd_bus_detach_event(b);
+
+        while ((s = b->slots)) {
+                /* At this point only floating slots can still be
                  * around, because the non-floating ones keep a
                  * reference to the bus, and we thus couldn't be
                  * destructing right now... We forcibly disconnect the
                  * slots here, so that they still can be referenced by
                  * apps, but are dead. */
 
-		assert(s->floating);
-		bus_slot_disconnect(s);
-		sd_bus_slot_unref(s);
-	}
+                assert(s->floating);
+                bus_slot_disconnect(s, true);
+        }
 
-	if (b->default_bus_ptr)
-		*b->default_bus_ptr = NULL;
+        if (b->default_bus_ptr)
+                *b->default_bus_ptr = NULL;
 
-	bus_close_fds(b);
+        bus_close_fds(b);
 
-	free(b->label);
-	free(b->rbuffer);
-	free(b->unique_name);
-	free(b->auth_buffer);
-	free(b->address);
-	free(b->kernel);
-	free(b->machine);
-	free(b->cgroup_root);
-	free(b->description);
+        free(b->label);
+        free(b->groups);
+        free(b->rbuffer);
+        free(b->unique_name);
+        free(b->auth_buffer);
+        free(b->address);
+        free(b->machine);
+        free(b->description);
+        free(b->patch_sender);
 
-	free(b->exec_path);
-	strv_free(b->exec_argv);
+        free(b->exec_path);
+        strv_free(b->exec_argv);
 
-	close_many(b->fds, b->n_fds);
-	free(b->fds);
+        close_many(b->fds, b->n_fds);
+        free(b->fds);
 
-	bus_reset_queues(b);
+        bus_reset_queues(b);
 
-	ordered_hashmap_free_free(b->reply_callbacks);
-	prioq_free(b->reply_callbacks_prioq);
+        ordered_hashmap_free_free(b->reply_callbacks);
+        prioq_free(b->reply_callbacks_prioq);
 
-	assert(b->match_callbacks.type == BUS_MATCH_ROOT);
-	bus_match_free(&b->match_callbacks);
+        assert(b->match_callbacks.type == BUS_MATCH_ROOT);
+        bus_match_free(&b->match_callbacks);
 
-	hashmap_free_free(b->vtable_methods);
-	hashmap_free_free(b->vtable_properties);
+        hashmap_free_free(b->vtable_methods);
+        hashmap_free_free(b->vtable_properties);
 
-	assert(hashmap_isempty(b->nodes));
-	hashmap_free(b->nodes);
+        assert(hashmap_isempty(b->nodes));
+        hashmap_free(b->nodes);
 
-	free(b);
+        bus_flush_memfd(b);
+
+        assert_se(pthread_mutex_destroy(&b->memfd_cache_mutex) == 0);
+
+        return mfree(b);
 }
 
-_public_ int
-sd_bus_new(sd_bus **ret)
-{
-	sd_bus *r;
+DEFINE_TRIVIAL_CLEANUP_FUNC(sd_bus*, bus_free);
 
-	assert_return(ret, -EINVAL);
+DEFINE_ORIGIN_ID_HELPERS(sd_bus, bus);
 
-	r = new0(sd_bus, 1);
-	if (!r)
-		return -ENOMEM;
+_public_ int sd_bus_new(sd_bus **ret) {
+        _cleanup_free_ sd_bus *b = NULL;
 
-	r->n_ref = REFCNT_INIT;
-	r->input_fd = r->output_fd = -1;
-	r->message_version = 1;
-	r->creds_mask |=
-		SD_BUS_CREDS_WELL_KNOWN_NAMES | SD_BUS_CREDS_UNIQUE_NAME;
-	r->hello_flags |= KDBUS_HELLO_ACCEPT_FD;
-	r->attach_flags |= KDBUS_ATTACH_NAMES;
-	r->original_pid = getpid();
+        assert_return(ret, -EINVAL);
 
-	/* We guarantee that wqueue always has space for at least one
-         * entry */
-	if (!GREEDY_REALLOC(r->wqueue, 1)) {
-		free(r);
-		return -ENOMEM;
-	}
+        b = new(sd_bus, 1);
+        if (!b)
+                return -ENOMEM;
 
-	*ret = r;
-	return 0;
+        *b = (sd_bus) {
+                .n_ref = 1,
+                .input_fd = -EBADF,
+                .output_fd = -EBADF,
+                .inotify_fd = -EBADF,
+                .message_version = 1,
+                .creds_mask = SD_BUS_CREDS_WELL_KNOWN_NAMES|SD_BUS_CREDS_UNIQUE_NAME,
+                .accept_fd = true,
+                .origin_id = origin_id_query(),
+                .n_groups = SIZE_MAX,
+                .close_on_exit = true,
+                .ucred = UCRED_INVALID,
+                .pidfd = -EBADF,
+                .runtime_scope = _RUNTIME_SCOPE_INVALID,
+                .connect_as_uid = UID_INVALID,
+                .connect_as_gid = GID_INVALID,
+        };
+
+        /* We guarantee that wqueue always has space for at least one entry */
+        if (!GREEDY_REALLOC(b->wqueue, 1))
+                return -ENOMEM;
+
+        assert_se(pthread_mutex_init(&b->memfd_cache_mutex, NULL) == 0);
+
+        *ret = TAKE_PTR(b);
+        return 0;
 }
 
-_public_ int
-sd_bus_set_address(sd_bus *bus, const char *address)
-{
-	char *a;
+_public_ int sd_bus_set_address(sd_bus *bus, const char *address) {
+        assert_return(bus, -EINVAL);
+        assert_return(bus = bus_resolve(bus), -ENOPKG);
+        assert_return(bus->state == BUS_UNSET, -EPERM);
+        assert_return(address, -EINVAL);
+        assert_return(!bus_origin_changed(bus), -ECHILD);
 
-	assert_return(bus, -EINVAL);
-	assert_return(bus->state == BUS_UNSET, -EPERM);
-	assert_return(address, -EINVAL);
-	assert_return(!bus_pid_changed(bus), -ECHILD);
-
-	a = strdup(address);
-	if (!a)
-		return -ENOMEM;
-
-	free(bus->address);
-	bus->address = a;
-
-	return 0;
+        return free_and_strdup(&bus->address, address);
 }
 
-_public_ int
-sd_bus_set_fd(sd_bus *bus, int input_fd, int output_fd)
-{
-	assert_return(bus, -EINVAL);
-	assert_return(bus->state == BUS_UNSET, -EPERM);
-	assert_return(input_fd >= 0, -EINVAL);
-	assert_return(output_fd >= 0, -EINVAL);
-	assert_return(!bus_pid_changed(bus), -ECHILD);
+_public_ int sd_bus_set_fd(sd_bus *bus, int input_fd, int output_fd) {
+        assert_return(bus, -EINVAL);
+        assert_return(bus = bus_resolve(bus), -ENOPKG);
+        assert_return(bus->state == BUS_UNSET, -EPERM);
+        assert_return(input_fd >= 0, -EBADF);
+        assert_return(output_fd >= 0, -EBADF);
+        assert_return(!bus_origin_changed(bus), -ECHILD);
 
-	bus->input_fd = input_fd;
-	bus->output_fd = output_fd;
-	return 0;
+        bus->input_fd = input_fd;
+        bus->output_fd = output_fd;
+        return 0;
 }
 
-_public_ int
-sd_bus_set_exec(sd_bus *bus, const char *path, char *const argv[])
-{
-	char *p, **a;
+_public_ int sd_bus_set_exec(sd_bus *bus, const char *path, char *const *argv) {
+        _cleanup_strv_free_ char **a = NULL;
+        int r;
 
-	assert_return(bus, -EINVAL);
-	assert_return(bus->state == BUS_UNSET, -EPERM);
-	assert_return(path, -EINVAL);
-	assert_return(!strv_isempty(argv), -EINVAL);
-	assert_return(!bus_pid_changed(bus), -ECHILD);
+        assert_return(bus, -EINVAL);
+        assert_return(bus = bus_resolve(bus), -ENOPKG);
+        assert_return(bus->state == BUS_UNSET, -EPERM);
+        assert_return(path, -EINVAL);
+        assert_return(!strv_isempty(argv), -EINVAL);
+        assert_return(!bus_origin_changed(bus), -ECHILD);
 
-	p = strdup(path);
-	if (!p)
-		return -ENOMEM;
+        a = strv_copy(argv);
+        if (!a)
+                return -ENOMEM;
 
-	a = strv_copy(argv);
-	if (!a) {
-		free(p);
-		return -ENOMEM;
-	}
+        r = free_and_strdup(&bus->exec_path, path);
+        if (r < 0)
+                return r;
 
-	free(bus->exec_path);
-	strv_free(bus->exec_argv);
-
-	bus->exec_path = p;
-	bus->exec_argv = a;
-
-	return 0;
+        return strv_free_and_replace(bus->exec_argv, a);
 }
 
 _public_ int
@@ -376,6 +376,29 @@ sd_bus_set_description(sd_bus *bus, const char *description)
 	assert_return(!bus_pid_changed(bus), -ECHILD);
 
 	return free_and_strdup(&bus->description, description);
+}
+
+void bus_set_state(sd_bus *bus, enum bus_state state) {
+        static const char* const table[_BUS_STATE_MAX] = {
+                [BUS_UNSET]          = "UNSET",
+                [BUS_WATCH_BIND]     = "WATCH_BIND",
+                [BUS_OPENING]        = "OPENING",
+                [BUS_AUTHENTICATING] = "AUTHENTICATING",
+                [BUS_HELLO]          = "HELLO",
+                [BUS_RUNNING]        = "RUNNING",
+                [BUS_CLOSING]        = "CLOSING",
+                [BUS_CLOSED]         = "CLOSED",
+        };
+
+        assert(bus);
+        assert(state < _BUS_STATE_MAX);
+
+        if (state == bus->state)
+                return;
+
+        log_debug("Bus %s: changing state %s %s %s", strna(bus->description),
+                  table[bus->state], special_glyph(SPECIAL_GLYPH_ARROW_RIGHT), table[state]);
+        bus->state = state;
 }
 
 static int
@@ -3101,67 +3124,111 @@ sd_bus_add_filter(sd_bus *bus, sd_bus_slot **slot,
 	return 0;
 }
 
-_public_ int
-sd_bus_add_match(sd_bus *bus, sd_bus_slot **slot, const char *match,
-	sd_bus_message_handler_t callback, void *userdata)
-{
-	struct bus_match_component *components = NULL;
-	unsigned n_components = 0;
-	sd_bus_slot *s = NULL;
-	int r = 0;
+int bus_add_match_full(
+                sd_bus *bus,
+                sd_bus_slot **slot,
+                bool asynchronous,
+                const char *match,
+                sd_bus_message_handler_t callback,
+                sd_bus_message_handler_t install_callback,
+                void *userdata,
+                uint64_t timeout_usec) {
 
-	assert_return(bus, -EINVAL);
-	assert_return(match, -EINVAL);
-	assert_return(!bus_pid_changed(bus), -ECHILD);
+        struct bus_match_component *components = NULL;
+        size_t n_components = 0;
+        _cleanup_(sd_bus_slot_unrefp) sd_bus_slot *s = NULL;
+        int r;
 
-	r = bus_match_parse(match, &components, &n_components);
-	if (r < 0)
-		goto finish;
+        assert_return(bus, -EINVAL);
+        assert_return(bus = bus_resolve(bus), -ENOPKG);
+        assert_return(match, -EINVAL);
+        assert_return(!bus_origin_changed(bus), -ECHILD);
 
-	s = bus_slot_allocate(bus, !slot, BUS_MATCH_CALLBACK,
-		sizeof(struct match_callback), userdata);
-	if (!s) {
-		r = -ENOMEM;
-		goto finish;
-	}
+        CLEANUP_ARRAY(components, n_components, bus_match_parse_free);
 
-	s->match_callback.callback = callback;
-	s->match_callback.cookie = ++bus->match_cookie;
+        r = bus_match_parse(match, &components, &n_components);
+        if (r < 0)
+                return r;
 
-	if (bus->bus_client) {
-		if (!bus->is_kernel) {
-			/* When this is not a kernel transport, we
-                         * store the original match string, so that we
-                         * can use it to remove the match again */
+        s = bus_slot_allocate(bus, !slot, BUS_MATCH_CALLBACK, sizeof(struct match_callback), userdata);
+        if (!s)
+                return -ENOMEM;
 
-			s->match_callback.match_string = strdup(match);
-			if (!s->match_callback.match_string) {
-				r = -ENOMEM;
-				goto finish;
-			}
-		}
+        s->match_callback.callback = callback;
+        s->match_callback.install_callback = install_callback;
 
-		r = bus_add_match_internal(bus, s->match_callback.match_string,
-			components, n_components, s->match_callback.cookie);
-		if (r < 0)
-			goto finish;
-	}
+        if (bus->bus_client) {
+                enum bus_match_scope scope;
 
-	bus->match_callbacks_modified = true;
-	r = bus_match_add(&bus->match_callbacks, components, n_components,
-		&s->match_callback);
-	if (r < 0)
-		goto finish;
+                scope = bus_match_get_scope(components, n_components);
 
-	if (slot)
-		*slot = s;
-	s = NULL;
+                /* Do not install server-side matches for matches against the local service, interface or bus path. */
+                if (scope != BUS_MATCH_LOCAL) {
 
-finish:
-	bus_match_parse_free(components, n_components);
-	sd_bus_slot_unref(s);
+                        /* We store the original match string, so that we can use it to remove the match again. */
 
-	return r;
+                        s->match_callback.match_string = strdup(match);
+                        if (!s->match_callback.match_string)
+                                return -ENOMEM;
+
+                        if (asynchronous) {
+                                r = bus_add_match_internal_async(bus,
+                                                                 &s->match_callback.install_slot,
+                                                                 s->match_callback.match_string,
+                                                                 add_match_callback,
+                                                                 s,
+                                                                 timeout_usec);
+
+                                if (r < 0)
+                                        return r;
+
+                                /* Make the slot of the match call floating now. We need the reference, but we don't
+                                 * want that this match pins the bus object, hence we first create it non-floating, but
+                                 * then make it floating. */
+                                r = sd_bus_slot_set_floating(s->match_callback.install_slot, true);
+                        } else
+                                r = bus_add_match_internal(bus,
+                                                s->match_callback.match_string,
+                                                timeout_usec,
+                                                &s->match_callback.after);
+                        if (r < 0)
+                                return r;
+
+                        s->match_added = true;
+                }
+        }
+
+        bus->match_callbacks_modified = true;
+        r = bus_match_add(&bus->match_callbacks, components, n_components, &s->match_callback);
+        if (r < 0)
+                return r;
+
+        if (slot)
+                *slot = s;
+        s = NULL;
+
+        return 0;
+}
+
+_public_ int sd_bus_add_match(
+                sd_bus *bus,
+                sd_bus_slot **slot,
+                const char *match,
+                sd_bus_message_handler_t callback,
+                void *userdata) {
+
+        return bus_add_match_full(bus, slot, false, match, callback, NULL, userdata, 0);
+}
+
+_public_ int sd_bus_add_match_async(
+                sd_bus *bus,
+                sd_bus_slot **slot,
+                const char *match,
+                sd_bus_message_handler_t callback,
+                sd_bus_message_handler_t install_callback,
+                void *userdata) {
+
+        return bus_add_match_full(bus, slot, true, match, callback, install_callback, userdata, 0);
 }
 
 int
@@ -3377,24 +3444,31 @@ attach_io_events(sd_bus *bus)
 	return 0;
 }
 
-static void
-detach_io_events(sd_bus *bus)
-{
-	assert(bus);
+// static void
+// detach_io_events(sd_bus *bus)
+// {
+// 	assert(bus);
 
-	if (bus->input_io_event_source) {
-		sd_event_source_set_enabled(bus->input_io_event_source,
-			SD_EVENT_OFF);
-		bus->input_io_event_source =
-			sd_event_source_unref(bus->input_io_event_source);
-	}
+// 	if (bus->input_io_event_source) {
+// 		sd_event_source_set_enabled(bus->input_io_event_source,
+// 			SD_EVENT_OFF);
+// 		bus->input_io_event_source =
+// 			sd_event_source_unref(bus->input_io_event_source);
+// 	}
 
-	if (bus->output_io_event_source) {
-		sd_event_source_set_enabled(bus->output_io_event_source,
-			SD_EVENT_OFF);
-		bus->output_io_event_source =
-			sd_event_source_unref(bus->output_io_event_source);
-	}
+// 	if (bus->output_io_event_source) {
+// 		sd_event_source_set_enabled(bus->output_io_event_source,
+// 			SD_EVENT_OFF);
+// 		bus->output_io_event_source =
+// 			sd_event_source_unref(bus->output_io_event_source);
+// 	}
+// }
+
+static void bus_detach_io_events(sd_bus *bus) {
+        assert(bus);
+
+        bus->input_io_event_source = sd_event_source_disable_unref(bus->input_io_event_source);
+        bus->output_io_event_source = sd_event_source_disable_unref(bus->output_io_event_source);
 }
 
 _public_ int
@@ -3453,32 +3527,20 @@ fail:
 	return r;
 }
 
-_public_ int
-sd_bus_detach_event(sd_bus *bus)
-{
-	assert_return(bus, -EINVAL);
+_public_ int sd_bus_detach_event(sd_bus *bus) {
+        assert_return(bus, -EINVAL);
+        assert_return(bus = bus_resolve(bus), -ENOPKG);
 
-	if (!bus->event)
-		return 0;
+        if (!bus->event)
+                return 0;
 
-	detach_io_events(bus);
+        bus_detach_io_events(bus);
+        bus->inotify_event_source = sd_event_source_disable_unref(bus->inotify_event_source);
+        bus->time_event_source = sd_event_source_disable_unref(bus->time_event_source);
+        bus->quit_event_source = sd_event_source_disable_unref(bus->quit_event_source);
 
-	if (bus->time_event_source) {
-		sd_event_source_set_enabled(bus->time_event_source,
-			SD_EVENT_OFF);
-		bus->time_event_source =
-			sd_event_source_unref(bus->time_event_source);
-	}
-
-	if (bus->quit_event_source) {
-		sd_event_source_set_enabled(bus->quit_event_source,
-			SD_EVENT_OFF);
-		bus->quit_event_source =
-			sd_event_source_unref(bus->quit_event_source);
-	}
-
-	bus->event = sd_event_unref(bus->event);
-	return 1;
+        bus->event = sd_event_unref(bus->event);
+        return 1;
 }
 
 _public_ sd_event *

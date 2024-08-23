@@ -60,180 +60,164 @@ sd_bus_slot_ref(sd_bus_slot *slot)
 	return slot;
 }
 
-void
-bus_slot_disconnect(sd_bus_slot *slot)
-{
-	sd_bus *bus;
+void bus_slot_disconnect(sd_bus_slot *slot, bool unref) {
+        sd_bus *bus;
 
-	assert(slot);
+        assert(slot);
 
-	if (!slot->bus)
-		return;
+        if (!slot->bus)
+                return;
 
-	switch (slot->type) {
-	case BUS_REPLY_CALLBACK:
+        switch (slot->type) {
 
-		if (slot->reply_callback.cookie != 0)
-			ordered_hashmap_remove(slot->bus->reply_callbacks,
-				&slot->reply_callback.cookie);
+        case BUS_REPLY_CALLBACK:
 
-		if (slot->reply_callback.timeout != 0)
-			prioq_remove(slot->bus->reply_callbacks_prioq,
-				&slot->reply_callback,
-				&slot->reply_callback.prioq_idx);
+                if (slot->reply_callback.cookie != 0)
+                        ordered_hashmap_remove(slot->bus->reply_callbacks, &slot->reply_callback.cookie);
 
-		break;
+                if (slot->reply_callback.timeout_usec != 0)
+                        prioq_remove(slot->bus->reply_callbacks_prioq, &slot->reply_callback, &slot->reply_callback.prioq_idx);
 
-	case BUS_FILTER_CALLBACK:
-		slot->bus->filter_callbacks_modified = true;
-		LIST_REMOVE(callbacks, slot->bus->filter_callbacks,
-			&slot->filter_callback);
-		break;
+                break;
 
-	case BUS_MATCH_CALLBACK:
+        case BUS_FILTER_CALLBACK:
+                slot->bus->filter_callbacks_modified = true;
+                LIST_REMOVE(callbacks, slot->bus->filter_callbacks, &slot->filter_callback);
+                break;
 
-		if (slot->bus->bus_client)
-			bus_remove_match_internal(slot->bus,
-				slot->match_callback.match_string,
-				slot->match_callback.cookie);
+        case BUS_MATCH_CALLBACK:
 
-		slot->bus->match_callbacks_modified = true;
-		bus_match_remove(&slot->bus->match_callbacks,
-			&slot->match_callback);
+                if (slot->match_added)
+                        (void) bus_remove_match_internal(slot->bus, slot->match_callback.match_string);
 
-		free(slot->match_callback.match_string);
+                if (slot->match_callback.install_slot) {
+                        bus_slot_disconnect(slot->match_callback.install_slot, true);
+                        slot->match_callback.install_slot = sd_bus_slot_unref(slot->match_callback.install_slot);
+                }
 
-		break;
+                slot->bus->match_callbacks_modified = true;
+                bus_match_remove(&slot->bus->match_callbacks, &slot->match_callback);
 
-	case BUS_NODE_CALLBACK:
+                slot->match_callback.match_string = mfree(slot->match_callback.match_string);
 
-		if (slot->node_callback.node) {
-			LIST_REMOVE(callbacks,
-				slot->node_callback.node->callbacks,
-				&slot->node_callback);
-			slot->bus->nodes_modified = true;
+                break;
 
-			bus_node_gc(slot->bus, slot->node_callback.node);
-		}
+        case BUS_NODE_CALLBACK:
 
-		break;
+                if (slot->node_callback.node) {
+                        LIST_REMOVE(callbacks, slot->node_callback.node->callbacks, &slot->node_callback);
+                        slot->bus->nodes_modified = true;
 
-	case BUS_NODE_ENUMERATOR:
+                        bus_node_gc(slot->bus, slot->node_callback.node);
+                }
 
-		if (slot->node_enumerator.node) {
-			LIST_REMOVE(enumerators,
-				slot->node_enumerator.node->enumerators,
-				&slot->node_enumerator);
-			slot->bus->nodes_modified = true;
+                break;
 
-			bus_node_gc(slot->bus, slot->node_enumerator.node);
-		}
+        case BUS_NODE_ENUMERATOR:
 
-		break;
+                if (slot->node_enumerator.node) {
+                        LIST_REMOVE(enumerators, slot->node_enumerator.node->enumerators, &slot->node_enumerator);
+                        slot->bus->nodes_modified = true;
 
-	case BUS_NODE_OBJECT_MANAGER:
+                        bus_node_gc(slot->bus, slot->node_enumerator.node);
+                }
 
-		if (slot->node_object_manager.node) {
-			LIST_REMOVE(object_managers,
-				slot->node_object_manager.node->object_managers,
-				&slot->node_object_manager);
-			slot->bus->nodes_modified = true;
+                break;
 
-			bus_node_gc(slot->bus, slot->node_object_manager.node);
-		}
+        case BUS_NODE_OBJECT_MANAGER:
 
-		break;
+                if (slot->node_object_manager.node) {
+                        LIST_REMOVE(object_managers, slot->node_object_manager.node->object_managers, &slot->node_object_manager);
+                        slot->bus->nodes_modified = true;
 
-	case BUS_NODE_VTABLE:
+                        bus_node_gc(slot->bus, slot->node_object_manager.node);
+                }
 
-		if (slot->node_vtable.node && slot->node_vtable.interface &&
-			slot->node_vtable.vtable) {
-			const sd_bus_vtable *v;
+                break;
 
-			for (v = slot->node_vtable.vtable;
-				v->type != _SD_BUS_VTABLE_END; v++) {
-				struct vtable_member *x = NULL;
+        case BUS_NODE_VTABLE:
 
-				switch (v->type) {
-				case _SD_BUS_VTABLE_METHOD: {
-					struct vtable_member key;
+                if (slot->node_vtable.node && slot->node_vtable.interface && slot->node_vtable.vtable) {
+                        const sd_bus_vtable *v;
 
-					key.path = slot->node_vtable.node->path;
-					key.interface =
-						slot->node_vtable.interface;
-					key.member = v->x.method.member;
+                        for (v = slot->node_vtable.vtable; v->type != _SD_BUS_VTABLE_END; v = bus_vtable_next(slot->node_vtable.vtable, v)) {
+                                struct vtable_member *x = NULL;
 
-					x = hashmap_remove(
-						slot->bus->vtable_methods,
-						&key);
-					break;
-				}
+                                switch (v->type) {
 
-				case _SD_BUS_VTABLE_PROPERTY:
-				case _SD_BUS_VTABLE_WRITABLE_PROPERTY: {
-					struct vtable_member key;
+                                case _SD_BUS_VTABLE_METHOD: {
+                                        struct vtable_member key;
 
-					key.path = slot->node_vtable.node->path;
-					key.interface =
-						slot->node_vtable.interface;
-					key.member = v->x.method.member;
+                                        key.path = slot->node_vtable.node->path;
+                                        key.interface = slot->node_vtable.interface;
+                                        key.member = v->x.method.member;
 
-					x = hashmap_remove(
-						slot->bus->vtable_properties,
-						&key);
-					break;
-				}
-				}
+                                        x = hashmap_remove(slot->bus->vtable_methods, &key);
+                                        break;
+                                }
 
-				free(x);
-			}
-		}
+                                case _SD_BUS_VTABLE_PROPERTY:
+                                case _SD_BUS_VTABLE_WRITABLE_PROPERTY: {
+                                        struct vtable_member key;
 
-		free(slot->node_vtable.interface);
+                                        key.path = slot->node_vtable.node->path;
+                                        key.interface = slot->node_vtable.interface;
+                                        key.member = v->x.method.member;
 
-		if (slot->node_vtable.node) {
-			LIST_REMOVE(vtables, slot->node_vtable.node->vtables,
-				&slot->node_vtable);
-			slot->bus->nodes_modified = true;
+                                        x = hashmap_remove(slot->bus->vtable_properties, &key);
+                                        break;
+                                }}
 
-			bus_node_gc(slot->bus, slot->node_vtable.node);
-		}
+                                free(x);
+                        }
+                }
 
-		break;
+                slot->node_vtable.interface = mfree(slot->node_vtable.interface);
 
-	default:
-		assert_not_reached();
-	}
+                if (slot->node_vtable.node) {
+                        LIST_REMOVE(vtables, slot->node_vtable.node->vtables, &slot->node_vtable);
+                        slot->bus->nodes_modified = true;
 
-	bus = slot->bus;
+                        bus_node_gc(slot->bus, slot->node_vtable.node);
+                }
 
-	slot->type = _BUS_SLOT_INVALID;
-	slot->bus = NULL;
-	LIST_REMOVE(slots, bus->slots, slot);
+                break;
 
-	if (!slot->floating)
-		sd_bus_unref(bus);
+        default:
+                assert_not_reached();
+        }
+
+        bus = slot->bus;
+
+        slot->type = _BUS_SLOT_INVALID;
+        slot->bus = NULL;
+        LIST_REMOVE(slots, bus->slots, slot);
+
+        if (!slot->floating)
+                sd_bus_unref(bus);
+        else if (unref)
+                sd_bus_slot_unref(slot);
 }
 
-_public_ sd_bus_slot *
-sd_bus_slot_unref(sd_bus_slot *slot)
-{
-	if (!slot)
-		return NULL;
+// _public_ sd_bus_slot *
+// sd_bus_slot_unref(sd_bus_slot *slot)
+// {
+// 	if (!slot)
+// 		return NULL;
 
-	assert(slot->n_ref > 0);
+// 	assert(slot->n_ref > 0);
 
-	if (slot->n_ref > 1) {
-		slot->n_ref--;
-		return NULL;
-	}
+// 	if (slot->n_ref > 1) {
+// 		slot->n_ref--;
+// 		return NULL;
+// 	}
 
-	bus_slot_disconnect(slot);
-	free(slot->description);
-	free(slot);
+// 	bus_slot_disconnect(slot);
+// 	free(slot->description);
+// 	free(slot);
 
-	return NULL;
-}
+// 	return NULL;
+// }
 
 _public_ sd_bus *
 sd_bus_slot_get_bus(sd_bus_slot *slot)

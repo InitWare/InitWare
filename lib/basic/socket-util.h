@@ -174,6 +174,15 @@ int netlink_family_from_string(const char *s) _pure_;
 bool sockaddr_equal(const union sockaddr_union *a,
 	const union sockaddr_union *b);
 
+int fd_set_sndbuf(int fd, size_t n, bool increase);
+static inline int fd_inc_sndbuf(int fd, size_t n) {
+        return fd_set_sndbuf(fd, n, true);
+}
+int fd_set_rcvbuf(int fd, size_t n, bool increase);
+static inline int fd_increase_rxbuf(int fd, size_t n) {
+        return fd_set_rcvbuf(fd, n, true);
+}
+
 #ifdef SVC_PLATFORM_Linux
 #define ETHER_ADDR_TO_STRING_MAX (3 * 6)
 
@@ -183,3 +192,14 @@ char *ether_addr_to_string(const struct ether_addr *addr,
 
 int socket_passcred(int fd);
 int cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred);
+
+/* Resolves to a type that can carry cmsghdr structures. Make sure things are properly aligned, i.e. the type
+ * itself is placed properly in memory and the size is also aligned to what's appropriate for "cmsghdr"
+ * structures. */
+#define CMSG_BUFFER_TYPE(size)                                          \
+        union {                                                         \
+                struct cmsghdr cmsghdr;                                 \
+                uint8_t buf[size];                                      \
+                uint8_t align_check[(size) >= CMSG_SPACE(0) &&          \
+                                    (size) == CMSG_ALIGN(size) ? 1 : -1]; \
+        }

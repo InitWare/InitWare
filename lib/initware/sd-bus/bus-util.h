@@ -47,12 +47,12 @@ struct bus_properties_map {
 int bus_map_id128(sd_bus *bus, const char *member, sd_bus_message *m,
 	sd_bus_error *error, void *userdata);
 
-int bus_message_map_all_properties(sd_bus *bus, sd_bus_message *m,
-	const struct bus_properties_map *map, void *userdata);
-int bus_message_map_properties_changed(sd_bus *bus, sd_bus_message *m,
-	const struct bus_properties_map *map, void *userdata);
-int bus_map_all_properties(sd_bus *bus, const char *destination,
-	const char *path, const struct bus_properties_map *map, void *userdata);
+// int bus_message_map_all_properties(sd_bus *bus, sd_bus_message *m,
+// 	const struct bus_properties_map *map, void *userdata);
+// int bus_message_map_properties_changed(sd_bus *bus, sd_bus_message *m,
+// 	const struct bus_properties_map *map, void *userdata);
+// int bus_map_all_properties(sd_bus *bus, const char *destination,
+// 	const char *path, const struct bus_properties_map *map, void *userdata);
 
 int bus_async_unregister_and_exit(sd_event *e, sd_bus *bus, const char *name);
 
@@ -73,17 +73,17 @@ int bus_verify_polkit_async(sd_bus_message *call, int capability,
 	sd_bus_error *error);
 void bus_verify_polkit_async_registry_free(Hashmap *registry);
 
-int bus_open_system_systemd(sd_bus **_bus);
-int bus_open_user_systemd(sd_bus **_bus);
+// int bus_open_system_systemd(sd_bus **_bus);
+// int bus_open_user_systemd(sd_bus **_bus);
 
 int bus_open_transport(BusTransport transport, const char *host, bool user,
 	sd_bus **bus);
-int bus_open_transport_systemd(BusTransport transport, const char *host,
-	bool user, sd_bus **bus);
+// int bus_open_transport_systemd(BusTransport transport, const char *host,
+// 	bool user, sd_bus **bus);
 
 int bus_print_property(const char *name, sd_bus_message *property, bool all);
-int bus_print_all_properties(sd_bus *bus, const char *dest, const char *path,
-	char **filter, bool all);
+// int bus_print_all_properties(sd_bus *bus, const char *dest, const char *path,
+// 	char **filter, bool all);
 
 int bus_property_get_bool(sd_bus *bus, const char *path, const char *interface,
 	const char *property, sd_bus_message *reply, void *userdata,

@@ -32,6 +32,8 @@
 #include "socket-util.h"
 #include "util.h"
 
+#include "sd-bus.h"
+
 #include "bus-error.h"
 #include "bus-kernel.h"
 #include "bus-match.h"
@@ -39,10 +41,10 @@
 #include "sd-bus.h"
 
 struct reply_callback {
-	sd_bus_message_handler_t callback;
-	usec_t timeout;
-	uint64_t cookie;
-	unsigned prioq_idx;
+        sd_bus_message_handler_t callback;
+        usec_t timeout_usec; /* this is a relative timeout until we reach the BUS_HELLO state, and an absolute one right after */
+        uint64_t cookie;
+        unsigned prioq_idx;
 };
 
 struct filter_callback {
@@ -144,24 +146,36 @@ typedef enum BusSlotType {
 } BusSlotType;
 
 struct sd_bus_slot {
-	unsigned n_ref;
-	sd_bus *bus;
-	void *userdata;
-	BusSlotType type: 5;
-	bool floating: 1;
-	char *description;
+        unsigned n_ref;
+        BusSlotType type:8;
 
-	LIST_FIELDS(sd_bus_slot, slots);
+        /* Slots can be "floating" or not. If they are not floating (the usual case) then they reference the
+         * bus object they are associated with. This means the bus object stays allocated at least as long as
+         * there is a slot around associated with it. If it is floating, then the slot's lifecycle is bound
+         * to the lifecycle of the bus: it will be disconnected from the bus when the bus is destroyed, and
+         * it keeping the slot reffed hence won't mean the bus stays reffed too. Internally this means the
+         * reference direction is reversed: floating slots objects are referenced by the bus object, and not
+         * vice versa. */
+        bool floating;
+        bool match_added;
 
-	union {
-		struct reply_callback reply_callback;
-		struct filter_callback filter_callback;
-		struct match_callback match_callback;
-		struct node_callback node_callback;
-		struct node_enumerator node_enumerator;
-		struct node_object_manager node_object_manager;
-		struct node_vtable node_vtable;
-	};
+        sd_bus *bus;
+        void *userdata;
+        sd_bus_destroy_t destroy_callback;
+
+        char *description;
+
+        LIST_FIELDS(sd_bus_slot, slots);
+
+        union {
+                struct reply_callback reply_callback;
+                struct filter_callback filter_callback;
+                struct match_callback match_callback;
+                struct node_callback node_callback;
+                struct node_enumerator node_enumerator;
+                struct node_object_manager node_object_manager;
+                struct node_vtable node_vtable;
+        };
 };
 
 enum bus_state {
@@ -332,6 +346,8 @@ struct sd_bus {
 
 #define BUS_DEFAULT_TIMEOUT ((usec_t)(25 * USEC_PER_SEC))
 
+#define BUS_AUTH_TIMEOUT ((usec_t) DEFAULT_TIMEOUT_USEC)
+
 #define BUS_WQUEUE_MAX (384 * 1024)
 #define BUS_RQUEUE_MAX (384 * 1024)
 
@@ -395,9 +411,8 @@ char *bus_address_escape(const char *v);
 /* If we are invoking callbacks of a bus object, ensure unreffing the
  * bus from the callback doesn't destroy the object we are working
  * on */
-#define BUS_DONT_DESTROY(bus)                                                  \
-	_cleanup_bus_unref_ _unused_ sd_bus *_dont_destroy_##bus =             \
-		sd_bus_ref(bus)
+#define BUS_DONT_DESTROY(bus) \
+        _cleanup_(sd_bus_unrefp) _unused_ sd_bus *_dont_destroy_##bus = sd_bus_ref(bus)
 
 int bus_set_address_system(sd_bus *bus);
 int bus_set_address_user(sd_bus *bus);
@@ -416,3 +431,5 @@ int bus_maybe_reply_error(sd_bus_message *m, int r, sd_bus_error *error);
                 if (!assert_log(expr, #expr))                           \
                         return sd_bus_error_set_errno(error, r);        \
         } while (false)
+
+void bus_set_state(sd_bus *bus, enum bus_state state);
