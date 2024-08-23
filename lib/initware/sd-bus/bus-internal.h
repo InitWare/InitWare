@@ -426,6 +426,8 @@ int bus_set_address_system_machine(sd_bus *b, const char *machine);
 
 int bus_get_root_path(sd_bus *bus);
 
+int bus_set_address_machine(sd_bus *b, RuntimeScope runtime_scope, const char *machine);
+
 int bus_maybe_reply_error(sd_bus_message *m, int r, sd_bus_error *error);
 
 #define bus_assert_return(expr, r, error)                               \

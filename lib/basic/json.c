@@ -28,6 +28,79 @@
 #include "utf8.h"
 #include "util.h"
 
+typedef struct JsonSource {
+        /* When we parse from a file or similar, encodes the filename, to indicate the source of a json variant */
+        unsigned n_ref;
+        unsigned max_line;
+        unsigned max_column;
+        char name[];
+} JsonSource;
+
+/* On x86-64 this whole structure should have a size of 6 * 64 bit = 48 bytes */
+struct JsonVariant {
+        union {
+                /* We either maintain a reference counter for this variant itself, or we are embedded into an
+                 * array/object, in which case only that surrounding object is ref-counted. (If 'embedded' is false,
+                 * see below.) */
+                unsigned n_ref;
+
+                /* If this JsonVariant is part of an array/object, then this field points to the surrounding
+                 * JSON_VARIANT_ARRAY/JSON_VARIANT_OBJECT object. (If 'embedded' is true, see below.) */
+                JsonVariant *parent;
+        };
+
+        /* If this was parsed from some file or buffer, this stores where from, as well as the source line/column */
+        JsonSource *source;
+        unsigned line, column;
+
+        /* The current 'depth' of the JsonVariant, i.e. how many levels of member variants this has */
+        uint16_t depth;
+
+        JsonVariantType type:8;
+
+        /* A marker whether this variant is embedded into in array/object or not. If true, the 'parent' pointer above
+         * is valid. If false, the 'n_ref' field above is valid instead. */
+        bool is_embedded:1;
+
+        /* In some conditions (for example, if this object is part of an array of strings or objects), we don't store
+         * any data inline, but instead simply reference an external object and act as surrogate of it. In that case
+         * this bool is set, and the external object is referenced through the .reference field below. */
+        bool is_reference:1;
+
+        /* While comparing two arrays, we use this for marking what we already have seen */
+        bool is_marked:1;
+
+        /* Erase from memory when freeing */
+        bool sensitive:1;
+
+        /* True if we know that any referenced json object is marked sensitive */
+        bool recursive_sensitive:1;
+
+        /* If this is an object the fields are strictly ordered by name */
+        bool sorted:1;
+
+        /* If in addition to this object all objects referenced by it are also ordered strictly by name */
+        bool normalized:1;
+
+        union {
+                /* For simple types we store the value in-line. */
+                JsonValue value;
+
+                /* For objects and arrays we store the number of elements immediately following */
+                size_t n_elements;
+
+                /* If is_reference as indicated above is set, this is where the reference object is actually stored. */
+                JsonVariant *reference;
+
+                /* Strings are placed immediately after the structure. Note that when this is a JsonVariant
+                 * embedded into an array we might encode strings up to INLINE_STRING_LENGTH characters
+                 * directly inside the element, while longer strings are stored as references. When this
+                 * object is not embedded into an array, but stand-alone, we allocate the right size for the
+                 * whole structure, i.e. the array might be much larger than INLINE_STRING_LENGTH. */
+                DECLARE_FLEX_ARRAY(char, string);
+        };
+};
+
 enum {
 	STATE_NULL,
 	STATE_VALUE,

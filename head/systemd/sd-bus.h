@@ -24,6 +24,7 @@
 #include <sys/uio.h>
 #include <inttypes.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 #include "_sd-common.h"
 #include "sd-event.h"
@@ -124,6 +125,13 @@ typedef _sd_destroy_t sd_bus_destroy_t;
 #include "sd-bus-protocol.h"
 #include "sd-bus-vtable.h"
 
+/* Naming */
+
+int sd_bus_interface_name_is_valid(const char *p);
+int sd_bus_service_name_is_valid(const char *p);
+int sd_bus_member_name_is_valid(const char *p);
+int sd_bus_object_path_is_valid(const char *p);
+
 /* Connections */
 
 int sd_bus_default(sd_bus **ret);
@@ -162,6 +170,8 @@ int sd_bus_can_send(sd_bus *bus, char type);
 int sd_bus_negotiate_timestamp(sd_bus *bus, int b);
 int sd_bus_negotiate_creds(sd_bus *bus, int b, uint64_t creds_mask);
 int sd_bus_get_creds_mask(sd_bus *bus, uint64_t *creds_mask);
+int sd_bus_set_watch_bind(sd_bus *bus, int b);
+int sd_bus_get_watch_bind(sd_bus *bus);
 
 int sd_bus_start(sd_bus *ret);
 
@@ -352,6 +362,8 @@ int sd_bus_message_verify_type(sd_bus_message *m, char type,
 int sd_bus_message_at_end(sd_bus_message *m, int complete);
 int sd_bus_message_rewind(sd_bus_message *m, int complete);
 int sd_bus_message_sensitive(sd_bus_message *m);
+
+int sd_bus_message_dump(sd_bus_message *m, FILE *f, uint64_t flags);
 
 /* Bus management */
 

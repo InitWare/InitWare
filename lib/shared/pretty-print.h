@@ -8,3 +8,5 @@ typedef enum CatFlags {
         CAT_FORMAT_HAS_SECTIONS = 1 << 1,  /* Sections are meaningful for this file format */
         CAT_TLDR                = 1 << 2,  /* Only print comments and relevant section headers */
 } CatFlags;
+
+int terminal_urlify_man(const char *page, const char *section, char **ret);

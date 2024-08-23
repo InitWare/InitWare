@@ -153,16 +153,13 @@ void strv_print(char **l);
               _x && strv_contains(STRV_MAKE(__VA_ARGS__), _x); \
       })
 
-#define FOREACH_STRING(x, ...)                                                 \
-	for (char **_l = ({                                                    \
-		     char **_ll = STRV_MAKE(__VA_ARGS__);                      \
-		     x = _ll ? _ll[0] : NULL;                                  \
-		     _ll;                                                      \
-	     });                                                               \
-		_l && *_l; x = ({                                              \
-			_l++;                                                  \
-			_l[0];                                                 \
-		}))
+#define _FOREACH_STRING(uniq, x, y, ...)                                \
+        for (const char *x, * const*UNIQ_T(l, uniq) = STRV_MAKE_CONST(({ x = y; }), ##__VA_ARGS__); \
+             x;                                                         \
+             x = *(++UNIQ_T(l, uniq)))
+
+#define FOREACH_STRING(x, y, ...)                       \
+        _FOREACH_STRING(UNIQ, x, y, ##__VA_ARGS__)
 
 char **strv_reverse(char **l);
 
@@ -174,6 +171,8 @@ strv_fnmatch_or_empty(char *const *patterns, const char *s, int flags)
 	assert(s);
 	return strv_isempty(patterns) || strv_fnmatch(patterns, s, flags);
 }
+
+char** strv_skip(char **l, size_t n);
 
 #define strv_free_and_replace(a, b)             \
         free_and_replace_full(a, b, strv_free)

@@ -66,6 +66,8 @@ int bus_name_has_owner(sd_bus *c, const char *name, sd_bus_error *error);
 
 int bus_check_peercred(sd_bus *c);
 
+int bus_set_address_capsule_bus(sd_bus *bus, const char *capsule, int *ret_pin_fd);
+
 int bus_verify_polkit(sd_bus_message *call, int capability, const char *action,
 	bool interactive, bool *_challenge, sd_bus_error *e);
 
@@ -89,6 +91,9 @@ int bus_print_property(const char *name, sd_bus_message *property, bool all);
 int bus_property_get_bool(sd_bus *bus, const char *path, const char *interface,
 	const char *property, sd_bus_message *reply, void *userdata,
 	sd_bus_error *error);
+
+int bus_log_address_error(int r, BusTransport transport);
+int bus_log_connect_error(int r, BusTransport transport);
 
 #define bus_property_get_usec ((sd_bus_property_get_t)NULL)
 #define bus_property_set_usec ((sd_bus_property_set_t)NULL)
