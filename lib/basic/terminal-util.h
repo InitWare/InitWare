@@ -25,6 +25,7 @@ typedef enum ColorMode {
         _COLOR_INVALID = -EINVAL,
 } ColorMode;
 
+bool terminal_is_dumb(void);
 ColorMode get_color_mode(void);
 
 static inline bool colors_enabled(void) {

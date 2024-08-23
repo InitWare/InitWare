@@ -27,11 +27,12 @@
 #include "util.h"
 
 typedef enum BusTransport {
-	BUS_TRANSPORT_LOCAL,
-	BUS_TRANSPORT_REMOTE,
-	BUS_TRANSPORT_MACHINE,
-	_BUS_TRANSPORT_MAX,
-	_BUS_TRANSPORT_INVALID = -1
+        BUS_TRANSPORT_LOCAL,
+        BUS_TRANSPORT_REMOTE,
+        BUS_TRANSPORT_MACHINE,
+        BUS_TRANSPORT_CAPSULE,
+        _BUS_TRANSPORT_MAX,
+        _BUS_TRANSPORT_INVALID = -EINVAL,
 } BusTransport;
 
 typedef int (*bus_property_set_t)(sd_bus *bus, const char *member,

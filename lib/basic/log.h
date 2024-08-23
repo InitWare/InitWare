@@ -257,6 +257,8 @@ int log_syntax_invalid_utf8_internal(
                         : -EINVAL;                                      \
         })
 
+void log_setup(void);
+
 /* Helpers to prepare various fields for structured logging */
 #define LOG_MESSAGE(fmt, ...) "MESSAGE=" fmt, ##__VA_ARGS__
 #define LOG_MESSAGE_ID(x)                                                      \
