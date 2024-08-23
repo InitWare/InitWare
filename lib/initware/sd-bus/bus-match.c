@@ -9,6 +9,7 @@
 // #include "hexdecoct.h"
 #include "memstream-util.h"
 #include "sort-util.h"
+#include "stdio-util.h"
 #include "string-util.h"
 #include "strv.h"
 

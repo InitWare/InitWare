@@ -106,8 +106,7 @@ __extension__ enum {
 
 /* Callbacks */
 
-typedef int (*sd_bus_message_handler_t)(sd_bus *bus, sd_bus_message *m,
-	void *userdata, sd_bus_error *ret_error);
+typedef int (*sd_bus_message_handler_t)(sd_bus_message *m, void *userdata, sd_bus_error *ret_error);
 typedef int (*sd_bus_property_get_t)(sd_bus *bus, const char *path,
 	const char *interface, const char *property, sd_bus_message *reply,
 	void *userdata, sd_bus_error *ret_error);
@@ -204,6 +203,9 @@ int sd_bus_attach_event(sd_bus *bus, sd_event *e, int priority);
 int sd_bus_detach_event(sd_bus *bus);
 sd_event *sd_bus_get_event(sd_bus *bus);
 
+int sd_bus_set_method_call_timeout(sd_bus *bus, uint64_t usec);
+int sd_bus_get_method_call_timeout(sd_bus *bus, uint64_t *ret);
+
 int sd_bus_add_filter(sd_bus *bus, sd_bus_slot **slot,
 	sd_bus_message_handler_t callback, void *userdata);
 int sd_bus_add_match(sd_bus *bus, sd_bus_slot **slot, const char *match,
@@ -239,6 +241,7 @@ void *sd_bus_slot_get_current_userdata(sd_bus_slot *slot);
 
 /* Message object */
 
+int sd_bus_message_new(sd_bus *bus, sd_bus_message **m, uint8_t type);
 int sd_bus_message_new_signal(sd_bus *bus, sd_bus_message **m, const char *path,
 	const char *interface, const char *member);
 int sd_bus_message_new_signal_to(sd_bus *bus, sd_bus_message **m, const char *destination, const char *path, const char *interface, const char *member);
@@ -257,6 +260,8 @@ int sd_bus_message_new_method_errnof(sd_bus_message *call, sd_bus_message **m,
 
 sd_bus_message *sd_bus_message_ref(sd_bus_message *m);
 sd_bus_message *sd_bus_message_unref(sd_bus_message *m);
+
+int sd_bus_message_seal(sd_bus_message *m, uint64_t cookie, uint64_t timeout_usec);
 
 int sd_bus_message_get_type(sd_bus_message *m, uint8_t *type);
 int sd_bus_message_get_cookie(sd_bus_message *m, uint64_t *cookie);

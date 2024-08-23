@@ -169,13 +169,8 @@ BUS_MESSAGE_BSWAP64(sd_bus_message *m, uint64_t u)
 	return BUS_MESSAGE_NEED_BSWAP(m) ? bswap64(u) : u;
 }
 
-static inline uint64_t
-BUS_MESSAGE_COOKIE(sd_bus_message *m)
-{
-	if (m->header->version == 2)
-		return BUS_MESSAGE_BSWAP64(m, m->header->dbus2.cookie);
-
-	return BUS_MESSAGE_BSWAP32(m, m->header->dbus1.serial);
+static inline uint64_t BUS_MESSAGE_COOKIE(sd_bus_message *m) {
+        return BUS_MESSAGE_BSWAP32(m, m->header->serial);
 }
 
 static inline size_t
@@ -207,17 +202,22 @@ int bus_message_seal(sd_bus_message *m, uint64_t serial, usec_t timeout);
 int bus_message_get_blob(sd_bus_message *m, void **buffer, size_t *sz);
 int bus_message_read_strv_extend(sd_bus_message *m, char ***l);
 
-int bus_message_from_header(sd_bus *bus, void *header, size_t header_accessible,
-	void *footer, size_t footer_accessible, size_t message_size, int *fds,
-	unsigned n_fds, const struct socket_ucred *ucred, const char *label,
-	size_t extra, sd_bus_message **ret);
+// int bus_message_from_header(sd_bus *bus, void *header, size_t header_accessible,
+// 	void *footer, size_t footer_accessible, size_t message_size, int *fds,
+// 	unsigned n_fds, const struct socket_ucred *ucred, const char *label,
+// 	size_t extra, sd_bus_message **ret);
 
-int bus_message_from_malloc(sd_bus *bus, void *buffer, size_t length, int *fds,
-	unsigned n_fds, const struct socket_ucred *ucred, const char *label,
-	sd_bus_message **ret);
+int bus_message_from_malloc(
+                sd_bus *bus,
+                void *buffer,
+                size_t length,
+                int *fds,
+                size_t n_fds,
+                const char *label,
+                sd_bus_message **ret);
 
-int bus_message_get_arg(sd_bus_message *m, unsigned i, const char **str,
-	char ***strv);
+int bus_message_get_arg(sd_bus_message *m, unsigned i, const char **str);
+int bus_message_get_arg_strv(sd_bus_message *m, unsigned i, char ***strv);
 
 int bus_message_append_ap(sd_bus_message *m, const char *types, va_list ap);
 
