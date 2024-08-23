@@ -11,3 +11,5 @@ typedef enum RuntimeScope {
         _RUNTIME_SCOPE_MAX,
         _RUNTIME_SCOPE_INVALID = -EINVAL,
 } RuntimeScope;
+
+const char *runtime_scope_to_string(RuntimeScope scope) _const_;

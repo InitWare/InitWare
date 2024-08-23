@@ -24,6 +24,8 @@ typedef enum WaitFlags {
 
 int wait_for_terminate_and_check(const char *name, pid_t pid, WaitFlags flags);
 
+void sigterm_wait(pid_t pid);
+
 static inline bool pid_is_valid(pid_t p) {
         return p > 0;
 }
@@ -66,3 +68,5 @@ int safe_fork_full(
 static inline int safe_fork(const char *name, ForkFlags flags, pid_t *ret_pid) {
         return safe_fork_full(name, NULL, NULL, 0, flags, ret_pid);
 }
+
+#define TAKE_PID(pid) TAKE_GENERIC(pid, pid_t, 0)

@@ -203,3 +203,5 @@ int cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred);
                 uint8_t align_check[(size) >= CMSG_SPACE(0) &&          \
                                     (size) == CMSG_ALIGN(size) ? 1 : -1]; \
         }
+
+#define UCRED_INVALID { .pid = 0, .uid = UID_INVALID, .gid = GID_INVALID }

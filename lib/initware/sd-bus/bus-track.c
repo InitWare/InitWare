@@ -417,6 +417,31 @@ bus_track_dispatch(sd_bus_track *track)
 	sd_bus_track_unref(track);
 }
 
+void bus_track_close(sd_bus_track *track) {
+        assert(track);
+
+        /* Called whenever our bus connected is closed. If so, and our track object is non-empty, dispatch it
+         * immediately, as we are closing now, but first flush out all names. */
+
+        if (!track->in_list)
+                return; /* We already closed this one, don't close it again. */
+
+        /* Remember that this one is closed now */
+        LIST_REMOVE(tracks, track->bus->tracks, track);
+        track->in_list = false;
+
+        /* If there's no name in this one anyway, we don't have to dispatch */
+        if (hashmap_isempty(track->names))
+                return;
+
+        /* Let's flush out all names */
+        hashmap_clear(track->names);
+
+        /* Invoke handler */
+        if (track->handler)
+                bus_track_dispatch(track);
+}
+
 _public_ void *
 sd_bus_track_get_userdata(sd_bus_track *track)
 {

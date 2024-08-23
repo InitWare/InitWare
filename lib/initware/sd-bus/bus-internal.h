@@ -179,13 +179,15 @@ struct sd_bus_slot {
 };
 
 enum bus_state {
-	BUS_UNSET,
-	BUS_OPENING,
-	BUS_AUTHENTICATING,
-	BUS_HELLO,
-	BUS_RUNNING,
-	BUS_CLOSING,
-	BUS_CLOSED
+        BUS_UNSET,
+        BUS_WATCH_BIND,      /* waiting for the socket to appear via inotify */
+        BUS_OPENING,         /* the kernel's connect() is still not ready */
+        BUS_AUTHENTICATING,  /* we are currently in the "SASL" authorization phase of dbus */
+        BUS_HELLO,           /* we are waiting for the Hello() response */
+        BUS_RUNNING,
+        BUS_CLOSING,
+        BUS_CLOSED,
+        _BUS_STATE_MAX,
 };
 
 static inline bool
@@ -419,8 +421,8 @@ int bus_set_address_user(sd_bus *bus);
 int bus_set_address_system_remote(sd_bus *b, const char *host);
 int bus_set_address_system_machine(sd_bus *b, const char *machine);
 
-int bus_remove_match_by_string(sd_bus *bus, const char *match,
-	sd_bus_message_handler_t callback, void *userdata);
+// int bus_remove_match_by_string(sd_bus *bus, const char *match,
+// 	sd_bus_message_handler_t callback, void *userdata);
 
 int bus_get_root_path(sd_bus *bus);
 
