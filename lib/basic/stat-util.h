@@ -6,9 +6,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <sys/stat.h>
-#ifdef SVC_HAVE_statfs
-#include <sys/statfs.h>
-#endif
 #include <sys/types.h>
 #include <sys/vfs.h>
 
@@ -18,6 +15,10 @@
 #include "missing.h"
 
 #include "svc-config.h"
+
+#ifdef SVC_HAVE_statfs
+#include <sys/statfs.h>
+#endif
 
 int stat_verify_regular(const struct stat *st);
 int fd_verify_regular(int fd);

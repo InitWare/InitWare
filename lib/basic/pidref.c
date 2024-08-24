@@ -63,6 +63,64 @@ int pidref_set_pid(PidRef *pidref, pid_t pid) {
         return 0;
 }
 
+int pidref_set_pidfd(PidRef *pidref, int fd) {
+        int r;
+
+        assert(pidref);
+
+        if (fd < 0)
+                return -EBADF;
+
+        int fd_copy = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+        if (fd_copy < 0) {
+                pid_t pid;
+
+                if (!ERRNO_IS_RESOURCE(errno))
+                        return -errno;
+
+                /* Graceful fallback if we are out of fds */
+                r = pidfd_get_pid(fd, &pid);
+                if (r < 0)
+                        return r;
+
+                *pidref = PIDREF_MAKE_FROM_PID(pid);
+                return 0;
+        }
+
+        return pidref_set_pidfd_consume(pidref, fd_copy);
+}
+
+int pidref_set_pidfd_take(PidRef *pidref, int fd) {
+        pid_t pid;
+        int r;
+
+        assert(pidref);
+
+        if (fd < 0)
+                return -EBADF;
+
+        r = pidfd_get_pid(fd, &pid);
+        if (r < 0)
+                return r;
+
+        *pidref = (PidRef) {
+                .fd = fd,
+                .pid = pid,
+        };
+
+        return 0;
+}
+
+int pidref_set_pidfd_consume(PidRef *pidref, int fd) {
+        int r;
+
+        r = pidref_set_pidfd_take(pidref, fd);
+        if (r < 0)
+                safe_close(fd);
+
+        return r;
+}
+
 void pidref_done(PidRef *pidref) {
         assert(pidref);
 

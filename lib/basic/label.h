@@ -22,7 +22,15 @@
 #include <sys/types.h>
 #include <stdbool.h>
 
+typedef struct LabelOps {
+        int (*pre)(int dir_fd, const char *path, mode_t mode);
+        int (*post)(int dir_fd, const char *path);
+} LabelOps;
+
 int label_fix(const char *path, bool ignore_enoent, bool ignore_erofs);
 
 int mkdir_label(const char *path, mode_t mode);
 int symlink_label(const char *old_path, const char *new_path);
+
+int label_ops_pre(int dir_fd, const char *path, mode_t mode);
+int label_ops_post(int dir_fd, const char *path);

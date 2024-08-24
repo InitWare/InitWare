@@ -18,12 +18,14 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
+#include "fileio.h"
+#include "macro.h"
 #include "missing.h"
+#include "parse-util.h"
 #include "process-util.h"
-
-static inline pid_t raw_getpid(void) {
-        return (pid_t)syscall(__NR_getpid);
-}
+#include "stat-util.h"
+#include "string-util.h"
 
 #define CACHED_PID_UNSET ((pid_t) 0)
 #define CACHED_PID_BUSY ((pid_t) -1)
@@ -87,4 +89,45 @@ pid_t getpid_cached(void) {
         default: /* Properly initialized */
                 return current_value;
         }
+}
+
+int pidfd_get_pid(int fd, pid_t *ret) {
+        char path[STRLEN("/proc/self/fdinfo/") + DECIMAL_STR_MAX(int)];
+        _cleanup_free_ char *fdinfo = NULL;
+        char *p;
+        int r;
+
+        /* Converts a pidfd into a pid. Well known errors:
+         *
+         *    -EBADF   → fd invalid
+         *    -ENOSYS  → /proc/ not mounted
+         *    -ENOTTY  → fd valid, but not a pidfd
+         *    -EREMOTE → fd valid, but pid is in another namespace we cannot translate to the local one
+         *    -ESRCH   → fd valid, but process is already reaped
+         */
+
+        if (fd < 0)
+                return -EBADF;
+
+        xsprintf(path, "/proc/self/fdinfo/%i", fd);
+
+        r = read_full_virtual_file(path, &fdinfo, NULL);
+        if (r == -ENOENT) /* if fdinfo doesn't exist we assume the process does not exist */
+                return proc_mounted() > 0 ? -EBADF : -ENOSYS;
+        if (r < 0)
+                return r;
+
+        p = find_line_startswith(fdinfo, "Pid:");
+        if (!p)
+                return -ENOTTY; /* not a pidfd? */
+
+        p += strspn(p, WHITESPACE);
+        p[strcspn(p, WHITESPACE)] = 0;
+
+        if (streq(p, "0"))
+                return -EREMOTE; /* PID is in foreign PID namespace? */
+        if (streq(p, "-1"))
+                return -ESRCH;   /* refers to reaped process? */
+
+        return parse_pid(p, ret);
 }

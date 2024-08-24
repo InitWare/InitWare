@@ -24,6 +24,8 @@ bool pidref_equal(const PidRef *a, const PidRef *b);
 
 int pidref_set_pid(PidRef *pidref, pid_t pid);
 int pidref_set_pidfd(PidRef *pidref, int fd);
+int pidref_set_pidfd_take(PidRef *pidref, int fd); /* takes ownership of the passed pidfd on success*/
+int pidref_set_pidfd_consume(PidRef *pidref, int fd); /* takes ownership of the passed pidfd in both success and failure */
 
 bool pidref_is_self(const PidRef *pidref);
 

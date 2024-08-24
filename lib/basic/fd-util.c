@@ -11,6 +11,7 @@
 #include "errno-util.h"
 #include "fd-util.h"
 #include "mountpoint-util.h"
+#include "path-util.h"
 #include "stat-util.h"
 #include "string-util.h"
 
@@ -132,6 +133,28 @@ int fds_are_same_mount(int fd1, int fd2) {
         }
 
         return statx_mount_same(&st1.nsx, &st2.nsx);
+}
+
+int fd_get_path(int fd, char **ret) {
+        int r;
+
+        assert(fd >= 0 || fd == AT_FDCWD);
+
+        if (fd == AT_FDCWD)
+                return safe_getcwd(ret);
+
+        r = readlink_malloc(FORMAT_PROC_FD_PATH(fd), ret);
+        if (r == -ENOENT) {
+                /* ENOENT can mean two things: that the fd does not exist or that /proc is not mounted. Let's make
+                 * things debuggable and distinguish the two. */
+
+                if (proc_mounted() == 0)
+                        return -ENOSYS;  /* /proc is not available or not set up properly, we're most likely in some chroot
+                                          * environment. */
+                return -EBADF; /* The directory exists, hence it's the fd that doesn't. */
+        }
+
+        return r;
 }
 
 int fd_reopen(int fd, int flags) {

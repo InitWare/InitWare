@@ -112,9 +112,13 @@ bool strv_overlap(char **a, char **b) _pure_;
 		;                                                              \
 	for ((s)--; (l) && ((s) >= (l)); (s)--)
 
-#define STRV_FOREACH_PAIR(x, y, l)                                             \
-	for ((x) = (l), (y) = (x + 1); (x) && *(x) && *(y);                    \
-		(x) += 2, (y) = (x + 1))
+#define _STRV_FOREACH_PAIR(x, y, l, i)                          \
+        for (typeof(*l) *x, *y, *i = (l);                       \
+             i && *(x = i) && *(y = i + 1);                     \
+             i += 2)
+
+#define STRV_FOREACH_PAIR(x, y, l)                      \
+        _STRV_FOREACH_PAIR(x, y, l, UNIQ_T(i, UNIQ))
 
 char **strv_sort(char **l);
 void strv_print(char **l);

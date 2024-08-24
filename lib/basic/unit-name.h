@@ -21,6 +21,8 @@
 
 #include <stdbool.h>
 
+#include "svc-config.h"
+
 #include "macro.h"
 
 #define UNIT_NAME_MAX 256
@@ -29,6 +31,7 @@ typedef enum UnitType UnitType;
 typedef enum UnitLoadState UnitLoadState;
 typedef enum UnitDependency UnitDependency;
 
+// HACK: USE_Device and USE_Mount undefined?
 enum UnitType {
 	UNIT_SERVICE = 0,
 	UNIT_SOCKET,
@@ -38,14 +41,14 @@ enum UnitType {
 	UNIT_PATH,
 	UNIT_SLICE,
 	UNIT_SCOPE,
-#ifdef SVC_USE_Device
+// #ifdef SVC_USE_Device
 	UNIT_DEVICE,
-#endif
-#ifdef SVC_USE_Mount
+// #endif
+// #ifdef SVC_USE_Mount
 	UNIT_MOUNT,
 	UNIT_AUTOMOUNT,
 	UNIT_SWAP,
-#endif
+// #endif
 	_UNIT_TYPE_MAX,
 	_UNIT_TYPE_INVALID = -1
 };

@@ -72,3 +72,5 @@ static inline int safe_fork(const char *name, ForkFlags flags, pid_t *ret_pid) {
 }
 
 #define TAKE_PID(pid) TAKE_GENERIC(pid, pid_t, 0)
+
+int pidfd_get_pid(int fd, pid_t *ret);

@@ -23,6 +23,7 @@
 #include <sys/un.h>
 #include <netinet/in.h>
 
+#include "errno-util.h"
 #include "macro.h"
 #include "util.h"
 
@@ -205,3 +206,23 @@ int cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred);
         }
 
 #define UCRED_INVALID { .pid = 0, .uid = UID_INVALID, .gid = GID_INVALID }
+
+static inline int setsockopt_int(int fd, int level, int optname, int value) {
+        if (setsockopt(fd, level, optname, &value, sizeof(value)) < 0)
+                return -errno;
+
+        return 0;
+}
+
+static inline int getsockopt_int(int fd, int level, int optname, int *ret) {
+        int v;
+        socklen_t sl = sizeof(v);
+
+        if (getsockopt(fd, level, optname, &v, &sl) < 0)
+                return negative_errno();
+        if (sl != sizeof(v))
+                return -EIO;
+
+        *ret = v;
+        return 0;
+}

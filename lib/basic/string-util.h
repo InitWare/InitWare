@@ -234,6 +234,20 @@ static inline void *memory_startswith(const void *p, size_t sz, const sd_char *t
         return (uint8_t*) p + n;
 }
 
+static inline char* str_realloc(char *p) {
+        /* Reallocate *p to actual size. Ignore failure, and return the original string on error. */
+
+        if (!p)
+                return NULL;
+
+        return realloc(p, strlen(p) + 1) ?: p;
+}
+
+char *ellipsize_mem(const char *s, size_t old_length_bytes, size_t new_length_columns, unsigned percent);
+static inline char *ellipsize(const char *s, size_t length, unsigned percent) {
+        return ellipsize_mem(s, strlen(s), length, percent);
+}
+
 int string_contains_word_strv(const char *string, const char *separators, char * const *words, const char **ret_word);
 static inline int string_contains_word(const char *string, const char *separators, const char *word) {
         return string_contains_word_strv(string, separators, STRV_MAKE(word), NULL);

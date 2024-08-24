@@ -59,6 +59,33 @@ typedef enum JsonVariantType {
         _JSON_VARIANT_TYPE_INVALID = -EINVAL,
 } JsonVariantType;
 
+/* We use fake JsonVariant objects for some special values, in order to avoid memory allocations for them. Note that
+ * effectively this means that there are multiple ways to encode the same objects: via these magic values or as
+ * properly allocated JsonVariant. We convert between both on-the-fly as necessary. */
+enum
+{
+ _JSON_VARIANT_MAGIC_TRUE = 1,
+#define JSON_VARIANT_MAGIC_TRUE ((JsonVariant*) _JSON_VARIANT_MAGIC_TRUE)
+ _JSON_VARIANT_MAGIC_FALSE,
+#define JSON_VARIANT_MAGIC_FALSE ((JsonVariant*) _JSON_VARIANT_MAGIC_FALSE)
+ _JSON_VARIANT_MAGIC_NULL,
+#define JSON_VARIANT_MAGIC_NULL ((JsonVariant*) _JSON_VARIANT_MAGIC_NULL)
+ _JSON_VARIANT_MAGIC_ZERO_INTEGER,
+#define JSON_VARIANT_MAGIC_ZERO_INTEGER ((JsonVariant*) _JSON_VARIANT_MAGIC_ZERO_INTEGER)
+ _JSON_VARIANT_MAGIC_ZERO_UNSIGNED,
+#define JSON_VARIANT_MAGIC_ZERO_UNSIGNED ((JsonVariant*) _JSON_VARIANT_MAGIC_ZERO_UNSIGNED)
+ _JSON_VARIANT_MAGIC_ZERO_REAL,
+#define JSON_VARIANT_MAGIC_ZERO_REAL ((JsonVariant*) _JSON_VARIANT_MAGIC_ZERO_REAL)
+ _JSON_VARIANT_MAGIC_EMPTY_STRING,
+#define JSON_VARIANT_MAGIC_EMPTY_STRING ((JsonVariant*) _JSON_VARIANT_MAGIC_EMPTY_STRING)
+ _JSON_VARIANT_MAGIC_EMPTY_ARRAY,
+#define JSON_VARIANT_MAGIC_EMPTY_ARRAY ((JsonVariant*) _JSON_VARIANT_MAGIC_EMPTY_ARRAY)
+ _JSON_VARIANT_MAGIC_EMPTY_OBJECT,
+#define JSON_VARIANT_MAGIC_EMPTY_OBJECT ((JsonVariant*) _JSON_VARIANT_MAGIC_EMPTY_OBJECT)
+ __JSON_VARIANT_MAGIC_MAX
+#define _JSON_VARIANT_MAGIC_MAX ((JsonVariant*) __JSON_VARIANT_MAGIC_MAX)
+};
+
 enum {
 	JSON_END,
 	JSON_COLON,
@@ -72,6 +99,24 @@ enum {
 	JSON_INTEGER,
 	JSON_BOOLEAN,
 	JSON_NULL,
+};
+
+enum { /* JSON tokens */
+        JSON_TOKEN_END,
+        JSON_TOKEN_COLON,
+        JSON_TOKEN_COMMA,
+        JSON_TOKEN_OBJECT_OPEN,
+        JSON_TOKEN_OBJECT_CLOSE,
+        JSON_TOKEN_ARRAY_OPEN,
+        JSON_TOKEN_ARRAY_CLOSE,
+        JSON_TOKEN_STRING,
+        JSON_TOKEN_REAL,
+        JSON_TOKEN_INTEGER,
+        JSON_TOKEN_UNSIGNED,
+        JSON_TOKEN_BOOLEAN,
+        JSON_TOKEN_NULL,
+        _JSON_TOKEN_MAX,
+        _JSON_TOKEN_INVALID = -EINVAL,
 };
 
 union json_value {
@@ -117,6 +162,58 @@ void json_variant_unref_many(JsonVariant **array, size_t n);
 
 DEFINE_TRIVIAL_CLEANUP_FUNC(JsonVariant *, json_variant_unref);
 
+const char *json_variant_string(JsonVariant *v);
+int64_t json_variant_integer(JsonVariant *v);
+uint64_t json_variant_unsigned(JsonVariant *v);
+double json_variant_real(JsonVariant *v);
+bool json_variant_boolean(JsonVariant *v);
+
+JsonVariantType json_variant_type(JsonVariant *v);
+bool json_variant_has_type(JsonVariant *v, JsonVariantType type);
+
+static inline bool json_variant_is_string(JsonVariant *v) {
+        return json_variant_has_type(v, JSON_VARIANT_STRING);
+}
+
+static inline bool json_variant_is_integer(JsonVariant *v) {
+        return json_variant_has_type(v, JSON_VARIANT_INTEGER);
+}
+
+static inline bool json_variant_is_unsigned(JsonVariant *v) {
+        return json_variant_has_type(v, JSON_VARIANT_UNSIGNED);
+}
+
+static inline bool json_variant_is_real(JsonVariant *v) {
+        return json_variant_has_type(v, JSON_VARIANT_REAL);
+}
+
+static inline bool json_variant_is_number(JsonVariant *v) {
+        return json_variant_has_type(v, JSON_VARIANT_NUMBER);
+}
+
+static inline bool json_variant_is_boolean(JsonVariant *v) {
+        return json_variant_has_type(v, JSON_VARIANT_BOOLEAN);
+}
+
+static inline bool json_variant_is_array(JsonVariant *v) {
+        return json_variant_has_type(v, JSON_VARIANT_ARRAY);
+}
+
+static inline bool json_variant_is_object(JsonVariant *v) {
+        return json_variant_has_type(v, JSON_VARIANT_OBJECT);
+}
+
+static inline bool json_variant_is_null(JsonVariant *v) {
+        return json_variant_has_type(v, JSON_VARIANT_NULL);
+}
+
+bool json_variant_is_normalized(JsonVariant *v);
+
+size_t json_variant_elements(JsonVariant *v);
+
+void json_variant_sensitive(JsonVariant *v);
+bool json_variant_is_sensitive(JsonVariant *v);
+
 typedef enum JsonFormatFlags {
         JSON_FORMAT_NEWLINE          = 1 << 0, /* suffix with newline */
         JSON_FORMAT_PRETTY           = 1 << 1, /* add internal whitespace to appeal to human readers */
@@ -132,12 +229,25 @@ typedef enum JsonFormatFlags {
         JSON_FORMAT_CENSOR_SENSITIVE = 1 << 11, /* Replace all sensitive elements with the string "<sensitive data>" */
 } JsonFormatFlags;
 
-int json_tokenize(const char **p, char **ret_string,
-	union json_value *ret_value, void **state, unsigned *line);
+int json_tokenize(const char **p, char **ret_string, JsonValue *ret_value, unsigned *ret_line, unsigned *ret_column, void **state, unsigned *line, unsigned *column);
 
 int json_variant_dump(JsonVariant *v, JsonFormatFlags flags, FILE *f, const char *prefix);
 
 int json_variant_append_array(JsonVariant **v, JsonVariant *element);
+
+typedef enum JsonParseFlags {
+        JSON_PARSE_SENSITIVE = 1 << 0, /* mark variant as "sensitive", i.e. something containing secret key material or such */
+} JsonParseFlags;
+
+int json_parse_with_source(const char *string, const char *source, JsonParseFlags flags, JsonVariant **ret, unsigned *ret_line, unsigned *ret_column);
+int json_parse_with_source_continue(const char **p, const char *source, JsonParseFlags flags, JsonVariant **ret, unsigned *ret_line, unsigned *ret_column);
+
+static inline int json_parse(const char *string, JsonParseFlags flags, JsonVariant **ret, unsigned *ret_line, unsigned *ret_column) {
+        return json_parse_with_source(string, NULL, flags, ret, ret_line, ret_column);
+}
+static inline int json_parse_continue(const char **p, JsonParseFlags flags, JsonVariant **ret, unsigned *ret_line, unsigned *ret_column) {
+        return json_parse_with_source_continue(p, NULL, flags, ret, ret_line, ret_column);
+}
 
 enum {
         _JSON_BUILD_STRING,

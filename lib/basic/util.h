@@ -364,7 +364,6 @@ int sigaction_many(const struct sigaction *sa, ...);
 
 int fopen_temporary(const char *path, FILE **_f, char **_temp_path);
 
-ssize_t loop_read(int fd, void *buf, size_t nbytes, bool do_poll);
 int loop_write(int fd, const void *buf, size_t nbytes, bool do_poll);
 
 bool is_device_path(const char *path);
@@ -476,11 +475,6 @@ int files_same(const char *filea, const char *fileb);
 
 int running_in_chroot(void);
 
-char *ellipsize(const char *s, size_t length, unsigned percent);
-/* bytes                 columns */
-char *ellipsize_mem(const char *s, size_t old_length, size_t new_length,
-	unsigned percent);
-
 int touch_file(const char *path, bool parents, usec_t stamp, uid_t uid,
 	gid_t gid, mode_t mode);
 int touch(const char *path);
@@ -494,7 +488,6 @@ int wait_for_terminate_and_warn(const char *name, pid_t pid,
 
 noreturn void freeze(void);
 
-bool null_or_empty(struct stat *st) _pure_;
 int null_or_empty_path(const char *fn);
 int null_or_empty_fd(int fd);
 

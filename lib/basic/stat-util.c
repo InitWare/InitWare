@@ -10,9 +10,11 @@
 
 #include <linux/magic.h>
 
+#include "chase.h"
 #include "errno-util.h"
 #include "fs-util.h"
 #include "hash-funcs.h"
+#include "path-util.h"
 #include "stat-util.h"
 
 #include "svc-config.h"
@@ -20,6 +22,28 @@
 #ifdef HAVE_sys_sysmacros_h
 #include <sys/sysmacros.h>
 #endif
+
+static int verify_stat_at(
+                int fd,
+                const char *path,
+                bool follow,
+                int (*verify_func)(const struct stat *st),
+                bool verify) {
+
+        struct stat st;
+        int r;
+
+        assert(fd >= 0 || fd == AT_FDCWD);
+        assert(!isempty(path) || !follow);
+        assert(verify_func);
+
+        if (fstatat(fd, strempty(path), &st,
+                    (isempty(path) ? AT_EMPTY_PATH : 0) | (follow ? 0 : AT_SYMLINK_NOFOLLOW)) < 0)
+                return -errno;
+
+        r = verify_func(&st);
+        return verify ? r : r >= 0;
+}
 
 void inode_hash_func(const struct stat *q, struct siphash *state) {
         siphash24_compress_typesafe(q->st_dev, state);
@@ -37,6 +61,21 @@ int inode_compare_func(const struct stat *a, const struct stat *b) {
 }
 
 DEFINE_HASH_OPS_WITH_KEY_DESTRUCTOR(inode_hash_ops, struct stat, inode_hash_func, inode_compare_func, free);
+
+int inode_same_at(int fda, const char *filea, int fdb, const char *fileb, int flags) {
+        struct stat a, b;
+
+        assert(fda >= 0 || fda == AT_FDCWD);
+        assert(fdb >= 0 || fdb == AT_FDCWD);
+
+        if (fstatat(fda, strempty(filea), &a, flags) < 0)
+                return log_debug_errno(errno, "Cannot stat %s: %m", filea);
+
+        if (fstatat(fdb, strempty(fileb), &b, flags) < 0)
+                return log_debug_errno(errno, "Cannot stat %s: %m", fileb);
+
+        return stat_inode_same(&a, &b);
+}
 
 #ifdef SVC_HAVE_statfs
 bool is_fs_type(const struct statfs *s, statfs_f_type_t magic_value) {
@@ -57,6 +96,68 @@ int is_fs_type_at(int dir_fd, const char *path, statfs_f_type_t magic_value) {
         return is_fs_type(&s, magic_value);
 }
 #endif
+
+int stat_verify_regular(const struct stat *st) {
+        assert(st);
+
+        /* Checks whether the specified stat() structure refers to a regular file. If not returns an
+         * appropriate error code. */
+
+        if (S_ISDIR(st->st_mode))
+                return -EISDIR;
+
+        if (S_ISLNK(st->st_mode))
+                return -ELOOP;
+
+        if (!S_ISREG(st->st_mode))
+                return -EBADFD;
+
+        return 0;
+}
+
+bool null_or_empty(struct stat *st) {
+        assert(st);
+
+        if (S_ISREG(st->st_mode) && st->st_size <= 0)
+                return true;
+
+        /* We don't want to hardcode the major/minor of /dev/null, hence we do a simpler "is this a character
+         * device node?" check. */
+
+        if (S_ISCHR(st->st_mode))
+                return true;
+
+        return false;
+}
+
+int null_or_empty_path_with_root(const char *fn, const char *root) {
+        struct stat st;
+        int r;
+
+        assert(fn);
+
+        /* A symlink to /dev/null or an empty file?
+         * When looking under root_dir, we can't expect /dev/ to be mounted,
+         * so let's see if the path is a (possibly dangling) symlink to /dev/null. */
+
+        if (path_equal(path_startswith(fn, root ?: "/"), "dev/null"))
+                return true;
+
+        r = chase_and_stat(fn, root, CHASE_PREFIX_ROOT, NULL, &st);
+        if (r < 0)
+                return r;
+
+        return null_or_empty(&st);
+}
+
+int verify_regular_at(int fd, const char *path, bool follow) {
+        return verify_stat_at(fd, path, follow, stat_verify_regular, true);
+}
+
+int fd_verify_regular(int fd) {
+        assert(fd >= 0);
+        return verify_regular_at(fd, NULL, false);
+}
 
 int proc_mounted(void) {
         int r;

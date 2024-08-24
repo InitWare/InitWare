@@ -2,6 +2,7 @@
 // Smaller InitWare version, we add as needed here
 #pragma once
 
+#include <stdbool.h>
 #include <sys/types.h>
 
 bool uid_is_valid(uid_t uid);

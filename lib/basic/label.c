@@ -22,6 +22,8 @@
 #include "smack-util.h"
 #include "util.h"
 
+static const LabelOps *label_ops = NULL;
+
 int
 label_fix(const char *path, bool ignore_enoent, bool ignore_erofs)
 {
@@ -81,4 +83,18 @@ symlink_label(const char *old_path, const char *new_path)
 		return r;
 
 	return mac_smack_fix(new_path, false, false);
+}
+
+int label_ops_pre(int dir_fd, const char *path, mode_t mode) {
+        if (!label_ops || !label_ops->pre)
+                return 0;
+
+        return label_ops->pre(dir_fd, path, mode);
+}
+
+int label_ops_post(int dir_fd, const char *path) {
+        if (!label_ops || !label_ops->post)
+                return 0;
+
+        return label_ops->post(dir_fd, path);
 }

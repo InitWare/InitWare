@@ -23,6 +23,7 @@
 
 #include "chase.h"
 #include "id128-util.h"
+#include "io-util.h"
 #include "macro.h"
 #include "path-util.h"
 #include "random-util.h"

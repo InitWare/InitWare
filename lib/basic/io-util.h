@@ -8,4 +8,5 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+ssize_t loop_read(int fd, void *buf, size_t nbytes, bool do_poll);
 int loop_read_exact(int fd, void *buf, size_t nbytes, bool do_poll);

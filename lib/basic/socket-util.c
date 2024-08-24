@@ -858,6 +858,37 @@ sockaddr_equal(const union sockaddr_union *a, const union sockaddr_union *b)
 	return false;
 }
 
+int fd_set_sndbuf(int fd, size_t n, bool increase) {
+        int r, value;
+        socklen_t l = sizeof(value);
+
+        if (n > INT_MAX)
+                return -ERANGE;
+
+        r = getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &value, &l);
+        if (r >= 0 && l == sizeof(value) && increase ? (size_t) value >= n*2 : (size_t) value == n*2)
+                return 0;
+
+        /* First, try to set the buffer size with SO_SNDBUF. */
+        r = setsockopt_int(fd, SOL_SOCKET, SO_SNDBUF, n);
+        if (r < 0)
+                return r;
+
+        /* SO_SNDBUF above may set to the kernel limit, instead of the requested size.
+         * So, we need to check the actual buffer size here. */
+        l = sizeof(value);
+        r = getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &value, &l);
+        if (r >= 0 && l == sizeof(value) && increase ? (size_t) value >= n*2 : (size_t) value == n*2)
+                return 1;
+
+        /* If we have the privileges we will ignore the kernel limit. */
+        r = setsockopt_int(fd, SOL_SOCKET, SO_SNDBUFFORCE, n);
+        if (r < 0)
+                return r;
+
+        return 1;
+}
+
 #ifdef SVC_PLATFORM_Linux
 char *
 ether_addr_to_string(const struct ether_addr *addr,

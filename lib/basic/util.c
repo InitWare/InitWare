@@ -90,6 +90,7 @@
 #include "random-util.h"
 #include "socket-util.h"
 #include "sparse-endian.h"
+#include "stat-util.h"
 #include "string-table.h"
 #include "strv.h"
 #include "utf8.h"
@@ -1876,46 +1877,6 @@ safe_close_pair(int p[])
 	p[1] = safe_close(p[1]);
 }
 
-ssize_t
-loop_read(int fd, void *buf, size_t nbytes, bool do_poll)
-{
-	uint8_t *p = buf;
-	ssize_t n = 0;
-
-	assert(fd >= 0);
-	assert(buf);
-
-	while (nbytes > 0) {
-		ssize_t k;
-
-		k = read(fd, p, nbytes);
-		if (k < 0) {
-			if (errno == EINTR)
-				continue;
-
-			if (errno == EAGAIN && do_poll) {
-				/* We knowingly ignore any return value here,
-                                 * and expect that any error/EOF is reported
-                                 * via read() */
-
-				fd_wait_for_event(fd, POLLIN, USEC_INFINITY);
-				continue;
-			}
-
-			return n > 0 ? n : -errno;
-		}
-
-		if (k == 0)
-			return n;
-
-		p += k;
-		nbytes -= k;
-		n += k;
-	}
-
-	return n;
-}
-
 int
 loop_write(int fd, const void *buf, size_t nbytes, bool do_poll)
 {
@@ -3353,122 +3314,6 @@ running_in_chroot(void)
 	return ret == 0;
 }
 
-static char *
-ascii_ellipsize_mem(const char *s, size_t old_length, size_t new_length,
-	unsigned percent)
-{
-	size_t x;
-	char *r;
-
-	assert(s);
-	assert(percent <= 100);
-	assert(new_length >= 3);
-
-	if (old_length <= 3 || old_length <= new_length)
-		return strndup(s, old_length);
-
-	r = new0(char, new_length + 1);
-	if (!r)
-		return NULL;
-
-	x = (new_length * percent) / 100;
-
-	if (x > new_length - 3)
-		x = new_length - 3;
-
-	memcpy(r, s, x);
-	r[x] = '.';
-	r[x + 1] = '.';
-	r[x + 2] = '.';
-	memcpy(r + x + 3, s + old_length - (new_length - x - 3),
-		new_length - x - 3);
-
-	return r;
-}
-
-char *
-ellipsize_mem(const char *s, size_t old_length, size_t new_length,
-	unsigned percent)
-{
-	size_t x;
-	char *e;
-	const char *i, *j;
-	unsigned k, len, len2;
-
-	assert(s);
-	assert(percent <= 100);
-	assert(new_length >= 3);
-
-	/* if no multibyte characters use ascii_ellipsize_mem for speed */
-	if (ascii_is_valid(s))
-		return ascii_ellipsize_mem(s, old_length, new_length, percent);
-
-	if (old_length <= 3 || old_length <= new_length)
-		return strndup(s, old_length);
-
-	x = (new_length * percent) / 100;
-
-	if (x > new_length - 3)
-		x = new_length - 3;
-
-	k = 0;
-	for (i = s; k < x && i < s + old_length; i = utf8_next_char(i)) {
-		int c;
-
-		c = utf8_encoded_to_unichar(i);
-		if (c < 0)
-			return NULL;
-		k += unichar_iswide(c) ? 2 : 1;
-	}
-
-	if (k > x) /* last character was wide and went over quota */
-		x++;
-
-	for (j = s + old_length; k < new_length && j > i;) {
-		int c;
-
-		j = utf8_prev_char(j);
-		c = utf8_encoded_to_unichar(j);
-		if (c < 0)
-			return NULL;
-		k += unichar_iswide(c) ? 2 : 1;
-	}
-	assert(i <= j);
-
-	/* we don't actually need to ellipsize */
-	if (i == j)
-		return memdup(s, old_length + 1);
-
-	/* make space for ellipsis */
-	j = utf8_next_char(j);
-
-	len = i - s;
-	len2 = s + old_length - j;
-	e = new (char, len + 3 + len2 + 1);
-	if (!e)
-		return NULL;
-
-	/*
-        printf("old_length=%zu new_length=%zu x=%zu len=%u len2=%u k=%u\n",
-               old_length, new_length, x, len, len2, k);
-        */
-
-	memcpy(e, s, len);
-	e[len] = 0xe2; /* tri-dot ellipsis: … */
-	e[len + 1] = 0x80;
-	e[len + 2] = 0xa6;
-
-	memcpy(e + len + 3, j, len2 + 1);
-
-	return e;
-}
-
-char *
-ellipsize(const char *s, size_t length, unsigned percent)
-{
-	return ellipsize_mem(s, strlen(s), length, percent);
-}
-
 int
 touch_file(const char *path, bool parents, usec_t stamp, uid_t uid, gid_t gid,
 	mode_t mode)
@@ -3664,20 +3509,6 @@ freeze(void)
 	/* waitid() failed with an unexpected error, things are really borked. Freeze now! */
 	for (;;)
 		pause();
-}
-
-bool
-null_or_empty(struct stat *st)
-{
-	assert(st);
-
-	if (S_ISREG(st->st_mode) && st->st_size <= 0)
-		return true;
-
-	if (S_ISCHR(st->st_mode) || S_ISBLK(st->st_mode))
-		return true;
-
-	return false;
 }
 
 int

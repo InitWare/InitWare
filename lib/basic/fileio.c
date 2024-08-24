@@ -1174,3 +1174,13 @@ FILE* take_fdopen(int *fd, const char *options) {
 
         return f;
 }
+
+FILE* open_memstream_unlocked(char **ptr, size_t *sizeloc) {
+        FILE *f = open_memstream(ptr, sizeloc);
+        if (!f)
+                return NULL;
+
+        (void) __fsetlocking(f, FSETLOCKING_BYCALLER);
+
+        return f;
+}

@@ -24,7 +24,12 @@
 #include <sys/uio.h>
 #include <assert.h>
 #include <inttypes.h>
+
+#include <limits.h>
+#include <stdalign.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "bsdglibc.h"
 
@@ -324,6 +329,11 @@ static inline uint64_t u64_multiply_safe(uint64_t a, uint64_t b) {
                         CONST_ISPOWEROF2(_x);                          \
                 }))
 
+/* Checks if the specified pointer is aligned as appropriate for the specific type */
+#define IS_ALIGNED16(p) (((uintptr_t) p) % alignof(uint16_t) == 0)
+#define IS_ALIGNED32(p) (((uintptr_t) p) % alignof(uint32_t) == 0)
+#define IS_ALIGNED64(p) (((uintptr_t) p) % alignof(uint64_t) == 0)
+
 /* Same as ALIGN_TO but callable in constant contexts. */
 #define CONST_ALIGN_TO(l, ali)                                         \
         __builtin_choose_expr(                                         \
@@ -333,6 +343,16 @@ static inline uint64_t u64_multiply_safe(uint64_t a, uint64_t b) {
                 (l <= SIZE_MAX - (ali - 1)),      /* overflow? */      \
                 ((l) + (ali) - 1) & ~((ali) - 1),                      \
                 VOID_0)
+
+/* Similar to ((t *) (void *) (p)) to cast a pointer. The macro asserts that the pointer has a suitable
+ * alignment for type "t". This exists for places where otherwise "-Wcast-align=strict" would issue a
+ * warning or if you want to assert that the cast gives a pointer of suitable alignment. */
+#define CAST_ALIGN_PTR(t, p)                                    \
+        ({                                                      \
+                const void *_p = (p);                           \
+                assert(((uintptr_t) _p) % alignof(t) == 0); \
+                (t *) _p;                                       \
+        })
 
 static inline size_t ALIGN_TO(size_t l, size_t ali) {
         assert(ISPOWEROF2(ali));

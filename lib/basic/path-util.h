@@ -145,8 +145,6 @@ int fsck_exists_for_fstype(const char *fstype);
 
 char *prefix_root(const char *root, const char *path);
 
-int inotify_add_watch_fd(int fd, int what, uint32_t mask);
-
 bool empty_or_root(const char *path);
 static inline const char* empty_to_root(const char *path) {
         return isempty(path) ? "/" : path;

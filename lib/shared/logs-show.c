@@ -29,6 +29,7 @@
 #include "fileio.h"
 #include "format-util.h"
 #include "hashmap.h"
+#include "io-util.h"
 #include "journal-internal.h"
 #include "log.h"
 #include "logs-show.h"

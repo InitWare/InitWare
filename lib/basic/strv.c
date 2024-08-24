@@ -305,6 +305,41 @@ strv_split_newlines(const char *s)
 	return l;
 }
 
+int strv_split_full(char ***t, const char *s, const char *separators, ExtractFlags flags) {
+        _cleanup_strv_free_ char **l = NULL;
+        size_t n = 0;
+        int r;
+
+        assert(t);
+        assert(s);
+
+        for (;;) {
+                _cleanup_free_ char *word = NULL;
+
+                r = extract_first_word(&s, &word, separators, flags);
+                if (r < 0)
+                        return r;
+                if (r == 0)
+                        break;
+
+                if (!GREEDY_REALLOC(l, n + 2))
+                        return -ENOMEM;
+
+                l[n++] = TAKE_PTR(word);
+                l[n] = NULL;
+        }
+
+        if (!l) {
+                l = new0(char*, 1);
+                if (!l)
+                        return -ENOMEM;
+        }
+
+        *t = TAKE_PTR(l);
+
+        return (int) n;
+}
+
 int
 strv_split_quoted(char ***t, const char *s, bool relax)
 {
@@ -588,6 +623,66 @@ strv_extend(char ***l, const char *value)
 	return strv_consume(l, v);
 }
 
+int strv_extend_many_internal(char ***l, const char *value, ...) {
+        va_list ap;
+        size_t n, m;
+        int r;
+
+        assert(l);
+
+        m = n = strv_length(*l);
+
+        r = 0;
+        va_start(ap, value);
+        for (const char *s = value; s != POINTER_MAX; s = va_arg(ap, const char*)) {
+                if (!s)
+                        continue;
+
+                if (m > SIZE_MAX-1) { /* overflow */
+                        r = -ENOMEM;
+                        break;
+                }
+                m++;
+        }
+        va_end(ap);
+
+        if (r < 0)
+                return r;
+        if (m > SIZE_MAX-1)
+                return -ENOMEM;
+
+        char **c = reallocarray(*l, GREEDY_ALLOC_ROUND_UP(m+1), sizeof(char*));
+        if (!c)
+                return -ENOMEM;
+        *l = c;
+
+        r = 0;
+        size_t i = n;
+        va_start(ap, value);
+        for (const char *s = value; s != POINTER_MAX; s = va_arg(ap, const char*)) {
+                if (!s)
+                        continue;
+
+                c[i] = strdup(s);
+                if (!c[i]) {
+                        r = -ENOMEM;
+                        break;
+                }
+                i++;
+        }
+        va_end(ap);
+
+        if (r < 0) {
+                /* rollback on error */
+                for (size_t j = n; j < i; j++)
+                        c[j] = mfree(c[j]);
+                return r;
+        }
+
+        c[i] = NULL;
+        return 0;
+}
+
 char **
 strv_uniq(char **l)
 {
@@ -770,6 +865,16 @@ strv_extendf(char ***l, const char *format, ...)
 		return -ENOMEM;
 
 	return strv_consume(l, x);
+}
+
+char* endswith_strv(const char *s, char * const *l) {
+        STRV_FOREACH(i, l) {
+                char *found = endswith(s, *i);
+                if (found)
+                        return found;
+        }
+
+        return NULL;
 }
 
 char **

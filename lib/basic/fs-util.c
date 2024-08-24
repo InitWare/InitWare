@@ -13,9 +13,12 @@
 #include <linux/magic.h>
 #endif
 
+#include "fd-util.h"
 #include "fs-util.h"
+#include "label.h"
 #include "path-util.h"
 #include "process-util.h"
+#include "stat-util.h"
 #include "string-util.h"
 #include "strv.h"
 
@@ -106,6 +109,26 @@ int tmp_dir(const char **ret) {
         return tmp_dir_internal("/tmp", ret);
 }
 
+int access_fd(int fd, int mode) {
+        /* Like access() but operates on an already open fd */
+
+        if (access(FORMAT_PROC_FD_PATH(fd), mode) < 0) {
+                if (errno != ENOENT)
+                        return -errno;
+
+                /* ENOENT can mean two things: that the fd does not exist or that /proc is not mounted. Let's
+                 * make things debuggable and distinguish the two. */
+
+                if (proc_mounted() == 0)
+                        return -ENOSYS;  /* /proc is not available or not set up properly, we're most likely in some chroot
+                                          * environment. */
+
+                return -EBADF; /* The directory exists, hence it's the fd that doesn't. */
+        }
+
+        return 0;
+}
+
 int stat_warn_permissions(const char *path, const struct stat *st) {
         assert(path);
         assert(st);
@@ -124,4 +147,88 @@ int stat_warn_permissions(const char *path, const struct stat *st) {
                 log_warning("Configuration file %s is marked world-inaccessible. This has no effect as configuration data is accessible via APIs without restrictions. Proceeding anyway.", path);
 
         return 0;
+}
+
+int xopenat_full(int dir_fd, const char *path, int open_flags, XOpenFlags xopen_flags, mode_t mode) {
+        _cleanup_close_ int fd = -EBADF;
+        bool made = false;
+        int r;
+
+        assert(dir_fd >= 0 || dir_fd == AT_FDCWD);
+
+        /* This is like openat(), but has a few tricks up its sleeves, extending behaviour:
+         *
+         *   • O_DIRECTORY|O_CREAT is supported, which causes a directory to be created, and immediately
+         *     opened. When used with the XO_SUBVOLUME flag this will even create a btrfs subvolume.
+         *
+         *   • If O_CREAT is used with XO_LABEL, any created file will be immediately relabelled.
+         *
+         *   • If the path is specified NULL or empty, behaves like fd_reopen().
+         */
+
+        if (isempty(path)) {
+                assert(!FLAGS_SET(open_flags, O_CREAT|O_EXCL));
+                return fd_reopen(dir_fd, open_flags & ~O_NOFOLLOW);
+        }
+
+        if (FLAGS_SET(open_flags, O_CREAT) && FLAGS_SET(xopen_flags, XO_LABEL)) {
+                r = label_ops_pre(dir_fd, path, FLAGS_SET(open_flags, O_DIRECTORY) ? S_IFDIR : S_IFREG);
+                if (r < 0)
+                        return r;
+        }
+
+        if (FLAGS_SET(open_flags, O_DIRECTORY|O_CREAT)) {
+// HACK!
+#if 0
+                if (FLAGS_SET(xopen_flags, XO_SUBVOLUME))
+                        r = btrfs_subvol_make_fallback(dir_fd, path, mode);
+                else
+#endif
+                r = RET_NERRNO(mkdirat(dir_fd, path, mode));
+                if (r == -EEXIST) {
+                        if (FLAGS_SET(open_flags, O_EXCL))
+                                return -EEXIST;
+
+                        made = false;
+                } else if (r < 0)
+                        return r;
+                else
+                        made = true;
+
+                if (FLAGS_SET(xopen_flags, XO_LABEL)) {
+                        r = label_ops_post(dir_fd, path);
+                        if (r < 0)
+                                return r;
+                }
+
+                open_flags &= ~(O_EXCL|O_CREAT);
+                xopen_flags &= ~XO_LABEL;
+        }
+
+        fd = RET_NERRNO(openat(dir_fd, path, open_flags, mode));
+        if (fd < 0) {
+                if (IN_SET(fd,
+                           /* We got ENOENT? then someone else immediately removed it after we
+                           * created it. In that case let's return immediately without unlinking
+                           * anything, because there simply isn't anything to unlink anymore. */
+                           -ENOENT,
+                           /* is a symlink? exists already → created by someone else, don't unlink */
+                           -ELOOP,
+                           /* not a directory? exists already → created by someone else, don't unlink */
+                           -ENOTDIR))
+                        return fd;
+
+                if (made)
+                        (void) unlinkat(dir_fd, path, AT_REMOVEDIR);
+
+                return fd;
+        }
+
+        if (FLAGS_SET(open_flags, O_CREAT) && FLAGS_SET(xopen_flags, XO_LABEL)) {
+                r = label_ops_post(dir_fd, path);
+                if (r < 0)
+                        return r;
+        }
+
+        return TAKE_FD(fd);
 }
