@@ -38,8 +38,12 @@ typedef enum ChaseFlags {
 
 int chase(const char *path_with_prefix, const char *root, ChaseFlags chase_flags, char **ret_path, int *ret_fd);
 
+int chaseat_prefix_root(const char *path, const char *root, char **ret);
+
 int chase_and_open(const char *path, const char *root, ChaseFlags chase_flags, int open_flags, char **ret_path);
 int chase_and_opendir(const char *path, const char *root, ChaseFlags chase_flags, char **ret_path, DIR **ret_dir);
 int chase_and_fopen_unlocked(const char *path, const char *root, ChaseFlags chase_flags, const char *open_flags, char **ret_path, FILE **ret_file);
+
+int chaseat(int dir_fd, const char *path, ChaseFlags flags, char **ret_path, int *ret_fd);
 
 int chase_and_opendirat(int dir_fd, const char *path, ChaseFlags chase_flags, char **ret_path, DIR **ret_dir);

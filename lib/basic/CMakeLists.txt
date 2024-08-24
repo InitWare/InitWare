@@ -52,15 +52,15 @@ endif ()
 list(APPEND BASIC_SRC MurmurHash2.c acpi-fpdt.c alloc-util.c apparmor-util.c argv-util.c
     async.c audit.c base-filesystem.c bus-label.c calendarspec.c cgroup-util.c
     clock-util.c condition.c conf-files.c conf-parser.c copy.c dev-setup.c
-    device-nodes.c dirent-util.c dropin.c efivars.c env-util.c errno-list.c escape.c exec-util.c exit-status.c extract-word.c fdset.c fd-util.c
+    device-nodes.c dirent-util.c dropin.c efivars.c env-file.c env-util.c errno-list.c escape.c exec-util.c exit-status.c extract-word.c fdset.c fd-util.c
     fileio-label.c fileio.c fs-util.c fstab-util.c generator.c glyph-util.c gunicode.c hash-funcs.c hashmap.c
     ima-util.c import-util.c in-addr-util.c install-printf.c install.c json.c
     label.c locale-util.c log.c login-shared.c memory-util.c mempool.c mkdir-label.c
-    mkdir.c pager.c path-lookup.c path-util.c prioq.c process-util.c ratelimit.c replace-var.c
+    mkdir.c os-util.c pager.c parse-util.c path-lookup.c path-util.c prioq.c process-util.c ratelimit.c replace-var.c
     selinux-util.c sigbus.c siphash24.c sleep-config.c smack-util.c
     socket-label.c socket-util.c spawn-ask-password-agent.c spawn-polkit-agent.c
     specifier.c stat-util.c strbuf.c string-table.c string-util.c strv.c strxcpyx.c switch-root.c terminal-util.c time-dst.c time-util.c
-    uid-range.c unit-name.c utf8.c util.c verbs.c virt.c watchdog.c xml.c
+    uid-range.c unit-name.c utf8.c util.c verbs.c virt.c watchdog.c xattr-util.c xml.c
     )
 
 if (SVC_PLATFORM_Linux)

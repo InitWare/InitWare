@@ -37,6 +37,7 @@
 #include "macro.h"
 #include "missing.h"
 #include "origin-id.h"
+#include "parse-util.h"
 #include "set.h"
 #include "strv.h"
 #include "user-util.h"
@@ -81,6 +82,68 @@
 static int bus_poll(sd_bus *bus, bool need_more, uint64_t timeout_usec);
 static int attach_io_events(sd_bus *b);
 static void bus_detach_io_events(sd_bus *b);
+
+static thread_local sd_bus *default_system_bus = NULL;
+static thread_local sd_bus *default_user_bus = NULL;
+static thread_local sd_bus *default_starter_bus = NULL;
+
+static sd_bus **bus_choose_default(int (**bus_open)(sd_bus **)) {
+        const char *e;
+
+        /* Let's try our best to reuse another cached connection. If
+         * the starter bus type is set, connect via our normal
+         * connection logic, ignoring $DBUS_STARTER_ADDRESS, so that
+         * we can share the connection with the user/system default
+         * bus. */
+
+        e = secure_getenv("DBUS_STARTER_BUS_TYPE");
+        if (e) {
+                if (streq(e, "system")) {
+                        if (bus_open)
+                                *bus_open = sd_bus_open_system;
+                        return &default_system_bus;
+                } else if (STR_IN_SET(e, "user", "session")) {
+                        if (bus_open)
+                                *bus_open = sd_bus_open_user;
+                        return &default_user_bus;
+                }
+        }
+
+        /* No type is specified, so we have not other option than to
+         * use the starter address if it is set. */
+        e = secure_getenv("DBUS_STARTER_ADDRESS");
+        if (e) {
+                if (bus_open)
+                        *bus_open = sd_bus_open;
+                return &default_starter_bus;
+        }
+
+        /* Finally, if nothing is set use the cached connection for
+         * the right scope */
+
+        if (cg_pid_get_owner_uid(0, NULL) >= 0) {
+                if (bus_open)
+                        *bus_open = sd_bus_open_user;
+                return &default_user_bus;
+        } else {
+                if (bus_open)
+                        *bus_open = sd_bus_open_system;
+                return &default_system_bus;
+        }
+}
+
+sd_bus *bus_resolve(sd_bus *bus) {
+        switch ((uintptr_t) bus) {
+        case (uintptr_t) SD_BUS_DEFAULT:
+                return *(bus_choose_default(NULL));
+        case (uintptr_t) SD_BUS_DEFAULT_USER:
+                return default_user_bus;
+        case (uintptr_t) SD_BUS_DEFAULT_SYSTEM:
+                return default_system_bus;
+        default:
+                return bus;
+        }
+}
 
 void bus_close_io_fds(sd_bus *b) {
         assert(b);

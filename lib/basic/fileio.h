@@ -45,6 +45,8 @@ int executable_is_script(const char *path, char **interpreter);
 
 int get_status_field(const char *filename, const char *pattern, char **field);
 
+int fdopen_independent(int fd, const char *mode, FILE **ret);
+
 static inline bool file_offset_beyond_memory_size(off_t x) {
         if (x < 0) /* off_t is signed, filter that out */
                 return false;

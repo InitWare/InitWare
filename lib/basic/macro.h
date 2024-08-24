@@ -591,6 +591,22 @@ typedef struct {
 
 assert_cc(sizeof(dummy_t) == 0);
 
+/* A little helper for subtracting 1 off a pointer in a safe UB-free way. This is intended to be used for
+ * loops that count down from a high pointer until some base. A naive loop would implement this like this:
+ *
+ * for (p = end-1; p >= base; p--) …
+ *
+ * But this is not safe because p before the base is UB in C. With this macro the loop becomes this instead:
+ *
+ * for (p = PTR_SUB1(end, base); p; p = PTR_SUB1(p, base)) …
+ *
+ * And is free from UB! */
+#define PTR_SUB1(p, base)                                \
+        ({                                               \
+                typeof(p) _q = (p);                      \
+                _q && _q > (base) ? &_q[-1] : NULL;      \
+        })
+
 #define PTR_TO_PID(p) ((pid_t)((intptr_t)(p)))
 #define PID_TO_PTR(u) ((void *)((intptr_t)(u)))
 

@@ -164,3 +164,11 @@ static inline bool ERRNO_IS_NEG_ACCEPT_AGAIN(intmax_t r) {
                 r == -EOPNOTSUPP;
 }
 _DEFINE_ABS_WRAPPER(ACCEPT_AGAIN);
+
+/* Quite often we want to handle cases where the backing FS doesn't support extended attributes at all and
+ * where it simply doesn't have the requested xattr the same way */
+static inline bool ERRNO_IS_NEG_XATTR_ABSENT(intmax_t r) {
+        return r == -ENODATA ||
+                ERRNO_IS_NEG_NOT_SUPPORTED(r);
+}
+_DEFINE_ABS_WRAPPER(XATTR_ABSENT);

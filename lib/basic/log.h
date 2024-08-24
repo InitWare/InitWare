@@ -162,6 +162,16 @@ void log_assert_failed_return(const char *text, const char *file, int line,
 	const char *func);
 
 /* Logging with level */
+#define log_full_errno_zerook(level, error, ...)                        \
+        ({                                                              \
+                int _level = (level), _e = (error);                     \
+                _e = (log_get_max_level() >= LOG_PRI(_level))           \
+                        ? log_internal(_level, _e, __FILE__, __LINE__, __func__, __VA_ARGS__) \
+                        : -ERRNO_VALUE(_e);                             \
+                _e < 0 ? _e : -ESTRPIPE;                                \
+        })
+
+/* Logging with level */
 #define log_full_errno(level, error, ...)                                      \
 	({                                                                     \
 		int _l = (level), _e = (error);                                \

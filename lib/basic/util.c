@@ -220,48 +220,6 @@ unlink_noerrno(const char *path)
 }
 
 int
-parse_boolean(const char *v)
-{
-	assert(v);
-
-	if (streq(v, "1") || strcaseeq(v, "yes") || strcaseeq(v, "y") ||
-		strcaseeq(v, "true") || strcaseeq(v, "t") || strcaseeq(v, "on"))
-		return 1;
-	else if (streq(v, "0") || strcaseeq(v, "no") || strcaseeq(v, "n") ||
-		strcaseeq(v, "false") || strcaseeq(v, "f") ||
-		strcaseeq(v, "off"))
-		return 0;
-
-	return -EINVAL;
-}
-
-int
-parse_pid(const char *s, pid_t *ret_pid)
-{
-	unsigned long ul = 0;
-	pid_t pid;
-	int r;
-
-	assert(s);
-	assert(ret_pid);
-
-	r = safe_atolu(s, &ul);
-	if (r < 0)
-		return r;
-
-	pid = (pid_t)ul;
-
-	if ((unsigned long)pid != ul)
-		return -ERANGE;
-
-	if (pid <= 0)
-		return -ERANGE;
-
-	*ret_pid = pid;
-	return 0;
-}
-
-int
 parse_uid(const char *s, uid_t *ret_uid)
 {
 	unsigned long ul = 0;

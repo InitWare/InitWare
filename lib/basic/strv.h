@@ -28,6 +28,7 @@
 #include "util.h"
 
 char *strv_find(char **l, const char *name) _pure_;
+char* strv_find_case(char * const *l, const char *name) _pure_;
 char *strv_find_prefix(char **l, const char *name) _pure_;
 char *strv_find_startswith(char **l, const char *name) _pure_;
 
@@ -67,6 +68,7 @@ bool strv_is_uniq(char **l);
 bool strv_equal(char **a, char **b);
 
 #define strv_contains(l, s) (!!strv_find((l), (s)))
+#define strv_contains_case(l, s) (!!strv_find_case((l), (s)))
 
 char **strv_new(const char *x, ...) _sentinel_;
 char **strv_new_ap(const char *x, va_list ap);
@@ -117,6 +119,11 @@ bool strv_overlap(char **a, char **b) _pure_;
 char **strv_sort(char **l);
 void strv_print(char **l);
 
+char* endswith_strv(const char *s, char * const *l);
+
+#define ENDSWITH_SET(p, ...)                                    \
+        endswith_strv(p, STRV_MAKE(__VA_ARGS__))	
+
 #define strv_from_stdarg_alloca(first)                                         \
 	({                                                                     \
 		char **_l;                                                     \
@@ -152,6 +159,8 @@ void strv_print(char **l);
               const char* _x = (x);                            \
               _x && strv_contains(STRV_MAKE(__VA_ARGS__), _x); \
       })
+
+#define STRCASE_IN_SET(x, ...) strv_contains_case(STRV_MAKE(__VA_ARGS__), x)
 
 #define _FOREACH_STRING(uniq, x, y, ...)                                \
         for (const char *x, * const*UNIQ_T(l, uniq) = STRV_MAKE_CONST(({ x = y; }), ##__VA_ARGS__); \

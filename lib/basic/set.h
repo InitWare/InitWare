@@ -35,11 +35,7 @@ static inline Set* set_free_free(Set *s) {
 
 /* no set_free_free_free */
 
-static inline Set *
-set_copy(Set *s)
-{
-	return (Set *)internal_hashmap_copy(HASHMAP_BASE(s));
-}
+#define set_copy(s) ((Set*) _hashmap_copy(HASHMAP_BASE(s)  HASHMAP_DEBUG_SRC_ARGS))
 
 int _set_ensure_allocated(Set **s, const struct hash_ops *hash_ops HASHMAP_DEBUG_PARAMS);
 #define set_ensure_allocated(h, ops) _set_ensure_allocated(h, ops HASHMAP_DEBUG_SRC_ARGS)
@@ -91,38 +87,28 @@ set_move_one(Set *s, Set *other, const void *key)
 		key);
 }
 
-static inline unsigned
-set_size(Set *s)
-{
-	return internal_hashmap_size(HASHMAP_BASE(s));
+static inline unsigned set_size(const Set *s) {
+        return _hashmap_size(HASHMAP_BASE((Set *) s));
 }
 
-static inline bool
-set_isempty(Set *s)
-{
-	return set_size(s) == 0;
+static inline bool set_isempty(const Set *s) {
+        return set_size(s) == 0;
 }
 
-static inline unsigned
-set_buckets(Set *s)
-{
-	return internal_hashmap_buckets(HASHMAP_BASE(s));
+static inline unsigned set_buckets(const Set *s) {
+        return _hashmap_buckets(HASHMAP_BASE((Set *) s));
 }
 
 static inline bool set_iterate(const Set *s, Iterator *i, void **value) {
         return _hashmap_iterate(HASHMAP_BASE((Set*) s), i, value, NULL);
 }
 
-static inline void
-set_clear(Set *s)
-{
-	internal_hashmap_clear(HASHMAP_BASE(s));
+static inline void set_clear(Set *s) {
+        _hashmap_clear(HASHMAP_BASE(s), NULL, NULL);
 }
 
-static inline void
-set_clear_free(Set *s)
-{
-	internal_hashmap_clear_free(HASHMAP_BASE(s));
+static inline void set_clear_free(Set *s) {
+        _hashmap_clear(HASHMAP_BASE(s), free, NULL);
 }
 
 /* no set_clear_free_free */

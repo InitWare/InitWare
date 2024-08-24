@@ -24,6 +24,7 @@
 #include "alloc-util.h"
 #include "def.h"
 #include "env-util.h"
+#include "parse-util.h"
 #include "strv.h"
 #include "utf8.h"
 #include "util.h"

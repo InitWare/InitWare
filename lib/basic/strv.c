@@ -43,6 +43,16 @@ strv_find(char **l, const char *name)
 	return NULL;
 }
 
+char* strv_find_case(char * const *l, const char *name) {
+        assert(name);
+
+        STRV_FOREACH(i, l)
+                if (strcaseeq(*i, name))
+                        return *i;
+
+        return NULL;
+}
+
 char *
 strv_find_prefix(char **l, const char *name)
 {

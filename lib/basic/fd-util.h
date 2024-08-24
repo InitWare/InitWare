@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 
 #include "macro.h"
+#include "stdio-util.h"
 
 /* Make sure we can distuingish fd 0 and NULL */
 #define FD_TO_PTR(fd) INT_TO_PTR((fd) + 1)
@@ -32,3 +33,17 @@ int fd_move_above_stdio(int fd);
                 *_fdp_ = TAKE_FD(b);            \
                 0;                              \
         })
+
+/* The maximum length a buffer for a /proc/self/fd/<fd> path needs */
+#define PROC_FD_PATH_MAX \
+        (STRLEN("/proc/self/fd/") + DECIMAL_STR_MAX(int))
+
+static inline char *format_proc_fd_path(char buf[static PROC_FD_PATH_MAX], int fd) {
+        assert(buf);
+        assert(fd >= 0);
+        assert_se(snprintf_ok(buf, PROC_FD_PATH_MAX, "/proc/self/fd/%i", fd));
+        return buf;
+}
+
+#define FORMAT_PROC_FD_PATH(fd) \
+        format_proc_fd_path((char[PROC_FD_PATH_MAX]) {}, (fd))

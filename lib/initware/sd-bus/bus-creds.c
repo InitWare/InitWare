@@ -29,6 +29,7 @@
 #include "cgroup-util.h"
 #include "errno-util.h"
 #include "fileio.h"
+#include "parse-util.h"
 #include "process-util.h"
 #include "strv.h"
 #include "time-util.h"

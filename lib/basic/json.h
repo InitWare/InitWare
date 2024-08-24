@@ -19,8 +19,21 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
-#include <inttypes.h>
+#include <fcntl.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#include "sd-id128.h"
+
+#include "ether-addr-util.h"
+#include "in-addr-util.h"
+#include "log.h"
+#include "macro.h"
+#include "string-util.h"
+#include "strv.h"
+#include "time-util.h"
 
 typedef union JsonValue  {
         /* Encodes a simple value. This structure is generally 8 bytes wide (as double is 64-bit). */

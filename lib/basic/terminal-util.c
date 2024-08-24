@@ -28,6 +28,7 @@
 #include "stat-util.h"
 #include "string-util.h"
 #include "strv.h"
+#include "parse-util.h"
 #include "process-util.h"
 #include "util.h"
 #include "terminal-util.h"
