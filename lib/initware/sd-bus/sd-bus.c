@@ -1692,6 +1692,17 @@ _public_ void sd_bus_close(sd_bus *bus) {
         bus_close_fds(bus);
 }
 
+_public_ sd_bus *sd_bus_close_unref(sd_bus *bus) {
+        if (!bus)
+                return NULL;
+        if (bus_origin_changed(bus))
+                return NULL;
+
+        sd_bus_close(bus);
+
+        return sd_bus_unref(bus);
+}
+
 static void
 bus_enter_closing(sd_bus *bus)
 {
