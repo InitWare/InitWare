@@ -28,6 +28,7 @@
 #include "catalog.h"
 #include "compress.h"
 #include "dirent-util.h"
+#include "env-file.h"
 #include "fd-util.h"
 #include "fileio.h"
 #include "hashmap.h"

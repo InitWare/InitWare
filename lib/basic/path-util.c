@@ -143,6 +143,31 @@ bool dot_or_dot_dot(const char *path) {
         return path[2] == 0;
 }
 
+bool empty_or_root(const char *path) {
+
+        /* For operations relative to some root directory, returns true if the specified root directory is
+         * redundant, i.e. either / or NULL or the empty string or any equivalent. */
+
+        if (isempty(path))
+                return true;
+
+        return path_equal(path, "/");
+}
+
+char* path_startswith_strv(const char *p, char * const *strv) {
+        assert(p);
+
+        STRV_FOREACH(s, strv) {
+                char *t;
+
+                t = path_startswith(p, *s);
+                if (t)
+                        return t;
+        }
+
+        return NULL;
+}
+
 bool hidden_or_backup_file(const char *filename) {
         assert(filename);
 
@@ -444,6 +469,67 @@ path_strv_resolve_uniq(char **l, const char *prefix)
 		return NULL;
 
 	return strv_uniq(l);
+}
+
+char* path_simplify_full(char *path, PathSimplifyFlags flags) {
+        bool add_slash = false, keep_trailing_slash, absolute, beginning = true;
+        char *f = path;
+        int r;
+
+        /* Removes redundant inner and trailing slashes. Also removes unnecessary dots.
+         * Modifies the passed string in-place.
+         *
+         * ///foo//./bar/.   becomes /foo/bar
+         * .//./foo//./bar/. becomes foo/bar
+         * /../foo/bar       becomes /foo/bar
+         * /../foo/bar/..    becomes /foo/bar/..
+         */
+
+        if (isempty(path))
+                return path;
+
+        keep_trailing_slash = FLAGS_SET(flags, PATH_SIMPLIFY_KEEP_TRAILING_SLASH) && endswith(path, "/");
+
+        absolute = path_is_absolute(path);
+        f += absolute;  /* Keep leading /, if present. */
+
+        for (const char *p = f;;) {
+                const char *e;
+
+                r = path_find_first_component(&p, true, &e);
+                if (r == 0)
+                        break;
+
+                if (r > 0 && absolute && beginning && path_startswith(e, ".."))
+                        /* If we're at the beginning of an absolute path, we can safely skip ".." */
+                        continue;
+
+                beginning = false;
+
+                if (add_slash)
+                        *f++ = '/';
+
+                if (r < 0) {
+                        /* if path is invalid, then refuse to simplify the remaining part. */
+                        memmove(f, p, strlen(p) + 1);
+                        return path;
+                }
+
+                memmove(f, e, r);
+                f += r;
+
+                add_slash = true;
+        }
+
+        /* Special rule, if we stripped everything, we need a "." for the current directory. */
+        if (f == path)
+                *f++ = '.';
+
+        if (*(f-1) != '/' && keep_trailing_slash)
+                *f++ = '/';
+
+        *f = '\0';
+        return path;
 }
 
 char *

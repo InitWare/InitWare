@@ -122,7 +122,9 @@ find_program(GPERF gperf REQUIRED)
 # libraries
 check_library_exists(pam pam_start "" HAVE_PAM)
 
+check_include_file(sys/auxv.h HAVE_sys_auxv_h)
 check_include_file(sys/endian.h HAVE_sys_endian_h)
+check_include_file(sys/sysmacros.h HAVE_sys_sysmacros_h)
 check_include_file(sys/timex.h HAVE_sys_timex_h)
 check_include_file(sys/xattr.h HAVE_sys_xattr_h)
 check_include_file(endian.h HAVE_endian_h)

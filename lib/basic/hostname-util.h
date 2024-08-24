@@ -2,6 +2,10 @@
 // Smaller InitWare version, we add as needed here
 #pragma once
 
+#include <stdbool.h>
+
+#include "macro.h"
+
 typedef enum GetHostnameFlags {
         GET_HOSTNAME_ALLOW_LOCALHOST  = 1 << 0, /* accepts "localhost" or friends. */
         GET_HOSTNAME_FALLBACK_DEFAULT = 1 << 1, /* use default hostname if no hostname is set. */

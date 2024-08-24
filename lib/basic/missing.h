@@ -194,6 +194,43 @@
 #endif
 #endif
 
+#include <sys/stat.h>
+
+// #if WANT_LINUX_STAT_H
+// #include <linux/stat.h>
+// #endif
+
+/* The newest definition we are aware of (fa2fcf4f1df1559a0a4ee0f46915b496cc2ebf60; 5.8) */
+#define STATX_DEFINITION {                      \
+        __u32 stx_mask;                         \
+        __u32 stx_blksize;                      \
+        __u64 stx_attributes;                   \
+        __u32 stx_nlink;                        \
+        __u32 stx_uid;                          \
+        __u32 stx_gid;                          \
+        __u16 stx_mode;                         \
+        __u16 __spare0[1];                      \
+        __u64 stx_ino;                          \
+        __u64 stx_size;                         \
+        __u64 stx_blocks;                       \
+        __u64 stx_attributes_mask;              \
+        struct statx_timestamp stx_atime;       \
+        struct statx_timestamp stx_btime;       \
+        struct statx_timestamp stx_ctime;       \
+        struct statx_timestamp stx_mtime;       \
+        __u32 stx_rdev_major;                   \
+        __u32 stx_rdev_minor;                   \
+        __u32 stx_dev_major;                    \
+        __u32 stx_dev_minor;                    \
+        __u64 stx_mnt_id;                       \
+        __u64 __spare2;                         \
+        __u64 __spare3[12];                     \
+}
+
+/* Always define the newest version we are aware of as a distinct type, so that we can use it even if glibc
+ * defines an older definition */
+struct new_statx STATX_DEFINITION;
+
 #ifndef HAVE_FANOTIFY_INIT
 static inline int
 missing_fanotify_init(unsigned int flags, unsigned int event_f_flags)

@@ -829,7 +829,7 @@ int proc_cmdline(char **ret);
 int parse_proc_cmdline(int (*parse_word)(const char *key, const char *value));
 int get_proc_cmdline_key(const char *parameter, char **value);
 
-int container_get_leader(const char *machine, pid_t *pid);
+// int container_get_leader(const char *machine, pid_t *pid);
 
 int namespace_open(pid_t pid, int *pidns_fd, int *mntns_fd, int *netns_fd,
 	int *root_fd);
@@ -992,12 +992,3 @@ char *set_iovec_string_field(struct iovec *iovec, unsigned int *n_iovec,
 	const char *field, const char *value);
 char *set_iovec_field_free(struct iovec *iovec, unsigned int *n_iovec,
 	const char *field, char *value);
-
-#ifdef SVC_HAVE_statfs
-/* The .f_type field of struct statfs is really weird defined on
- * different archs. Let's give its type a name. */
-typedef typeof(((struct statfs *)NULL)->f_type) statfs_f_type_t;
-
-bool is_fs_type(const struct statfs *s, statfs_f_type_t magic_value) _pure_;
-int fd_is_fs_type(int fd, statfs_f_type_t magic_value);
-#endif

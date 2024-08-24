@@ -14,6 +14,8 @@
 
 int pid_get_comm(pid_t pid, char **ret);
 
+int container_get_leader(const char *machine, pid_t *pid);
+
 typedef enum WaitFlags {
         WAIT_LOG_ABNORMAL             = 1 << 0,
         WAIT_LOG_NON_ZERO_EXIT_STATUS = 1 << 1,

@@ -234,6 +234,11 @@ static inline void *memory_startswith(const void *p, size_t sz, const sd_char *t
         return (uint8_t*) p + n;
 }
 
+int string_contains_word_strv(const char *string, const char *separators, char * const *words, const char **ret_word);
+static inline int string_contains_word(const char *string, const char *separators, const char *word) {
+        return string_contains_word_strv(string, separators, STRV_MAKE(word), NULL);
+}
+
 typedef enum MakeCStringMode {
         MAKE_CSTRING_REFUSE_TRAILING_NUL,
         MAKE_CSTRING_ALLOW_TRAILING_NUL,
@@ -243,3 +248,8 @@ typedef enum MakeCStringMode {
 } MakeCStringMode;
 
 int make_cstring(const char *s, size_t n, MakeCStringMode mode, char **ret);
+
+char *strdupspn(const char *a, const char *accept);
+char *strdupcspn(const char *a, const char *reject);
+
+char *find_line_startswith(const char *haystack, const char *needle);

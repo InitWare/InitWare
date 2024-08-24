@@ -15,6 +15,7 @@
 
 #include "fs-util.h"
 #include "path-util.h"
+#include "process-util.h"
 #include "string-util.h"
 #include "strv.h"
 
@@ -103,4 +104,24 @@ int tmp_dir(const char **ret) {
          * backed by an in-memory file system: /tmp. */
 
         return tmp_dir_internal("/tmp", ret);
+}
+
+int stat_warn_permissions(const char *path, const struct stat *st) {
+        assert(path);
+        assert(st);
+
+        /* Don't complain if we are reading something that is not a file, for example /dev/null */
+        if (!S_ISREG(st->st_mode))
+                return 0;
+
+        if (st->st_mode & 0111)
+                log_warning("Configuration file %s is marked executable. Please remove executable permission bits. Proceeding anyway.", path);
+
+        if (st->st_mode & 0002)
+                log_warning("Configuration file %s is marked world-writable. Please remove world writability permission bits. Proceeding anyway.", path);
+
+        if (getpid_cached() == 1 && (st->st_mode & 0044) != 0044)
+                log_warning("Configuration file %s is marked world-inaccessible. This has no effect as configuration data is accessible via APIs without restrictions. Proceeding anyway.", path);
+
+        return 0;
 }

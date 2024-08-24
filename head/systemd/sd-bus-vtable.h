@@ -53,6 +53,10 @@ __extension__ enum {
 
 #define SD_BUS_VTABLE_CAPABILITY(x) ((uint64_t)(((x) + 1) & 0xFFFF) << 40)
 
+enum {
+        _SD_BUS_VTABLE_PARAM_NAMES     = 1 << 0
+};
+
 /* Note: unused areas in the sd_bus_vtable[] array must be initialized to 0. The structure contains an embedded
  * union, and the compiler is NOT required to initialize the unused areas of the union when the rest of the
  * structure is initialized. Normally the array is defined as read-only data, in which case the linker places

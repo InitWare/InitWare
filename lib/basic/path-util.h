@@ -123,6 +123,7 @@ static inline int path_simplify_alloc(const char *path, char **ret) {
 #define PATH_IN_SET(p, ...) path_strv_contains(STRV_MAKE(__VA_ARGS__), p)
 
 char* path_startswith_strv(const char *p, char * const *strv);
+#define PATH_STARTSWITH_SET(p, ...) path_startswith_strv(p, STRV_MAKE(__VA_ARGS__))
 
 bool path_strv_contains(char * const *l, const char *path);
 bool prefixed_path_strv_contains(char * const *l, const char *path);

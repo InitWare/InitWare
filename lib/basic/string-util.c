@@ -136,3 +136,87 @@ int strdup_to_full(char **ret, const char *src) {
                 return 1;
         }
 };
+
+char *strdupspn(const char *a, const char *accept) {
+        if (isempty(a) || isempty(accept))
+                return strdup("");
+
+        return strndup(a, strspn(a, accept));
+}
+
+char *strdupcspn(const char *a, const char *reject) {
+        if (isempty(a))
+                return strdup("");
+        if (isempty(reject))
+                return strdup(a);
+
+        return strndup(a, strcspn(a, reject));
+}
+
+char *strreplace(const char *text, const char *old_string, const char *new_string) {
+        size_t l, old_len, new_len;
+        char *t, *ret = NULL;
+        const char *f;
+
+        assert(old_string);
+        assert(new_string);
+
+        if (!text)
+                return NULL;
+
+        old_len = strlen(old_string);
+        new_len = strlen(new_string);
+
+        l = strlen(text);
+        if (!GREEDY_REALLOC(ret, l+1))
+                return NULL;
+
+        f = text;
+        t = ret;
+        while (*f) {
+                size_t d, nl;
+
+                if (!startswith(f, old_string)) {
+                        *(t++) = *(f++);
+                        continue;
+                }
+
+                d = t - ret;
+                nl = l - old_len + new_len;
+
+                if (!GREEDY_REALLOC(ret, nl + 1))
+                        return mfree(ret);
+
+                l = nl;
+                t = ret + d;
+
+                t = stpcpy(t, new_string);
+                f += old_len;
+        }
+
+        *t = 0;
+        return ret;
+}
+
+char *find_line_startswith(const char *haystack, const char *needle) {
+        char *p;
+
+        assert(haystack);
+        assert(needle);
+
+        /* Finds the first line in 'haystack' that starts with the specified string. Returns a pointer to the
+         * first character after it */
+
+        p = strstr(haystack, needle);
+        if (!p)
+                return NULL;
+
+        if (p > haystack)
+                while (p[-1] != '\n') {
+                        p = strstr(p + 1, needle);
+                        if (!p)
+                                return NULL;
+                }
+
+        return p + strlen(needle);
+}

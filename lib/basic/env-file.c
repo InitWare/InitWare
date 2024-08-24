@@ -342,6 +342,22 @@ static int parse_env_file_push(
         return 0;
 }
 
+int parse_env_filev(
+                FILE *f,
+                const char *fname,
+                va_list ap) {
+
+        int r;
+        va_list aq;
+
+        assert(f || fname);
+
+        va_copy(aq, ap);
+        r = parse_env_file_internal(f, fname, parse_env_file_push, &aq);
+        va_end(aq);
+        return r;
+}
+
 int parse_env_file_fdv(int fd, const char *fname, va_list ap) {
         _cleanup_fclose_ FILE *f = NULL;
         va_list aq;
@@ -356,5 +372,22 @@ int parse_env_file_fdv(int fd, const char *fname, va_list ap) {
         va_copy(aq, ap);
         r = parse_env_file_internal(f, fname, parse_env_file_push, &aq);
         va_end(aq);
+        return r;
+}
+
+int parse_env_file_sentinel(
+                FILE *f,
+                const char *fname,
+                ...) {
+
+        va_list ap;
+        int r;
+
+        assert(f || fname);
+
+        va_start(ap, fname);
+        r = parse_env_filev(f, fname, ap);
+        va_end(ap);
+
         return r;
 }

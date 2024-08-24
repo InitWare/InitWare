@@ -48,3 +48,13 @@ DEFINE_TRIVIAL_CLEANUP_FUNC(char*, unlink_and_free);
 int access_fd(int fd, int mode);
 
 int openat_report_new(int dirfd, const char *pathname, int flags, mode_t mode, bool *ret_newly_created);
+
+typedef enum XOpenFlags {
+        XO_LABEL     = 1 << 0,
+        XO_SUBVOLUME = 1 << 1,
+} XOpenFlags;
+
+int xopenat_full(int dir_fd, const char *path, int open_flags, XOpenFlags xopen_flags, mode_t mode);
+static inline int xopenat(int dir_fd, const char *path, int open_flags) {
+        return xopenat_full(dir_fd, path, open_flags, 0, 0);
+}

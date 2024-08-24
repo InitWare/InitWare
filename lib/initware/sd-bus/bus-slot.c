@@ -49,17 +49,6 @@ bus_slot_allocate(sd_bus *bus, bool floating, BusSlotType type, size_t extra,
 	return slot;
 }
 
-_public_ sd_bus_slot *
-sd_bus_slot_ref(sd_bus_slot *slot)
-{
-	assert_return(slot, NULL);
-
-	assert(slot->n_ref > 0);
-
-	slot->n_ref++;
-	return slot;
-}
-
 void bus_slot_disconnect(sd_bus_slot *slot, bool unref) {
         sd_bus *bus;
 
@@ -199,25 +188,19 @@ void bus_slot_disconnect(sd_bus_slot *slot, bool unref) {
                 sd_bus_slot_unref(slot);
 }
 
-// _public_ sd_bus_slot *
-// sd_bus_slot_unref(sd_bus_slot *slot)
-// {
-// 	if (!slot)
-// 		return NULL;
+static sd_bus_slot* bus_slot_free(sd_bus_slot *slot) {
+        assert(slot);
 
-// 	assert(slot->n_ref > 0);
+        bus_slot_disconnect(slot, false);
 
-// 	if (slot->n_ref > 1) {
-// 		slot->n_ref--;
-// 		return NULL;
-// 	}
+        if (slot->destroy_callback)
+                slot->destroy_callback(slot->userdata);
 
-// 	bus_slot_disconnect(slot);
-// 	free(slot->description);
-// 	free(slot);
+        free(slot->description);
+        return mfree(slot);
+}
 
-// 	return NULL;
-// }
+DEFINE_PUBLIC_TRIVIAL_REF_UNREF_FUNC(sd_bus_slot, sd_bus_slot, bus_slot_free);
 
 _public_ sd_bus *
 sd_bus_slot_get_bus(sd_bus_slot *slot)

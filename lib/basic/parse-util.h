@@ -16,3 +16,4 @@ static inline int parse_tristate(const char *v, int *ret) {
         return parse_tristate_full(v, NULL, ret);
 }
 int parse_pid(const char *s, pid_t* ret_pid);
+int parse_ifindex(const char *s);

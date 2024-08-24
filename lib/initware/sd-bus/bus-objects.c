@@ -1729,6 +1729,21 @@ struct sd_bus_vtable_221 {
  * definition updated to refer to it. */
 #define VTABLE_ELEMENT_SIZE_242 sizeof(struct sd_bus_vtable)
 
+static int vtable_features(const sd_bus_vtable *vtable) {
+        if (vtable[0].x.start.element_size < VTABLE_ELEMENT_SIZE_242 ||
+            !vtable[0].x.start.vtable_format_reference)
+                return 0;
+        return vtable[0].x.start.features;
+}
+
+bool bus_vtable_has_names(const sd_bus_vtable *vtable) {
+        return vtable_features(vtable) & _SD_BUS_VTABLE_PARAM_NAMES;
+}
+
+const sd_bus_vtable* bus_vtable_next(const sd_bus_vtable *vtable, const sd_bus_vtable *v) {
+        return (const sd_bus_vtable*) ((char*) v + vtable[0].x.start.element_size);
+}
+
 static int add_object_vtable_internal(
                 sd_bus *bus,
                 sd_bus_slot **slot,

@@ -32,12 +32,13 @@ int read_one_line_file(const char *fn, char **line);
 int read_full_file(const char *fn, char **contents, size_t *size);
 int read_full_stream(FILE *f, char **contents, size_t *size);
 
-int parse_env_file(const char *fname, const char *separator, ...) _sentinel_;
 int load_env_file(FILE *f, const char *fname, const char *separator, char ***l);
 int load_env_file_pairs(FILE *f, const char *fname, const char *separator,
 	char ***l);
 
+int fdopen_unlocked(int fd, const char *options, FILE **ret);
 int take_fdopen_unlocked(int *fd, const char *options, FILE **ret);
+FILE* take_fdopen(int *fd, const char *options);
 
 int write_env_file(const char *fname, char **l);
 
@@ -53,6 +54,7 @@ static inline bool file_offset_beyond_memory_size(off_t x) {
         return (uint64_t) x > (uint64_t) SIZE_MAX;
 }
 
+int read_virtual_file_fd(int fd, size_t max_size, char **ret_contents, size_t *ret_size);
 int read_virtual_file_at(int dir_fd, const char *filename, size_t max_size, char **ret_contents, size_t *ret_size);
 static inline int read_virtual_file(const char *filename, size_t max_size, char **ret_contents, size_t *ret_size) {
         return read_virtual_file_at(AT_FDCWD, filename, max_size, ret_contents, ret_size);
@@ -64,4 +66,4 @@ static inline int read_full_virtual_file(const char *filename, char **ret_conten
 int read_line(FILE *f, size_t limit, char **ret);
 int read_stripped_line(FILE *f, size_t limit, char **ret);
 
-FILE* take_fdopen(int *fd, const char *options);
+int fopen_mode_to_flags(const char *mode);

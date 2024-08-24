@@ -32,6 +32,7 @@
 #include "journal-internal.h"
 #include "log.h"
 #include "logs-show.h"
+#include "process-util.h"
 #include "string-table.h"
 #include "utf8.h"
 #include "util.h"

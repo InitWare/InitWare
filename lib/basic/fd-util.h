@@ -34,6 +34,21 @@ int fd_move_above_stdio(int fd);
                 0;                              \
         })
 
+int fd_reopen(int fd, int flags);
+
+int path_is_root_at(int dir_fd, const char *path);
+static inline int path_is_root(const char *path) {
+        return path_is_root_at(AT_FDCWD, path);
+}
+static inline int dir_fd_is_root(int dir_fd) {
+        return path_is_root_at(dir_fd, NULL);
+}
+static inline int dir_fd_is_root_or_cwd(int dir_fd) {
+        return dir_fd == AT_FDCWD ? true : path_is_root_at(dir_fd, NULL);
+}
+
+int fds_are_same_mount(int fd1, int fd2);
+
 /* The maximum length a buffer for a /proc/self/fd/<fd> path needs */
 #define PROC_FD_PATH_MAX \
         (STRLEN("/proc/self/fd/") + DECIMAL_STR_MAX(int))
