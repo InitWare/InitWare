@@ -53,85 +53,6 @@ int xdg_user_runtime_dir(char **ret, const char *suffix) {
         return 0;
 }
 
-// int
-// user_config_home(char **config_home)
-// {
-// 	const char *e;
-// 	char *r;
-
-// 	e = getenv("XDG_CONFIG_HOME");
-// 	if (e) {
-// 		r = strappend(e, "/" SVC_PKGDIRNAME "/user");
-// 		if (!r)
-// 			return -ENOMEM;
-
-// 		*config_home = r;
-// 		return 1;
-// 	} else {
-// 		const char *home;
-
-// 		home = getenv("HOME");
-// 		if (home) {
-// 			r = strappend(home, "/.config/" SVC_PKGDIRNAME "/user");
-// 			if (!r)
-// 				return -ENOMEM;
-
-// 			*config_home = r;
-// 			return 1;
-// 		}
-// 	}
-
-// 	return 0;
-// }
-
-// int
-// user_runtime_dir(char **runtime_dir)
-// {
-// 	const char *e;
-// 	char *r;
-
-// 	e = getenv("XDG_RUNTIME_DIR");
-// 	if (e) {
-// 		r = strappend(e, "/" SVC_PKGDIRNAME "/user");
-// 		if (!r)
-// 			return -ENOMEM;
-
-// 		*runtime_dir = r;
-// 		return 1;
-// 	}
-
-// 	return 0;
-// }
-
-// static int
-// user_data_home_dir(char **dir, const char *suffix)
-// {
-// 	const char *e;
-// 	char *res;
-
-// 	/* We don't treat /etc/xdg/InitWare here as the spec
-//          * suggests because we assume that that is a link to
-//          * /etc/InitWare/ anyway. */
-
-// 	e = getenv("XDG_DATA_HOME");
-// 	if (e)
-// 		res = strappend(e, suffix);
-// 	else {
-// 		const char *home;
-
-// 		home = getenv("HOME");
-// 		if (home)
-// 			res = strjoin(home, "/.local/share", suffix, NULL);
-// 		else
-// 			return 0;
-// 	}
-// 	if (!res)
-// 		return -ENOMEM;
-
-// 	*dir = res;
-// 	return 0;
-// }
-
 int xdg_user_config_dir(char **ret, const char *suffix) {
         _cleanup_free_ char *j = NULL;
         const char *e;
@@ -653,6 +574,12 @@ generator_paths(SystemdRunningAs running_as)
 
 // 	return 0;
 // }
+
+bool path_is_user_config_dir(const char *path) {
+        assert(path);
+
+        return strv_contains((char**) user_config_unit_paths, path);
+}
 
 static int acquire_generator_dirs(
                 RuntimeScope scope,

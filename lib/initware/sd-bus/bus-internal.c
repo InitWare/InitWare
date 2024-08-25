@@ -19,6 +19,7 @@
 
 #include "alloc-util.h"
 #include "bus-internal.h"
+#include "hexdecoct.h"
 
 bool
 object_path_is_valid(const char *p)

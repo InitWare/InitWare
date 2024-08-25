@@ -289,13 +289,6 @@ int get_process_cwd(pid_t pid, char **cwd);
 int get_process_root(pid_t pid, char **root);
 int get_process_environ(pid_t pid, char **environ);
 
-char hexchar(int x) _const_;
-int unhexchar(char c) _const_;
-char octchar(int x) _const_;
-int unoctchar(char c) _const_;
-char decchar(int x) _const_;
-int undecchar(char c) _const_;
-
 char *xescape(const char *s, const char *bad);
 
 char *ascii_strlower(char *path);
@@ -714,9 +707,6 @@ int search_and_fopen_nulstr(const char *path, const char *mode,
 // 			}                                                      \
 // 			break;                                                 \
 // 		} else
-
-char *hexmem(const void *p, size_t l);
-void *unhexmem(const char *p, size_t l);
 
 char *strextend(char **x, ...) _sentinel_;
 char *strrep(const char *s, unsigned n);

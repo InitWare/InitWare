@@ -32,6 +32,7 @@
 #include "random-util.h"
 #include "set.h"
 #include "siphash24.h"
+#include "sort-util.h"
 #include "strv.h"
 #include "util.h"
 
@@ -2050,4 +2051,73 @@ int _set_put_strdupv_full(Set **s, const struct hash_ops *hash_ops, char **l  HA
         }
 
         return n;
+}
+
+static int hashmap_entry_compare(
+                struct hashmap_base_entry * const *a,
+                struct hashmap_base_entry * const *b,
+                compare_func_t compare) {
+
+        assert(a && *a);
+        assert(b && *b);
+        assert(compare);
+
+        return compare((*a)->key, (*b)->key);
+}
+
+static int _hashmap_dump_entries_sorted(
+                HashmapBase *h,
+                void ***ret,
+                size_t *ret_n) {
+        _cleanup_free_ void **entries = NULL;
+        Iterator iter;
+        unsigned idx;
+        size_t n = 0;
+
+        assert(ret);
+        assert(ret_n);
+
+        if (_hashmap_size(h) == 0) {
+                *ret = NULL;
+                *ret_n = 0;
+                return 0;
+        }
+
+        /* We append one more element than needed so that the resulting array can be used as a strv. We
+         * don't count this entry in the returned size. */
+        entries = new(void*, _hashmap_size(h) + 1);
+        if (!entries)
+                return -ENOMEM;
+
+        HASHMAP_FOREACH_IDX(idx, h, iter)
+                entries[n++] = bucket_at(h, idx);
+
+        assert(n == _hashmap_size(h));
+        entries[n] = NULL;
+
+        typesafe_qsort_r((struct hashmap_base_entry**) entries, n,
+                         hashmap_entry_compare, h->hash_ops->compare);
+
+        *ret = TAKE_PTR(entries);
+        *ret_n = n;
+        return 0;
+}
+
+int _hashmap_dump_sorted(HashmapBase *h, void ***ret, size_t *ret_n) {
+        _cleanup_free_ void **entries = NULL;
+        size_t n;
+        int r;
+
+        r = _hashmap_dump_entries_sorted(h, &entries, &n);
+        if (r < 0)
+                return r;
+
+        /* Reuse the array. */
+        FOREACH_ARRAY(e, entries, n)
+                *e = entry_value(h, *(struct hashmap_base_entry**) e);
+
+        *ret = TAKE_PTR(entries);
+        if (ret_n)
+                *ret_n = n;
+        return 0;
 }

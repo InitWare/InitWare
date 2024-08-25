@@ -22,6 +22,7 @@
 #include <unistd.h>
 
 #include "chase.h"
+#include "hexdecoct.h"
 #include "id128-util.h"
 #include "io-util.h"
 #include "macro.h"

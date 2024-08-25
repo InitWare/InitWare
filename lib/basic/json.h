@@ -146,7 +146,7 @@ static inline int json_variant_new_string(JsonVariant **ret, const char *s) {
         return json_variant_new_stringn(ret, s, SIZE_MAX);
 }
 
-#define JSON_VALUE_NULL ((union json_value){})
+#define JSON_VALUE_NULL ((JsonValue) {})
 
 JsonVariant *json_variant_ref(JsonVariant *v);
 JsonVariant *json_variant_unref(JsonVariant *v);
@@ -210,6 +210,7 @@ static inline bool json_variant_is_null(JsonVariant *v) {
 bool json_variant_is_normalized(JsonVariant *v);
 
 size_t json_variant_elements(JsonVariant *v);
+JsonVariant *json_variant_by_index(JsonVariant *v, size_t index);
 
 void json_variant_sensitive(JsonVariant *v);
 bool json_variant_is_sensitive(JsonVariant *v);

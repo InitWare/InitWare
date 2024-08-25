@@ -6,7 +6,7 @@
 #include "bus-message.h"
 #include "fd-util.h"
 #include "fileio.h"
-// #include "hexdecoct.h"
+#include "hexdecoct.h"
 #include "memstream-util.h"
 #include "sort-util.h"
 #include "stdio-util.h"

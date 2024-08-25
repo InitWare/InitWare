@@ -54,3 +54,5 @@ static inline ssize_t cunescape_length(const char *s, size_t length, UnescapeFla
 static inline ssize_t cunescape(const char *s, UnescapeFlags flags, char **ret) {
         return cunescape_length(s, strlen(s), flags, ret);
 }
+
+char* octescape(const char *s, size_t len);

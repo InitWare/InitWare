@@ -4,6 +4,12 @@
 
 #include <stdlib.h>
 
+/* This is the same as glibc's internal __compar_d_fn_t type. glibc exports a public comparison_fn_t, for the
+ * external type __compar_fn_t, but doesn't do anything similar for __compar_d_fn_t. Let's hence do that
+ * ourselves, picking a name that is obvious, but likely enough to not clash with glibc's choice of naming if
+ * they should ever add one. */
+typedef int (*comparison_userdata_fn_t)(const void *, const void *, void *);
+
 /**
  * Normal bsearch requires base to be nonnull. Here were require
  * that only if nmemb > 0.
@@ -42,4 +48,18 @@ static inline void _qsort_safe(void *base, size_t nmemb, size_t size, comparison
         ({                                                              \
                 int (*_func_)(const typeof((p)[0])*, const typeof((p)[0])*) = func; \
                 _qsort_safe((p), (n), sizeof((p)[0]), (comparison_fn_t) _func_); \
+        })
+
+static inline void qsort_r_safe(void *base, size_t nmemb, size_t size, comparison_userdata_fn_t compar, void *userdata) {
+        if (nmemb <= 1)
+                return;
+
+        assert(base);
+        qsort_r(base, nmemb, size, compar, userdata);
+}
+
+#define typesafe_qsort_r(p, n, func, userdata)                          \
+        ({                                                              \
+                int (*_func_)(const typeof((p)[0])*, const typeof((p)[0])*, typeof(userdata)) = func; \
+                qsort_r_safe((p), (n), sizeof((p)[0]), (comparison_userdata_fn_t) _func_, userdata); \
         })

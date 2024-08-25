@@ -14,6 +14,7 @@ struct memfd_cache {
 uint64_t request_name_flags_to_kdbus(uint64_t sd_bus_flags);
 uint64_t attach_flags_to_kdbus(uint64_t sd_bus_flags);
 
+void close_and_munmap(int fd, void *address, size_t size);
 void bus_flush_memfd(sd_bus *bus);
 
 #if 0

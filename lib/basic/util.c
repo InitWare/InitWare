@@ -77,6 +77,7 @@
 #include "fileio.h"
 #include "gunicode.h"
 #include "hashmap.h"
+#include "hexdecoct.h"
 #include "hostname-util.h"
 #include "inotify-util.h"
 #include "label.h"
@@ -950,106 +951,6 @@ rmdir_parents(const char *path, const char *stop)
 	}
 
 	return 0;
-}
-
-char
-hexchar(int x)
-{
-	static const char table[16] = "0123456789abcdef";
-
-	return table[x & 15];
-}
-
-int
-unhexchar(char c)
-{
-	if (c >= '0' && c <= '9')
-		return c - '0';
-
-	if (c >= 'a' && c <= 'f')
-		return c - 'a' + 10;
-
-	if (c >= 'A' && c <= 'F')
-		return c - 'A' + 10;
-
-	return -EINVAL;
-}
-
-char *
-hexmem(const void *p, size_t l)
-{
-	char *r, *z;
-	const uint8_t *x;
-
-	z = r = malloc(l * 2 + 1);
-	if (!r)
-		return NULL;
-
-	for (x = p; x < (const uint8_t *)p + l; x++) {
-		*(z++) = hexchar(*x >> 4);
-		*(z++) = hexchar(*x & 15);
-	}
-
-	*z = 0;
-	return r;
-}
-
-void *
-unhexmem(const char *p, size_t l)
-{
-	uint8_t *r, *z;
-	const char *x;
-
-	assert(p);
-
-	z = r = malloc((l + 1) / 2 + 1);
-	if (!r)
-		return NULL;
-
-	for (x = p; x < p + l; x += 2) {
-		int a, b;
-
-		a = unhexchar(x[0]);
-		if (x + 1 < p + l)
-			b = unhexchar(x[1]);
-		else
-			b = 0;
-
-		*(z++) = (uint8_t)a << 4 | (uint8_t)b;
-	}
-
-	*z = 0;
-	return r;
-}
-
-char
-octchar(int x)
-{
-	return '0' + (x & 7);
-}
-
-int
-unoctchar(char c)
-{
-	if (c >= '0' && c <= '7')
-		return c - '0';
-
-	return -EINVAL;
-}
-
-char
-decchar(int x)
-{
-	return '0' + (x % 10);
-}
-
-int
-undecchar(char c)
-{
-	if (c >= '0' && c <= '9')
-		return c - '0';
-
-	return -EINVAL;
 }
 
 char *

@@ -26,6 +26,13 @@
 
 #define ANSI_GREY    "\x1B[0;38;5;245m"
 
+/* Other ANSI codes */
+#define ANSI_UNDERLINE "\x1B[0;4m"
+#define ANSI_ADD_UNDERLINE "\x1B[4m"
+#define ANSI_ADD_UNDERLINE_GREY ANSI_ADD_UNDERLINE "\x1B[58:5:245m"
+#define ANSI_HIGHLIGHT "\x1B[0;1;39m"
+#define ANSI_HIGHLIGHT_UNDERLINE "\x1B[0;1;4m"
+
 /* Reset/clear ANSI styles */
 #define ANSI_NORMAL "\x1B[0m"
 
@@ -73,4 +80,6 @@ static inline bool colors_enabled(void) {
         }
 
 DEFINE_ANSI_FUNC(normal,            NORMAL);
+DEFINE_ANSI_FUNC(red,               RED);
+DEFINE_ANSI_FUNC(green,             GREEN);
 DEFINE_ANSI_FUNC_256(grey,          GREY, BRIGHT_BLACK);

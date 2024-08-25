@@ -52,12 +52,12 @@ endif ()
 list(APPEND BASIC_SRC MurmurHash2.c acpi-fpdt.c alloc-util.c apparmor-util.c argv-util.c
     async.c audit.c base-filesystem.c bus-label.c calendarspec.c cgroup-util.c chase.c
     clock-util.c condition.c conf-files.c conf-parser.c copy.c dev-setup.c
-    device-nodes.c dirent-util.c dropin.c efivars.c env-file.c env-util.c errno-list.c escape.c exec-util.c exit-status.c extract-word.c fdset.c fd-util.c
-    fileio-label.c fileio.c format-table.c fs-util.c fstab-util.c generator.c glyph-util.c gunicode.c hash-funcs.c hashmap.c hostname-util.c
-    ima-util.c import-util.c in-addr-util.c inotify-util.c install-printf.c install.c io-util.c json.c
+    device-nodes.c dirent-util.c dropin.c efivars.c env-file.c env-util.c errno-list.c escape.c ether-addr-util.c exec-util.c exit-status.c extract-word.c fdset.c fd-util.c
+    fileio-label.c fileio.c format-table.c fs-util.c fstab-util.c generator.c glyph-util.c gunicode.c hash-funcs.c hashmap.c hexdecoct.c hostname-util.c
+    id128-util.c ima-util.c import-util.c in-addr-util.c inotify-util.c install-printf.c install.c io-util.c json.c
     label.c locale-util.c log.c login-shared.c memory-util.c mempool.c memstream-util.c mkdir-label.c
     mkdir.c mountpoint-util.c os-util.c pager.c parse-argument.c parse-helpers.c parse-util.c path-lookup.c path-util.c pidref.c prioq.c process-util.c random-util.c ratelimit.c replace-var.c
-    selinux-util.c sigbus.c siphash24.c sha256.c sleep-config.c smack-util.c
+    selinux-util.c sigbus.c signal-util.c siphash24.c sha256.c sleep-config.c smack-util.c
     socket-label.c socket-util.c spawn-ask-password-agent.c spawn-polkit-agent.c
     specifier.c stat-util.c strbuf.c string-table.c string-util.c strv.c strxcpyx.c switch-root.c terminal-util.c time-dst.c time-util.c tmpfile-util.c
     uid-range.c unit-file.c unit-name.c user-util.c utf8.c util.c verbs.c virt.c watchdog.c xattr-util.c xml.c

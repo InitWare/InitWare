@@ -502,6 +502,17 @@ static inline void *ordered_hashmap_first_key(OrderedHashmap *h) {
 /* no hashmap_next */
 void *ordered_hashmap_next(OrderedHashmap *h, const void *key);
 
+int _hashmap_dump_sorted(HashmapBase *h, void ***ret, size_t *ret_n);
+static inline int hashmap_dump_sorted(Hashmap *h, void ***ret, size_t *ret_n) {
+        return _hashmap_dump_sorted(HASHMAP_BASE(h), ret, ret_n);
+}
+static inline int ordered_hashmap_dump_sorted(OrderedHashmap *h, void ***ret, size_t *ret_n) {
+        return _hashmap_dump_sorted(HASHMAP_BASE(h), ret, ret_n);
+}
+static inline int set_dump_sorted(Set *h, void ***ret, size_t *ret_n) {
+        return _hashmap_dump_sorted(HASHMAP_BASE(h), ret, ret_n);
+}
+
 char **internal_hashmap_get_strv(HashmapBase *h);
 static inline char **
 hashmap_get_strv(Hashmap *h)

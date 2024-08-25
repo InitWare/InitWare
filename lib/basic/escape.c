@@ -7,6 +7,7 @@
 
 #include "alloc-util.h"
 #include "escape.h"
+#include "hexdecoct.h"
 #include "util.h" // This probably needs splitting up!
 #include "utf8.h"
 
@@ -358,4 +359,37 @@ ssize_t cunescape_length_with_prefix(const char *s, size_t length, const char *p
         assert(t >= ans); /* Let static analyzers know that the answer is non-negative. */
         *ret = TAKE_PTR(ans);
         return t - *ret;
+}
+
+char* octescape(const char *s, size_t len) {
+        char *buf, *t;
+
+        /* Escapes all chars in bad, in addition to \ and " chars, in \nnn style escaping. */
+
+        assert(s || len == 0);
+
+        if (len == SIZE_MAX)
+                len = strlen(s);
+
+        if (len > (SIZE_MAX - 1) / 4)
+                return NULL;
+
+        t = buf = new(char, len * 4 + 1);
+        if (!buf)
+                return NULL;
+
+        for (size_t i = 0; i < len; i++) {
+                uint8_t u = (uint8_t) s[i];
+
+                if (u < ' ' || u >= 127 || IN_SET(u, '\\', '"')) {
+                        *(t++) = '\\';
+                        *(t++) = '0' + (u >> 6);
+                        *(t++) = '0' + ((u >> 3) & 7);
+                        *(t++) = '0' + (u & 7);
+                } else
+                        *(t++) = u;
+        }
+
+        *t = 0;
+        return buf;
 }

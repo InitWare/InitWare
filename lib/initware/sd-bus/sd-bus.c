@@ -33,6 +33,7 @@
 #include "errno-util.h"
 #include "format-util.h"
 #include "glyph-util.h"
+#include "hexdecoct.h"
 #include "hostname-util.h"
 #include "macro.h"
 #include "missing.h"

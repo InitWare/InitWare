@@ -66,6 +66,16 @@ dual_timestamp* dual_timestamp_now(dual_timestamp *ts) {
         return ts;
 }
 
+triple_timestamp* triple_timestamp_now(triple_timestamp *ts) {
+        assert(ts);
+
+        ts->realtime = now(CLOCK_REALTIME);
+        ts->monotonic = now(CLOCK_MONOTONIC);
+        ts->boottime = now(CLOCK_BOOTTIME);
+
+        return ts;
+}
+
 struct tm *localtime_or_gmtime_r(const time_t *t, struct tm *tm, bool utc) {
         assert(t);
         assert(tm);
@@ -118,6 +128,27 @@ dual_timestamp_from_monotonic(dual_timestamp *ts, usec_t u)
 		ts->realtime = 0;
 
 	return ts;
+}
+
+usec_t triple_timestamp_by_clock(triple_timestamp *ts, clockid_t clock) {
+        assert(ts);
+
+        switch (clock) {
+
+        case CLOCK_REALTIME:
+        case CLOCK_REALTIME_ALARM:
+                return ts->realtime;
+
+        case CLOCK_MONOTONIC:
+                return ts->monotonic;
+
+        case CLOCK_BOOTTIME:
+        case CLOCK_BOOTTIME_ALARM:
+                return ts->boottime;
+
+        default:
+                return USEC_INFINITY;
+        }
 }
 
 usec_t

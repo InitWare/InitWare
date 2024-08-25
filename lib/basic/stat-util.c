@@ -159,6 +159,18 @@ int fd_verify_regular(int fd) {
         return verify_regular_at(fd, NULL, false);
 }
 
+int stat_verify_directory(const struct stat *st) {
+        assert(st);
+
+        if (S_ISLNK(st->st_mode))
+                return -ELOOP;
+
+        if (!S_ISDIR(st->st_mode))
+                return -ENOTDIR;
+
+        return 0;
+}
+
 int proc_mounted(void) {
         int r;
 

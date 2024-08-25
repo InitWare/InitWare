@@ -24,6 +24,7 @@
 #include "alloc-util.h"
 #include "bus-label.h"
 #include "def.h"
+#include "hexdecoct.h"
 #include "path-util.h"
 #include "string-table.h"
 #include "strv.h"

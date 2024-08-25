@@ -32,19 +32,28 @@
 #include "in-addr-util.h"
 #include "logarithm.h"
 
-int
-in_addr_is_null(int family, const union in_addr_union *u)
-{
-	assert(u);
+bool in4_addr_is_null(const struct in_addr *a) {
+        assert(a);
 
-	if (family == AF_INET)
-		return u->in.s_addr == 0;
+        return a->s_addr == 0;
+}
 
-	if (family == AF_INET6)
-		return u->in6.s6_addr32[0] == 0 && u->in6.s6_addr32[1] == 0 &&
-			u->in6.s6_addr32[2] == 0 && u->in6.s6_addr32[3] == 0;
+bool in6_addr_is_null(const struct in6_addr *a) {
+        assert(a);
 
-	return -EAFNOSUPPORT;
+        return IN6_IS_ADDR_UNSPECIFIED(a);
+}
+
+int in_addr_is_null(int family, const union in_addr_union *u) {
+        assert(u);
+
+        if (family == AF_INET)
+                return in4_addr_is_null(&u->in);
+
+        if (family == AF_INET6)
+                return in6_addr_is_null(&u->in6);
+
+        return -EAFNOSUPPORT;
 }
 
 int

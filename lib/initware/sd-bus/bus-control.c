@@ -871,6 +871,48 @@ int bus_add_match_internal(
         return r;
 }
 
+int bus_add_match_internal_async(
+                sd_bus *bus,
+                sd_bus_slot **ret_slot,
+                const char *match,
+                sd_bus_message_handler_t callback,
+                void *userdata,
+                uint64_t timeout_usec) {
+
+        _cleanup_(sd_bus_message_unrefp) sd_bus_message *m = NULL;
+        const char *e;
+        int r;
+
+        assert(bus);
+
+        if (!bus->bus_client)
+                return -EINVAL;
+
+        e = append_eavesdrop(bus, match);
+
+        r = sd_bus_message_new_method_call(
+                        bus,
+                        &m,
+                        "org.freedesktop.DBus",
+                        "/org/freedesktop/DBus",
+                        "org.freedesktop.DBus",
+                        "AddMatch");
+        if (r < 0)
+                return r;
+
+        r = sd_bus_message_append(m, "s", e);
+        if (r < 0)
+                return r;
+
+        return sd_bus_call_async(
+                        bus,
+                        ret_slot,
+                        m,
+                        callback,
+                        userdata,
+                        timeout_usec);
+}
+
 int bus_remove_match_internal(
                 sd_bus *bus,
                 const char *match) {
