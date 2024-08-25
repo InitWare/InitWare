@@ -32,6 +32,7 @@
 #ifdef SVC_PLATFORM_Linux
 #include <linux/audit.h>
 #include <linux/capability.h>
+#include <linux/fs.h>
 #include <linux/if_link.h>
 #include <linux/input.h>
 #include <linux/loop.h>
@@ -239,6 +240,16 @@ missing_fanotify_init(unsigned int flags, unsigned int event_f_flags)
 }
 
 #define fanotify_init missing_fanotify_init
+#endif
+
+#ifndef FICLONERANGE /* 04b38d601239b4d9be641b412cf4b7456a041c67 (4.5) */
+#define FICLONERANGE _IOW(0x94, 13, struct file_clone_range)
+struct file_clone_range {
+       __s64 src_fd;
+       __u64 src_offset;
+       __u64 src_length;
+       __u64 dest_offset;
+};
 #endif
 
 #ifndef HAVE_FANOTIFY_MARK

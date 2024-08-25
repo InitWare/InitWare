@@ -230,6 +230,12 @@ int unit_file_link(
                 char **files,
                 InstallChange **changes,
                 size_t *n_changes);
+int unit_file_revert(
+                RuntimeScope scope,
+                const char *root_dir,
+                char **names,
+                InstallChange **changes,
+                size_t *n_changes);
 int unit_file_set_default(
                 RuntimeScope scope,
                 UnitFileFlags flags,
@@ -251,6 +257,9 @@ int unit_file_add_dependency(
                 InstallChange **changes,
                 size_t *n_changes);
 
+extern const struct hash_ops unit_file_list_hash_ops_free;
+
+int install_change_dump_error(const InstallChange *change, char **ret_errmsg, const char **ret_bus_error);
 int unit_file_verify_alias(
                 const InstallInfo *info,
                 const char *dst,
@@ -302,5 +311,9 @@ UnitFileState unit_file_state_from_string(const char *s) _pure_;
 
 const char *unit_file_change_type_to_string(UnitFileChangeType s) _const_;
 
+const char *install_change_type_to_string(InstallChangeType t) _const_;
+
 const char *unit_file_preset_mode_to_string(UnitFilePresetMode m) _const_;
 UnitFilePresetMode unit_file_preset_mode_from_string(const char *s) _pure_;
+
+void install_changes_free(InstallChange *changes, size_t n_changes);

@@ -1907,26 +1907,26 @@ cg_attach_everywhere(CGroupMask supported, const char *path, pid_t pid,
 	return 0;
 }
 
-// int
-// cg_attach_many_everywhere(CGroupMask supported, const char *path, Set *pids,
-// 	cg_migrate_callback_t path_callback, void *userdata)
-// {
-// 	Iterator i;
-// 	void *pidp;
-// 	int r = 0;
+int
+cg_attach_many_everywhere(CGroupMask supported, const char *path, Set *pids,
+	cg_migrate_callback_t path_callback, void *userdata)
+{
+	Iterator i;
+	void *pidp;
+	int r = 0;
 
-// 	SET_FOREACH (pidp, pids, i) {
-// 		pid_t pid = PTR_TO_LONG(pidp);
-// 		int q;
+	SET_FOREACH (pidp, pids) {
+		pid_t pid = PTR_TO_LONG(pidp);
+		int q;
 
-// 		q = cg_attach_everywhere(supported, path, pid, path_callback,
-// 			userdata);
-// 		if (q < 0)
-// 			r = q;
-// 	}
+		q = cg_attach_everywhere(supported, path, pid, path_callback,
+			userdata);
+		if (q < 0)
+			r = q;
+	}
 
-// 	return r;
-// }
+	return r;
+}
 
 int
 cg_migrate_everywhere(CGroupMask supported, const char *from, const char *to,

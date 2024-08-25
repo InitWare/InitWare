@@ -26,6 +26,7 @@ int fd_verify_regular(int fd);
 int stat_verify_directory(const struct stat *st);
 
 int stat_verify_linked(const struct stat *st);
+int fd_verify_linked(int fd);
 
 bool null_or_empty(struct stat *st) _pure_;
 int null_or_empty_path_with_root(const char *fn, const char *root);

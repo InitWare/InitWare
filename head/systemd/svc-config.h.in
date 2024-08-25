@@ -26,6 +26,7 @@
 /* header files */
 #cmakedefine HAVE_sys_auxv_h
 #cmakedefine HAVE_sys_endian_h
+#cmakedefine HAVE_sys_sendfile_h
 #cmakedefine HAVE_sys_sysmacros_h
 #cmakedefine HAVE_sys_timex_h
 #cmakedefine HAVE_sys_xattr_h

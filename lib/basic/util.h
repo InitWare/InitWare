@@ -937,16 +937,6 @@ int parse_percent(const char *p);
 uint64_t system_tasks_max(void);
 uint64_t system_tasks_max_scale(uint64_t v, uint64_t max);
 
-enum {
-	ACQUIRE_NO_DEV_NULL = 1 << 0,
-	ACQUIRE_NO_MEMFD = 1 << 1,
-	ACQUIRE_NO_PIPE = 1 << 2,
-	ACQUIRE_NO_TMPFILE = 1 << 3,
-	ACQUIRE_NO_REGULAR = 1 << 4,
-};
-
-int acquire_data_fd(const void *data, size_t size, unsigned flags);
-
 int wait_for_terminate_with_timeout(pid_t pid, usec_t timeout);
 
 static inline void

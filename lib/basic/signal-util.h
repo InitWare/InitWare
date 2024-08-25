@@ -12,3 +12,6 @@ static inline bool SIGNAL_VALID(int signo) {
 }
 
 int signal_is_blocked(int sig);
+
+int pop_pending_signal_internal(int sig, ...);
+#define pop_pending_signal(...) pop_pending_signal_internal(__VA_ARGS__, -1)

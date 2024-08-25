@@ -18,3 +18,7 @@
 
 #define CONF_PATHS_STRV(n)                      \
         STRV_MAKE(CONF_PATHS(n))
+
+// HACK: Systemd uses configure time magic for this
+#define DEFAULT_USER_TIMEOUT_SEC 60
+#define DEFAULT_USER_TIMEOUT_USEC (DEFAULT_USER_TIMEOUT_SEC*USEC_PER_SEC)

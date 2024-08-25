@@ -24,6 +24,7 @@
 #include <stdio.h>
 
 #include "cgroup-util.h"
+#include "constants.h"
 #include "fdset.h"
 #include "hashmap.h"
 #include "list.h"
@@ -47,20 +48,6 @@ typedef enum ManagerState {
 	_MANAGER_STATE_MAX,
 	_MANAGER_STATE_INVALID = -1
 } ManagerState;
-
-typedef enum ManagerExitCode {
-	MANAGER_OK,
-	MANAGER_EXIT,
-	MANAGER_RELOAD,
-	MANAGER_REEXECUTE,
-	MANAGER_REBOOT,
-	MANAGER_POWEROFF,
-	MANAGER_HALT,
-	MANAGER_KEXEC,
-	MANAGER_SWITCH_ROOT,
-	_MANAGER_EXIT_CODE_MAX,
-	_MANAGER_EXIT_CODE_INVALID = -1
-} ManagerExitCode;
 
 typedef enum StatusType {
 	STATUS_TYPE_EPHEMERAL,
@@ -107,6 +94,59 @@ typedef enum SchedulerFlags {
 #include "unit-name.h"
 #include "unit.h"
 
+/* Various defaults for unit file settings. */
+typedef struct UnitDefaults {
+        ExecOutput std_output, std_error;
+
+        usec_t restart_usec, timeout_start_usec, timeout_stop_usec, timeout_abort_usec, device_timeout_usec;
+        bool timeout_abort_set;
+
+        usec_t start_limit_interval;
+        unsigned start_limit_burst;
+
+        bool cpu_accounting;
+        bool memory_accounting;
+        bool io_accounting;
+        bool blockio_accounting;
+        bool tasks_accounting;
+        bool ip_accounting;
+
+// HACK: Looks annoying, skipping if we can
+#if 0
+        CGroupTasksMax tasks_max;
+#endif
+        usec_t timer_accuracy_usec;
+
+// HACK: Looks annoying, skipping if we can
+#if 0
+        OOMPolicy oom_policy;
+        int oom_score_adjust;
+        bool oom_score_adjust_set;
+
+        CGroupPressureWatch memory_pressure_watch;
+        usec_t memory_pressure_threshold_usec;
+#endif
+
+        char *smack_process_label;
+
+        struct rlimit *rlimit[_RLIMIT_MAX];
+} UnitDefaults;
+
+typedef enum ManagerObjective {
+        MANAGER_OK,
+        MANAGER_EXIT,
+        MANAGER_RELOAD,
+        MANAGER_REEXECUTE,
+        MANAGER_REBOOT,
+        MANAGER_SOFT_REBOOT,
+        MANAGER_POWEROFF,
+        MANAGER_HALT,
+        MANAGER_KEXEC,
+        MANAGER_SWITCH_ROOT,
+        _MANAGER_OBJECTIVE_MAX,
+        _MANAGER_OBJECTIVE_INVALID = -EINVAL,
+} ManagerObjective;
+
 struct Manager {
 	/* Note that the set of units we know of is allowed to be
          * inconsistent. However the subset of it that is loaded may
@@ -118,36 +158,36 @@ struct Manager {
 
 	/* To make it easy to iterate through the units of a specific
          * type we maintain a per type linked list */
-	IWLIST_HEAD(Unit, units_by_type[_UNIT_TYPE_MAX]);
+	LIST_HEAD(Unit, units_by_type[_UNIT_TYPE_MAX]);
 
 	/* Units that need to be loaded */
-	IWLIST_HEAD(Unit,
+	LIST_HEAD(Unit,
 		load_queue); /* this is actually more a stack than a queue, but uh. */
 
 	/* Jobs that need to be run */
-	IWLIST_HEAD(Job, run_queue); /* more a stack than a queue, too */
+	LIST_HEAD(Job, run_queue); /* more a stack than a queue, too */
 
 	/* Units and jobs that have not yet been announced via
          * D-Bus. When something about a job changes it is added here
          * if it is not in there yet. This allows easy coalescing of
          * D-Bus change signals. */
-	IWLIST_HEAD(Unit, dbus_unit_queue);
-	IWLIST_HEAD(Job, dbus_job_queue);
+	LIST_HEAD(Unit, dbus_unit_queue);
+	LIST_HEAD(Job, dbus_job_queue);
 
 	/* Units to remove */
-	IWLIST_HEAD(Unit, cleanup_queue);
+	LIST_HEAD(Unit, cleanup_queue);
 
 	/* Units to check when doing GC */
-	IWLIST_HEAD(Unit, gc_queue);
+	LIST_HEAD(Unit, gc_queue);
 
 	/* Units that should be realized */
-	IWLIST_HEAD(Unit, cgroup_queue);
+	LIST_HEAD(Unit, cgroup_queue);
 
 	/* Target units whose default target dependencies haven't been set yet */
-	IWLIST_HEAD(Unit, target_deps_queue);
+	LIST_HEAD(Unit, target_deps_queue);
 
 	/* Units that might be subject to StopWhenUnneeded= clean-up */
-	IWLIST_HEAD(Unit, stop_when_unneeded_queue);
+	LIST_HEAD(Unit, stop_when_unneeded_queue);
 
 	sd_event *event;
 
@@ -188,8 +228,16 @@ struct Manager {
 
 	unsigned n_snapshots;
 
+	RuntimeScope runtime_scope;
+
 	LookupPaths lookup_paths;
 	Set *unit_path_cache;
+
+  /* We don't have support for atomically enabling/disabling units, and unit_file_state might become
+   * outdated if such operations failed half-way. Therefore, we set this flag if changes to unit files
+   * are made, and reset it after daemon-reload. If set, we report that daemon-reload is needed through
+   * unit's NeedDaemonReload property. */
+  bool unit_file_state_outdated;
 
 	char **environment;
 
@@ -245,10 +293,10 @@ struct Manager {
 	sd_bus_track *subscribed;
 	char **deserialized_subscribed;
 
-	sd_bus_message *queued_message; /* This is used during reloading:
-                                      * before the reload we queue the
-                                      * reply message here, and
-                                      * afterwards we send it */
+	/* This is used during reloading: before the reload we queue
+   * the reply message here, and afterwards we send it */
+  sd_bus_message *pending_reload_message;
+
 	sd_bus *queued_message_bus; /* The connection to send the queued message on */
 
 	Hashmap *watch_bus; /* D-Bus names => Unit object n:1 */
@@ -276,7 +324,10 @@ struct Manager {
 	/* Flags */
 	SystemdRunningAs running_as;
 	SchedulerFlags scheduler_flags; /* optional additional flags */
-	ManagerExitCode exit_code: 5;
+
+	ManagerObjective objective;
+  /* Objective as it was before serialization, mostly to detect soft-reboots */
+  ManagerObjective previous_objective;
 
 	bool dispatching_load_queue: 1;
 	bool dispatching_dbus_queue: 1;
@@ -289,6 +340,8 @@ struct Manager {
 	ShowStatus show_status;
 	bool confirm_spawn;
 	bool no_console_output;
+
+	UnitDefaults defaults;
 
 	ExecOutput default_std_output, default_std_error;
 
@@ -345,7 +398,35 @@ struct Manager {
 	/* When the user hits C-A-D more than 7 times per 2s, do something immediately... */
 	RateLimit ctrl_alt_del_ratelimit;
 	EmergencyAction cad_burst_action;
+
+	/* Allow users to configure a rate limit for Reload()/Reexecute() operations */
+	RateLimit reload_reexec_ratelimit;
+	/* Dump*() are slow, so always rate limit them to 10 per 10 minutes */
+	RateLimit dump_ratelimit;
 };
+
+static inline usec_t manager_default_timeout_abort_usec(Manager *m) {
+        assert(m);
+        return m->defaults.timeout_abort_set ? m->defaults.timeout_abort_usec : m->defaults.timeout_stop_usec;
+}
+
+#define MANAGER_IS_SYSTEM(m) ((m)->runtime_scope == RUNTIME_SCOPE_SYSTEM)
+#define MANAGER_IS_USER(m) ((m)->runtime_scope == RUNTIME_SCOPE_USER)
+
+#define MANAGER_IS_RELOADING(m) ((m)->n_reloading > 0)
+
+#define MANAGER_IS_FINISHED(m) (dual_timestamp_is_set((m)->timestamps + MANAGER_TIMESTAMP_FINISH))
+
+/* The objective is set to OK as soon as we enter the main loop, and set otherwise as soon as we are done with it */
+#define MANAGER_IS_RUNNING(m) ((m)->objective == MANAGER_OK)
+
+#define MANAGER_IS_SWITCHING_ROOT(m) ((m)->switching_root)
+
+#define MANAGER_IS_TEST_RUN(m) ((m)->test_run_flags != 0)
+
+static inline usec_t manager_default_timeout(RuntimeScope scope) {
+        return scope == RUNTIME_SCOPE_SYSTEM ? DEFAULT_TIMEOUT_USEC : DEFAULT_USER_TIMEOUT_USEC;
+}
 
 int manager_new(SystemdRunningAs running_as, bool test_run, Manager **m);
 Manager *manager_free(Manager *m);
@@ -397,6 +478,8 @@ int manager_reload(Manager *m);
 
 bool manager_is_reloading_or_reexecuting(Manager *m) _pure_;
 
+int manager_client_environment_modify(Manager *m, char **minus, char **plus);
+
 void manager_reset_failed(Manager *m);
 
 void manager_send_unit_audit(Manager *m, Unit *u, int type, bool success);
@@ -426,3 +509,5 @@ void manager_unref_console(Manager *m);
 
 const char *manager_state_to_string(ManagerState m) _const_;
 ManagerState manager_state_from_string(const char *s) _pure_;
+
+int manager_get_dump_string(Manager *m, char **patterns, char **ret);

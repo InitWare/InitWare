@@ -98,7 +98,7 @@ struct UnitRef {
          * references to them */
 
 	Unit *source, *target;
-	IWLIST_FIELDS(UnitRef, refs_by_target);
+	LIST_FIELDS(UnitRef, refs_by_target);
 };
 
 struct Unit {
@@ -138,11 +138,11 @@ struct Unit {
 	char *job_timeout_reboot_arg;
 
 	/* References to this */
-	IWLIST_HEAD(UnitRef, refs_by_target);
+	LIST_HEAD(UnitRef, refs_by_target);
 
 	/* Conditions to check */
-	IWLIST_HEAD(Condition, conditions);
-	IWLIST_HEAD(Condition, asserts);
+	LIST_HEAD(Condition, conditions);
+	LIST_HEAD(Condition, asserts);
 
 	dual_timestamp condition_timestamp;
 	dual_timestamp assert_timestamp;
@@ -155,31 +155,31 @@ struct Unit {
 	UnitRef slice;
 
 	/* Per type list */
-	IWLIST_FIELDS(Unit, units_by_type);
+	LIST_FIELDS(Unit, units_by_type);
 
 	/* All units which have requires_mounts_for set */
-	IWLIST_FIELDS(Unit, has_requires_mounts_for);
+	LIST_FIELDS(Unit, has_requires_mounts_for);
 
 	/* Load queue */
-	IWLIST_FIELDS(Unit, load_queue);
+	LIST_FIELDS(Unit, load_queue);
 
 	/* D-Bus queue */
-	IWLIST_FIELDS(Unit, dbus_queue);
+	LIST_FIELDS(Unit, dbus_queue);
 
 	/* Cleanup queue */
-	IWLIST_FIELDS(Unit, cleanup_queue);
+	LIST_FIELDS(Unit, cleanup_queue);
 
 	/* GC queue */
-	IWLIST_FIELDS(Unit, gc_queue);
+	LIST_FIELDS(Unit, gc_queue);
 
 	/* CGroup realize members queue */
-	IWLIST_FIELDS(Unit, cgroup_queue);
+	LIST_FIELDS(Unit, cgroup_queue);
 
 	/* Target dependencies queue */
-	IWLIST_FIELDS(Unit, target_deps_queue);
+	LIST_FIELDS(Unit, target_deps_queue);
 
 	/* Queue of units with StopWhenUnneeded set that shell be checked for clean-up. */
-	IWLIST_FIELDS(Unit, stop_when_unneeded_queue);
+	LIST_FIELDS(Unit, stop_when_unneeded_queue);
 
 	/* PIDs we keep an eye on. Note that a unit might have many
          * more, but these are the ones we care enough about to
@@ -279,6 +279,12 @@ typedef enum UnitSetPropertiesMode {
 	UNIT_RUNTIME = 1,
 	UNIT_PERSISTENT = 2,
 } UnitSetPropertiesMode;
+
+typedef struct ActivationDetails {
+        unsigned n_ref;
+        UnitType trigger_unit_type;
+        char *trigger_unit_name;
+} ActivationDetails;
 
 #ifdef SVC_USE_Automount
 #include "automount.h"
@@ -684,6 +690,8 @@ int unit_kill_context(Unit *u, KillContext *c, KillOperation k, pid_t main_pid,
 int unit_make_transient(Unit *u);
 
 int unit_require_mounts_for(Unit *u, const char *path);
+
+bool unit_is_pristine(Unit *u);
 
 bool unit_is_unneeded(Unit *u);
 

@@ -528,7 +528,7 @@ property_get_address_families(sd_bus *bus, const char *path,
 	if (r < 0)
 		return r;
 
-	SET_FOREACH (af, c->address_families, i) {
+	SET_FOREACH (af, c->address_families) {
 		const char *name = NULL;
 
 #if 0 // FIXME
@@ -827,7 +827,7 @@ bus_property_get_exec_command_list(sd_bus *bus, const char *path,
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH (command, c, c) {
+	LIST_FOREACH (command, c, c) {
 		r = append_exec_command(reply, c);
 		if (r < 0)
 			return r;
@@ -1076,7 +1076,7 @@ bus_exec_context_set_transient_property(Unit *u, ExecContext *c,
 			} else {
 				_cleanup_free_ char *joined = NULL;
 
-				r = strv_extend_strv(&c->pass_environment, l);
+				r = strv_extend_strv(&c->pass_environment, l, true);
 				if (r < 0)
 					return r;
 

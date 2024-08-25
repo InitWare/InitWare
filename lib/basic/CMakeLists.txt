@@ -51,7 +51,7 @@ endif ()
 
 list(APPEND BASIC_SRC MurmurHash2.c acpi-fpdt.c alloc-util.c apparmor-util.c argv-util.c
     async.c audit.c base-filesystem.c bus-label.c calendarspec.c capsule-util.c cgroup-util.c chase.c
-    clock-util.c condition.c conf-files.c conf-parser.c copy.c dev-setup.c
+    clock-util.c condition.c conf-files.c conf-parser.c copy.c data-fd-util.c dev-setup.c
     device-nodes.c dirent-util.c dropin.c efivars.c env-file.c env-util.c errno-list.c escape.c ether-addr-util.c exec-util.c exit-status.c extract-word.c fdset.c fd-util.c
     fileio-label.c fileio.c format-table.c format-util.c fs-util.c fstab-util.c generator.c glyph-util.c gunicode.c hash-funcs.c hashmap.c hexdecoct.c hostname-util.c
     id128-util.c ima-util.c import-util.c in-addr-util.c inotify-util.c install-printf.c install.c io-util.c json.c

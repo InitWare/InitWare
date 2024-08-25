@@ -53,7 +53,7 @@ typedef struct TimerValue {
 	CalendarSpec *calendar_spec; /* only for calendar events */
 	usec_t next_elapse;
 
-	IWLIST_FIELDS(struct TimerValue, value);
+	LIST_FIELDS(struct TimerValue, value);
 } TimerValue;
 
 typedef enum TimerResult {
@@ -69,7 +69,7 @@ struct Timer {
 	usec_t accuracy_usec;
 	usec_t random_usec;
 
-	IWLIST_HEAD(TimerValue, values);
+	LIST_HEAD(TimerValue, values);
 	usec_t next_elapse_realtime;
 	usec_t next_elapse_monotonic_or_boottime;
 	dual_timestamp last_trigger;

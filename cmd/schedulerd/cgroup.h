@@ -46,7 +46,7 @@ typedef enum CGroupDevicePolicy {
 } CGroupDevicePolicy;
 
 struct CGroupDeviceAllow {
-	IWLIST_FIELDS(CGroupDeviceAllow, device_allow);
+	LIST_FIELDS(CGroupDeviceAllow, device_allow);
 	char *path;
 	bool r: 1;
 	bool w: 1;
@@ -54,13 +54,13 @@ struct CGroupDeviceAllow {
 };
 
 struct CGroupBlockIODeviceWeight {
-	IWLIST_FIELDS(CGroupBlockIODeviceWeight, device_weights);
+	LIST_FIELDS(CGroupBlockIODeviceWeight, device_weights);
 	char *path;
 	uint64_t weight;
 };
 
 struct CGroupBlockIODeviceBandwidth {
-	IWLIST_FIELDS(CGroupBlockIODeviceBandwidth, device_bandwidths);
+	LIST_FIELDS(CGroupBlockIODeviceBandwidth, device_bandwidths);
 	char *path;
 	uint64_t bandwidth;
 	bool read;
@@ -78,13 +78,13 @@ struct CGroupContext {
 
 	uint64_t blockio_weight;
 	uint64_t startup_blockio_weight;
-	IWLIST_HEAD(CGroupBlockIODeviceWeight, blockio_device_weights);
-	IWLIST_HEAD(CGroupBlockIODeviceBandwidth, blockio_device_bandwidths);
+	LIST_HEAD(CGroupBlockIODeviceWeight, blockio_device_weights);
+	LIST_HEAD(CGroupBlockIODeviceBandwidth, blockio_device_bandwidths);
 
 	uint64_t memory_limit;
 
 	CGroupDevicePolicy device_policy;
-	IWLIST_HEAD(CGroupDeviceAllow, device_allow);
+	LIST_HEAD(CGroupDeviceAllow, device_allow);
 
 	uint64_t tasks_max;
 
@@ -118,6 +118,7 @@ void unit_update_cgroup_members_masks(Unit *u);
 int unit_realize_cgroup(Unit *u);
 void unit_destroy_cgroup_if_empty(Unit *u);
 int unit_attach_pids_to_cgroup(Unit *u);
+// int unit_attach_pids_to_cgroup(Unit *u, Set *pids, const char *suffix_path);
 
 int manager_setup_cgroup(Manager *m);
 void manager_shutdown_cgroup(Manager *m, bool delete);

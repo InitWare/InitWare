@@ -35,6 +35,7 @@ int fd_move_above_stdio(int fd);
         })
 
 int fd_reopen(int fd, int flags);
+int fd_reopen_condition(int fd, int flags, int mask, int *ret_new_fd);
 
 int path_is_root_at(int dir_fd, const char *path);
 static inline int path_is_root(const char *path) {

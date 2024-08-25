@@ -1354,3 +1354,12 @@ bus_verify_reload_daemon_async(Manager *m, sd_bus_message *call,
 		SVC_DBUS_INTERFACE ".reload-daemon", false, &m->polkit_registry,
 		error);
 }
+
+int bus_verify_manage_units_async(Manager *m, sd_bus_message *call, sd_bus_error *error) {
+        return bus_verify_polkit_async(
+                        call,
+                        "org.freedesktop.systemd1.manage-units",
+                        /* details= */ NULL,
+                        &m->polkit_registry,
+                        error);
+}

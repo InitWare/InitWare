@@ -23,6 +23,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
+typedef struct ActivationDetails ActivationDetails;
 typedef struct Job Job;
 typedef struct JobDependency JobDependency;
 typedef enum JobType JobType;
@@ -121,8 +122,8 @@ struct JobDependency {
 	Job *subject;
 	Job *object;
 
-	IWLIST_FIELDS(JobDependency, subject);
-	IWLIST_FIELDS(JobDependency, object);
+	LIST_FIELDS(JobDependency, subject);
+	LIST_FIELDS(JobDependency, object);
 
 	bool matters;
 	bool conflicts;
@@ -132,12 +133,12 @@ struct Job {
 	Manager *manager;
 	Unit *unit;
 
-	IWLIST_FIELDS(Job, transaction); /* other jobs in the tx on same unit */
-	IWLIST_FIELDS(Job, run_queue);
-	IWLIST_FIELDS(Job, dbus_queue);
+	LIST_FIELDS(Job, transaction); /* other jobs in the tx on same unit */
+	LIST_FIELDS(Job, run_queue);
+	LIST_FIELDS(Job, dbus_queue);
 
-	IWLIST_HEAD(JobDependency, subject_list);
-	IWLIST_HEAD(JobDependency, object_list);
+	LIST_HEAD(JobDependency, subject_list);
+	LIST_HEAD(JobDependency, object_list);
 
 	/* Used for graph algs as a "I have been here" marker */
 	Job *marker;
@@ -158,10 +159,13 @@ struct Job {
          *
          * There can be more than one client, because of job merging.
          */
-	sd_bus_track *clients;
+	sd_bus_track *bus_track;
 	char **deserialized_clients;
 
 	JobResult result;
+
+	/* If the job had a specific trigger that needs to be advertised (eg: a path unit), store it. */
+	ActivationDetails *activation_details;
 
 	bool installed: 1;
 	bool in_run_queue: 1;
@@ -251,3 +255,6 @@ const char *job_result_to_string(JobResult t) _const_;
 JobResult job_result_from_string(const char *s) _pure_;
 
 int job_get_timeout(Job *j, uint64_t *timeout) _pure_;
+
+int job_get_before(Job *j, Job*** ret);
+int job_get_after(Job *j, Job*** ret);
