@@ -1207,3 +1207,11 @@ log_set_always_reopen_console(bool b)
 {
 	always_reopen_console = b;
 }
+
+void log_setup(void) {
+        log_set_target(LOG_TARGET_AUTO);
+        log_parse_environment();
+        (void) log_open();
+        if (log_on_console() && show_color < 0)
+                log_show_color(true);
+}

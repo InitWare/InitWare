@@ -428,41 +428,41 @@ void columns_lines_cache_reset(int _unused_ signum);
 
 bool on_tty(void);
 
-static inline const char *
-ansi_highlight(void)
-{
-	return colors_enabled() ? ANSI_HIGHLIGHT_ON : "";
-}
+// static inline const char *
+// ansi_highlight(void)
+// {
+// 	return colors_enabled() ? ANSI_HIGHLIGHT_ON : "";
+// }
 
-static inline const char *
-ansi_highlight_red(void)
-{
-	return colors_enabled() ? ANSI_HIGHLIGHT_RED_ON : "";
-}
+// static inline const char *
+// ansi_highlight_red(void)
+// {
+// 	return colors_enabled() ? ANSI_HIGHLIGHT_RED_ON : "";
+// }
 
-static inline const char *
-ansi_highlight_green(void)
-{
-	return colors_enabled() ? ANSI_HIGHLIGHT_GREEN_ON : "";
-}
+// static inline const char *
+// ansi_highlight_green(void)
+// {
+// 	return colors_enabled() ? ANSI_HIGHLIGHT_GREEN_ON : "";
+// }
 
-static inline const char *
-ansi_highlight_yellow(void)
-{
-	return colors_enabled() ? ANSI_HIGHLIGHT_YELLOW_ON : "";
-}
+// static inline const char *
+// ansi_highlight_yellow(void)
+// {
+// 	return colors_enabled() ? ANSI_HIGHLIGHT_YELLOW_ON : "";
+// }
 
-static inline const char *
-ansi_highlight_blue(void)
-{
-	return colors_enabled() ? ANSI_HIGHLIGHT_BLUE_ON : "";
-}
+// static inline const char *
+// ansi_highlight_blue(void)
+// {
+// 	return colors_enabled() ? ANSI_HIGHLIGHT_BLUE_ON : "";
+// }
 
-static inline const char *
-ansi_highlight_off(void)
-{
-	return colors_enabled() ? ANSI_HIGHLIGHT_OFF : "";
-}
+// static inline const char *
+// ansi_highlight_off(void)
+// {
+// 	return colors_enabled() ? ANSI_HIGHLIGHT_OFF : "";
+// }
 
 int files_same(const char *filea, const char *fileb);
 

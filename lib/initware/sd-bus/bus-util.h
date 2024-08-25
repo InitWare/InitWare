@@ -214,8 +214,6 @@ int bus_wait_for_jobs(BusWaitForJobs *d, bool quiet);
 
 // DEFINE_TRIVIAL_CLEANUP_FUNC(BusWaitForJobs *, bus_wait_for_jobs_free);
 
-int bus_deserialize_and_dump_unit_file_changes(sd_bus_message *m, bool quiet,
-	UnitFileChange **changes, unsigned *n_changes);
 int bus_property_get_rlimit(sd_bus *bus, const char *path,
 	const char *interface, const char *property, sd_bus_message *reply,
 	void *userdata, sd_bus_error *error);

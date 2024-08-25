@@ -402,6 +402,9 @@ bool bus_origin_changed(sd_bus *bus);
 
 char *bus_address_escape(const char *v);
 
+int bus_attach_io_events(sd_bus *b);
+int bus_attach_inotify_event(sd_bus *b);
+
 #define OBJECT_PATH_FOREACH_PREFIX(prefix, path)                               \
 	for (char *_slash = ({                                                 \
 		     strcpy((prefix), (path));                                 \

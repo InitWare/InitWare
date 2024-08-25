@@ -137,3 +137,26 @@ PidRef *pidref_free(PidRef *pidref) {
         pidref_done(pidref);
         return mfree(pidref);
 }
+
+int pidref_verify(const PidRef *pidref) {
+        int r;
+
+        /* This is a helper that is supposed to be called after reading information from procfs via a
+         * PidRef. It ensures that the PID we track still matches the PIDFD we pin. If this value differs
+         * after a procfs read, we might have read the data from a recycled PID. */
+
+        if (!pidref_is_set(pidref))
+                return -ESRCH;
+
+        if (pidref->pid == 1)
+                return 1; /* PID 1 can never go away, hence never be recycled to a different process → return 1 */
+
+        if (pidref->fd < 0)
+                return 0; /* If we don't have a pidfd we cannot validate it, hence we assume it's all OK → return 0 */
+
+        r = pidfd_verify_pid(pidref->fd, pidref->pid);
+        if (r < 0)
+                return r;
+
+        return 1; /* We have a pidfd and it still points to the PID we have, hence all is *really* OK → return 1 */
+}

@@ -303,3 +303,52 @@ int xstatfsat(int dir_fd, const char *path, struct statfs *ret) {
         return RET_NERRNO(fstatfs(fd, ret));
 }
 #endif
+
+const char* inode_type_to_string(mode_t m) {
+
+        /* Returns a short string for the inode type. We use the same name as the underlying macros for each
+         * inode type. */
+
+        switch (m & S_IFMT) {
+        case S_IFREG:
+                return "reg";
+        case S_IFDIR:
+                return "dir";
+        case S_IFLNK:
+                return "lnk";
+        case S_IFCHR:
+                return "chr";
+        case S_IFBLK:
+                return "blk";
+        case S_IFIFO:
+                return "fifo";
+        case S_IFSOCK:
+                return "sock";
+        }
+
+        /* Note anonymous inodes in the kernel will have a zero type. Hence fstat() of an eventfd() will
+         * return an .st_mode where we'll return NULL here! */
+        return NULL;
+}
+
+mode_t inode_type_from_string(const char *s) {
+        if (!s)
+                return MODE_INVALID;
+
+        if (streq(s, "reg"))
+                return S_IFREG;
+        if (streq(s, "dir"))
+                return S_IFDIR;
+        if (streq(s, "lnk"))
+                return S_IFLNK;
+        if (streq(s, "chr"))
+                return S_IFCHR;
+        if (streq(s, "blk"))
+                return S_IFBLK;
+        if (streq(s, "fifo"))
+                return S_IFIFO;
+        if (streq(s, "sock"))
+                return S_IFSOCK;
+
+        return MODE_INVALID;
+}

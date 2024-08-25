@@ -70,3 +70,5 @@ utf16_surrogate_pair_to_unichar(uint16_t lead, uint16_t trail)
 {
 	return ((lead - 0xd800) << 10) + (trail - 0xdc00) + 0x10000;
 }
+
+size_t utf8_console_width(const char *str);

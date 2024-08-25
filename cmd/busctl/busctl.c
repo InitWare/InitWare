@@ -1200,10 +1200,8 @@ static int introspect(int argc, char **argv, void *userdata) {
         return 0;
 }
 
-static int
-message_dump(sd_bus_message *m, FILE *f)
-{
-	return bus_message_dump(m, f, BUS_MESSAGE_DUMP_WITH_HEADER);
+static int message_dump(sd_bus_message *m, FILE *f) {
+        return sd_bus_message_dump(m, f, SD_BUS_MESSAGE_DUMP_WITH_HEADER);
 }
 
 static int

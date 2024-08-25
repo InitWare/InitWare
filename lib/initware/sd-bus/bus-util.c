@@ -29,8 +29,11 @@
 #include "bus-internal.h"
 #include "bus-label.h"
 #include "bus-message.h"
+#include "capsule-util.h"
 #include "cgroup-util.h"
+#include "chase.h"
 #include "def.h"
+#include "fd-util.h"
 #include "macro.h"
 #include "missing.h"
 #include "parse-util.h"
@@ -38,6 +41,7 @@
 #include "set.h"
 #include "socket-util.h"
 #include "strv.h"
+#include "uid-classification.h"
 #include "unit-name.h"
 #include "util.h"
 
@@ -52,6 +56,24 @@ static int name_owner_change_callback(sd_bus_message *m, void *userdata, sd_bus_
         sd_event_exit(e, 0);
 
         return 1;
+}
+
+int bus_log_address_error(int r, BusTransport transport) {
+        bool hint = transport == BUS_TRANSPORT_LOCAL && r == -ENOMEDIUM;
+
+        return log_error_errno(r,
+                               hint ? "Failed to set bus address: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)" :
+                                      "Failed to set bus address: %m");
+}
+
+int bus_log_connect_error(int r, BusTransport transport) {
+        bool hint_vars = transport == BUS_TRANSPORT_LOCAL && r == -ENOMEDIUM,
+             hint_addr = transport == BUS_TRANSPORT_LOCAL && ERRNO_IS_PRIVILEGE(r);
+
+        return log_error_errno(r,
+                               r == hint_vars ? "Failed to connect to bus: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)" :
+                               r == hint_addr ? "Failed to connect to bus: Operation not permitted (consider using --machine=<user>@.host --user to connect to bus of other user)" :
+                                                "Failed to connect to bus: %m");
 }
 
 int
@@ -1890,52 +1912,6 @@ bus_wait_for_jobs(BusWaitForJobs *d, bool quiet)
 // }
 
 int
-bus_deserialize_and_dump_unit_file_changes(sd_bus_message *m, bool quiet,
-	UnitFileChange **changes, unsigned *n_changes)
-{
-	const char *type, *path, *source;
-	int r;
-
-	r = sd_bus_message_enter_container(m, SD_BUS_TYPE_ARRAY, "(sss)");
-	if (r < 0)
-		return bus_log_parse_error(r);
-
-	while ((r = sd_bus_message_read(m, "(sss)", &type, &path, &source)) >
-		0) {
-		if (!quiet) {
-			if (streq(type, "symlink"))
-				log_info("Created symlink from %s to %s.", path,
-					source);
-			else if (streq(type, "unlink"))
-				log_info("Removed symlink %s.", path);
-			else if (streq(type, "masked"))
-				log_info("Unit %s is masked, ignoring.", path);
-			else if (streq(type, "dangling"))
-				log_info(
-					"Unit %s is an alias to a unit that is not present, ignoring.",
-					path);
-			else
-				log_notice(
-					"Manager reported unknown change type \"%s\" for %s.",
-					type, path);
-		}
-
-		r = unit_file_changes_add(changes, n_changes,
-			unit_file_change_type_from_string(type), path, source);
-		if (r < 0)
-			return r;
-	}
-	if (r < 0)
-		return bus_log_parse_error(r);
-
-	r = sd_bus_message_exit_container(m);
-	if (r < 0)
-		return bus_log_parse_error(r);
-
-	return 0;
-}
-
-int
 bus_property_get_rlimit(sd_bus *bus, const char *path, const char *interface,
 	const char *property, sd_bus_message *reply, void *userdata,
 	sd_bus_error *error)
@@ -1970,4 +1946,77 @@ bus_property_get_rlimit(sd_bus *bus, const char *path, const char *interface,
 	u = x == RLIM_INFINITY ? (uint64_t)-1 : (uint64_t)x;
 
 	return sd_bus_message_append(reply, "t", u);
+}
+
+static int pin_capsule_socket(const char *capsule, const char *suffix, uid_t *ret_uid, gid_t *ret_gid) {
+        _cleanup_close_ int inode_fd = -EBADF;
+        _cleanup_free_ char *p = NULL;
+        struct stat st;
+        int r;
+
+        assert(capsule);
+        assert(suffix);
+        assert(ret_uid);
+        assert(ret_gid);
+
+        p = path_join("/run/capsules", capsule, suffix);
+        if (!p)
+                return -ENOMEM;
+
+        /* We enter territory owned by the user, hence let's be paranoid about symlinks and ownership */
+        r = chase(p, /* root= */ NULL, CHASE_SAFE|CHASE_PROHIBIT_SYMLINKS, /* ret_path= */ NULL, &inode_fd);
+        if (r < 0)
+                return r;
+
+        if (fstat(inode_fd, &st) < 0)
+                return negative_errno();
+
+        /* Paranoid safety check */
+        if (uid_is_system(st.st_uid) || gid_is_system(st.st_gid))
+                return -EPERM;
+
+        *ret_uid = st.st_uid;
+        *ret_gid = st.st_gid;
+
+        return TAKE_FD(inode_fd);
+}
+
+static int bus_set_address_capsule(sd_bus *bus, const char *capsule, const char *suffix, int *ret_pin_fd) {
+        _cleanup_close_ int inode_fd = -EBADF;
+        _cleanup_free_ char *pp = NULL;
+        uid_t uid;
+        gid_t gid;
+        int r;
+
+        assert(bus);
+        assert(capsule);
+        assert(suffix);
+        assert(ret_pin_fd);
+
+        /* Connects to a capsule's user bus. We need to do so under the capsule's UID/GID, otherwise
+         * the service manager might refuse our connection. Hence fake it. */
+
+        r = capsule_name_is_valid(capsule);
+        if (r < 0)
+                return r;
+        if (r == 0)
+                return -EINVAL;
+
+        inode_fd = pin_capsule_socket(capsule, suffix, &uid, &gid);
+        if (inode_fd < 0)
+                return inode_fd;
+
+        pp = bus_address_escape(FORMAT_PROC_FD_PATH(inode_fd));
+        if (!pp)
+                return -ENOMEM;
+
+        if (asprintf(&bus->address, "unix:path=%s,uid=" UID_FMT ",gid=" GID_FMT, pp, uid, gid) < 0)
+                return -ENOMEM;
+
+        *ret_pin_fd = TAKE_FD(inode_fd); /* This fd must be kept pinned until the connection has been established */
+        return 0;
+}
+
+int bus_set_address_capsule_bus(sd_bus *bus, const char *capsule, int *ret_pin_fd) {
+        return bus_set_address_capsule(bus, capsule, "bus", ret_pin_fd);
 }

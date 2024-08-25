@@ -324,6 +324,7 @@ int sd_bus_message_set_allow_interactive_authorization(sd_bus_message *m,
 	int b);
 
 int sd_bus_message_set_destination(sd_bus_message *m, const char *destination);
+int sd_bus_message_set_sender(sd_bus_message *m, const char *sender);
 int sd_bus_message_set_priority(sd_bus_message *m, int64_t priority);
 
 int sd_bus_message_append(sd_bus_message *m, const char *types, ...);
@@ -472,6 +473,7 @@ int sd_bus_creds_get_cmdline(sd_bus_creds *c, char ***cmdline);
 int sd_bus_creds_get_cgroup(sd_bus_creds *c, const char **cgroup);
 int sd_bus_creds_get_unit(sd_bus_creds *c, const char **unit);
 int sd_bus_creds_get_user_unit(sd_bus_creds *c, const char **unit);
+int sd_bus_creds_get_user_slice(sd_bus_creds *c, const char **slice);
 int sd_bus_creds_get_slice(sd_bus_creds *c, const char **slice);
 int sd_bus_creds_get_session(sd_bus_creds *c, const char **session);
 int sd_bus_creds_get_owner_uid(sd_bus_creds *c, uid_t *uid);

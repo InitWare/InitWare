@@ -19,6 +19,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <time.h>
 #include <sys/time.h>
 
 #include <inttypes.h>
@@ -86,6 +87,16 @@ typedef enum TimestampStyle {
 #define FORMAT_TIMESPAN_MAX 64
 
 char* format_timestamp_style(char *buf, size_t l, usec_t t, TimestampStyle style) _warn_unused_result_;
+char* format_timestamp_relative_full(char *buf, size_t l, usec_t t, clockid_t clock, bool implicit_left) _warn_unused_result_;
+
+_warn_unused_result_
+static inline char* format_timestamp_relative(char *buf, size_t l, usec_t t) {
+        return format_timestamp_relative_full(buf, l, t, CLOCK_REALTIME, /* implicit_left = */ false);
+}
+_warn_unused_result_
+static inline char* format_timestamp_relative_monotonic(char *buf, size_t l, usec_t t) {
+        return format_timestamp_relative_full(buf, l, t, CLOCK_MONOTONIC, /* implicit_left = */ false);
+}
 _warn_unused_result_
 static inline char* format_timestamp(char *buf, size_t l, usec_t t) {
         return format_timestamp_style(buf, l, t, TIMESTAMP_PRETTY);

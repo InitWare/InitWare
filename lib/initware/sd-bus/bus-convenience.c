@@ -699,6 +699,7 @@ _public_ int sd_bus_query_sender_privilege(sd_bus_message *call, int capability)
         if (!BUS_IS_OPEN(call->bus->state))
                 return -ENOTCONN;
 
+#ifdef SVC_USE_libcap
         if (capability >= 0) {
 
                 r = sd_bus_query_sender_creds(call, SD_BUS_CREDS_UID|SD_BUS_CREDS_EUID|SD_BUS_CREDS_EFFECTIVE_CAPS, &creds);
@@ -722,6 +723,11 @@ _public_ int sd_bus_query_sender_privilege(sd_bus_message *call, int capability)
                 if (r < 0)
                         return r;
         }
+#else
+        r = sd_bus_query_sender_creds(call, SD_BUS_CREDS_UID|SD_BUS_CREDS_EUID, &creds);
+        if (r < 0)
+                return r;
+#endif
 
         /* Now, check the UID, but only if the capability check wasn't
          * sufficient */

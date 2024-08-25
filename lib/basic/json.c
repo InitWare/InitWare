@@ -35,6 +35,7 @@
 #include "math-util.h"
 #include "set.h"
 #include "string-util.h"
+#include "terminal-util.h"
 #include "utf8.h"
 #include "util.h"
 
@@ -3697,4 +3698,82 @@ bool json_variant_is_normalized(JsonVariant *v) {
                 return true;
 
         return v->normalized; /* For everything else there's an explicit boolean we maintain */
+}
+
+static unsigned json_variant_n_ref(const JsonVariant *v) {
+        /* Return the number of references to v.
+         * 0  => NULL or not a regular object or embedded.
+         * >0 => number of references
+         */
+
+        if (!v || !json_variant_is_regular(v) || v->is_embedded)
+                return 0;
+
+        assert(v->n_ref > 0);
+        return v->n_ref;
+}
+
+int json_variant_append_array(JsonVariant **v, JsonVariant *element) {
+        _cleanup_(json_variant_unrefp) JsonVariant *nv = NULL;
+        bool blank;
+        int r;
+
+        assert(v);
+        assert(element);
+
+        if (!*v || json_variant_is_null(*v))
+                blank = true;
+        else if (json_variant_is_array(*v))
+                blank = json_variant_elements(*v) == 0;
+        else
+                return -EINVAL;
+
+        if (blank) {
+                r = json_variant_new_array(&nv, (JsonVariant*[]) { element }, 1);
+                if (r < 0)
+                        return r;
+        } else if (json_variant_n_ref(*v) == 1) {
+                /* Let's bump the reference count on element. We can't do the realloc if we're appending *v
+                 * to itself, or one of the objects embedded in *v to *v. If the reference count grows, we
+                 * need to fall back to the other method below. */
+
+                _unused_ _cleanup_(json_variant_unrefp) JsonVariant *dummy = json_variant_ref(element);
+                if (json_variant_n_ref(*v) == 1) {
+                        /* We hold the only reference. Let's mutate the object. */
+                        size_t size = json_variant_elements(*v);
+                        void *old = *v;
+
+                        if (!GREEDY_REALLOC(*v, size + 1 + 1))
+                                return -ENOMEM;
+
+                        if (old != *v)
+                                /* Readjust the parent pointers to the new address */
+                                for (size_t i = 1; i < size; i++)
+                                        (*v)[1 + i].parent = *v;
+
+                        return _json_variant_array_put_element(*v, element);
+                }
+        }
+
+        if (!blank) {
+                size_t size = json_variant_elements(*v);
+
+                _cleanup_free_ JsonVariant **array = new(JsonVariant*, size + 1);
+                if (!array)
+                        return -ENOMEM;
+
+                for (size_t i = 0; i < size; i++)
+                        array[i] = json_variant_by_index(*v, i);
+
+                array[size] = element;
+
+                r = json_variant_new_array(&nv, array, size + 1);
+                if (r < 0)
+                        return r;
+        }
+
+        json_variant_propagate_sensitive(*v, nv);
+        JSON_VARIANT_REPLACE(*v, TAKE_PTR(nv));
+
+        return 0;
 }

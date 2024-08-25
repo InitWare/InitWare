@@ -512,3 +512,23 @@ unichar_is_valid(int32_t ch)
 
 	return true;
 }
+
+size_t utf8_console_width(const char *str) {
+        size_t n = 0;
+
+        /* Returns the approximate width a string will take on screen when printed on a character cell
+         * terminal/console. */
+
+        while (*str) {
+                int w;
+
+                w = utf8_char_console_width(str);
+                if (w < 0)
+                        return SIZE_MAX;
+
+                n += w;
+                str = utf8_next_char(str);
+        }
+
+        return n;
+}

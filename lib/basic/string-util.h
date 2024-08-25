@@ -248,6 +248,13 @@ static inline char *ellipsize(const char *s, size_t length, unsigned percent) {
         return ellipsize_mem(s, strlen(s), length, percent);
 }
 
+char *cellescape(char *buf, size_t len, const char *s);
+
+char *delete_trailing_chars(char *s, const char *bad);
+
+int string_truncate_lines(const char *s, size_t n_lines, char **ret);
+int string_extract_line(const char *s, size_t i, char **ret);
+
 int string_contains_word_strv(const char *string, const char *separators, char * const *words, const char **ret_word);
 static inline int string_contains_word(const char *string, const char *separators, const char *word) {
         return string_contains_word_strv(string, separators, STRV_MAKE(word), NULL);

@@ -3192,6 +3192,98 @@ static int bus_message_close_header(sd_bus_message *m) {
 // 	return 0;
 // }
 
+_public_ int sd_bus_message_seal(sd_bus_message *m, uint64_t cookie, uint64_t timeout_usec) {
+        struct bus_body_part *part;
+        size_t a;
+        unsigned i;
+        int r;
+
+        assert_return(m, -EINVAL);
+
+        if (m->sealed)
+                return -EPERM;
+
+        if (m->n_containers > 0)
+                return -EBADMSG;
+
+        if (m->poisoned)
+                return -ESTALE;
+
+        if (cookie > UINT32_MAX)
+                return -EOPNOTSUPP;
+
+        /* In vtables the return signature of method calls is listed,
+         * let's check if they match if this is a response */
+        if (m->header->type == SD_BUS_MESSAGE_METHOD_RETURN &&
+            m->enforced_reply_signature &&
+            !streq(strempty(m->root_container.signature), m->enforced_reply_signature))
+                return -ENOMSG;
+
+        /* If there's a non-trivial signature set, then add it in here */
+        if (!isempty(m->root_container.signature)) {
+                r = message_append_field_signature(m, BUS_MESSAGE_HEADER_SIGNATURE, m->root_container.signature, NULL);
+                if (r < 0)
+                        return r;
+        }
+
+        if (m->n_fds > 0) {
+                r = message_append_field_uint32(m, BUS_MESSAGE_HEADER_UNIX_FDS, m->n_fds);
+                if (r < 0)
+                        return r;
+        }
+
+        r = bus_message_close_header(m);
+        if (r < 0)
+                return r;
+
+        m->header->serial = (uint32_t) cookie;
+
+        m->timeout = m->header->flags & BUS_MESSAGE_NO_REPLY_EXPECTED ? 0 : timeout_usec;
+
+        /* Add padding at the end of the fields part, since we know
+         * the body needs to start at an 8 byte alignment. We made
+         * sure we allocated enough space for this, so all we need to
+         * do here is to zero it out. */
+        a = ALIGN8(m->fields_size) - m->fields_size;
+        if (a > 0)
+                memzero((uint8_t*) BUS_MESSAGE_FIELDS(m) + m->fields_size, a);
+
+        /* If this is something we can send as memfd, then let's seal
+        the memfd now. Note that we can send memfds as payload only
+        for directed messages, and not for broadcasts. */
+        if (m->destination && m->bus->use_memfd) {
+                MESSAGE_FOREACH_PART(part, i, m)
+                        if (part->memfd >= 0 &&
+                            !part->sealed &&
+                            (part->size > MEMFD_MIN_SIZE || m->bus->use_memfd < 0) &&
+                            part != m->body_end) { /* The last part may never be sent as memfd */
+                                uint64_t sz;
+
+                                /* Try to seal it if that makes
+                                 * sense. First, unmap our own map to
+                                 * make sure we don't keep it busy. */
+                                bus_body_part_unmap(part);
+
+                                /* Then, sync up real memfd size */
+                                sz = part->size;
+                                r = memfd_set_size(part->memfd, sz);
+                                if (r < 0)
+                                        return r;
+
+                                /* Finally, try to seal */
+                                if (memfd_set_sealed(part->memfd) >= 0)
+                                        part->sealed = true;
+                        }
+        }
+
+        m->root_container.end = m->user_body_size;
+        m->root_container.index = 0;
+
+        m->sealed = true;
+
+        return 0;
+}
+
 int
 bus_body_part_map(struct bus_body_part *part)
 {
@@ -5946,16 +6038,24 @@ static int message_parse_fields(sd_bus_message *m) {
         return 0;
 }
 
-_public_ int
-sd_bus_message_set_destination(sd_bus_message *m, const char *destination)
-{
-	assert_return(m, -EINVAL);
-	assert_return(destination, -EINVAL);
-	assert_return(!m->sealed, -EPERM);
-	assert_return(!m->destination, -EEXIST);
+_public_ int sd_bus_message_set_destination(sd_bus_message *m, const char *destination) {
+        assert_return(m, -EINVAL);
+        assert_return(destination, -EINVAL);
+        assert_return(service_name_is_valid(destination), -EINVAL);
+        assert_return(!m->sealed, -EPERM);
+        assert_return(!m->destination, -EEXIST);
 
-	return message_append_field_string(m, BUS_MESSAGE_HEADER_DESTINATION,
-		SD_BUS_TYPE_STRING, destination, &m->destination);
+        return message_append_field_string(m, BUS_MESSAGE_HEADER_DESTINATION, SD_BUS_TYPE_STRING, destination, &m->destination);
+}
+
+_public_ int sd_bus_message_set_sender(sd_bus_message *m, const char *sender) {
+        assert_return(m, -EINVAL);
+        assert_return(sender, -EINVAL);
+        assert_return(service_name_is_valid(sender), -EINVAL);
+        assert_return(!m->sealed, -EPERM);
+        assert_return(!m->sender, -EEXIST);
+
+        return message_append_field_string(m, BUS_MESSAGE_HEADER_SENDER, SD_BUS_TYPE_STRING, sender, &m->sender);
 }
 
 int
@@ -6412,5 +6512,37 @@ _public_ int sd_bus_message_sensitive(sd_bus_message *m) {
         assert_return(m, -EINVAL);
 
         m->sensitive = true;
+        return 0;
+}
+
+_public_ int sd_bus_message_new(
+                sd_bus *bus,
+                sd_bus_message **m,
+                uint8_t type) {
+
+        assert_return(bus, -ENOTCONN);
+        assert_return(bus = bus_resolve(bus), -ENOPKG);
+        assert_return(bus->state != BUS_UNSET, -ENOTCONN);
+        assert_return(m, -EINVAL);
+        /* Creation of messages with _SD_BUS_MESSAGE_TYPE_INVALID is allowed. */
+        assert_return(type < _SD_BUS_MESSAGE_TYPE_MAX, -EINVAL);
+
+        sd_bus_message *t = malloc0(ALIGN(sizeof(sd_bus_message)) + sizeof(struct bus_header));
+        if (!t)
+                return -ENOMEM;
+
+        t->n_ref = 1;
+        t->creds = (sd_bus_creds) { SD_BUS_CREDS_INIT_FIELDS };
+        t->bus = sd_bus_ref(bus);
+        t->header = (struct bus_header*) ((uint8_t*) t + ALIGN(sizeof(struct sd_bus_message)));
+        t->header->endian = BUS_NATIVE_ENDIAN;
+        t->header->type = type;
+        t->header->version = bus->message_version;
+        t->allow_fds = bus->can_fds || !IN_SET(bus->state, BUS_HELLO, BUS_RUNNING);
+
+        if (bus->allow_interactive_authorization)
+                t->header->flags |= BUS_MESSAGE_ALLOW_INTERACTIVE_AUTHORIZATION;
+
+        *m = t;
         return 0;
 }

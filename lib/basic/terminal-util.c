@@ -35,6 +35,7 @@
 
 static volatile int cached_on_dev_null = -1;
 static volatile int cached_color_mode = _COLOR_INVALID;
+static volatile int cached_underline_enabled = -1;
 
 static bool on_dev_null(void) {
         struct stat dst, ost, est;
@@ -132,4 +133,19 @@ ColorMode get_color_mode(void) {
         }
 
         return cached_color_mode;
+}
+
+bool underline_enabled(void) {
+
+        if (cached_underline_enabled < 0) {
+
+                /* The Linux console doesn't support underlining, turn it off, but only there. */
+
+                if (colors_enabled())
+                        cached_underline_enabled = !streq_ptr(getenv("TERM"), "linux");
+                else
+                        cached_underline_enabled = false;
+        }
+
+        return cached_underline_enabled;
 }

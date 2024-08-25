@@ -87,6 +87,9 @@ void inode_hash_func(const struct stat *q, struct siphash *state);
 int inode_compare_func(const struct stat *a, const struct stat *b);
 extern const struct hash_ops inode_hash_ops;
 
+const char* inode_type_to_string(mode_t m);
+mode_t inode_type_from_string(const char *s);
+
 static inline bool stat_is_set(const struct stat *st) {
         return st && st->st_dev != 0 && st->st_mode != MODE_INVALID;
 }

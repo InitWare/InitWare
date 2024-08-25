@@ -301,7 +301,6 @@ const char *unit_file_state_to_string(UnitFileState s) _const_;
 UnitFileState unit_file_state_from_string(const char *s) _pure_;
 
 const char *unit_file_change_type_to_string(UnitFileChangeType s) _const_;
-UnitFileChangeType unit_file_change_type_from_string(const char *s) _pure_;
 
 const char *unit_file_preset_mode_to_string(UnitFilePresetMode m) _const_;
 UnitFilePresetMode unit_file_preset_mode_from_string(const char *s) _pure_;

@@ -1704,6 +1704,19 @@ _public_ sd_bus *sd_bus_close_unref(sd_bus *bus) {
         return sd_bus_unref(bus);
 }
 
+_public_ sd_bus* sd_bus_flush_close_unref(sd_bus *bus) {
+        if (!bus)
+                return NULL;
+        if (bus_origin_changed(bus))
+                return NULL;
+
+        /* Have to do this before flush() to prevent hang */
+        bus_kill_exec(bus);
+        sd_bus_flush(bus);
+
+        return sd_bus_close_unref(bus);
+}
+
 static void
 bus_enter_closing(sd_bus *bus)
 {
@@ -1837,30 +1850,37 @@ good:
 	return 0;
 }
 
-static int
-bus_seal_message(sd_bus *b, sd_bus_message *m, usec_t timeout)
-{
-	int r;
+static int bus_seal_message(sd_bus *b, sd_bus_message *m, usec_t timeout) {
+        int r;
 
-	assert(b);
-	assert(m);
+        assert(b);
+        assert(m);
 
-	if (m->sealed) {
-		/* If we copy the same message to multiple
+        if (m->sealed) {
+                /* If we copy the same message to multiple
                  * destinations, avoid using the same cookie
                  * numbers. */
-		b->cookie = MAX(b->cookie, BUS_MESSAGE_COOKIE(m));
-		return 0;
-	}
+                b->cookie = MAX(b->cookie, BUS_MESSAGE_COOKIE(m));
+                return 0;
+        }
 
-	if (timeout == 0)
-		timeout = BUS_DEFAULT_TIMEOUT;
+        if (timeout == 0) {
+                r = sd_bus_get_method_call_timeout(b, &timeout);
+                if (r < 0)
+                        return r;
+        }
 
-	r = next_cookie(b);
-	if (r < 0)
-		return r;
+        if (!m->sender && b->patch_sender) {
+                r = sd_bus_message_set_sender(m, b->patch_sender);
+                if (r < 0)
+                        return r;
+        }
 
-	return bus_message_seal(m, b->cookie, timeout);
+        r = next_cookie(b);
+        if (r < 0)
+                return r;
+
+        return sd_bus_message_seal(m, b->cookie, timeout);
 }
 
 static int
@@ -3772,11 +3792,94 @@ attach_io_events(sd_bus *bus)
 // 	}
 // }
 
+int bus_attach_io_events(sd_bus *bus) {
+        int r;
+
+        assert(bus);
+
+        if (bus->input_fd < 0)
+                return 0;
+
+        if (!bus->event)
+                return 0;
+
+        if (!bus->input_io_event_source) {
+                r = sd_event_add_io(bus->event, &bus->input_io_event_source, bus->input_fd, 0, io_callback, bus);
+                if (r < 0)
+                        return r;
+
+                r = sd_event_source_set_prepare(bus->input_io_event_source, prepare_callback);
+                if (r < 0)
+                        return r;
+
+                r = sd_event_source_set_priority(bus->input_io_event_source, bus->event_priority);
+                if (r < 0)
+                        return r;
+
+                r = sd_event_source_set_description(bus->input_io_event_source, "bus-input");
+        } else
+                r = sd_event_source_set_io_fd(bus->input_io_event_source, bus->input_fd);
+
+        if (r < 0)
+                return r;
+
+        if (bus->output_fd != bus->input_fd) {
+                assert(bus->output_fd >= 0);
+
+                if (!bus->output_io_event_source) {
+                        r = sd_event_add_io(bus->event, &bus->output_io_event_source, bus->output_fd, 0, io_callback, bus);
+                        if (r < 0)
+                                return r;
+
+                        r = sd_event_source_set_priority(bus->output_io_event_source, bus->event_priority);
+                        if (r < 0)
+                                return r;
+
+                        r = sd_event_source_set_description(bus->input_io_event_source, "bus-output");
+                } else
+                        r = sd_event_source_set_io_fd(bus->output_io_event_source, bus->output_fd);
+
+                if (r < 0)
+                        return r;
+        }
+
+        return 0;
+}
+
 static void bus_detach_io_events(sd_bus *bus) {
         assert(bus);
 
         bus->input_io_event_source = sd_event_source_disable_unref(bus->input_io_event_source);
         bus->output_io_event_source = sd_event_source_disable_unref(bus->output_io_event_source);
+}
+
+int bus_attach_inotify_event(sd_bus *bus) {
+        int r;
+
+        assert(bus);
+
+        if (bus->inotify_fd < 0)
+                return 0;
+
+        if (!bus->event)
+                return 0;
+
+        if (!bus->inotify_event_source) {
+                r = sd_event_add_io(bus->event, &bus->inotify_event_source, bus->inotify_fd, EPOLLIN, io_callback, bus);
+                if (r < 0)
+                        return r;
+
+                r = sd_event_source_set_priority(bus->inotify_event_source, bus->event_priority);
+                if (r < 0)
+                        return r;
+
+                r = sd_event_source_set_description(bus->inotify_event_source, "bus-inotify");
+        } else
+                r = sd_event_source_set_io_fd(bus->inotify_event_source, bus->inotify_fd);
+        if (r < 0)
+                return r;
+
+        return 0;
 }
 
 _public_ int
@@ -4154,4 +4257,55 @@ _public_ int sd_bus_is_monitor(sd_bus *bus) {
         assert_return(!bus_origin_changed(bus), -ECHILD);
 
         return bus->is_monitor;
+}
+
+_public_ int sd_bus_set_method_call_timeout(sd_bus *bus, uint64_t usec) {
+        assert_return(bus, -EINVAL);
+        assert_return(bus = bus_resolve(bus), -ENOPKG);
+
+        bus->method_call_timeout = usec;
+        return 0;
+}
+
+_public_ int sd_bus_get_method_call_timeout(sd_bus *bus, uint64_t *ret) {
+        const char *e;
+        usec_t usec;
+
+        assert_return(bus, -EINVAL);
+        assert_return(bus = bus_resolve(bus), -ENOPKG);
+        assert_return(ret, -EINVAL);
+
+        if (bus->method_call_timeout != 0) {
+                *ret = bus->method_call_timeout;
+                return 0;
+        }
+
+        e = secure_getenv("SYSTEMD_BUS_TIMEOUT");
+        if (e && parse_sec(e, &usec) >= 0 && usec != 0) {
+                /* Save the parsed value to avoid multiple parsing. To change the timeout value,
+                 * use sd_bus_set_method_call_timeout() instead of setenv(). */
+                *ret = bus->method_call_timeout = usec;
+                return 0;
+        }
+
+        *ret = bus->method_call_timeout = BUS_DEFAULT_TIMEOUT;
+        return 0;
+}
+
+_public_ int sd_bus_set_watch_bind(sd_bus *bus, int b) {
+        assert_return(bus, -EINVAL);
+        assert_return(bus = bus_resolve(bus), -ENOPKG);
+        assert_return(bus->state == BUS_UNSET, -EPERM);
+        assert_return(!bus_origin_changed(bus), -ECHILD);
+
+        bus->watch_bind = b;
+        return 0;
+}
+
+_public_ int sd_bus_get_watch_bind(sd_bus *bus) {
+        assert_return(bus, -EINVAL);
+        assert_return(bus = bus_resolve(bus), -ENOPKG);
+        assert_return(!bus_origin_changed(bus), -ECHILD);
+
+        return bus->watch_bind;
 }

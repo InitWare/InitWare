@@ -30,7 +30,52 @@
 #define CACHED_PID_UNSET ((pid_t) 0)
 #define CACHED_PID_BUSY ((pid_t) -1)
 
+/* The kernel limits userspace processes to TASK_COMM_LEN (16 bytes), but allows higher values for its own
+ * workers, e.g. "kworker/u9:3-kcryptd/253:0". Let's pick a fixed smallish limit that will work for the kernel.
+ */
+#define COMM_MAX_LEN 128
+
+#define TASK_COMM_LEN 16
+
 static pid_t cached_pid = CACHED_PID_UNSET;
+
+int pid_get_comm(pid_t pid, char **ret) {
+        _cleanup_free_ char *escaped = NULL, *comm = NULL;
+        int r;
+
+        assert(ret);
+        assert(pid >= 0);
+
+        if (pid == 0 || pid == getpid_cached()) {
+                comm = new0(char, TASK_COMM_LEN + 1); /* Must fit in 16 byte according to prctl(2) */
+                if (!comm)
+                        return -ENOMEM;
+
+                if (prctl(PR_GET_NAME, comm) < 0)
+                        return -errno;
+        } else {
+                const char *p;
+
+                p = procfs_file_alloca(pid, "comm");
+
+                /* Note that process names of kernel threads can be much longer than TASK_COMM_LEN */
+                r = read_one_line_file(p, &comm);
+                if (r == -ENOENT)
+                        return -ESRCH;
+                if (r < 0)
+                        return r;
+        }
+
+        escaped = new(char, COMM_MAX_LEN);
+        if (!escaped)
+                return -ENOMEM;
+
+        /* Escape unprintable characters, just in case, but don't grow the string beyond the underlying size */
+        cellescape(escaped, COMM_MAX_LEN, comm);
+
+        *ret = TAKE_PTR(escaped);
+        return 0;
+}
 
 void reset_cached_pid(void) {
         /* Invoked in the child after a fork(), i.e. at the first moment the PID changed */
@@ -130,4 +175,25 @@ int pidfd_get_pid(int fd, pid_t *ret) {
                 return -ESRCH;   /* refers to reaped process? */
 
         return parse_pid(p, ret);
+}
+
+void sigterm_wait(pid_t pid) {
+        assert(pid > 1);
+
+        (void) kill_and_sigcont(pid, SIGTERM);
+        (void) wait_for_terminate(pid, NULL);
+}
+
+int pidfd_verify_pid(int pidfd, pid_t pid) {
+        pid_t current_pid;
+        int r;
+
+        assert(pidfd >= 0);
+        assert(pid > 0);
+
+        r = pidfd_get_pid(pidfd, &current_pid);
+        if (r < 0)
+                return r;
+
+        return current_pid != pid ? -ESRCH : 0;
 }

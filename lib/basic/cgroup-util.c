@@ -1401,6 +1401,23 @@ skip_user_manager(const char *p)
 	return p;
 }
 
+static const char *skip_user_prefix(const char *path) {
+        const char *e, *t;
+
+        assert(path);
+
+        /* Skip slices, if there are any */
+        e = skip_slices(path);
+
+        /* Skip the user manager, if it's in the path now... */
+        t = skip_user_manager(e);
+        if (t)
+                return t;
+
+        /* Alternatively skip the user session if it is in the path... */
+        return skip_session(e);
+}
+
 int
 cg_path_get_user_unit(const char *path, char **unit)
 {
@@ -1624,6 +1641,20 @@ cg_pid_get_slice(pid_t pid, char **slice)
 		return r;
 
 	return cg_path_get_slice(cgroup, slice);
+}
+
+int cg_path_get_user_slice(const char *p, char **ret_slice) {
+        const char *t;
+        assert(p);
+        assert(ret_slice);
+
+        t = skip_user_prefix(p);
+        if (!t)
+                return -ENXIO;
+
+        /* And now it looks pretty much the same as for a system slice, so let's just use the same parser
+         * from here on. */
+        return cg_path_get_slice(t, ret_slice);
 }
 
 char *

@@ -605,6 +605,17 @@ static inline uint64_t ALIGN_OFFSET_U64(uint64_t l, uint64_t ali) {
                 _copy;                                                  \
         })
 
+#define saturate_add(x, y, limit)                                       \
+        ({                                                              \
+                typeof(limit) _x = (x);                                 \
+                typeof(limit) _y = (y);                                 \
+                _x > (limit) || _y >= (limit) - _x ? (limit) : _x + _y; \
+        })
+
+static inline size_t size_add(size_t x, size_t y) {
+        return saturate_add(x, y, SIZE_MAX);
+}
+
 typedef struct {
         int _empty[0];
 } dummy_t;

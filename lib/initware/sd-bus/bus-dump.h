@@ -29,8 +29,6 @@ enum {
 	BUS_MESSAGE_DUMP_SUBTREE_ONLY = 2,
 };
 
-int bus_message_dump(sd_bus_message *m, FILE *f, unsigned flags);
-
 int bus_creds_dump(sd_bus_creds *c, FILE *f, bool terse);
 
 int bus_pcap_header(size_t snaplen, const char *os, const char *app, FILE *f);

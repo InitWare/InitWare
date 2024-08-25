@@ -499,6 +499,33 @@ sd_bus_creds_get_slice(sd_bus_creds *c, const char **ret)
 	return 0;
 }
 
+_public_ int sd_bus_creds_get_user_slice(sd_bus_creds *c, const char **ret) {
+        int r;
+
+        assert_return(c, -EINVAL);
+        assert_return(ret, -EINVAL);
+
+        if (!(c->mask & SD_BUS_CREDS_USER_SLICE))
+                return -ENODATA;
+
+        assert(c->cgroup);
+
+        if (!c->user_slice) {
+                const char *shifted;
+
+                r = cg_shift_path(c->cgroup, c->cgroup_root, &shifted);
+                if (r < 0)
+                        return r;
+
+                r = cg_path_get_user_slice(shifted, (char**) &c->user_slice);
+                if (r < 0)
+                        return r;
+        }
+
+        *ret = c->user_slice;
+        return 0;
+}
+
 _public_ int
 sd_bus_creds_get_session(sd_bus_creds *c, const char **ret)
 {
@@ -1334,4 +1361,18 @@ int bus_creds_extend_by_pid(sd_bus_creds *c, uint64_t mask, sd_bus_creds **ret) 
         *ret = TAKE_PTR(n);
 
         return 0;
+}
+
+_public_ int sd_bus_creds_has_effective_cap(sd_bus_creds *c, int capability) {
+#ifndef SVC_USE_libcap
+				return 0;
+#else
+        assert_return(c, -EINVAL);
+        assert_return(capability >= 0, -EINVAL);
+
+        if (!(c->mask & SD_BUS_CREDS_EFFECTIVE_CAPS))
+                return -ENODATA;
+
+        return has_cap(c, CAP_OFFSET_EFFECTIVE, capability);
+#endif
 }

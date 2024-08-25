@@ -65,7 +65,10 @@ char **strv_remove(char **l, const char *s);
 char **strv_uniq(char **l);
 bool strv_is_uniq(char **l);
 
-bool strv_equal(char **a, char **b);
+int strv_compare(char * const *a, char * const *b);
+static inline bool strv_equal(char * const *a, char * const *b) {
+        return strv_compare(a, b) == 0;
+}
 
 #define strv_contains(l, s) (!!strv_find((l), (s)))
 #define strv_contains_case(l, s) (!!strv_find_case((l), (s)))

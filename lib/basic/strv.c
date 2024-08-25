@@ -828,17 +828,26 @@ strv_sort(char **l)
 	return l;
 }
 
-bool
-strv_equal(char **a, char **b)
-{
-	if (!a || !b)
-		return a == b;
+int strv_compare(char * const *a, char * const *b) {
+        int r;
 
-	for (; *a || *b; ++a, ++b)
-		if (!streq_ptr(*a, *b))
-			return false;
+        if (strv_isempty(a)) {
+                if (strv_isempty(b))
+                        return 0;
+                else
+                        return -1;
+        }
 
-	return true;
+        if (strv_isempty(b))
+                return 1;
+
+        for ( ; *a || *b; ++a, ++b) {
+                r = strcmp_ptr(*a, *b);
+                if (r != 0)
+                        return r;
+        }
+
+        return 0;
 }
 
 void
@@ -907,4 +916,16 @@ strv_fnmatch(char *const *patterns, const char *s, int flags)
 			return true;
 
 	return false;
+}
+
+char** strv_skip(char **l, size_t n) {
+
+        while (n > 0) {
+                if (strv_isempty(l))
+                        return l;
+
+                l++, n--;
+        }
+
+        return l;
 }
