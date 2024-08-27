@@ -23,14 +23,20 @@
 #include "copy.h"
 #include "dirent-util.h"
 #include "fd-util.h"
+#include "fileio.h"
 #include "fs-util.h"
 #include "missing.h"
+#include "mountpoint-util.h"
 #include "nulstr-util.h"
+#include "rm-rf.h"
 #include "selinux-util.h"
 #include "signal-util.h"
 #include "stat-util.h"
 #include "sync-util.h"
+#include "tmpfile-util.h"
+#include "user-util.h"
 #include "util.h"
+#include "xattr-util.h"
 
 #ifdef HAVE_sys_sendfile_h
 #include <sys/sendfile.h>
@@ -46,7 +52,12 @@
 
 #include <sys/ioctl.h>
 
-#define COPY_BUFFER_SIZE (16 * 1024)
+#define COPY_BUFFER_SIZE (16U*1024U)
+
+/* A safety net for descending recursively into file system trees to copy. On Linux PATH_MAX is 4096, which means the
+ * deepest valid path one can build is around 2048, which we hence use as a safety net here, to not spin endlessly in
+ * case of bind mount cycles and suchlike. */
+#define COPY_DEPTH_MAX 2048U
 
 static ssize_t try_copy_file_range(
                 int fd_in, loff_t *off_in,
@@ -520,28 +531,55 @@ int copy_bytes_full(
         return max_bytes <= 0; /* return 0 if we hit EOF earlier than the size limit */
 }
 
-static int
-fd_copy_symlink(int df, const char *from, const struct stat *st, int dt,
-	const char *to)
-{
-	_cleanup_free_ char *target = NULL;
-	int r;
+static int fd_copy_symlink(
+                int df,
+                const char *from,
+                const struct stat *st,
+                int dt,
+                const char *to,
+                uid_t override_uid,
+                gid_t override_gid,
+                CopyFlags copy_flags) {
 
-	assert(from);
-	assert(st);
-	assert(to);
+        _cleanup_free_ char *target = NULL;
+        int r;
 
-	r = readlinkat_malloc(df, from, &target);
-	if (r < 0)
-		return r;
+        assert(st);
+        assert(to);
 
-	if (symlinkat(target, dt, to) < 0)
-		return -errno;
+        r = readlinkat_malloc(df, from, &target);
+        if (r < 0)
+                return r;
 
-	if (fchownat(dt, to, st->st_uid, st->st_gid, AT_SYMLINK_NOFOLLOW) < 0)
-		return -errno;
+        if (copy_flags & COPY_MAC_CREATE) {
+                r = mac_selinux_create_file_prepare_at(dt, to, S_IFLNK);
+                if (r < 0)
+                        return r;
+        }
+        r = RET_NERRNO(symlinkat(target, dt, to));
+        if (copy_flags & COPY_MAC_CREATE)
+                mac_selinux_create_file_clear();
+        if (r < 0) {
+                if (FLAGS_SET(copy_flags, COPY_GRACEFUL_WARN) && (ERRNO_IS_PRIVILEGE(r) || ERRNO_IS_NOT_SUPPORTED(r))) {
+                        log_notice_errno(r, "Failed to copy symlink%s%s%s, ignoring: %m",
+                                         isempty(from) ? "" : " '",
+                                         strempty(from),
+                                         isempty(from) ? "" : "'");
+                        return 0;
+                }
 
-	return 0;
+                return r;
+        }
+
+        if (fchownat(dt, to,
+                     uid_is_valid(override_uid) ? override_uid : st->st_uid,
+                     gid_is_valid(override_gid) ? override_gid : st->st_gid,
+                     AT_SYMLINK_NOFOLLOW) < 0)
+                r = -errno;
+
+        (void) copy_xattr(df, from, dt, to, copy_flags);
+        (void) utimensat(dt, to, (struct timespec[]) { st->st_atim, st->st_mtim }, AT_SYMLINK_NOFOLLOW);
+        return r;
 }
 
 /* Encapsulates the database we store potential hardlink targets in */
@@ -722,6 +760,25 @@ static int memorize_hardlink(
         return 1;
 }
 
+static int fd_copy_tree_generic(
+                int df,
+                const char *from,
+                const struct stat *st,
+                int dt,
+                const char *to,
+                dev_t original_device,
+                unsigned depth_left,
+                uid_t override_uid,
+                gid_t override_gid,
+                CopyFlags copy_flags,
+                Hashmap *denylist,
+                Set *subvolumes,
+                HardlinkContext *hardlink_context,
+                const char *display_path,
+                copy_progress_path_t progress_path,
+                copy_progress_bytes_t progress_bytes,
+                void *userdata);
+
 static int fd_copy_regular(
                 int df,
                 const char *from,
@@ -804,194 +861,436 @@ fail:
         return r;
 }
 
-static int
-fd_copy_fifo(int df, const char *from, const struct stat *st, int dt,
-	const char *to)
-{
-	int r;
+static int fd_copy_fifo(
+                int df,
+                const char *from,
+                const struct stat *st,
+                int dt,
+                const char *to,
+                uid_t override_uid,
+                gid_t override_gid,
+                CopyFlags copy_flags,
+                HardlinkContext *hardlink_context) {
+        int r;
 
-	assert(from);
-	assert(st);
-	assert(to);
+        assert(st);
+        assert(to);
 
-	r = mkfifoat(dt, to, st->st_mode & 07777);
-	if (r < 0)
-		return -errno;
+        r = try_hardlink(hardlink_context, st, dt, to);
+        if (r < 0)
+                return r;
+        if (r > 0) /* worked! */
+                return 0;
 
-	if (fchownat(dt, to, st->st_uid, st->st_gid, AT_SYMLINK_NOFOLLOW) < 0)
-		r = -errno;
+        if (copy_flags & COPY_MAC_CREATE) {
+                r = mac_selinux_create_file_prepare_at(dt, to, S_IFIFO);
+                if (r < 0)
+                        return r;
+        }
+        r = RET_NERRNO(mkfifoat(dt, to, st->st_mode & 07777));
+        if (copy_flags & COPY_MAC_CREATE)
+                mac_selinux_create_file_clear();
+        if (FLAGS_SET(copy_flags, COPY_GRACEFUL_WARN) && (ERRNO_IS_NEG_PRIVILEGE(r) || ERRNO_IS_NEG_NOT_SUPPORTED(r))) {
+                log_notice_errno(r, "Failed to copy fifo%s%s%s, ignoring: %m",
+                                 isempty(from) ? "" : " '",
+                                 strempty(from),
+                                 isempty(from) ? "" : "'");
+                return 0;
+        } else if (r < 0)
+                return r;
 
-	if (fchmodat(dt, to, st->st_mode & 07777, 0) < 0)
-		r = -errno;
+        if (fchownat(dt, to,
+                     uid_is_valid(override_uid) ? override_uid : st->st_uid,
+                     gid_is_valid(override_gid) ? override_gid : st->st_gid,
+                     AT_SYMLINK_NOFOLLOW) < 0)
+                r = -errno;
 
-	return r;
+        if (fchmodat(dt, to, st->st_mode & 07777, 0) < 0)
+                r = -errno;
+
+        (void) utimensat(dt, to, (struct timespec[]) { st->st_atim, st->st_mtim }, AT_SYMLINK_NOFOLLOW);
+
+        (void) memorize_hardlink(hardlink_context, st, dt, to);
+        return r;
 }
 
-static int
-fd_copy_node(int df, const char *from, const struct stat *st, int dt,
-	const char *to)
-{
-	int r;
+static int fd_copy_node(
+                int df,
+                const char *from,
+                const struct stat *st,
+                int dt,
+                const char *to,
+                uid_t override_uid,
+                gid_t override_gid,
+                CopyFlags copy_flags,
+                HardlinkContext *hardlink_context) {
+        int r;
 
-	assert(from);
-	assert(st);
-	assert(to);
+        assert(st);
+        assert(to);
 
-	r = mknodat(dt, to, st->st_mode, st->st_rdev);
-	if (r < 0)
-		return -errno;
+        r = try_hardlink(hardlink_context, st, dt, to);
+        if (r < 0)
+                return r;
+        if (r > 0) /* worked! */
+                return 0;
 
-	if (fchownat(dt, to, st->st_uid, st->st_gid, AT_SYMLINK_NOFOLLOW) < 0)
-		r = -errno;
+        if (copy_flags & COPY_MAC_CREATE) {
+                r = mac_selinux_create_file_prepare_at(dt, to, st->st_mode & S_IFMT);
+                if (r < 0)
+                        return r;
+        }
+        r = RET_NERRNO(mknodat(dt, to, st->st_mode, st->st_rdev));
+        if (copy_flags & COPY_MAC_CREATE)
+                mac_selinux_create_file_clear();
+        if (FLAGS_SET(copy_flags, COPY_GRACEFUL_WARN) && (ERRNO_IS_NEG_PRIVILEGE(r) || ERRNO_IS_NEG_NOT_SUPPORTED(r))) {
+                log_notice_errno(r, "Failed to copy node%s%s%s, ignoring: %m",
+                                 isempty(from) ? "" : " '",
+                                 strempty(from),
+                                 isempty(from) ? "" : "'");
+                return 0;
+        } else if (r < 0)
+                return r;
 
-	if (fchmodat(dt, to, st->st_mode & 07777, 0) < 0)
-		r = -errno;
+        if (fchownat(dt, to,
+                     uid_is_valid(override_uid) ? override_uid : st->st_uid,
+                     gid_is_valid(override_gid) ? override_gid : st->st_gid,
+                     AT_SYMLINK_NOFOLLOW) < 0)
+                r = -errno;
 
-	return r;
+        if (fchmodat(dt, to, st->st_mode & 07777, 0) < 0)
+                r = -errno;
+
+        (void) utimensat(dt, to, (struct timespec[]) { st->st_atim, st->st_mtim }, AT_SYMLINK_NOFOLLOW);
+
+        (void) memorize_hardlink(hardlink_context, st, dt, to);
+        return r;
 }
 
-static int
-fd_copy_directory(int df, const char *from, const struct stat *st, int dt,
-	const char *to, dev_t original_device, bool merge)
-{
-	_cleanup_close_ int fdf = -1, fdt = -1;
-	_cleanup_closedir_ DIR *d = NULL;
-	struct dirent *de;
-	bool created;
-	int r;
+static int fd_copy_directory(
+                int df,
+                const char *from,
+                const struct stat *st,
+                int dt,
+                const char *to,
+                dev_t original_device,
+                unsigned depth_left,
+                uid_t override_uid,
+                gid_t override_gid,
+                CopyFlags copy_flags,
+                Hashmap *denylist,
+                Set *subvolumes,
+                HardlinkContext *hardlink_context,
+                const char *display_path,
+                copy_progress_path_t progress_path,
+                copy_progress_bytes_t progress_bytes,
+                void *userdata) {
 
-	assert(st);
-	assert(to);
+        _cleanup_(hardlink_context_destroy) HardlinkContext our_hardlink_context = {
+                .dir_fd = -EBADF,
+                .parent_fd = -EBADF,
+        };
 
-	if (from)
-		fdf = openat(df, from,
-			O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOCTTY |
-				O_NOFOLLOW);
-	else
-		fdf = fcntl(df, F_DUPFD_CLOEXEC, 3);
+        _cleanup_close_ int fdf = -EBADF, fdt = -EBADF;
+        _cleanup_closedir_ DIR *d = NULL;
+        bool exists;
+        int r;
 
-	d = fdopendir(fdf);
-	if (!d)
-		return -errno;
-	fdf = -1;
+        assert(st);
+        assert(to);
 
-	r = mkdirat(dt, to, st->st_mode & 07777);
-	if (r >= 0)
-		created = true;
-	else if (errno == EEXIST && merge)
-		created = false;
-	else
-		return -errno;
+        if (depth_left == 0)
+                return -ENAMETOOLONG;
 
-	fdt = openat(dt, to,
-		O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOCTTY | O_NOFOLLOW);
-	if (fdt < 0)
-		return -errno;
+        fdf = xopenat(df, from, O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOCTTY|O_NOFOLLOW);
+        if (fdf < 0)
+                return fdf;
 
-	r = 0;
+        if (!hardlink_context) {
+                /* If recreating hardlinks is requested let's set up a context for that now. */
+                r = hardlink_context_setup(&our_hardlink_context, dt, to, copy_flags);
+                if (r < 0)
+                        return r;
+                if (r > 0) /* It's enabled and allocated, let's now use the same context for all recursive
+                            * invocations from here down */
+                        hardlink_context = &our_hardlink_context;
+        }
 
-	if (created) {
-		struct timespec ut[2] = { st->st_atim, st->st_mtim };
+        d = take_fdopendir(&fdf);
+        if (!d)
+                return -errno;
 
-		if (fchown(fdt, st->st_uid, st->st_gid) < 0)
-			r = -errno;
+        r = dir_is_empty_at(dt, to, /* ignore_hidden_or_backup= */ false);
+        if (r < 0 && r != -ENOENT)
+                return r;
+        if ((r > 0 && !(copy_flags & (COPY_MERGE|COPY_MERGE_EMPTY))) || (r == 0 && !FLAGS_SET(copy_flags, COPY_MERGE)))
+                return -EEXIST;
 
-		if (fchmod(fdt, st->st_mode & 07777) < 0)
-			r = -errno;
+        exists = r >= 0;
 
-		(void)futimens(fdt, ut);
-		(void)copy_xattr(dirfd(d), fdt);
-	}
+        fdt = xopenat_lock_full(dt, to,
+                                O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOCTTY|O_NOFOLLOW|(exists ? 0 : O_CREAT|O_EXCL),
+                                (copy_flags & COPY_MAC_CREATE ? XO_LABEL : 0)|(set_contains(subvolumes, st) ? XO_SUBVOLUME : 0),
+                                st->st_mode & 07777,
+                                copy_flags & COPY_LOCK_BSD ? LOCK_BSD : LOCK_NONE,
+                                LOCK_EX);
+        if (fdt < 0)
+                return fdt;
 
-	FOREACH_DIRENT (de, d, return -errno) {
-		struct stat buf;
-		int q;
+        r = 0;
 
-		if (fstatat(dirfd(d), de->d_name, &buf, AT_SYMLINK_NOFOLLOW) <
-			0) {
-			r = -errno;
-			continue;
-		}
+        if (PTR_TO_INT(hashmap_get(denylist, st)) == DENY_CONTENTS) {
+                log_debug("%s is in the denylist, not recursing", from ?: "file to copy");
+                goto finish;
+        }
 
-		if (S_ISDIR(buf.st_mode)) {
-			if (buf.st_dev != original_device)
-				continue;
-			q = fd_copy_directory(dirfd(d), de->d_name, &buf, fdt,
-				de->d_name, original_device, merge);
-		} else if (S_ISREG(buf.st_mode))
-			q = fd_copy_regular(dirfd(d), de->d_name, &buf, fdt,
-				de->d_name);
-		else if (S_ISLNK(buf.st_mode))
-			q = fd_copy_symlink(dirfd(d), de->d_name, &buf, fdt,
-				de->d_name);
-		else if (S_ISFIFO(buf.st_mode))
-			q = fd_copy_fifo(dirfd(d), de->d_name, &buf, fdt,
-				de->d_name);
-		else if (S_ISBLK(buf.st_mode) || S_ISCHR(buf.st_mode))
-			q = fd_copy_node(dirfd(d), de->d_name, &buf, fdt,
-				de->d_name);
-		else
-			q = -ENOTSUP;
+        FOREACH_DIRENT_ALL(de, d, return -errno) {
+                const char *child_display_path = NULL;
+                _cleanup_free_ char *dp = NULL;
+                struct stat buf;
+                int q;
 
-		if (q == -EEXIST && merge)
-			q = 0;
+                if (dot_or_dot_dot(de->d_name))
+                        continue;
 
-		if (q < 0)
-			r = q;
-	}
+                r = look_for_signals(copy_flags);
+                if (r < 0)
+                        return r;
 
-	return r;
+                if (fstatat(dirfd(d), de->d_name, &buf, AT_SYMLINK_NOFOLLOW) < 0) {
+                        r = -errno;
+                        continue;
+                }
+
+                if (progress_path) {
+                        if (display_path)
+                                child_display_path = dp = path_join(display_path, de->d_name);
+                        else
+                                child_display_path = de->d_name;
+
+                        r = progress_path(child_display_path, &buf, userdata);
+                        if (r < 0)
+                                return r;
+                }
+
+                if (PTR_TO_INT(hashmap_get(denylist, &buf)) == DENY_INODE) {
+                        log_debug("%s%s%s is in the denylist, ignoring",
+                                  strempty(from), isempty(from) ? "" : "/", de->d_name);
+                        continue;
+                }
+
+                if (S_ISDIR(buf.st_mode)) {
+                        /*
+                         * Don't descend into directories on other file systems, if this is requested. We do a simple
+                         * .st_dev check here, which basically comes for free. Note that we do this check only on
+                         * directories, not other kind of file system objects, for two reason:
+                         *
+                         * • The kernel's overlayfs pseudo file system that overlays multiple real file systems
+                         *   propagates the .st_dev field of the file system a file originates from all the way up
+                         *   through the stack to stat(). It doesn't do that for directories however. This means that
+                         *   comparing .st_dev on non-directories suggests that they all are mount points. To avoid
+                         *   confusion we hence avoid relying on this check for regular files.
+                         *
+                         * • The main reason we do this check at all is to protect ourselves from bind mount cycles,
+                         *   where we really want to avoid descending down in all eternity. However the .st_dev check
+                         *   is usually not sufficient for this protection anyway, as bind mount cycles from the same
+                         *   file system onto itself can't be detected that way. (Note we also do a recursion depth
+                         *   check, which is probably the better protection in this regard, which is why
+                         *   COPY_SAME_MOUNT is optional).
+                         */
+
+                        if (FLAGS_SET(copy_flags, COPY_SAME_MOUNT)) {
+                                if (buf.st_dev != original_device)
+                                        continue;
+
+                                r = fd_is_mount_point(dirfd(d), de->d_name, 0);
+                                if (r < 0)
+                                        return r;
+                                if (r > 0)
+                                        continue;
+                        }
+                }
+
+                q = fd_copy_tree_generic(dirfd(d), de->d_name, &buf, fdt, de->d_name, original_device,
+                                         depth_left-1, override_uid, override_gid, copy_flags & ~COPY_LOCK_BSD,
+                                         denylist, subvolumes, hardlink_context, child_display_path, progress_path,
+                                         progress_bytes, userdata);
+
+                if (q == -EINTR) /* Propagate SIGINT/SIGTERM up instantly */
+                        return q;
+                if (q == -EEXIST && (copy_flags & COPY_MERGE))
+                        q = 0;
+                if (q < 0)
+                        r = q;
+        }
+
+finish:
+        if (!exists) {
+                if (fchown(fdt,
+                           uid_is_valid(override_uid) ? override_uid : st->st_uid,
+                           gid_is_valid(override_gid) ? override_gid : st->st_gid) < 0)
+                        r = -errno;
+
+                if (fchmod(fdt, st->st_mode & 07777) < 0)
+                        r = -errno;
+
+                (void) copy_xattr(dirfd(d), NULL, fdt, NULL, copy_flags);
+                (void) futimens(fdt, (struct timespec[]) { st->st_atim, st->st_mtim });
+        }
+
+        if (copy_flags & COPY_FSYNC_FULL) {
+                if (fsync(fdt) < 0)
+                        return -errno;
+        }
+
+        if (r < 0)
+                return r;
+
+        return copy_flags & COPY_LOCK_BSD ? TAKE_FD(fdt) : 0;
 }
 
-int
-copy_tree_at(int fdf, const char *from, int fdt, const char *to, bool merge)
-{
-	struct stat st;
+static int fd_copy_leaf(
+                int df,
+                const char *from,
+                const struct stat *st,
+                int dt,
+                const char *to,
+                uid_t override_uid,
+                gid_t override_gid,
+                CopyFlags copy_flags,
+                HardlinkContext *hardlink_context,
+                const char *display_path,
+                copy_progress_bytes_t progress_bytes,
+                void *userdata) {
+        int r;
 
-	assert(from);
-	assert(to);
+        if (S_ISREG(st->st_mode))
+                r = fd_copy_regular(df, from, st, dt, to, override_uid, override_gid, copy_flags, hardlink_context, progress_bytes, userdata);
+        else if (S_ISLNK(st->st_mode))
+                r = fd_copy_symlink(df, from, st, dt, to, override_uid, override_gid, copy_flags);
+        else if (S_ISFIFO(st->st_mode))
+                r = fd_copy_fifo(df, from, st, dt, to, override_uid, override_gid, copy_flags, hardlink_context);
+        else if (S_ISBLK(st->st_mode) || S_ISCHR(st->st_mode) || S_ISSOCK(st->st_mode))
+                r = fd_copy_node(df, from, st, dt, to, override_uid, override_gid, copy_flags, hardlink_context);
+        else
+                r = -EOPNOTSUPP;
 
-	if (fstatat(fdf, from, &st, AT_SYMLINK_NOFOLLOW) < 0)
-		return -errno;
-
-	if (S_ISREG(st.st_mode))
-		return fd_copy_regular(fdf, from, &st, fdt, to);
-	else if (S_ISDIR(st.st_mode))
-		return fd_copy_directory(fdf, from, &st, fdt, to, st.st_dev,
-			merge);
-	else if (S_ISLNK(st.st_mode))
-		return fd_copy_symlink(fdf, from, &st, fdt, to);
-	else if (S_ISFIFO(st.st_mode))
-		return fd_copy_fifo(fdf, from, &st, fdt, to);
-	else if (S_ISBLK(st.st_mode) || S_ISCHR(st.st_mode))
-		return fd_copy_node(fdf, from, &st, fdt, to);
-	else
-		return -ENOTSUP;
+        return r;
 }
 
-int
-copy_tree(const char *from, const char *to, bool merge)
-{
-	return copy_tree_at(AT_FDCWD, from, AT_FDCWD, to, merge);
+static int fd_copy_tree_generic(
+                int df,
+                const char *from,
+                const struct stat *st,
+                int dt,
+                const char *to,
+                dev_t original_device,
+                unsigned depth_left,
+                uid_t override_uid,
+                gid_t override_gid,
+                CopyFlags copy_flags,
+                Hashmap *denylist,
+                Set *subvolumes,
+                HardlinkContext *hardlink_context,
+                const char *display_path,
+                copy_progress_path_t progress_path,
+                copy_progress_bytes_t progress_bytes,
+                void *userdata) {
+
+        int r;
+
+        assert(!FLAGS_SET(copy_flags, COPY_LOCK_BSD));
+
+        if (S_ISDIR(st->st_mode))
+                return fd_copy_directory(df, from, st, dt, to, original_device, depth_left-1, override_uid,
+                                         override_gid, copy_flags, denylist, subvolumes, hardlink_context,
+                                         display_path, progress_path, progress_bytes, userdata);
+
+        DenyType t = PTR_TO_INT(hashmap_get(denylist, st));
+        if (t == DENY_INODE) {
+                log_debug("%s is in the denylist, ignoring", from ?: "file to copy");
+                return 0;
+        } else if (t == DENY_CONTENTS)
+                log_debug("%s is configured to have its contents excluded, but is not a directory", from ?: "file to copy");
+
+        r = fd_copy_leaf(df, from, st, dt, to, override_uid, override_gid, copy_flags, hardlink_context, display_path, progress_bytes, userdata);
+        /* We just tried to copy a leaf node of the tree. If it failed because the node already exists *and* the COPY_REPLACE flag has been provided, we should unlink the node and re-copy. */
+        if (r == -EEXIST && (copy_flags & COPY_REPLACE)) {
+                /* This codepath is us trying to address an error to copy, if the unlink fails, lets just return the original error. */
+                if (unlinkat(dt, to, 0) < 0)
+                        return r;
+
+                r = fd_copy_leaf(df, from, st, dt, to, override_uid, override_gid, copy_flags, hardlink_context, display_path, progress_bytes, userdata);
+        }
+
+        return r;
 }
 
-int
-copy_directory_fd(int dirfd, const char *to, bool merge)
-{
-	struct stat st;
+int copy_tree_at_full(
+                int fdf,
+                const char *from,
+                int fdt,
+                const char *to,
+                uid_t override_uid,
+                gid_t override_gid,
+                CopyFlags copy_flags,
+                Hashmap *denylist,
+                Set *subvolumes,
+                copy_progress_path_t progress_path,
+                copy_progress_bytes_t progress_bytes,
+                void *userdata) {
 
-	assert(dirfd >= 0);
-	assert(to);
+        struct stat st;
+        int r;
 
-	if (fstat(dirfd, &st) < 0)
-		return -errno;
+        assert(to);
+        assert(!FLAGS_SET(copy_flags, COPY_LOCK_BSD));
 
-	if (!S_ISDIR(st.st_mode))
-		return -ENOTDIR;
+        if (fstatat(fdf, strempty(from), &st, AT_SYMLINK_NOFOLLOW | (isempty(from) ? AT_EMPTY_PATH : 0)) < 0)
+                return -errno;
 
-	return fd_copy_directory(dirfd, NULL, &st, AT_FDCWD, to, st.st_dev,
-		merge);
+        r = fd_copy_tree_generic(fdf, from, &st, fdt, to, st.st_dev, COPY_DEPTH_MAX, override_uid,
+                                 override_gid, copy_flags, denylist, subvolumes, NULL, NULL, progress_path,
+                                 progress_bytes, userdata);
+        if (r < 0)
+                return r;
+
+        if (S_ISDIR(st.st_mode) && (copy_flags & COPY_SYNCFS)) {
+                /* If the top-level inode is a directory run syncfs() now. */
+                r = syncfs_path(fdt, to);
+                if (r < 0)
+                        return r;
+        } else if ((copy_flags & (COPY_FSYNC_FULL|COPY_SYNCFS)) != 0) {
+                /* fsync() the parent dir of what we just copied if COPY_FSYNC_FULL is set. Also do this in
+                 * case COPY_SYNCFS is set but the top-level inode wasn't actually a directory. We do this so that
+                 * COPY_SYNCFS provides reasonable synchronization semantics on any kind of inode: when the
+                 * copy operation is done the whole inode — regardless of its type — and all its children
+                 * will be synchronized to disk. */
+                r = fsync_parent_at(fdt, to);
+                if (r < 0)
+                        return r;
+        }
+
+        return 0;
 }
+
+// int
+// copy_directory_fd(int dirfd, const char *to, bool merge)
+// {
+// 	struct stat st;
+
+// 	assert(dirfd >= 0);
+// 	assert(to);
+
+// 	if (fstat(dirfd, &st) < 0)
+// 		return -errno;
+
+// 	if (!S_ISDIR(st.st_mode))
+// 		return -ENOTDIR;
+
+// 	return fd_copy_directory(dirfd, NULL, &st, AT_FDCWD, to, st.st_dev,
+// 		merge);
+// }
 
 int copy_file_fd_at_full(
                 int dir_fdf,

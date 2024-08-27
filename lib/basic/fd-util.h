@@ -15,6 +15,10 @@
 #define FD_TO_PTR(fd) INT_TO_PTR((fd) + 1)
 #define PTR_TO_FD(p) (PTR_TO_INT(p) - 1)
 
+/* Useful helpers for initializing pipe(), socketpair() or stdio fd arrays */
+#define EBADF_PAIR { -EBADF, -EBADF }
+#define EBADF_TRIPLET { -EBADF, -EBADF, -EBADF }
+
 int fclose_nointr(FILE *f);
 FILE* safe_fclose(FILE *f);
 

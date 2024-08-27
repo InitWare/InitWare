@@ -355,13 +355,8 @@ int ignore_signals(int sig, ...);
 int default_signals(int sig, ...);
 int sigaction_many(const struct sigaction *sa, ...);
 
-int fopen_temporary(const char *path, FILE **_f, char **_temp_path);
-
-int loop_write(int fd, const void *buf, size_t nbytes, bool do_poll);
-
 bool is_device_path(const char *path);
 
-int dir_is_empty(const char *path);
 char *dirname_malloc(const char *path);
 
 void rename_process(const char name[8]);
@@ -386,10 +381,10 @@ int fchmod_and_fchown(int fd, mode_t mode, uid_t uid, gid_t gid);
 
 int is_fd_on_temporary_fs(int fd);
 
-int rm_rf_children(int fd, bool only_dirs, bool honour_sticky,
-	struct stat *root_dev);
-int rm_rf_children_dangerous(int fd, bool only_dirs, bool honour_sticky,
-	struct stat *root_dev);
+// int rm_rf_children(int fd, bool only_dirs, bool honour_sticky,
+// 	struct stat *root_dev);
+// int rm_rf_children_dangerous(int fd, bool only_dirs, bool honour_sticky,
+// 	struct stat *root_dev);
 // int rm_rf(const char *path, bool only_dirs, bool delete_root,
 // 	bool honour_sticky);
 // int rm_rf_dangerous(const char *path, bool only_dirs, bool delete_root,
@@ -508,11 +503,7 @@ char *strshorten(char *s, size_t l);
 int terminal_vhangup_fd(int fd);
 int terminal_vhangup(const char *name);
 
-int vt_disallocate(const char *name);
-
-int symlink_atomic(const char *from, const char *to);
-int mknod_atomic(const char *path, mode_t mode, dev_t dev);
-int mkfifo_atomic(const char *path, mode_t mode);
+// int vt_disallocate(const char *name);
 
 int fchmod_umask(int fd, mode_t mode);
 
@@ -607,12 +598,6 @@ closep(int *fd)
 }
 
 static inline void
-umaskp(mode_t *u)
-{
-	umask(*u);
-}
-
-static inline void
 close_pairp(int (*p)[2])
 {
 	safe_close_pair(*p);
@@ -629,7 +614,6 @@ DEFINE_TRIVIAL_CLEANUP_FUNC_FULL(FILE *, endmntent, NULL);
 
 #define _cleanup_free_ _cleanup_(freep)
 #define _cleanup_close_ _cleanup_(closep)
-#define _cleanup_umask_ _cleanup_(umaskp)
 #define _cleanup_globfree_ _cleanup_(globfree)
 #define _cleanup_fclose_ _cleanup_(fclosep)
 #define _cleanup_pclose_ _cleanup_(pclosep)
@@ -826,7 +810,6 @@ int getpeersec(int fd, char **ret);
 
 int writev_safe(int fd, const struct iovec *w, int j);
 
-int mkostemp_safe(char *pattern, int flags);
 int open_tmpfile(const char *path, int flags);
 
 int fd_warn_permissions(const char *path, int fd);
@@ -856,10 +839,6 @@ int update_reboot_param_file(const char *param);
 // int bind_remount_recursive(const char *prefix, bool ro);
 
 int fflush_and_check(FILE *f);
-
-int tempfn_xxxxxx(const char *p, char **ret);
-int tempfn_random(const char *p, char **ret);
-int tempfn_random_child(const char *p, char **ret);
 
 bool is_localhost(const char *hostname);
 
@@ -900,16 +879,6 @@ int chattr_path(const char *p, bool b, unsigned mask);
 
 int read_attr_fd(int fd, unsigned *ret);
 int read_attr_path(const char *p, unsigned *ret);
-
-typedef struct LockFile {
-	char *path;
-	int fd;
-	int operation;
-} LockFile;
-
-int make_lock_file(const char *p, int operation, LockFile *ret);
-int make_lock_file_for(const char *p, int operation, LockFile *ret);
-void release_lock_file(LockFile *f);
 
 #define _cleanup_release_lock_file_ _cleanup_(release_lock_file)
 

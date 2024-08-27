@@ -14,6 +14,7 @@
 #include "errno-util.h"
 #include "fd-util.h"
 #include "fs-util.h"
+#include "io-util.h"
 #include "memfd-util.h"
 #include "tmpfile-util.h"
 

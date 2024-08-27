@@ -207,6 +207,8 @@ int cmsg_readucred(struct cmsghdr *cmsg, struct socket_ucred *xucred);
 
 #define UCRED_INVALID { .pid = 0, .uid = UID_INVALID, .gid = GID_INVALID }
 
+int connect_unix_path(int fd, int dir_fd, const char *path);
+
 static inline int setsockopt_int(int fd, int level, int optname, int value) {
         if (setsockopt(fd, level, optname, &value, sizeof(value)) < 0)
                 return -errno;

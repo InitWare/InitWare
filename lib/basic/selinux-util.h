@@ -22,6 +22,7 @@
 #include <sys/socket.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <fcntl.h>
 
 bool mac_selinux_use(void);
 void mac_selinux_retest(void);
@@ -38,8 +39,12 @@ int mac_selinux_get_child_mls_label(int socket_fd, const char *exe,
 	const char *exec_label, char **label);
 void mac_selinux_free(char *label);
 
-int mac_selinux_create_file_prepare(const char *path, mode_t mode);
 void mac_selinux_create_file_clear(void);
+
+int mac_selinux_create_file_prepare_at(int dirfd, const char *path, mode_t mode);
+static inline int mac_selinux_create_file_prepare(const char *path, mode_t mode) {
+        return mac_selinux_create_file_prepare_at(AT_FDCWD, path, mode);
+}
 
 int mac_selinux_create_socket_prepare(const char *label);
 void mac_selinux_create_socket_clear(void);

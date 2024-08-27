@@ -908,4 +908,7 @@ GID_IS_INVALID(gid_t gid)
 #define FOREACH_ARRAY(i, array, num)                                    \
         _FOREACH_ARRAY(i, array, num, UNIQ_T(m, UNIQ), UNIQ_T(end, UNIQ))
 
+#define FOREACH_ELEMENT(i, array)                                 \
+        FOREACH_ARRAY(i, array, ELEMENTSOF(array))
+
 #include "log.h"

@@ -27,6 +27,7 @@
 #include "fd-util.h"
 #include "fileio.h"
 #include "strv.h"
+#include "tmpfile-util.h"
 #include "utf8.h"
 #include "util.h"
 

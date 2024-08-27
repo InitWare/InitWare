@@ -28,6 +28,11 @@ int stat_verify_directory(const struct stat *st);
 int stat_verify_linked(const struct stat *st);
 int fd_verify_linked(int fd);
 
+int dir_is_empty_at(int dir_fd, const char *path, bool ignore_hidden_or_backup);
+static inline int dir_is_empty(const char *path, bool ignore_hidden_or_backup) {
+        return dir_is_empty_at(AT_FDCWD, path, ignore_hidden_or_backup);
+}
+
 bool null_or_empty(struct stat *st) _pure_;
 int null_or_empty_path_with_root(const char *fn, const char *root);
 

@@ -16,13 +16,6 @@ static inline bool ERRNO_IS_RESOURCE(int r) {
                       ENOMEM);
 }
 
-/* Two different errors for access problems */
-static inline bool ERRNO_IS_PRIVILEGE(int r) {
-        return IN_SET(abs(r),
-                      EACCES,
-                      EPERM);
-}
-
 /* Three difference errors for "not enough disk space" */
 static inline bool ERRNO_IS_DISK_SPACE(int r) {
         return IN_SET(abs(r),
@@ -172,3 +165,11 @@ static inline bool ERRNO_IS_NEG_XATTR_ABSENT(intmax_t r) {
                 ERRNO_IS_NEG_NOT_SUPPORTED(r);
 }
 _DEFINE_ABS_WRAPPER(XATTR_ABSENT);
+
+/* Two different errors for access problems */
+static inline bool ERRNO_IS_NEG_PRIVILEGE(intmax_t r) {
+        return IN_SET(r,
+                      -EACCES,
+                      -EPERM);
+}
+_DEFINE_ABS_WRAPPER(PRIVILEGE);

@@ -33,6 +33,7 @@
 #include "errno-util.h"
 #include "extract-word.h"
 #include "fileio.h"
+#include "fs-util.h"
 #include "glyph-util.h"
 #include "hashmap.h"
 #include "install-printf.h"

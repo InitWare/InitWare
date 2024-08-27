@@ -39,6 +39,7 @@ int load_env_file_pairs(FILE *f, const char *fname, const char *separator,
 int fdopen_unlocked(int fd, const char *options, FILE **ret);
 int take_fdopen_unlocked(int *fd, const char *options, FILE **ret);
 FILE* take_fdopen(int *fd, const char *options);
+DIR* take_fdopendir(int *dfd);
 FILE* open_memstream_unlocked(char **ptr, size_t *sizeloc);
 
 int write_env_file(const char *fname, char **l);

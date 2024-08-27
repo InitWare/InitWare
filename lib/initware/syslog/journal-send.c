@@ -30,10 +30,13 @@
 #include "bsdendian.h"
 #include "bsdprintf.h"
 #include "errno-util.h"
+#include "fd-util.h"
+#include "io-util.h"
 #include "memfd-util.h"
 #include "sd-journal.h"
 #include "socket-util.h"
 #include "string-util.h"
+#include "syslog-util.h"
 #include "util.h"
 
 #define SNDBUF_SIZE (8 * 1024 * 1024)
@@ -436,63 +439,81 @@ sd_journal_perror(const char *message)
 	return fill_iovec_perror_and_send(message, 0, iovec);
 }
 
-_public_ int
-sd_journal_stream_fd(const char *identifier, int priority, int level_prefix)
-{
-	union sockaddr_union sa = {
-		.un.sun_family = AF_UNIX,
-		.un.sun_path = SVC_PKGRUNSTATEDIR "/journal/stdout",
-	};
-	_cleanup_close_ int fd = -1;
-	char *header;
-	size_t l;
-	int r;
+/* We declare sd_journal_stream_fd() as async-signal-safe. So instead of strjoin(), which calls malloc()
+ * internally, use a macro + alloca(). */
+#define journal_stream_path(log_namespace)                                              \
+        ({                                                                              \
+                const char *_ns = (log_namespace), *_ret;                               \
+                if (!_ns)                                                               \
+                        _ret = SVC_PKGRUNSTATEDIR "/journal/stdout";                           \
+                else if (log_namespace_name_valid(_ns))                                 \
+                        _ret = strjoina(SVC_PKGRUNSTATEDIR "/journal.", _ns, "/stdout");       \
+                else                                                                    \
+                        _ret = NULL;                                                    \
+                _ret;                                                                   \
+        })
 
-	assert_return(priority >= 0, -EINVAL);
-	assert_return(priority <= 7, -EINVAL);
+_public_ int sd_journal_stream_fd_with_namespace(
+                const char *name_space,
+                const char *identifier,
+                int priority,
+                int level_prefix) {
 
-	fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-	if (fd < 0)
-		return -errno;
+        _cleanup_close_ int fd = -EBADF;
+        const char *path;
+        int r;
 
-	r = connect(fd, &sa.sa,
-		offsetof(union sockaddr_union, un.sun_path) +
-			strlen(sa.un.sun_path));
-	if (r < 0)
-		return -errno;
+        assert_return(priority >= 0, -EINVAL);
+        assert_return(priority <= 7, -EINVAL);
 
-	if (shutdown(fd, SHUT_RD) < 0)
-		return -errno;
+        path = journal_stream_path(name_space);
+        if (!path)
+                return -EINVAL;
 
-	fd_inc_sndbuf(fd, SNDBUF_SIZE);
+        fd = socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC, 0);
+        if (fd < 0)
+                return -errno;
 
-	if (!identifier)
-		identifier = "";
+        r = connect_unix_path(fd, AT_FDCWD, path);
+        if (r < 0)
+                return r;
 
-	l = strlen(identifier);
-	header = alloca(l + 1 + 1 + 2 + 2 + 2 + 2 + 2);
+        if (shutdown(fd, SHUT_RD) < 0)
+                return -errno;
 
-	memcpy(header, identifier, l);
-	header[l++] = '\n';
-	header[l++] = '\n'; /* unit id */
-	header[l++] = '0' + priority;
-	header[l++] = '\n';
-	header[l++] = '0' + !!level_prefix;
-	header[l++] = '\n';
-	header[l++] = '0';
-	header[l++] = '\n';
-	header[l++] = '0';
-	header[l++] = '\n';
-	header[l++] = '0';
-	header[l++] = '\n';
+        (void) fd_inc_sndbuf(fd, SNDBUF_SIZE);
 
-	r = loop_write(fd, header, l, false);
-	if (r < 0)
-		return r;
+        identifier = strempty(identifier);
 
-	r = fd;
-	fd = -1;
-	return r;
+        char *header;
+        size_t l;
+
+        l = strlen(identifier);
+        header = newa(char, l + 1 + 1 + 2 + 2 + 2 + 2 + 2);
+
+        memcpy(header, identifier, l);
+        header[l++] = '\n';
+        header[l++] = '\n'; /* unit id */
+        header[l++] = '0' + priority;
+        header[l++] = '\n';
+        header[l++] = '0' + !!level_prefix;
+        header[l++] = '\n';
+        header[l++] = '0';
+        header[l++] = '\n';
+        header[l++] = '0';
+        header[l++] = '\n';
+        header[l++] = '0';
+        header[l++] = '\n';
+
+        r = loop_write(fd, header, l);
+        if (r < 0)
+                return r;
+
+        return TAKE_FD(fd);
+}
+
+_public_ int sd_journal_stream_fd(const char *identifier, int priority, int level_prefix) {
+        return sd_journal_stream_fd_with_namespace(NULL, identifier, priority, level_prefix);
 }
 
 _public_ int

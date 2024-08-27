@@ -1134,4 +1134,17 @@ static inline int missing_pidfd_open(pid_t pid, unsigned flags) {
 #define PR_CAP_AMBIENT_CLEAR_ALL 4
 #endif
 
+#if !HAVE_PIVOT_ROOT
+static inline int missing_pivot_root(const char *new_root, const char *put_old) {
+#  ifdef __NR_pivot_root
+        return syscall(__NR_pivot_root, new_root, put_old);
+#  else
+        errno = ENOSYS;
+        return -1;
+#  endif
+}
+
+#  define pivot_root missing_pivot_root
+#endif
+
 #endif /* SVC_PLATFORM_Linux */

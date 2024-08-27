@@ -33,10 +33,12 @@
 #include "fileio.h"
 #include "hostname-util.h"
 #include "ima-util.h"
+#include "mountpoint-util.h"
 #include "path-util.h"
 #include "sd-id128.h"
 #include "selinux-util.h"
 #include "smack-util.h"
+#include "stat-util.h"
 #include "string-table.h"
 #include "string-util.h"
 #include "util.h"
@@ -391,7 +393,7 @@ condition_test_path_is_mount_point(Condition *c)
 	assert(c->parameter);
 	assert(c->type == CONDITION_PATH_IS_MOUNT_POINT);
 
-	return path_is_mount_point(c->parameter, true) > 0;
+	return path_is_mount_point(c->parameter) > 0;
 }
 
 static int
@@ -413,7 +415,7 @@ condition_test_directory_not_empty(Condition *c)
 	assert(c->parameter);
 	assert(c->type == CONDITION_DIRECTORY_NOT_EMPTY);
 
-	r = dir_is_empty(c->parameter);
+	r = dir_is_empty(c->parameter, true);
 	return r <= 0 && r != -ENOENT;
 }
 

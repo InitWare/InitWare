@@ -80,6 +80,7 @@
 #include "hexdecoct.h"
 #include "hostname-util.h"
 #include "inotify-util.h"
+#include "io-util.h"
 #include "label.h"
 #include "log.h"
 #include "macro.h"
@@ -94,6 +95,7 @@
 #include "stat-util.h"
 #include "string-table.h"
 #include "strv.h"
+#include "tmpfile-util.h"
 #include "utf8.h"
 #include "util.h"
 #include "virt.h"
@@ -1779,46 +1781,6 @@ safe_close_pair(int p[])
 }
 
 int
-loop_write(int fd, const void *buf, size_t nbytes, bool do_poll)
-{
-	const uint8_t *p = buf;
-
-	assert(fd >= 0);
-	assert(buf);
-
-	errno = 0;
-
-	while (nbytes > 0) {
-		ssize_t k;
-
-		k = write(fd, p, nbytes);
-		if (k < 0) {
-			if (errno == EINTR)
-				continue;
-
-			if (errno == EAGAIN && do_poll) {
-				/* We knowingly ignore any return value here,
-                                 * and expect that any error/EOF is reported
-                                 * via write() */
-
-				fd_wait_for_event(fd, POLLOUT, USEC_INFINITY);
-				continue;
-			}
-
-			return -errno;
-		}
-
-		if (k == 0) /* Can't really happen */
-			return -EIO;
-
-		p += k;
-		nbytes -= k;
-	}
-
-	return 0;
-}
-
-int
 parse_size(const char *t, off_t base, off_t *size)
 {
 	/* Soo, sometimes we want to parse IEC binary suffxies, and
@@ -2040,31 +2002,6 @@ is_device_path(const char *path)
          * sysfs or in /dev */
 
 	return path_startswith(path, "/dev/") || path_startswith(path, "/sys/");
-}
-
-int
-dir_is_empty(const char *path)
-{
-	_cleanup_closedir_ DIR *d;
-
-	d = opendir(path);
-	if (!d)
-		return -errno;
-
-	for (;;) {
-		struct dirent *de;
-
-		errno = 0;
-		de = readdir(d);
-		if (!de && errno != 0)
-			return -errno;
-
-		if (!de)
-			return 1;
-
-		if (!hidden_file(de->d_name))
-			return 0;
-	}
 }
 
 char *
@@ -2488,100 +2425,100 @@ finish:
 	return 0;
 }
 
-int
-rm_rf_children_dangerous(int fd, bool only_dirs, bool honour_sticky,
-	struct stat *root_dev)
-{
-	_cleanup_closedir_ DIR *d = NULL;
-	int ret = 0;
+// int
+// rm_rf_children_dangerous(int fd, bool only_dirs, bool honour_sticky,
+// 	struct stat *root_dev)
+// {
+// 	_cleanup_closedir_ DIR *d = NULL;
+// 	int ret = 0;
 
-	assert(fd >= 0);
+// 	assert(fd >= 0);
 
-	/* This returns the first error we run into, but nevertheless
-         * tries to go on. This closes the passed fd. */
+// 	/* This returns the first error we run into, but nevertheless
+//          * tries to go on. This closes the passed fd. */
 
-	d = fdopendir(fd);
-	if (!d) {
-		safe_close(fd);
+// 	d = fdopendir(fd);
+// 	if (!d) {
+// 		safe_close(fd);
 
-		return errno == ENOENT ? 0 : -errno;
-	}
+// 		return errno == ENOENT ? 0 : -errno;
+// 	}
 
-	for (;;) {
-		struct dirent *de;
-		bool is_dir, keep_around;
-		struct stat st;
-		int r;
+// 	for (;;) {
+// 		struct dirent *de;
+// 		bool is_dir, keep_around;
+// 		struct stat st;
+// 		int r;
 
-		errno = 0;
-		de = readdir(d);
-		if (!de) {
-			if (errno != 0 && ret == 0)
-				ret = -errno;
-			return ret;
-		}
+// 		errno = 0;
+// 		de = readdir(d);
+// 		if (!de) {
+// 			if (errno != 0 && ret == 0)
+// 				ret = -errno;
+// 			return ret;
+// 		}
 
-		if (streq(de->d_name, ".") || streq(de->d_name, ".."))
-			continue;
+// 		if (streq(de->d_name, ".") || streq(de->d_name, ".."))
+// 			continue;
 
-		if (de->d_type == DT_UNKNOWN || honour_sticky ||
-			(de->d_type == DT_DIR && root_dev)) {
-			if (fstatat(fd, de->d_name, &st, AT_SYMLINK_NOFOLLOW) <
-				0) {
-				if (ret == 0 && errno != ENOENT)
-					ret = -errno;
-				continue;
-			}
+// 		if (de->d_type == DT_UNKNOWN || honour_sticky ||
+// 			(de->d_type == DT_DIR && root_dev)) {
+// 			if (fstatat(fd, de->d_name, &st, AT_SYMLINK_NOFOLLOW) <
+// 				0) {
+// 				if (ret == 0 && errno != ENOENT)
+// 					ret = -errno;
+// 				continue;
+// 			}
 
-			is_dir = S_ISDIR(st.st_mode);
-			keep_around = honour_sticky &&
-				(st.st_uid == 0 || st.st_uid == getuid()) &&
-				(st.st_mode & S_ISVTX);
-		} else {
-			is_dir = de->d_type == DT_DIR;
-			keep_around = false;
-		}
+// 			is_dir = S_ISDIR(st.st_mode);
+// 			keep_around = honour_sticky &&
+// 				(st.st_uid == 0 || st.st_uid == getuid()) &&
+// 				(st.st_mode & S_ISVTX);
+// 		} else {
+// 			is_dir = de->d_type == DT_DIR;
+// 			keep_around = false;
+// 		}
 
-		if (is_dir) {
-			int subdir_fd;
+// 		if (is_dir) {
+// 			int subdir_fd;
 
-			/* if root_dev is set, remove subdirectories only, if device is same as dir */
-			if (root_dev && st.st_dev != root_dev->st_dev)
-				continue;
+// 			/* if root_dev is set, remove subdirectories only, if device is same as dir */
+// 			if (root_dev && st.st_dev != root_dev->st_dev)
+// 				continue;
 
-#ifndef O_NOATIME
-#define O_NOATIME 0
-#endif
+// #ifndef O_NOATIME
+// #define O_NOATIME 0
+// #endif
 
-			subdir_fd = openat(fd, de->d_name,
-				O_RDONLY | O_NONBLOCK | O_DIRECTORY |
-					O_CLOEXEC | O_NOFOLLOW | O_NOATIME);
-			if (subdir_fd < 0) {
-				if (ret == 0 && errno != ENOENT)
-					ret = -errno;
-				continue;
-			}
+// 			subdir_fd = openat(fd, de->d_name,
+// 				O_RDONLY | O_NONBLOCK | O_DIRECTORY |
+// 					O_CLOEXEC | O_NOFOLLOW | O_NOATIME);
+// 			if (subdir_fd < 0) {
+// 				if (ret == 0 && errno != ENOENT)
+// 					ret = -errno;
+// 				continue;
+// 			}
 
-			r = rm_rf_children_dangerous(subdir_fd, only_dirs,
-				honour_sticky, root_dev);
-			if (r < 0 && ret == 0)
-				ret = r;
+// 			r = rm_rf_children_dangerous(subdir_fd, only_dirs,
+// 				honour_sticky, root_dev);
+// 			if (r < 0 && ret == 0)
+// 				ret = r;
 
-			if (!keep_around)
-				if (unlinkat(fd, de->d_name, AT_REMOVEDIR) <
-					0) {
-					if (ret == 0 && errno != ENOENT)
-						ret = -errno;
-				}
+// 			if (!keep_around)
+// 				if (unlinkat(fd, de->d_name, AT_REMOVEDIR) <
+// 					0) {
+// 					if (ret == 0 && errno != ENOENT)
+// 						ret = -errno;
+// 				}
 
-		} else if (!only_dirs && !keep_around) {
-			if (unlinkat(fd, de->d_name, 0) < 0) {
-				if (ret == 0 && errno != ENOENT)
-					ret = -errno;
-			}
-		}
-	}
-}
+// 		} else if (!only_dirs && !keep_around) {
+// 			if (unlinkat(fd, de->d_name, 0) < 0) {
+// 				if (ret == 0 && errno != ENOENT)
+// 					ret = -errno;
+// 			}
+// 		}
+// 	}
+// }
 
 _pure_ static int
 is_temporary_fs(struct statfs *s)
@@ -2608,31 +2545,31 @@ is_fd_on_temporary_fs(int fd)
 	return is_temporary_fs(&s);
 }
 
-int
-rm_rf_children(int fd, bool only_dirs, bool honour_sticky,
-	struct stat *root_dev)
-{
-	struct statfs s;
+// int
+// rm_rf_children(int fd, bool only_dirs, bool honour_sticky,
+// 	struct stat *root_dev)
+// {
+// 	struct statfs s;
 
-	assert(fd >= 0);
+// 	assert(fd >= 0);
 
-	if (fstatfs(fd, &s) < 0) {
-		safe_close(fd);
-		return -errno;
-	}
+// 	if (fstatfs(fd, &s) < 0) {
+// 		safe_close(fd);
+// 		return -errno;
+// 	}
 
-	/* We refuse to clean disk file systems with this call. This
-         * is extra paranoia just to be sure we never ever remove
-         * non-state data */
-	if (!is_temporary_fs(&s)) {
-		log_error(
-			"Attempted to remove disk file system, and we can't allow that.");
-		safe_close(fd);
-		return -EPERM;
-	}
+// 	/* We refuse to clean disk file systems with this call. This
+//          * is extra paranoia just to be sure we never ever remove
+//          * non-state data */
+// 	if (!is_temporary_fs(&s)) {
+// 		log_error(
+// 			"Attempted to remove disk file system, and we can't allow that.");
+// 		safe_close(fd);
+// 		return -EPERM;
+// 	}
 
-	return rm_rf_children_dangerous(fd, only_dirs, honour_sticky, root_dev);
-}
+// 	return rm_rf_children_dangerous(fd, only_dirs, honour_sticky, root_dev);
+// }
 
 static int
 file_is_priv_sticky(const char *p)
@@ -3757,40 +3694,6 @@ fd_wait_for_event(int fd, int event, usec_t t)
 }
 
 int
-fopen_temporary(const char *path, FILE **_f, char **_temp_path)
-{
-	FILE *f;
-	char *t;
-	int r, fd;
-
-	assert(path);
-	assert(_f);
-	assert(_temp_path);
-
-	r = tempfn_xxxxxx(path, &t);
-	if (r < 0)
-		return r;
-
-	fd = mkostemp_safe(t, O_CLOEXEC);
-	if (fd < 0) {
-		free(t);
-		return -errno;
-	}
-
-	f = fdopen(fd, "we");
-	if (!f) {
-		unlink(t);
-		free(t);
-		return -errno;
-	}
-
-	*_f = f;
-	*_temp_path = t;
-
-	return 0;
-}
-
-int
 terminal_vhangup_fd(int fd)
 {
 #ifdef SVC_PLATFORM_Linux
@@ -3823,152 +3726,82 @@ terminal_vhangup(const char *name)
 #endif
 }
 
-int
-vt_disallocate(const char *name)
-{
-#ifdef SVC_PLATFORM_Linux
-	int fd, r;
-	unsigned u;
+// int
+// vt_disallocate(const char *name)
+// {
+// #ifdef SVC_PLATFORM_Linux
+// 	int fd, r;
+// 	unsigned u;
 
-	/* Deallocate the VT if possible. If not possible
-         * (i.e. because it is the active one), at least clear it
-         * entirely (including the scrollback buffer) */
+// 	/* Deallocate the VT if possible. If not possible
+//          * (i.e. because it is the active one), at least clear it
+//          * entirely (including the scrollback buffer) */
 
-	if (!startswith(name, "/dev/"))
-		return -EINVAL;
+// 	if (!startswith(name, "/dev/"))
+// 		return -EINVAL;
 
-	if (!tty_is_vc(name)) {
-		/* So this is not a VT. I guess we cannot deallocate
-                 * it then. But let's at least clear the screen */
+// 	if (!tty_is_vc(name)) {
+// 		/* So this is not a VT. I guess we cannot deallocate
+//                  * it then. But let's at least clear the screen */
 
-		fd = open_terminal(name, O_RDWR | O_NOCTTY | O_CLOEXEC);
-		if (fd < 0)
-			return fd;
+// 		fd = open_terminal(name, O_RDWR | O_NOCTTY | O_CLOEXEC);
+// 		if (fd < 0)
+// 			return fd;
 
-		loop_write(fd,
-			"\033[r" /* clear scrolling region */
-			"\033[H" /* move home */
-			"\033[2J", /* clear screen */
-			10, false);
-		safe_close(fd);
+// 		loop_write(fd,
+// 			"\033[r" /* clear scrolling region */
+// 			"\033[H" /* move home */
+// 			"\033[2J", /* clear screen */
+// 			10, false);
+// 		safe_close(fd);
 
-		return 0;
-	}
+// 		return 0;
+// 	}
 
-	if (!startswith(name, "/dev/tty"))
-		return -EINVAL;
+// 	if (!startswith(name, "/dev/tty"))
+// 		return -EINVAL;
 
-	r = safe_atou(name + 8, &u);
-	if (r < 0)
-		return r;
+// 	r = safe_atou(name + 8, &u);
+// 	if (r < 0)
+// 		return r;
 
-	if (u <= 0)
-		return -EINVAL;
+// 	if (u <= 0)
+// 		return -EINVAL;
 
-	/* Try to deallocate */
-	fd = open_terminal("/dev/tty0",
-		O_RDWR | O_NOCTTY | O_CLOEXEC | O_NONBLOCK);
-	if (fd < 0)
-		return fd;
+// 	/* Try to deallocate */
+// 	fd = open_terminal("/dev/tty0",
+// 		O_RDWR | O_NOCTTY | O_CLOEXEC | O_NONBLOCK);
+// 	if (fd < 0)
+// 		return fd;
 
-	r = ioctl(fd, VT_DISALLOCATE, u);
-	safe_close(fd);
+// 	r = ioctl(fd, VT_DISALLOCATE, u);
+// 	safe_close(fd);
 
-	if (r >= 0)
-		return 0;
+// 	if (r >= 0)
+// 		return 0;
 
-	if (errno != EBUSY)
-		return -errno;
+// 	if (errno != EBUSY)
+// 		return -errno;
 
-	/* Couldn't deallocate, so let's clear it fully with
-         * scrollback */
-	fd = open_terminal(name, O_RDWR | O_NOCTTY | O_CLOEXEC);
-	if (fd < 0)
-		return fd;
+// 	/* Couldn't deallocate, so let's clear it fully with
+//          * scrollback */
+// 	fd = open_terminal(name, O_RDWR | O_NOCTTY | O_CLOEXEC);
+// 	if (fd < 0)
+// 		return fd;
 
-	loop_write(fd,
-		"\033[r" /* clear scrolling region */
-		"\033[H" /* move home */
-		"\033[3J", /* clear screen including scrollback, requires Linux 2.6.40 */
-		10, false);
-	safe_close(fd);
+// 	loop_write(fd,
+// 		"\033[r" /* clear scrolling region */
+// 		"\033[H" /* move home */
+// 		"\033[3J", /* clear screen including scrollback, requires Linux 2.6.40 */
+// 		10, false);
+// 	safe_close(fd);
 
-	return 0;
-#else
-	unimplemented();
-	return -ENOTSUP;
-#endif
-}
-
-int
-symlink_atomic(const char *from, const char *to)
-{
-	_cleanup_free_ char *t = NULL;
-	int r;
-
-	assert(from);
-	assert(to);
-
-	r = tempfn_random(to, &t);
-	if (r < 0)
-		return r;
-
-	if (symlink(from, t) < 0)
-		return -errno;
-
-	if (rename(t, to) < 0) {
-		unlink_noerrno(t);
-		return -errno;
-	}
-
-	return 0;
-}
-
-int
-mknod_atomic(const char *path, mode_t mode, dev_t dev)
-{
-	_cleanup_free_ char *t = NULL;
-	int r;
-
-	assert(path);
-
-	r = tempfn_random(path, &t);
-	if (r < 0)
-		return r;
-
-	if (mknod(t, mode, dev) < 0)
-		return -errno;
-
-	if (rename(t, path) < 0) {
-		unlink_noerrno(t);
-		return -errno;
-	}
-
-	return 0;
-}
-
-int
-mkfifo_atomic(const char *path, mode_t mode)
-{
-	_cleanup_free_ char *t = NULL;
-	int r;
-
-	assert(path);
-
-	r = tempfn_random(path, &t);
-	if (r < 0)
-		return r;
-
-	if (mkfifo(t, mode) < 0)
-		return -errno;
-
-	if (rename(t, path) < 0) {
-		unlink_noerrno(t);
-		return -errno;
-	}
-
-	return 0;
-}
+// 	return 0;
+// #else
+// 	unimplemented();
+// 	return -ENOTSUP;
+// #endif
+// }
 
 bool
 display_is_local(const char *display)
@@ -6033,24 +5866,6 @@ getpeersec(int fd, char **ret)
 #endif
 }
 
-/* This is much like like mkostemp() but is subject to umask(). */
-int
-mkostemp_safe(char *pattern, int flags)
-{
-	_cleanup_umask_ mode_t u;
-	int fd;
-
-	assert(pattern);
-
-	u = umask(077);
-
-	fd = mkostemp(pattern, flags);
-	if (fd < 0)
-		return -errno;
-
-	return fd;
-}
-
 int
 open_tmpfile(const char *path, int flags)
 {
@@ -6069,7 +5884,8 @@ open_tmpfile(const char *path, int flags)
 	/* Fall back to unguessable name + unlinking */
 	p = strjoina(path, "/" SVC_PKGDIRNAME "-tmp-XXXXXX");
 
-	fd = mkostemp_safe(p, flags);
+	// fd = mkostemp_safe(p, flags);
+	fd = mkostemp_safe(p);
 	if (fd < 0)
 		return fd;
 
@@ -6541,112 +6357,6 @@ fflush_and_check(FILE *f)
 	if (ferror(f))
 		return errno ? -errno : -EIO;
 
-	return 0;
-}
-
-int
-tempfn_xxxxxx(const char *p, char **ret)
-{
-	const char *fn;
-	char *t;
-
-	assert(p);
-	assert(ret);
-
-	/*
-         * Turns this:
-         *         /foo/bar/waldo
-         *
-         * Into this:
-         *         /foo/bar/.#waldoXXXXXX
-         */
-
-	fn = lsb_basename(p);
-	if (!filename_is_valid(fn))
-		return -EINVAL;
-
-	t = new (char, strlen(p) + 2 + 6 + 1);
-	if (!t)
-		return -ENOMEM;
-
-	strcpy(stpcpy(stpcpy(mempcpy(t, p, fn - p), ".#"), fn), "XXXXXX");
-
-	*ret = path_kill_slashes(t);
-	return 0;
-}
-
-int
-tempfn_random(const char *p, char **ret)
-{
-	const char *fn;
-	char *t, *x;
-	uint64_t u;
-	unsigned i;
-
-	assert(p);
-	assert(ret);
-
-	/*
-         * Turns this:
-         *         /foo/bar/waldo
-         *
-         * Into this:
-         *         /foo/bar/.#waldobaa2a261115984a9
-         */
-
-	fn = lsb_basename(p);
-	if (!filename_is_valid(fn))
-		return -EINVAL;
-
-	t = new (char, strlen(p) + 2 + 16 + 1);
-	if (!t)
-		return -ENOMEM;
-
-	x = stpcpy(stpcpy(mempcpy(t, p, fn - p), ".#"), fn);
-
-	u = random_u64();
-	for (i = 0; i < 16; i++) {
-		*(x++) = hexchar(u & 0xF);
-		u >>= 4;
-	}
-
-	*x = 0;
-
-	*ret = path_kill_slashes(t);
-	return 0;
-}
-
-int
-tempfn_random_child(const char *p, char **ret)
-{
-	char *t, *x;
-	uint64_t u;
-	unsigned i;
-
-	assert(p);
-	assert(ret);
-
-	/* Turns this:
-         *         /foo/bar/waldo
-         * Into this:
-         *         /foo/bar/waldo/.#3c2b6219aa75d7d0
-         */
-
-	t = new (char, strlen(p) + 3 + 16 + 1);
-	if (!t)
-		return -ENOMEM;
-
-	x = stpcpy(stpcpy(t, p), "/.#");
-
-	u = random_u64();
-	for (i = 0; i < 16; i++) {
-		*(x++) = hexchar(u & 0xF);
-		u >>= 4;
-	}
-
-	*x = 0;
-
-	*ret = path_kill_slashes(t);
 	return 0;
 }
 
@@ -7397,141 +7107,6 @@ read_attr_path(const char *p, unsigned *ret)
 	unimplemented();
 	return -ENOTSUP;
 #endif
-}
-
-int
-make_lock_file(const char *p, int operation, LockFile *ret)
-{
-	_cleanup_close_ int fd = -1;
-	_cleanup_free_ char *t = NULL;
-	int r;
-
-	/*
-         * We use UNPOSIX locks if they are available. They have nice
-         * semantics, and are mostly compatible with NFS. However,
-         * they are only available on new kernels. When we detect we
-         * are running on an older kernel, then we fall back to good
-         * old BSD locks. They also have nice semantics, but are
-         * slightly problematic on NFS, where they are upgraded to
-         * POSIX locks, even though locally they are orthogonal to
-         * POSIX locks.
-         */
-
-	t = strdup(p);
-	if (!t)
-		return -ENOMEM;
-
-	for (;;) {
-		struct flock fl = {
-			.l_type = (operation & ~LOCK_NB) == LOCK_EX ? F_WRLCK :
-									    F_RDLCK,
-			.l_whence = SEEK_SET,
-		};
-		struct stat st;
-
-		fd = open(p,
-			O_CREAT | O_RDWR | O_NOFOLLOW | O_CLOEXEC | O_NOCTTY,
-			0600);
-		if (fd < 0)
-			return -errno;
-
-#ifdef F_OFD_SETLK
-		r = fcntl(fd,
-			(operation & LOCK_NB) ? F_OFD_SETLK : F_OFD_SETLKW,
-			&fl);
-		if (r < 0)
-#endif
-		{
-			/* If the kernel is too old, use good old BSD locks */
-			if (errno == EINVAL)
-				r = flock(fd, operation);
-
-			if (r < 0)
-				return errno == EAGAIN ? -EBUSY : -errno;
-		}
-
-		/* If we acquired the lock, let's check if the file
-                 * still exists in the file system. If not, then the
-                 * previous exclusive owner removed it and then closed
-                 * it. In such a case our acquired lock is worthless,
-                 * hence try again. */
-
-		r = fstat(fd, &st);
-		if (r < 0)
-			return -errno;
-		if (st.st_nlink > 0)
-			break;
-
-		fd = safe_close(fd);
-	}
-
-	ret->path = t;
-	ret->fd = fd;
-	ret->operation = operation;
-
-	fd = -1;
-	t = NULL;
-
-	return r;
-}
-
-int
-make_lock_file_for(const char *p, int operation, LockFile *ret)
-{
-	const char *fn;
-	char *t;
-
-	assert(p);
-	assert(ret);
-
-	fn = lsb_basename(p);
-	if (!filename_is_valid(fn))
-		return -EINVAL;
-
-	t = newa(char, strlen(p) + 2 + 4 + 1);
-	stpcpy(stpcpy(stpcpy(mempcpy(t, p, fn - p), ".#"), fn), ".lck");
-
-	return make_lock_file(t, operation, ret);
-}
-
-void
-release_lock_file(LockFile *f)
-{
-	int r;
-
-	if (!f)
-		return;
-
-	if (f->path) {
-		/* If we are the exclusive owner we can safely delete
-                 * the lock file itself. If we are not the exclusive
-                 * owner, we can try becoming it. */
-
-		if (f->fd >= 0 && (f->operation & ~LOCK_NB) == LOCK_SH) {
-			static const struct flock fl = {
-				.l_type = F_WRLCK,
-				.l_whence = SEEK_SET,
-			};
-
-#ifdef F_OFD_SETLK
-			r = fcntl(f->fd, F_OFD_SETLK, &fl);
-			if (r < 0 && errno == EINVAL)
-#endif
-				r = flock(f->fd, LOCK_EX | LOCK_NB);
-
-			if (r >= 0)
-				f->operation = LOCK_EX | LOCK_NB;
-		}
-
-		if ((f->operation & ~LOCK_NB) == LOCK_EX)
-			unlink_noerrno(f->path);
-
-		free(f->path);
-		f->path = NULL;
-	}
-
-	f->fd = safe_close(f->fd);
-	f->operation = 0;
 }
 
 static size_t

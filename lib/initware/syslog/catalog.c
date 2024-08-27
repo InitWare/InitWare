@@ -43,6 +43,7 @@
 #include "strbuf.h"
 #include "strv.h"
 #include "strxcpyx.h"
+#include "tmpfile-util.h"
 #include "util.h"
 
 const char *const catalog_file_dirs[] = { "/usr/local/lib/" SVC_PKGDIRNAME

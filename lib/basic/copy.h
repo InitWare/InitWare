@@ -23,6 +23,9 @@
 #include <sys/types.h>
 #include <stdbool.h>
 
+#include "hashmap.h"
+#include "set.h"
+
 typedef enum CopyFlags {
         COPY_REFLINK       = 1 << 0,  /* Try to reflink */
         COPY_MERGE         = 1 << 1,  /* Merge existing trees with our new one to copy */
@@ -45,6 +48,14 @@ typedef enum CopyFlags {
         COPY_VERIFY_LINKED = 1 << 18, /* Check the source file is still linked after copying. */
 } CopyFlags;
 
+typedef enum DenyType {
+        DENY_DONT = 0, /* we want INT_TO_PTR(DENY_DONT) to map to NULL */
+        DENY_INODE,
+        DENY_CONTENTS,
+        _DENY_TYPE_MAX,
+        _DENY_TYPE_INVALID = -EINVAL,
+} DenyType;
+
 typedef int (*copy_progress_bytes_t)(uint64_t n_bytes, void *userdata);
 typedef int (*copy_progress_path_t)(const char *path, const struct stat *st, void *userdata);
 
@@ -62,9 +73,13 @@ int copy_file(const char *from, const char *to, int flags, mode_t mode,
 	unsigned chattr_flags);
 int copy_file_atomic(const char *from, const char *to, mode_t mode,
 	bool replace, unsigned chattr_flags);
-int copy_tree(const char *from, const char *to, bool merge);
-int copy_tree_at(int fdf, const char *from, int fdt, const char *to,
-	bool merge);
+int copy_tree_at_full(int fdf, const char *from, int fdt, const char *to, uid_t override_uid, gid_t override_gid, CopyFlags copy_flags, Hashmap *denylist, Set *subvolumes, copy_progress_path_t progress_path, copy_progress_bytes_t progress_bytes, void *userdata);
+static inline int copy_tree_at(int fdf, const char *from, int fdt, const char *to, uid_t override_uid, gid_t override_gid, CopyFlags copy_flags, Hashmap *denylist, Set *subvolumes) {
+        return copy_tree_at_full(fdf, from, fdt, to, override_uid, override_gid, copy_flags, denylist, subvolumes, NULL, NULL, NULL);
+}
+static inline int copy_tree(const char *from, const char *to, uid_t override_uid, gid_t override_gid, CopyFlags copy_flags, Hashmap *denylist, Set *subvolumes) {
+        return copy_tree_at_full(AT_FDCWD, from, AT_FDCWD, to, override_uid, override_gid, copy_flags, denylist, subvolumes, NULL, NULL, NULL);
+}
 int copy_directory_fd(int dirfd, const char *to, bool merge);
 int copy_times(int fdf, int fdt, CopyFlags flags);
 int copy_xattr(int df, const char *from, int dt, const char *to, CopyFlags copy_flags);
