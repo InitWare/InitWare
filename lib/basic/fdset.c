@@ -22,15 +22,12 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "fd-util.h"
 #include "fdset.h"
 #include "macro.h"
 #include "sd-daemon.h"
 #include "set.h"
 #include "util.h"
-
-/* Make sure we can distuingish fd 0 and NULL */
-#define FD_TO_PTR(fd) INT_TO_PTR((fd) + 1)
-#define PTR_TO_FD(p) (PTR_TO_INT(p) - 1)
 
 FDSet *
 fdset_new(void)
@@ -151,38 +148,58 @@ fdset_remove(FDSet *s, int fd)
 	return set_remove(MAKE_SET(s), FD_TO_PTR(fd)) ? fd : -ENOENT;
 }
 
-int
-fdset_cloexec(FDSet *fds, bool b)
-{
-	Iterator i;
-	void *p;
-	int r;
+int fdset_cloexec(FDSet *fds, bool b) {
+        void *p;
+        int r;
 
-	assert(fds);
+        assert(fds);
 
-	SET_FOREACH (p, MAKE_SET(fds), i)
-		if ((r = fd_cloexec(PTR_TO_FD(p), b)) < 0)
-			return r;
+        SET_FOREACH(p, MAKE_SET(fds)) {
+                r = fd_cloexec(PTR_TO_FD(p), b);
+                if (r < 0)
+                        return r;
+        }
 
-	return 0;
+        return 0;
 }
 
-int
-fdset_close_others(FDSet *fds)
-{
-	void *e;
-	Iterator i;
-	int *a;
-	unsigned j, m;
+int fdset_to_array(FDSet *fds, int **ret) {
+        unsigned j = 0, m;
+        void *e;
+        int *a;
 
-	j = 0, m = fdset_size(fds);
-	a = alloca(sizeof(int) * m);
-	SET_FOREACH (e, MAKE_SET(fds), i)
-		a[j++] = PTR_TO_FD(e);
+        assert(ret);
 
-	assert(j == m);
+        m = fdset_size(fds);
+        if (m > INT_MAX) /* We want to be able to return an "int" */
+                return -ENOMEM;
+        if (m == 0) {
+                *ret = NULL; /* suppress array allocation if empty */
+                return 0;
+        }
 
-	return close_all_fds(a, j);
+        a = new(int, m);
+        if (!a)
+                return -ENOMEM;
+
+        SET_FOREACH(e, MAKE_SET(fds))
+                a[j++] = PTR_TO_FD(e);
+
+        assert(j == m);
+
+        *ret = TAKE_PTR(a);
+        return (int) m;
+}
+
+int fdset_close_others(FDSet *fds) {
+        _cleanup_free_ int *a = NULL;
+        int n;
+
+        n = fdset_to_array(fds, &a);
+        if (n < 0)
+                return n;
+
+        return close_all_fds(a, n);
 }
 
 unsigned
@@ -197,16 +214,13 @@ fdset_isempty(FDSet *fds)
 	return set_isempty(MAKE_SET(fds));
 }
 
-int
-fdset_iterate(FDSet *s, Iterator *i)
-{
-	void *p;
+int fdset_iterate(FDSet *s, Iterator *i) {
+        void *p;
 
-	p = set_iterate(MAKE_SET(s), i);
-	if (!p)
-		return -ENOENT;
+        if (!set_iterate(MAKE_SET(s), i, &p))
+                return -ENOENT;
 
-	return PTR_TO_FD(p);
+        return PTR_TO_FD(p);
 }
 
 int

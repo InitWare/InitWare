@@ -17,22 +17,35 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "alloc-util.h"
 #include "bus-track.h"
 #include "bus-internal.h"
 #include "bus-util.h"
 #include "sd-bus.h"
 #include "set.h"
 
+struct track_item {
+        unsigned n_ref;
+        char *name;
+        sd_bus_slot *slot;
+};
+
 struct sd_bus_track {
-	unsigned n_ref;
-	sd_bus *bus;
-	sd_bus_track_handler_t handler;
-	void *userdata;
-	Hashmap *names;
-	IWLIST_FIELDS(sd_bus_track, queue);
-	Iterator iterator;
-	bool in_queue;
-	bool modified;
+        unsigned n_ref;
+        unsigned n_adding; /* are we in the process of adding a new name? */
+        sd_bus *bus;
+        sd_bus_track_handler_t handler;
+        void *userdata;
+        Hashmap *names;
+        LIST_FIELDS(sd_bus_track, queue);
+        Iterator iterator;
+        bool in_list:1;    /* In bus->tracks? */
+        bool in_queue:1;   /* In bus->track_queue? */
+        bool modified:1;
+        bool recursive:1;
+        sd_bus_destroy_t destroy_callback;
+
+        LIST_FIELDS(sd_bus_track, tracks);
 };
 
 #define MATCH_PREFIX                                                           \
@@ -55,6 +68,20 @@ struct sd_bus_track {
 		_x;                                                            \
 	})
 
+static struct track_item* track_item_free(struct track_item *i) {
+        if (!i)
+                return NULL;
+
+        sd_bus_slot_unref(i->slot);
+        free(i->name);
+        return mfree(i);
+}
+
+DEFINE_PRIVATE_TRIVIAL_UNREF_FUNC(struct track_item, track_item, track_item_free);
+DEFINE_TRIVIAL_CLEANUP_FUNC(struct track_item*, track_item_unref);
+DEFINE_PRIVATE_HASH_OPS_WITH_VALUE_DESTRUCTOR(track_item_hash_ops, char, string_hash_func, string_compare_func,
+                                              struct track_item, track_item_free);
+
 static void
 bus_track_add_to_queue(sd_bus_track *track)
 {
@@ -66,7 +93,7 @@ bus_track_add_to_queue(sd_bus_track *track)
 	if (!track->handler)
 		return;
 
-	IWLIST_PREPEND(queue, track->bus->track_queue, track);
+	LIST_PREPEND(queue, track->bus->track_queue, track);
 	track->in_queue = true;
 }
 
@@ -78,32 +105,59 @@ bus_track_remove_from_queue(sd_bus_track *track)
 	if (!track->in_queue)
 		return;
 
-	IWLIST_REMOVE(queue, track->bus->track_queue, track);
+	LIST_REMOVE(queue, track->bus->track_queue, track);
 	track->in_queue = false;
 }
 
-_public_ int
-sd_bus_track_new(sd_bus *bus, sd_bus_track **track,
-	sd_bus_track_handler_t handler, void *userdata)
-{
-	sd_bus_track *t;
+static int bus_track_remove_name_fully(sd_bus_track *track, const char *name) {
+        struct track_item *i;
 
-	assert_return(bus, -EINVAL);
-	assert_return(track, -EINVAL);
+        assert(track);
+        assert(name);
 
-	t = new0(sd_bus_track, 1);
-	if (!t)
-		return -ENOMEM;
+        i = hashmap_remove(track->names, name);
+        if (!i)
+                return 0;
 
-	t->n_ref = 1;
-	t->handler = handler;
-	t->userdata = userdata;
-	t->bus = sd_bus_ref(bus);
+        track_item_free(i);
 
-	bus_track_add_to_queue(t);
+        bus_track_add_to_queue(track);
 
-	*track = t;
-	return 0;
+        track->modified = true;
+        return 1;
+}
+
+_public_ int sd_bus_track_new(
+                sd_bus *bus,
+                sd_bus_track **track,
+                sd_bus_track_handler_t handler,
+                void *userdata) {
+
+        sd_bus_track *t;
+
+        assert_return(bus, -EINVAL);
+        assert_return(bus = bus_resolve(bus), -ENOPKG);
+        assert_return(track, -EINVAL);
+
+        if (!bus->bus_client)
+                return -EINVAL;
+
+        t = new0(sd_bus_track, 1);
+        if (!t)
+                return -ENOMEM;
+
+        t->n_ref = 1;
+        t->handler = handler;
+        t->userdata = userdata;
+        t->bus = sd_bus_ref(bus);
+
+        LIST_PREPEND(tracks, bus->tracks, t);
+        t->in_list = true;
+
+        bus_track_add_to_queue(t);
+
+        *track = t;
+        return 0;
 }
 
 _public_ sd_bus_track *
@@ -144,96 +198,119 @@ sd_bus_track_unref(sd_bus_track *track)
 	return NULL;
 }
 
-static int
-on_name_owner_changed(sd_bus *bus, sd_bus_message *message, void *userdata,
-	sd_bus_error *error)
-{
-	sd_bus_track *track = userdata;
-	const char *name, *old, *new;
-	int r;
+static int on_name_owner_changed(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        sd_bus_track *track = ASSERT_PTR(userdata);
+        const char *name;
+        int r;
 
-	assert(bus);
-	assert(message);
-	assert(track);
+        assert(message);
 
-	r = sd_bus_message_read(message, "sss", &name, &old, &new);
-	if (r < 0)
-		return 0;
+        r = sd_bus_message_read(message, "sss", &name, NULL, NULL);
+        if (r < 0)
+                return 0;
 
-	sd_bus_track_remove_name(track, name);
-	return 0;
+        bus_track_remove_name_fully(track, name);
+        return 0;
 }
 
-_public_ int
-sd_bus_track_add_name(sd_bus_track *track, const char *name)
-{
-	_cleanup_bus_slot_unref_ sd_bus_slot *slot = NULL;
-	_cleanup_free_ char *n = NULL;
-	const char *match;
-	int r;
+_public_ int sd_bus_track_add_name(sd_bus_track *track, const char *name) {
+        _cleanup_(track_item_unrefp) struct track_item *n = NULL;
+        struct track_item *i;
+        const char *match;
+        int r;
 
-	assert_return(track, -EINVAL);
-	assert_return(service_name_is_valid(name), -EINVAL);
+        assert_return(track, -EINVAL);
+        assert_return(service_name_is_valid(name), -EINVAL);
 
-	r = hashmap_ensure_allocated(&track->names, &string_hash_ops);
-	if (r < 0)
-		return r;
+        i = hashmap_get(track->names, name);
+        if (i) {
+                if (track->recursive) {
+                        assert(i->n_ref > 0);
 
-	n = strdup(name);
-	if (!n)
-		return -ENOMEM;
+                        /* Manual overflow check (instead of a DEFINE_TRIVIAL_REF_FUNC() helper or so), so
+                         * that we can return a proper error, given this is almost always called in a
+                         * directly client controllable way, and thus better should never hit an assertion
+                         * here. */
+                        if (i->n_ref >= UINT_MAX)
+                                return -EOVERFLOW;
 
-	/* First, subscribe to this name */
-	match = MATCH_FOR_NAME(n);
-	r = sd_bus_add_match(track->bus, &slot, match, on_name_owner_changed,
-		track);
-	if (r < 0)
-		return r;
+                        i->n_ref++;
+                }
 
-	r = hashmap_put(track->names, n, slot);
-	if (r == -EEXIST)
-		return 0;
-	if (r < 0)
-		return r;
+                bus_track_remove_from_queue(track);
+                return 0;
+        }
 
-	/* Second, check if it is currently existing, or maybe
-         * doesn't, or maybe disappeared already. */
-	r = sd_bus_get_name_creds(track->bus, n, 0, NULL);
-	if (r < 0) {
-		hashmap_remove(track->names, n);
-		return r;
-	}
+        r = hashmap_ensure_allocated(&track->names, &track_item_hash_ops);
+        if (r < 0)
+                return r;
 
-	n = NULL;
-	slot = NULL;
+        n = new(struct track_item, 1);
+        if (!n)
+                return -ENOMEM;
 
-	bus_track_remove_from_queue(track);
-	track->modified = true;
+        *n = (struct track_item) {
+                .n_ref = 1,
+        };
 
-	return 1;
+        n->name = strdup(name);
+        if (!n->name)
+                return -ENOMEM;
+
+        /* First, subscribe to this name */
+        match = MATCH_FOR_NAME(name);
+
+        bus_track_remove_from_queue(track); /* don't dispatch this while we work in it */
+
+        r = sd_bus_add_match_async(track->bus, &n->slot, match, on_name_owner_changed, NULL, track);
+        if (r < 0) {
+                bus_track_add_to_queue(track);
+                return r;
+        }
+
+        r = hashmap_put(track->names, n->name, n);
+        if (r < 0) {
+                bus_track_add_to_queue(track);
+                return r;
+        }
+
+        /* Second, check if it is currently existing, or maybe doesn't, or maybe disappeared already. */
+        track->n_adding++; /* again, make sure this isn't dispatch while we are working in it */
+        r = sd_bus_get_name_creds(track->bus, name, 0, NULL);
+        track->n_adding--;
+        if (r < 0) {
+                hashmap_remove(track->names, name);
+                bus_track_add_to_queue(track);
+                return r;
+        }
+
+        TAKE_PTR(n);
+
+        bus_track_remove_from_queue(track);
+        track->modified = true;
+
+        return 1;
 }
 
-_public_ int
-sd_bus_track_remove_name(sd_bus_track *track, const char *name)
-{
-	_cleanup_bus_slot_unref_ sd_bus_slot *slot = NULL;
-	_cleanup_free_ char *n = NULL;
+_public_ int sd_bus_track_remove_name(sd_bus_track *track, const char *name) {
+        struct track_item *i;
 
-	assert_return(name, -EINVAL);
+        assert_return(name, -EINVAL);
 
-	if (!track)
-		return 0;
+        if (!track) /* Treat a NULL track object as an empty track object */
+                return 0;
 
-	slot = hashmap_remove2(track->names, (char *)name, (void **)&n);
-	if (!slot)
-		return 0;
+        i = hashmap_get(track->names, name);
+        if (!i)
+                return 0;
 
-	if (hashmap_isempty(track->names))
-		bus_track_add_to_queue(track);
+        assert(i->n_ref >= 1);
+        if (i->n_ref <= 1)
+                return bus_track_remove_name_fully(track, name);
 
-	track->modified = true;
+        track_item_unref(i);
 
-	return 1;
+        return 1;
 }
 
 _public_ unsigned
@@ -254,34 +331,30 @@ sd_bus_track_contains(sd_bus_track *track, const char *name)
 	return hashmap_get(track->names, (void *)name) ? name : NULL;
 }
 
-_public_ const char *
-sd_bus_track_first(sd_bus_track *track)
-{
-	const char *n = NULL;
+_public_ const char* sd_bus_track_first(sd_bus_track *track) {
+        const char *n = NULL;
 
-	if (!track)
-		return NULL;
+        if (!track)
+                return NULL;
 
-	track->modified = false;
-	track->iterator = ITERATOR_FIRST;
+        track->modified = false;
+        track->iterator = ITERATOR_FIRST;
 
-	hashmap_iterate(track->names, &track->iterator, (const void **)&n);
-	return n;
+        (void) hashmap_iterate(track->names, &track->iterator, NULL, (const void**) &n);
+        return n;
 }
 
-_public_ const char *
-sd_bus_track_next(sd_bus_track *track)
-{
-	const char *n = NULL;
+_public_ const char* sd_bus_track_next(sd_bus_track *track) {
+        const char *n = NULL;
 
-	if (!track)
-		return NULL;
+        if (!track)
+                return NULL;
 
-	if (track->modified)
-		return NULL;
+        if (track->modified)
+                return NULL;
 
-	hashmap_iterate(track->names, &track->iterator, (const void **)&n);
-	return n;
+        (void) hashmap_iterate(track->names, &track->iterator, NULL, (const void**) &n);
+        return n;
 }
 
 _public_ int
@@ -342,6 +415,31 @@ bus_track_dispatch(sd_bus_track *track)
 		bus_track_add_to_queue(track);
 
 	sd_bus_track_unref(track);
+}
+
+void bus_track_close(sd_bus_track *track) {
+        assert(track);
+
+        /* Called whenever our bus connected is closed. If so, and our track object is non-empty, dispatch it
+         * immediately, as we are closing now, but first flush out all names. */
+
+        if (!track->in_list)
+                return; /* We already closed this one, don't close it again. */
+
+        /* Remember that this one is closed now */
+        LIST_REMOVE(tracks, track->bus->tracks, track);
+        track->in_list = false;
+
+        /* If there's no name in this one anyway, we don't have to dispatch */
+        if (hashmap_isempty(track->names))
+                return;
+
+        /* Let's flush out all names */
+        hashmap_clear(track->names);
+
+        /* Invoke handler */
+        if (track->handler)
+                bus_track_dispatch(track);
 }
 
 _public_ void *

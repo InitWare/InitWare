@@ -25,6 +25,7 @@
 #include <selinux/selinux.h>
 #endif
 
+#include "alloc-util.h"
 #include "console.h"
 #include "fileio.h"
 #include "kmsg.h"
@@ -434,7 +435,7 @@ stdout_stream_line(StdoutStream *s, char *p, LineBreak line_break)
 		return stdout_stream_log(s, p, line_break);
 	}
 
-	assert_not_reached("Unknown stream state");
+	assert_not_reached();
 }
 
 static int
@@ -520,8 +521,7 @@ stdout_stream_process(sd_event_source *es, int fd, uint32_t revents,
 
 	/* If the buffer is full already (discounting the extra NUL we need), add room for another 1K */
 	if (s->length + 1 >= s->allocated) {
-		if (!GREEDY_REALLOC(s->buffer, s->allocated,
-			    s->length + 1 + 1024)) {
+		if (!GREEDY_REALLOC(s->buffer, s->length + 1 + 1024)) {
 			log_oom();
 			goto terminate;
 		}

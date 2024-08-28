@@ -43,6 +43,7 @@
 #include "sd-id128.h"
 #include "sd-messages.h"
 
+#include "alloc-util.h"
 #include "audit-fd.h"
 #include "boot-timestamps.h"
 #include "bsdsigfd.h"
@@ -451,7 +452,7 @@ enable_special_signals(Manager *m)
 static void
 sigchld_handler(int signo)
 {
-	assert_not_reached("This signal handler should never be invoked.");
+	assert_not_reached();
 }
 
 static int

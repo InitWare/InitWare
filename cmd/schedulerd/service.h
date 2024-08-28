@@ -123,7 +123,7 @@ struct ServiceFDStore {
 	int fd;
 	sd_event_source *event_source;
 
-	IWLIST_FIELDS(ServiceFDStore, fd_store);
+	LIST_FIELDS(ServiceFDStore, fd_store);
 };
 
 struct Service {

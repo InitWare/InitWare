@@ -21,8 +21,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "def.h"
+#include "hexdecoct.h"
 #include "macro.h"
+#include "string-util.h"
 #include "util.h"
 
 #include "bus-label.h"

@@ -18,6 +18,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "alloc-util.h"
 #include "mempool.h"
 #include "macro.h"
 #include "util.h"

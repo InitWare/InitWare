@@ -336,53 +336,91 @@ mac_selinux_free(char *label)
 #endif
 }
 
-int
-mac_selinux_create_file_prepare(const char *path, mode_t mode)
-{
-	int r = 0;
+int mac_selinux_create_file_prepare_at(
+                int dir_fd,
+                const char *path,
+                mode_t mode) {
 
-#ifdef HAVE_SELINUX
-	_cleanup_security_context_free_ security_context_t filecon = NULL;
+#if HAVE_SELINUX
+        _cleanup_free_ char *abspath = NULL;
+        int r;
 
-	assert(path);
+        assert(dir_fd >= 0 || dir_fd == AT_FDCWD);
 
-	if (!label_hnd)
-		return 0;
+        r = selinux_init(/* force= */ false);
+        if (r <= 0)
+                return r;
 
-	if (path_is_absolute(path))
-		r = selabel_lookup_raw(label_hnd, &filecon, path, mode);
-	else {
-		_cleanup_free_ char *newpath;
+        if (!label_hnd)
+                return 0;
 
-		newpath = path_make_absolute_cwd(path);
-		if (!newpath)
-			return -ENOMEM;
+        if (isempty(path) || !path_is_absolute(path)) {
+                if (dir_fd == AT_FDCWD)
+                        r = safe_getcwd(&abspath);
+                else
+                        r = fd_get_path(dir_fd, &abspath);
+                if (r < 0)
+                        return r;
 
-		r = selabel_lookup_raw(label_hnd, &filecon, newpath, mode);
-	}
+                if (!isempty(path) && !path_extend(&abspath, path))
+                        return -ENOMEM;
 
-	/* No context specified by the policy? Proceed without setting it. */
-	if (r < 0 && errno == ENOENT)
-		return 0;
+                path = abspath;
+        }
 
-	if (r < 0)
-		r = -errno;
-	else {
-		r = setfscreatecon(filecon);
-		if (r < 0) {
-			log_enforcing(
-				"Failed to set SELinux security context %s for %s: %m",
-				filecon, path);
-			r = -errno;
-		}
-	}
-
-	if (r < 0 && security_getenforce() == 0)
-		r = 0;
+        return selinux_create_file_prepare_abspath(path, mode);
+#else
+        return 0;
 #endif
-
-	return r;
 }
+
+// int
+// mac_selinux_create_file_prepare(const char *path, mode_t mode)
+// {
+// 	int r = 0;
+
+// #ifdef HAVE_SELINUX
+// 	_cleanup_security_context_free_ security_context_t filecon = NULL;
+
+// 	assert(path);
+
+// 	if (!label_hnd)
+// 		return 0;
+
+// 	if (path_is_absolute(path))
+// 		r = selabel_lookup_raw(label_hnd, &filecon, path, mode);
+// 	else {
+// 		_cleanup_free_ char *newpath;
+
+// 		newpath = path_make_absolute_cwd(path);
+// 		if (!newpath)
+// 			return -ENOMEM;
+
+// 		r = selabel_lookup_raw(label_hnd, &filecon, newpath, mode);
+// 	}
+
+// 	/* No context specified by the policy? Proceed without setting it. */
+// 	if (r < 0 && errno == ENOENT)
+// 		return 0;
+
+// 	if (r < 0)
+// 		r = -errno;
+// 	else {
+// 		r = setfscreatecon(filecon);
+// 		if (r < 0) {
+// 			log_enforcing(
+// 				"Failed to set SELinux security context %s for %s: %m",
+// 				filecon, path);
+// 			r = -errno;
+// 		}
+// 	}
+
+// 	if (r < 0 && security_getenforce() == 0)
+// 		r = 0;
+// #endif
+
+// 	return r;
+// }
 
 void
 mac_selinux_create_file_clear(void)

@@ -122,7 +122,10 @@ find_program(GPERF gperf REQUIRED)
 # libraries
 check_library_exists(pam pam_start "" HAVE_PAM)
 
+check_include_file(sys/auxv.h HAVE_sys_auxv_h)
 check_include_file(sys/endian.h HAVE_sys_endian_h)
+check_include_file(sys/sendfile.h HAVE_sys_sendfile_h)
+check_include_file(sys/sysmacros.h HAVE_sys_sysmacros_h)
 check_include_file(sys/timex.h HAVE_sys_timex_h)
 check_include_file(sys/xattr.h HAVE_sys_xattr_h)
 check_include_file(endian.h HAVE_endian_h)
@@ -166,6 +169,9 @@ check_function_exists(signalfd SVC_HAVE_signalfd)
 check_function_exists(strchrnul HAVE_strchrnul)
 check_function_exists(strtod_l HAVE_strtod_l)
 check_symbol_exists(waitid "sys/wait.h" HAVE_waitid)
+check_symbol_exists(reallocarray "stdlib.h" HAVE_REALLOCARRAY)
+check_symbol_exists(pidfd_send_signal "stdlib.h;unistd.h;signal.h;sys/wait.h;sys/pidfd.h" HAVE_PIDFD_SEND_SIGNAL)
+check_symbol_exists(pidfd_open "stdlib.h;unistd.h;signal.h;sys/wait.h;sys/pidfd.h" HAVE_PIDFD_OPEN)
 
 # ------------------------------------------------------------------------------
 # options configurable by the user

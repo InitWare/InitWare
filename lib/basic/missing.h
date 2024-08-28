@@ -32,6 +32,7 @@
 #ifdef SVC_PLATFORM_Linux
 #include <linux/audit.h>
 #include <linux/capability.h>
+#include <linux/fs.h>
 #include <linux/if_link.h>
 #include <linux/input.h>
 #include <linux/loop.h>
@@ -194,6 +195,43 @@
 #endif
 #endif
 
+#include <sys/stat.h>
+
+// #if WANT_LINUX_STAT_H
+// #include <linux/stat.h>
+// #endif
+
+/* The newest definition we are aware of (fa2fcf4f1df1559a0a4ee0f46915b496cc2ebf60; 5.8) */
+#define STATX_DEFINITION {                      \
+        __u32 stx_mask;                         \
+        __u32 stx_blksize;                      \
+        __u64 stx_attributes;                   \
+        __u32 stx_nlink;                        \
+        __u32 stx_uid;                          \
+        __u32 stx_gid;                          \
+        __u16 stx_mode;                         \
+        __u16 __spare0[1];                      \
+        __u64 stx_ino;                          \
+        __u64 stx_size;                         \
+        __u64 stx_blocks;                       \
+        __u64 stx_attributes_mask;              \
+        struct statx_timestamp stx_atime;       \
+        struct statx_timestamp stx_btime;       \
+        struct statx_timestamp stx_ctime;       \
+        struct statx_timestamp stx_mtime;       \
+        __u32 stx_rdev_major;                   \
+        __u32 stx_rdev_minor;                   \
+        __u32 stx_dev_major;                    \
+        __u32 stx_dev_minor;                    \
+        __u64 stx_mnt_id;                       \
+        __u64 __spare2;                         \
+        __u64 __spare3[12];                     \
+}
+
+/* Always define the newest version we are aware of as a distinct type, so that we can use it even if glibc
+ * defines an older definition */
+struct new_statx STATX_DEFINITION;
+
 #ifndef HAVE_FANOTIFY_INIT
 static inline int
 missing_fanotify_init(unsigned int flags, unsigned int event_f_flags)
@@ -202,6 +240,16 @@ missing_fanotify_init(unsigned int flags, unsigned int event_f_flags)
 }
 
 #define fanotify_init missing_fanotify_init
+#endif
+
+#ifndef FICLONERANGE /* 04b38d601239b4d9be641b412cf4b7456a041c67 (4.5) */
+#define FICLONERANGE _IOW(0x94, 13, struct file_clone_range)
+struct file_clone_range {
+       __s64 src_fd;
+       __u64 src_offset;
+       __u64 src_length;
+       __u64 dest_offset;
+};
 #endif
 
 #ifndef HAVE_FANOTIFY_MARK
@@ -986,9 +1034,7 @@ raw_clone(unsigned long flags, void *child_stack)
 #endif
 }
 
-static inline pid_t
-raw_getpid(void)
-{
+static inline pid_t raw_getpid(void) {
 	return (pid_t)syscall(__NR_getpid);
 }
 
@@ -1042,6 +1088,32 @@ missing_kcmp(pid_t pid1, pid_t pid2, int type, unsigned long idx1,
 #define kcmp missing_kcmp
 #endif
 
+#ifndef HAVE_PIDFD_SEND_SIGNAL
+static inline int missing_pidfd_send_signal(int fd, int sig, siginfo_t *info, unsigned flags) {
+#  ifdef __NR_pidfd_send_signal
+        return syscall(__NR_pidfd_send_signal, fd, sig, info, flags);
+#  else
+        errno = ENOSYS;
+        return -1;
+#  endif
+}
+
+#  define pidfd_send_signal missing_pidfd_send_signal
+#endif
+
+#ifndef HAVE_PIDFD_OPEN
+static inline int missing_pidfd_open(pid_t pid, unsigned flags) {
+#  ifdef __NR_pidfd_open
+        return syscall(__NR_pidfd_open, pid, flags);
+#  else
+        errno = ENOSYS;
+        return -1;
+#  endif
+}
+
+#  define pidfd_open missing_pidfd_open
+#endif
+
 #ifndef KCMP_FILE
 #define KCMP_FILE 0
 #endif
@@ -1060,6 +1132,19 @@ missing_kcmp(pid_t pid1, pid_t pid2, int type, unsigned long idx1,
 
 #ifndef PR_CAP_AMBIENT_CLEAR_ALL
 #define PR_CAP_AMBIENT_CLEAR_ALL 4
+#endif
+
+#if !HAVE_PIVOT_ROOT
+static inline int missing_pivot_root(const char *new_root, const char *put_old) {
+#  ifdef __NR_pivot_root
+        return syscall(__NR_pivot_root, new_root, put_old);
+#  else
+        errno = ENOSYS;
+        return -1;
+#  endif
+}
+
+#  define pivot_root missing_pivot_root
 #endif
 
 #endif /* SVC_PLATFORM_Linux */

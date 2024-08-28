@@ -20,7 +20,9 @@
 #include <unistd.h>
 
 #include "apparmor-util.h"
+#include "alloc-util.h"
 #include "fileio.h"
+#include "parse-util.h"
 #include "util.h"
 
 bool

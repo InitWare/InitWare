@@ -23,12 +23,21 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "cgroup-util.h"
+#include "dirent-util.h"
+#include "escape.h"
+#include "env-file.h"
 #include "fileio.h"
+#include "format-util.h"
+#include "fs-util.h"
+#include "hostname-util.h"
 #include "login-shared.h"
 #include "macro.h"
+#include "parse-util.h"
 #include "sd-login.h"
 #include "strv.h"
+#include "user-util.h"
 #include "util.h"
 
 _public_ int
@@ -192,139 +201,134 @@ file_of_uid(uid_t uid, char **p)
 	return 0;
 }
 
-_public_ int
-sd_uid_get_state(uid_t uid, char **state)
-{
-	_cleanup_free_ char *p = NULL;
-	char *s = NULL;
-	int r;
+_public_ int sd_uid_get_state(uid_t uid, char**state) {
+        _cleanup_free_ char *p = NULL, *s = NULL;
+        int r;
 
-	assert_return(state, -EINVAL);
+        assert_return(state, -EINVAL);
 
-	r = file_of_uid(uid, &p);
-	if (r < 0)
-		return r;
+        r = file_of_uid(uid, &p);
+        if (r < 0)
+                return r;
 
-	r = parse_env_file(p, NEWLINE, "STATE", &s, NULL);
-	if (r == -ENOENT) {
-		free(s);
-		s = strdup("offline");
-		if (!s)
-			return -ENOMEM;
+        r = parse_env_file(NULL, p, "STATE", &s);
+        if (r == -ENOENT)
+                r = free_and_strdup(&s, "offline");
+        if (r < 0)
+                return r;
+        if (isempty(s))
+                return -EIO;
 
-	} else if (r < 0) {
-		free(s);
-		return r;
-	} else if (!s)
-		return -EIO;
-
-	*state = s;
-	return 0;
+        *state = TAKE_PTR(s);
+        return 0;
 }
 
-_public_ int
-sd_uid_get_display(uid_t uid, char **session)
-{
-	_cleanup_free_ char *p = NULL, *s = NULL;
-	int r;
+_public_ int sd_uid_get_display(uid_t uid, char **session) {
+        _cleanup_free_ char *p = NULL, *s = NULL;
+        int r;
 
-	assert_return(session, -EINVAL);
+        assert_return(session, -EINVAL);
 
-	r = file_of_uid(uid, &p);
-	if (r < 0)
-		return r;
+        r = file_of_uid(uid, &p);
+        if (r < 0)
+                return r;
 
-	r = parse_env_file(p, NEWLINE, "DISPLAY", &s, NULL);
-	if (r < 0)
-		return r;
+        r = parse_env_file(NULL, p, "DISPLAY", &s);
+        if (r == -ENOENT)
+                return -ENODATA;
+        if (r < 0)
+                return r;
+        if (isempty(s))
+                return -ENODATA;
 
-	if (isempty(s))
-		return -ENOENT;
+        *session = TAKE_PTR(s);
 
-	*session = s;
-	s = NULL;
-
-	return 0;
+        return 0;
 }
 
-_public_ int
-sd_uid_is_on_seat(uid_t uid, int require_active, const char *seat)
-{
-	_cleanup_free_ char *t = NULL, *s = NULL, *p = NULL;
-	size_t l;
-	int r;
-	const char *word, *variable, *state;
+static int file_of_seat(const char *seat, char **_p) {
+        char *p;
+        int r;
 
-	assert_return(seat, -EINVAL);
+        assert(_p);
 
-	variable = require_active ? "ACTIVE_UID" : "UIDS";
+        if (seat) {
+                if (!filename_is_valid(seat))
+                        return -EINVAL;
 
-	p = strappend(SVC_PKGRUNSTATEDIR "/seats/", seat);
-	if (!p)
-		return -ENOMEM;
+                p = path_join(SVC_PKGRUNSTATEDIR "/seats", seat);
+        } else {
+                _cleanup_free_ char *buf = NULL;
 
-	r = parse_env_file(p, NEWLINE, variable, &s, NULL);
+                r = sd_session_get_seat(NULL, &buf);
+                if (r < 0)
+                        return r;
 
-	if (r < 0)
-		return r;
+                p = path_join(SVC_PKGRUNSTATEDIR "/seats", buf);
+        }
+        if (!p)
+                return -ENOMEM;
 
-	if (!s)
-		return -EIO;
-
-	if (asprintf(&t, UID_FMT, uid) < 0)
-		return -ENOMEM;
-
-	FOREACH_WORD(word, l, s, state)
-	{
-		if (strneq(t, word, l))
-			return 1;
-	}
-
-	return 0;
+        *_p = TAKE_PTR(p);
+        return 0;
 }
 
-static int
-uid_get_array(uid_t uid, const char *variable, char ***array)
-{
-	_cleanup_free_ char *p = NULL, *s = NULL;
-	char **a;
-	int r;
+_public_ int sd_uid_is_on_seat(uid_t uid, int require_active, const char *seat) {
+        _cleanup_free_ char *filename = NULL, *content = NULL;
+        int r;
 
-	r = file_of_uid(uid, &p);
-	if (r < 0)
-		return r;
+        assert_return(uid_is_valid(uid), -EINVAL);
 
-	r = parse_env_file(p, NEWLINE, variable, &s, NULL);
-	if (r < 0) {
-		if (r == -ENOENT) {
-			if (array)
-				*array = NULL;
-			return 0;
-		}
+        r = file_of_seat(seat, &filename);
+        if (r < 0)
+                return r;
 
-		return r;
-	}
+        r = parse_env_file(NULL, filename,
+                           require_active ? "ACTIVE_UID" : "UIDS",
+                           &content);
+        if (r == -ENOENT)
+                return 0;
+        if (r < 0)
+                return r;
+        if (isempty(content))
+                return 0;
 
-	if (!s) {
-		if (array)
-			*array = NULL;
-		return 0;
-	}
+        return string_contains_word(content, NULL, FORMAT_UID(uid));
+}
 
-	a = strv_split(s, " ");
+static int uid_get_array(uid_t uid, const char *variable, char ***array) {
+        _cleanup_free_ char *p = NULL, *s = NULL;
+        char **a;
+        int r;
 
-	if (!a)
-		return -ENOMEM;
+        assert(variable);
 
-	strv_uniq(a);
-	r = strv_length(a);
+        r = file_of_uid(uid, &p);
+        if (r < 0)
+                return r;
 
-	if (array)
-		*array = a;
-	else
-		strv_free(a);
+        r = parse_env_file(NULL, p, variable, &s);
+        if (r == -ENOENT || (r >= 0 && isempty(s))) {
+                if (array)
+                        *array = NULL;
+                return 0;
+        }
+        if (r < 0)
+                return r;
 
-	return r;
+        a = strv_split(s, NULL);
+        if (!a)
+                return -ENOMEM;
+
+        strv_uniq(a);
+        r = (int) strv_length(a);
+
+        if (array)
+                *array = a;
+        else
+                strv_free(a);
+
+        return r;
 }
 
 _public_ int
@@ -377,114 +381,109 @@ file_of_session(const char *session, char **_p)
 	return 0;
 }
 
-_public_ int
-sd_session_is_active(const char *session)
-{
-	int r;
-	_cleanup_free_ char *p = NULL, *s = NULL;
+_public_ int sd_session_is_active(const char *session) {
+        _cleanup_free_ char *p = NULL, *s = NULL;
+        int r;
 
-	r = file_of_session(session, &p);
-	if (r < 0)
-		return r;
+        r = file_of_session(session, &p);
+        if (r < 0)
+                return r;
 
-	r = parse_env_file(p, NEWLINE, "ACTIVE", &s, NULL);
-	if (r < 0)
-		return r;
+        r = parse_env_file(NULL, p, "ACTIVE", &s);
+        if (r == -ENOENT)
+                return -ENXIO;
+        if (r < 0)
+                return r;
+        if (isempty(s))
+                return -EIO;
 
-	if (!s)
-		return -EIO;
-
-	return parse_boolean(s);
+        return parse_boolean(s);
 }
 
-_public_ int
-sd_session_is_remote(const char *session)
-{
-	int r;
-	_cleanup_free_ char *p = NULL, *s = NULL;
+_public_ int sd_session_is_remote(const char *session) {
+        _cleanup_free_ char *p = NULL, *s = NULL;
+        int r;
 
-	r = file_of_session(session, &p);
-	if (r < 0)
-		return r;
+        r = file_of_session(session, &p);
+        if (r < 0)
+                return r;
 
-	r = parse_env_file(p, NEWLINE, "REMOTE", &s, NULL);
-	if (r < 0)
-		return r;
+        r = parse_env_file(NULL, p, "REMOTE", &s);
+        if (r == -ENOENT)
+                return -ENXIO;
+        if (r < 0)
+                return r;
+        if (isempty(s))
+                return -ENODATA;
 
-	if (!s)
-		return -EIO;
-
-	return parse_boolean(s);
+        return parse_boolean(s);
 }
 
-_public_ int
-sd_session_get_state(const char *session, char **state)
-{
-	_cleanup_free_ char *p = NULL, *s = NULL;
-	int r;
+_public_ int sd_session_get_state(const char *session, char **state) {
+        _cleanup_free_ char *p = NULL, *s = NULL;
+        int r;
 
-	assert_return(state, -EINVAL);
+        assert_return(state, -EINVAL);
 
-	r = file_of_session(session, &p);
-	if (r < 0)
-		return r;
+        r = file_of_session(session, &p);
+        if (r < 0)
+                return r;
 
-	r = parse_env_file(p, NEWLINE, "STATE", &s, NULL);
-	if (r < 0)
-		return r;
-	else if (!s)
-		return -EIO;
+        r = parse_env_file(NULL, p, "STATE", &s);
+        if (r == -ENOENT)
+                return -ENXIO;
+        if (r < 0)
+                return r;
+        if (isempty(s))
+                return -EIO;
 
-	*state = s;
-	s = NULL;
+        *state = TAKE_PTR(s);
 
-	return 0;
+        return 0;
 }
 
-_public_ int
-sd_session_get_uid(const char *session, uid_t *uid)
-{
-	int r;
-	_cleanup_free_ char *p = NULL, *s = NULL;
+_public_ int sd_session_get_uid(const char *session, uid_t *uid) {
+        int r;
+        _cleanup_free_ char *p = NULL, *s = NULL;
 
-	assert_return(uid, -EINVAL);
+        assert_return(uid, -EINVAL);
 
-	r = file_of_session(session, &p);
-	if (r < 0)
-		return r;
+        r = file_of_session(session, &p);
+        if (r < 0)
+                return r;
 
-	r = parse_env_file(p, NEWLINE, "UID", &s, NULL);
-	if (r < 0)
-		return r;
+        r = parse_env_file(NULL, p, "UID", &s);
+        if (r == -ENOENT)
+                return -ENXIO;
+        if (r < 0)
+                return r;
+        if (isempty(s))
+                return -EIO;
 
-	if (!s)
-		return -EIO;
-
-	return parse_uid(s, uid);
+        return parse_uid(s, uid);
 }
 
-static int
-session_get_string(const char *session, const char *field, char **value)
-{
-	_cleanup_free_ char *p = NULL, *s = NULL;
-	int r;
+static int session_get_string(const char *session, const char *field, char **value) {
+        _cleanup_free_ char *p = NULL, *s = NULL;
+        int r;
 
-	assert_return(value, -EINVAL);
+        assert_return(value, -EINVAL);
+        assert(field);
 
-	r = file_of_session(session, &p);
-	if (r < 0)
-		return r;
+        r = file_of_session(session, &p);
+        if (r < 0)
+                return r;
 
-	r = parse_env_file(p, NEWLINE, field, &s, NULL);
-	if (r < 0)
-		return r;
+        r = parse_env_file(NULL, p, field, &s);
+        if (r == -ENOENT)
+                return -ENXIO;
+        if (r < 0)
+                return r;
+        if (isempty(s))
+                return -ENODATA;
 
-	if (isempty(s))
-		return -ENOENT;
-
-	*value = s;
-	s = NULL;
-	return 0;
+        *value = TAKE_PTR(s);
+        return 0;
 }
 
 _public_ int
@@ -536,25 +535,21 @@ sd_session_get_class(const char *session, char **class)
 	return session_get_string(session, "CLASS", class);
 }
 
-_public_ int
-sd_session_get_desktop(const char *session, char **desktop)
-{
-	_cleanup_free_ char *escaped = NULL;
-	char *t;
-	int r;
+_public_ int sd_session_get_desktop(const char *session, char **desktop) {
+        _cleanup_free_ char *escaped = NULL;
+        int r;
+        ssize_t l;
 
-	assert_return(desktop, -EINVAL);
+        assert_return(desktop, -EINVAL);
 
-	r = session_get_string(session, "DESKTOP", &escaped);
-	if (r < 0)
-		return r;
+        r = session_get_string(session, "DESKTOP", &escaped);
+        if (r < 0)
+                return r;
 
-	t = cunescape(escaped);
-	if (!t)
-		return -ENOMEM;
-
-	*desktop = t;
-	return 0;
+        l = cunescape(escaped, 0, desktop);
+        if (l < 0)
+                return l;
+        return 0;
 }
 
 _public_ int
@@ -575,165 +570,128 @@ sd_session_get_remote_host(const char *session, char **remote_host)
 	return session_get_string(session, "REMOTE_HOST", remote_host);
 }
 
-static int
-file_of_seat(const char *seat, char **_p)
-{
-	char *p;
-	int r;
+_public_ int sd_seat_get_active(const char *seat, char **session, uid_t *uid) {
+        _cleanup_free_ char *p = NULL, *s = NULL, *t = NULL;
+        int r;
 
-	assert(_p);
+        assert_return(session || uid, -EINVAL);
 
-	if (seat)
-		p = strappend(SVC_PKGRUNSTATEDIR "/seats/", seat);
-	else {
-		_cleanup_free_ char *buf = NULL;
+        r = file_of_seat(seat, &p);
+        if (r < 0)
+                return r;
 
-		r = sd_session_get_seat(NULL, &buf);
-		if (r < 0)
-			return r;
+        r = parse_env_file(NULL, p,
+                           "ACTIVE", &s,
+                           "ACTIVE_UID", &t);
+        if (r == -ENOENT)
+                return -ENXIO;
+        if (r < 0)
+                return r;
 
-		p = strappend(SVC_PKGRUNSTATEDIR "/seats/", buf);
-	}
+        if (session && !s)
+                return -ENODATA;
 
-	if (!p)
-		return -ENOMEM;
+        if (uid && !t)
+                return -ENODATA;
 
-	*_p = p;
-	p = NULL;
-	return 0;
+        if (uid && t) {
+                r = parse_uid(t, uid);
+                if (r < 0)
+                        return r;
+        }
+
+        if (session && s)
+                *session = TAKE_PTR(s);
+
+        return 0;
 }
 
-_public_ int
-sd_seat_get_active(const char *seat, char **session, uid_t *uid)
-{
-	_cleanup_free_ char *p = NULL, *s = NULL, *t = NULL;
-	int r;
+_public_ int sd_seat_get_sessions(
+                const char *seat,
+                char ***ret_sessions,
+                uid_t **ret_uids,
+                unsigned *ret_n_uids) {
 
-	assert_return(session || uid, -EINVAL);
+        _cleanup_free_ char *fname = NULL, *session_line = NULL, *uid_line = NULL;
+        _cleanup_strv_free_ char **sessions = NULL;
+        _cleanup_free_ uid_t *uids = NULL;
+        unsigned n_sessions = 0;
+        int r;
 
-	r = file_of_seat(seat, &p);
-	if (r < 0)
-		return r;
+        r = file_of_seat(seat, &fname);
+        if (r < 0)
+                return r;
 
-	r = parse_env_file(p, NEWLINE, "ACTIVE", &s, "ACTIVE_UID", &t, NULL);
-	if (r < 0)
-		return r;
+        r = parse_env_file(NULL, fname,
+                           "SESSIONS", &session_line,
+                           "UIDS", &uid_line);
+        if (r == -ENOENT)
+                return -ENXIO;
+        if (r < 0)
+                return r;
 
-	if (session && !s)
-		return -ENOENT;
+        if (session_line) {
+                sessions = strv_split(session_line, NULL);
+                if (!sessions)
+                        return -ENOMEM;
 
-	if (uid && !t)
-		return -ENOENT;
+                n_sessions = strv_length(sessions);
+        };
 
-	if (uid && t) {
-		r = parse_uid(t, uid);
-		if (r < 0)
-			return r;
-	}
+        if (ret_uids && uid_line) {
+                uids = new(uid_t, n_sessions);
+                if (!uids)
+                        return -ENOMEM;
 
-	if (session && s) {
-		*session = s;
-		s = NULL;
-	}
+                size_t n = 0;
+                for (const char *p = uid_line;;) {
+                        _cleanup_free_ char *word = NULL;
 
-	return 0;
+                        r = extract_first_word(&p, &word, NULL, 0);
+                        if (r < 0)
+                                return r;
+                        if (r == 0)
+                                break;
+
+                        r = parse_uid(word, &uids[n++]);
+                        if (r < 0)
+                                return r;
+                }
+
+                if (n != n_sessions)
+                        return -EUCLEAN;
+        }
+
+        if (ret_sessions)
+                *ret_sessions = TAKE_PTR(sessions);
+        if (ret_uids)
+                *ret_uids = TAKE_PTR(uids);
+        if (ret_n_uids)
+                *ret_n_uids = n_sessions;
+
+        return n_sessions;
 }
 
-_public_ int
-sd_seat_get_sessions(const char *seat, char ***sessions, uid_t **uids,
-	unsigned *n_uids)
-{
-	_cleanup_free_ char *p = NULL, *s = NULL, *t = NULL;
-	_cleanup_strv_free_ char **a = NULL;
-	_cleanup_free_ uid_t *b = NULL;
-	unsigned n = 0;
-	int r;
+static int seat_get_can(const char *seat, const char *variable) {
+        _cleanup_free_ char *p = NULL, *s = NULL;
+        int r;
 
-	r = file_of_seat(seat, &p);
-	if (r < 0)
-		return r;
+        assert(variable);
 
-	r = parse_env_file(p, NEWLINE, "SESSIONS", &s, "ACTIVE_SESSIONS", &t,
-		NULL);
+        r = file_of_seat(seat, &p);
+        if (r < 0)
+                return r;
 
-	if (r < 0)
-		return r;
+        r = parse_env_file(NULL, p,
+                           variable, &s);
+        if (r == -ENOENT)
+                return -ENXIO;
+        if (r < 0)
+                return r;
+        if (isempty(s))
+                return -ENODATA;
 
-	if (s) {
-		a = strv_split(s, " ");
-		if (!a)
-			return -ENOMEM;
-	}
-
-	if (uids && t) {
-		const char *word, *state;
-		size_t l;
-
-		FOREACH_WORD(word, l, t, state)
-		n++;
-
-		if (n > 0) {
-			unsigned i = 0;
-
-			b = new (uid_t, n);
-			if (!b)
-				return -ENOMEM;
-
-			FOREACH_WORD(word, l, t, state)
-			{
-				_cleanup_free_ char *k = NULL;
-
-				k = strndup(word, l);
-				if (!k)
-					return -ENOMEM;
-
-				r = parse_uid(k, b + i);
-
-				if (r < 0)
-					continue;
-
-				i++;
-			}
-		}
-	}
-
-	r = strv_length(a);
-
-	if (sessions) {
-		*sessions = a;
-		a = NULL;
-	}
-
-	if (uids) {
-		*uids = b;
-		b = NULL;
-	}
-
-	if (n_uids)
-		*n_uids = n;
-
-	return r;
-}
-
-static int
-seat_get_can(const char *seat, const char *variable)
-{
-	_cleanup_free_ char *p = NULL, *s = NULL;
-	int r;
-
-	assert_return(variable, -EINVAL);
-
-	r = file_of_seat(seat, &p);
-	if (r < 0)
-		return r;
-
-	r = parse_env_file(p, NEWLINE, variable, &s, NULL);
-	if (r < 0)
-		return r;
-	if (!s)
-		return 0;
-
-	return parse_boolean(s);
+        return parse_boolean(s);
 }
 
 _public_ int
@@ -760,71 +718,67 @@ sd_get_seats(char ***seats)
 	return get_files_in_directory(SVC_PKGRUNSTATEDIR "/seats/", seats);
 }
 
-_public_ int
-sd_get_sessions(char ***sessions)
-{
-	return get_files_in_directory(SVC_PKGRUNSTATEDIR "/sessions/",
-		sessions);
+_public_ int sd_get_sessions(char ***sessions) {
+        int r;
+
+        r = get_files_in_directory(SVC_PKGRUNSTATEDIR "/sessions/", sessions);
+        if (r == -ENOENT) {
+                if (sessions)
+                        *sessions = NULL;
+                return 0;
+        }
+        return r;
 }
 
-_public_ int
-sd_get_uids(uid_t **users)
-{
-	_cleanup_closedir_ DIR *d;
-	int r = 0;
-	unsigned n = 0;
-	_cleanup_free_ uid_t *l = NULL;
+_public_ int sd_get_uids(uid_t **users) {
+        _cleanup_closedir_ DIR *d = NULL;
+        int r = 0;
+        unsigned n = 0;
+        _cleanup_free_ uid_t *l = NULL;
 
-	d = opendir(SVC_PKGRUNSTATEDIR "/users/");
-	if (!d)
-		return -errno;
+        d = opendir(SVC_PKGRUNSTATEDIR "/users/");
+        if (!d) {
+                if (errno == ENOENT) {
+                        if (users)
+                                *users = NULL;
+                        return 0;
+                }
+                return -errno;
+        }
 
-	for (;;) {
-		struct dirent *de;
-		int k;
-		uid_t uid;
+        FOREACH_DIRENT_ALL(de, d, return -errno) {
+                int k;
+                uid_t uid;
 
-		errno = 0;
-		de = readdir(d);
-		if (!de && errno != 0)
-			return -errno;
+                if (!dirent_is_file(de))
+                        continue;
 
-		if (!de)
-			break;
+                k = parse_uid(de->d_name, &uid);
+                if (k < 0)
+                        continue;
 
-		dirent_ensure_type(d, de);
+                if (users) {
+                        if ((unsigned) r >= n) {
+                                uid_t *t;
 
-		if (!dirent_is_file(de))
-			continue;
+                                n = MAX(16, 2*r);
+                                t = reallocarray(l, n, sizeof(uid_t));
+                                if (!t)
+                                        return -ENOMEM;
 
-		k = parse_uid(de->d_name, &uid);
-		if (k < 0)
-			continue;
+                                l = t;
+                        }
 
-		if (users) {
-			if ((unsigned)r >= n) {
-				uid_t *t;
+                        assert((unsigned) r < n);
+                        l[r++] = uid;
+                } else
+                        r++;
+        }
 
-				n = MAX(16, 2 * r);
-				t = realloc(l, sizeof(uid_t) * n);
-				if (!t)
-					return -ENOMEM;
+        if (users)
+                *users = TAKE_PTR(l);
 
-				l = t;
-			}
-
-			assert((unsigned)r < n);
-			l[r++] = uid;
-		} else
-			r++;
-	}
-
-	if (users) {
-		*users = l;
-		l = NULL;
-	}
-
-	return r;
+        return r;
 }
 
 _public_ int
@@ -860,72 +814,82 @@ sd_get_machine_names(char ***machines)
 	return r;
 }
 
-_public_ int
-sd_machine_get_class(const char *machine, char **class)
-{
-	_cleanup_free_ char *c = NULL;
-	const char *p;
-	int r;
+_public_ int sd_machine_get_class(const char *machine, char **class) {
+        _cleanup_free_ char *c = NULL;
+        const char *p;
+        int r;
 
-	assert_return(machine_name_is_valid(machine), -EINVAL);
-	assert_return(class, -EINVAL);
+        assert_return(class, -EINVAL);
 
-	p = strjoina(SVC_PKGRUNSTATEDIR "/machines/", machine);
-	r = parse_env_file(p, NEWLINE, "CLASS", &c, NULL);
-	if (r < 0)
-		return r;
-	if (!c)
-		return -EIO;
+        if (streq(machine, ".host")) {
+                c = strdup("host");
+                if (!c)
+                        return -ENOMEM;
+        } else {
+                if (!hostname_is_valid(machine, 0))
+                        return -EINVAL;
 
-	*class = c;
-	c = NULL;
+                p = strjoina(SVC_PKGRUNSTATEDIR "/machines/", machine);
+                r = parse_env_file(NULL, p, "CLASS", &c);
+                if (r == -ENOENT)
+                        return -ENXIO;
+                if (r < 0)
+                        return r;
+                if (!c)
+                        return -EIO;
+        }
 
-	return 0;
+        *class = TAKE_PTR(c);
+        return 0;
 }
 
-_public_ int
-sd_machine_get_ifindices(const char *machine, int **ifindices)
-{
-	_cleanup_free_ char *netif = NULL;
-	size_t l, allocated = 0, nr = 0;
-	int *ni = NULL;
-	const char *p, *word, *state;
-	int r;
+_public_ int sd_machine_get_ifindices(const char *machine, int **ret_ifindices) {
+        _cleanup_free_ char *netif_line = NULL;
+        const char *p;
+        int r;
 
-	assert_return(machine_name_is_valid(machine), -EINVAL);
-	assert_return(ifindices, -EINVAL);
+        assert_return(hostname_is_valid(machine, 0), -EINVAL);
 
-	p = strjoina(SVC_PKGRUNSTATEDIR "/machines/", machine);
-	r = parse_env_file(p, NEWLINE, "NETIF", &netif, NULL);
-	if (r < 0)
-		return r;
-	if (!netif) {
-		*ifindices = NULL;
-		return 0;
-	}
+        p = strjoina(SVC_PKGRUNSTATEDIR "/machines/", machine);
+        r = parse_env_file(NULL, p, "NETIF", &netif_line);
+        if (r == -ENOENT)
+                return -ENXIO;
+        if (r < 0)
+                return r;
+        if (!netif_line) {
+                *ret_ifindices = NULL;
+                return 0;
+        }
 
-	FOREACH_WORD(word, l, netif, state)
-	{
-		char buf[l + 1];
-		int ifi;
+        _cleanup_strv_free_ char **tt = strv_split(netif_line, NULL);
+        if (!tt)
+                return -ENOMEM;
 
-		*(char *)(mempcpy(buf, word, l)) = 0;
+        _cleanup_free_ int *ifindices = NULL;
+        if (ret_ifindices) {
+                ifindices = new(int, strv_length(tt));
+                if (!ifindices)
+                        return -ENOMEM;
+        }
 
-		if (safe_atoi(buf, &ifi) < 0)
-			continue;
-		if (ifi <= 0)
-			continue;
+        size_t n = 0;
+        for (size_t i = 0; tt[i]; i++) {
+                int ind;
 
-		if (!GREEDY_REALLOC(ni, allocated, nr + 1)) {
-			free(ni);
-			return -ENOMEM;
-		}
+                ind = parse_ifindex(tt[i]);
+                if (ind < 0)
+                        /* Return -EUCLEAN to distinguish from -EINVAL for invalid args */
+                        return ind == -EINVAL ? -EUCLEAN : ind;
 
-		ni[nr++] = ifi;
-	}
+                if (ret_ifindices)
+                        ifindices[n] = ind;
+                n++;
+        }
 
-	*ifindices = ni;
-	return nr;
+        if (ret_ifindices)
+                *ret_ifindices = TAKE_PTR(ifindices);
+
+        return n;
 }
 
 static inline int

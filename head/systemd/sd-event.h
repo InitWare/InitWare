@@ -1,12 +1,12 @@
 #ifndef SD_EVENT_H_
 #define SD_EVENT_H_
 
+#include <sys/inotify.h>
 #include <sys/types.h>
 #include <inttypes.h>
 #include <poll.h>
 #include <signal.h>
 
-#include "_sd-common.h"
 #include "svc-config.h"
 
 #ifdef SVC_HAVE_epoll
@@ -26,7 +26,19 @@
 
 #include "bsdsigfd.h"
 
+#include "_sd-common.h"
+
+// HACK: This should be brought in by _sd-common.h
+#define _SD_DEFINE_POINTER_CLEANUP_FUNC(type, func)             \
+        static __inline__ void func##p(type **p) {              \
+                if (*p)                                         \
+                        func(*p);                               \
+        }                                                       \
+        struct _sd_useless_struct_to_allow_trailing_semicolon_
+
 _SD_BEGIN_DECLARATIONS;
+
+#define SD_EVENT_DEFAULT ((sd_event *) 1)
 
 #define sd_evloop sd_event
 
@@ -57,6 +69,8 @@ enum {
 	SD_EVENT_PRIORITY_IDLE = 100
 };
 
+#define SD_EVENT_SIGNAL_PROCMASK (1 << 30)
+
 typedef int (*sd_event_handler_t)(sd_event_source *s, void *userdata);
 typedef int (*sd_event_io_handler_t)(sd_event_source *s, int fd,
 	uint32_t revents, void *userdata);
@@ -66,6 +80,10 @@ typedef int (*sd_event_signal_handler_t)(sd_event_source *s,
 	const struct sigfd_siginfo *si, void *userdata);
 typedef int (*sd_event_child_handler_t)(sd_event_source *s, const siginfo_t *si,
 	void *userdata);
+typedef int (*sd_event_inotify_handler_t)(sd_event_source *s, const struct inotify_event *event, void *userdata);
+
+typedef void (*_sd_destroy_t)(void *userdata);
+typedef _sd_destroy_t sd_event_destroy_t;
 
 int sd_event_default(sd_event **e);
 
@@ -159,6 +177,7 @@ int sd_event_get_iteration(sd_event *e, uint64_t *ret);
 
 sd_event_source *sd_event_source_ref(sd_event_source *s);
 sd_event_source *sd_event_source_unref(sd_event_source *s);
+sd_event_source* sd_event_source_disable_unref(sd_event_source *s);
 
 sd_event *sd_event_source_get_event(sd_event_source *s);
 void *sd_event_source_get_userdata(sd_event_source *s);
@@ -184,9 +203,15 @@ int sd_event_source_get_time(sd_event_source *s, uint64_t *usec);
 int sd_event_source_set_time(sd_event_source *s, uint64_t usec);
 int sd_event_source_get_time_accuracy(sd_event_source *s, uint64_t *usec);
 int sd_event_source_set_time_accuracy(sd_event_source *s, uint64_t usec);
+int sd_event_source_set_time_relative(sd_event_source *s, uint64_t usec);
 int sd_event_source_get_time_clock(sd_event_source *s, clockid_t *clock);
 int sd_event_source_get_signal(sd_event_source *s);
 int sd_event_source_get_child_pid(sd_event_source *s, pid_t *pid);
+
+/* Define helpers so that __attribute__((cleanup(sd_event_unrefp))) and similar may be used. */
+_SD_DEFINE_POINTER_CLEANUP_FUNC(sd_event, sd_event_unref);
+_SD_DEFINE_POINTER_CLEANUP_FUNC(sd_event_source, sd_event_source_unref);
+_SD_DEFINE_POINTER_CLEANUP_FUNC(sd_event_source, sd_event_source_disable_unref);
 
 _SD_END_DECLARATIONS;
 

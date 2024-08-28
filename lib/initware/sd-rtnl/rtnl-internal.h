@@ -49,7 +49,7 @@ struct match_callback {
 	uint16_t type;
 	void *userdata;
 
-	IWLIST_FIELDS(struct match_callback, match_callbacks);
+	LIST_FIELDS(struct match_callback, match_callbacks);
 };
 
 struct sd_rtnl {
@@ -84,7 +84,7 @@ struct sd_rtnl {
 	struct Prioq *reply_callbacks_prioq;
 	Hashmap *reply_callbacks;
 
-	IWLIST_HEAD(struct match_callback, match_callbacks);
+	LIST_HEAD(struct match_callback, match_callbacks);
 
 	pid_t original_pid;
 

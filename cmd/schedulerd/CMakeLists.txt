@@ -24,8 +24,8 @@ endif ()
 
 add_executable(svc.schedulerd cgroup.c dbus-cgroup.c dbus-execute.c dbus-job.c
     dbus-kill.c dbus-manager.c dbus-path.c dbus-scope.c dbus-service.c
-    dbus-slice.c dbus-snapshot.c dbus-socket.c dbus-target.c dbus-timer.c
-    dbus-unit.c dbus.c emergency-action.c execute.c job.c ima-setup.c kill.c
+    dbus-slice.c dbus-socket.c dbus-target.c dbus-timer.c
+    dbus-unit.c dbus-util.c dbus.c emergency-action.c execute.c job.c ima-setup.c kill.c
     load-dropin.c load-fragment.c main.c manager.c path.c scope.c
     selinux-access.c selinux-setup.c service.c show-status.c slice.c
     smack-setup.c snapshot.c socket.c target.c timer.c transaction.c

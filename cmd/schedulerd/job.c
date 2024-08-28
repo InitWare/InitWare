@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <errno.h>
 
+#include "alloc-util.h"
 #include "async.h"
 #include "dbus-job.h"
 #include "dbus.h"
@@ -435,7 +436,7 @@ job_type_is_redundant(JobType a, UnitActiveState b)
 		return true;
 
 	default:
-		assert_not_reached("Invalid job type");
+		assert_not_reached();
 	}
 }
 
@@ -585,7 +586,7 @@ job_perform_on_unit(Job **j)
 		break;
 
 	default:
-		assert_not_reached("Invalid job type");
+		assert_not_reached();
 	}
 
 	/* Log if the job still exists and the start/stop/reload function
@@ -651,7 +652,7 @@ job_run_and_invalidate(Job *j)
 		break;
 
 	default:
-		assert_not_reached("Unknown job type");
+		assert_not_reached();
 	}
 
 	if (j) {
@@ -1317,9 +1318,101 @@ job_get_timeout(Job *j, uint64_t *timeout)
 	return 1;
 }
 
-static const char *const job_state_table[_JOB_STATE_MAX] = { [JOB_WAITING] =
-								     "waiting",
-	[JOB_RUNNING] = "running" };
+int job_get_before(Job *j, Job*** ret) {
+        _cleanup_free_ Job** list = NULL;
+        Unit *other = NULL;
+        size_t n = 0;
+
+        /* Returns a list of all pending jobs that need to finish before this job may be started. */
+
+        assert(j);
+        assert(ret);
+
+        if (j->ignore_order) {
+                *ret = NULL;
+                return 0;
+        }
+
+        UNIT_FOREACH_DEPENDENCY(other, j->unit, UNIT_ATOM_AFTER) {
+                if (!other->job)
+                        continue;
+                if (job_compare(j, other->job, UNIT_ATOM_AFTER) <= 0)
+                        continue;
+
+                if (!GREEDY_REALLOC(list, n+1))
+                        return -ENOMEM;
+                list[n++] = other->job;
+        }
+
+        UNIT_FOREACH_DEPENDENCY(other, j->unit, UNIT_ATOM_BEFORE) {
+                if (!other->job)
+                        continue;
+                if (job_compare(j, other->job, UNIT_ATOM_BEFORE) <= 0)
+                        continue;
+
+                if (!GREEDY_REALLOC(list, n+1))
+                        return -ENOMEM;
+                list[n++] = other->job;
+        }
+
+        n = sort_job_list(list, n);
+
+        *ret = TAKE_PTR(list);
+
+        return (int) n;
+}
+
+int job_get_after(Job *j, Job*** ret) {
+        _cleanup_free_ Job** list = NULL;
+        Unit *other = NULL;
+        size_t n = 0;
+
+        assert(j);
+        assert(ret);
+
+        /* Returns a list of all pending jobs that are waiting for this job to finish. */
+
+        UNIT_FOREACH_DEPENDENCY(other, j->unit, UNIT_ATOM_BEFORE) {
+                if (!other->job)
+                        continue;
+
+                if (other->job->ignore_order)
+                        continue;
+
+                if (job_compare(j, other->job, UNIT_ATOM_BEFORE) >= 0)
+                        continue;
+
+                if (!GREEDY_REALLOC(list, n+1))
+                        return -ENOMEM;
+                list[n++] = other->job;
+        }
+
+        UNIT_FOREACH_DEPENDENCY(other, j->unit, UNIT_ATOM_AFTER) {
+                if (!other->job)
+                        continue;
+
+                if (other->job->ignore_order)
+                        continue;
+
+                if (job_compare(j, other->job, UNIT_ATOM_AFTER) >= 0)
+                        continue;
+
+                if (!GREEDY_REALLOC(list, n+1))
+                        return -ENOMEM;
+                list[n++] = other->job;
+        }
+
+        n = sort_job_list(list, n);
+
+        *ret = TAKE_PTR(list);
+
+        return (int) n;
+}
+
+static const char* const job_state_table[_JOB_STATE_MAX] = {
+        [JOB_WAITING] = "waiting",
+        [JOB_RUNNING] = "running",
+};
 
 DEFINE_STRING_TABLE_LOOKUP(job_state, JobState);
 

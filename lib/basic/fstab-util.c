@@ -17,7 +17,9 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "alloc-util.h"
 #include "fstab-util.h"
+#include "nulstr-util.h"
 #include "strv.h"
 #include "util.h"
 

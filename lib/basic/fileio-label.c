@@ -24,6 +24,7 @@
 #include "fileio-label.h"
 #include "label.h"
 #include "selinux-util.h"
+#include "tmpfile-util.h"
 #include "util.h"
 
 int

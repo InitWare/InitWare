@@ -20,9 +20,11 @@
 #include <sys/socket.h>
 #include <poll.h>
 
+#include "alloc-util.h"
 #include "hashmap.h"
 #include "macro.h"
 #include "missing.h"
+#include "socket-util.h"
 #include "util.h"
 
 #include "rtnl-internal.h"
@@ -48,16 +50,16 @@ sd_rtnl_new(sd_rtnl **ret)
 
 	rtnl->original_pid = getpid();
 
-	IWLIST_HEAD_INIT(rtnl->match_callbacks);
+	LIST_HEAD_INIT(rtnl->match_callbacks);
 
 	/* We guarantee that wqueue always has space for at least
          * one entry */
-	if (!GREEDY_REALLOC(rtnl->wqueue, rtnl->wqueue_allocated, 1))
+	if (!GREEDY_REALLOC(rtnl->wqueue, 1))
 		return -ENOMEM;
 
 	/* We guarantee that the read buffer has at least space for
          * a message header */
-	if (!greedy_realloc((void **)&rtnl->rbuffer, &rtnl->rbuffer_allocated,
+	if (!greedy_realloc((void **)&rtnl->rbuffer,
 		    sizeof(struct nlmsghdr), sizeof(uint8_t)))
 		return -ENOMEM;
 
@@ -211,12 +213,6 @@ sd_rtnl_open(sd_rtnl **ret, unsigned n_groups, ...)
 	return 0;
 }
 
-int
-sd_rtnl_inc_rcvbuf(const sd_rtnl *const rtnl, const int size)
-{
-	return fd_inc_rcvbuf(rtnl->fd, size);
-}
-
 sd_rtnl *
 sd_rtnl_ref(sd_rtnl *rtnl)
 {
@@ -264,7 +260,7 @@ sd_rtnl_unref(sd_rtnl *rtnl)
 		sd_event_unref(rtnl->event);
 
 		while ((f = rtnl->match_callbacks)) {
-			IWLIST_REMOVE(match_callbacks, rtnl->match_callbacks,
+			LIST_REMOVE(match_callbacks, rtnl->match_callbacks,
 				f);
 			free(f);
 		}
@@ -322,7 +318,7 @@ sd_rtnl_send(sd_rtnl *nl, sd_rtnl_message *message, uint32_t *serial)
 			return -ENOBUFS;
 		}
 
-		if (!GREEDY_REALLOC(nl->wqueue, nl->wqueue_allocated,
+		if (!GREEDY_REALLOC(nl->wqueue,
 			    nl->wqueue_size + 1))
 			return -ENOMEM;
 
@@ -346,7 +342,7 @@ rtnl_rqueue_make_room(sd_rtnl *rtnl)
 		return -ENOBUFS;
 	}
 
-	if (!GREEDY_REALLOC(rtnl->rqueue, rtnl->rqueue_allocated,
+	if (!GREEDY_REALLOC(rtnl->rqueue,
 		    rtnl->rqueue_size + 1))
 		return -ENOMEM;
 
@@ -365,7 +361,6 @@ rtnl_rqueue_partial_make_room(sd_rtnl *rtnl)
 	}
 
 	if (!GREEDY_REALLOC(rtnl->rqueue_partial,
-		    rtnl->rqueue_partial_allocated,
 		    rtnl->rqueue_partial_size + 1))
 		return -ENOMEM;
 
@@ -502,7 +497,7 @@ process_match(sd_rtnl *rtnl, sd_rtnl_message *m)
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH (match_callbacks, c, rtnl->match_callbacks) {
+	LIST_FOREACH (match_callbacks, c, rtnl->match_callbacks) {
 		if (type == c->type) {
 			r = c->callback(rtnl, m, c->userdata);
 			if (r != 0) {
@@ -1099,7 +1094,7 @@ sd_rtnl_add_match(sd_rtnl *rtnl, uint16_t type,
 	c->type = type;
 	c->userdata = userdata;
 
-	IWLIST_PREPEND(match_callbacks, rtnl->match_callbacks, c);
+	LIST_PREPEND(match_callbacks, rtnl->match_callbacks, c);
 
 	return 0;
 }
@@ -1114,10 +1109,10 @@ sd_rtnl_remove_match(sd_rtnl *rtnl, uint16_t type,
 	assert_return(callback, -EINVAL);
 	assert_return(!rtnl_pid_changed(rtnl), -ECHILD);
 
-	IWLIST_FOREACH (match_callbacks, c, rtnl->match_callbacks)
+	LIST_FOREACH (match_callbacks, c, rtnl->match_callbacks)
 		if (c->callback == callback && c->type == type &&
 			c->userdata == userdata) {
-			IWLIST_REMOVE(match_callbacks, rtnl->match_callbacks,
+			LIST_REMOVE(match_callbacks, rtnl->match_callbacks,
 				c);
 			free(c);
 

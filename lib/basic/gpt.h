@@ -77,3 +77,21 @@
 #define GPT_LINUX_GENERIC                                                      \
 	SD_ID128_MAKE(0f, c6, 3d, af, 84, 83, 47, 72, 8e, 79, 3d, 69, d8, 47,  \
 		7d, e4)
+
+typedef enum PartitionDesignator {
+        PARTITION_ROOT, /* Primary architecture */
+        PARTITION_USR,
+        PARTITION_HOME,
+        PARTITION_SRV,
+        PARTITION_ESP,
+        PARTITION_XBOOTLDR,
+        PARTITION_SWAP,
+        PARTITION_ROOT_VERITY, /* verity data for the PARTITION_ROOT partition */
+        PARTITION_USR_VERITY,
+        PARTITION_ROOT_VERITY_SIG, /* PKCS#7 signature for root hash for the PARTITION_ROOT partition */
+        PARTITION_USR_VERITY_SIG,
+        PARTITION_TMP,
+        PARTITION_VAR,
+        _PARTITION_DESIGNATOR_MAX,
+        _PARTITION_DESIGNATOR_INVALID = -EINVAL,
+} PartitionDesignator;

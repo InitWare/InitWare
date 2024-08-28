@@ -17,6 +17,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "alloc-util.h"
 #include "dbus-socket.h"
 #include "bus-util.h"
 #include "dbus-cgroup.h"
@@ -48,7 +49,7 @@ property_get_listen(sd_bus *bus, const char *path, const char *interface,
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH (port, p, s->ports) {
+	LIST_FOREACH (port, p, s->ports) {
 		_cleanup_free_ char *address = NULL;
 		const char *a;
 
@@ -69,7 +70,7 @@ property_get_listen(sd_bus *bus, const char *path, const char *interface,
 			break;
 
 		default:
-			assert_not_reached("Unknown socket type");
+			assert_not_reached();
 		}
 
 		r = sd_bus_message_append(reply, "(ss)",

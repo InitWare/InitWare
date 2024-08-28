@@ -19,4 +19,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <sys/types.h>
+
+int base_filesystem_create_fd(int fd, const char *root, uid_t uid, gid_t gid);
 int base_filesystem_create(const char *root);

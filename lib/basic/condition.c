@@ -24,17 +24,23 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "apparmor-util.h"
 #include "architecture.h"
 #include "audit.h"
 #include "cap-list.h"
 #include "condition.h"
 #include "fileio.h"
+#include "hostname-util.h"
 #include "ima-util.h"
+#include "mountpoint-util.h"
 #include "path-util.h"
 #include "sd-id128.h"
 #include "selinux-util.h"
 #include "smack-util.h"
+#include "stat-util.h"
+#include "string-table.h"
+#include "string-util.h"
 #include "util.h"
 #include "virt.h"
 
@@ -75,15 +81,15 @@ condition_free(Condition *c)
 	free(c);
 }
 
-Condition *
-condition_free_list(Condition *first)
-{
-	Condition *c, *n;
+Condition* condition_free_list_type(Condition *head, ConditionType type) {
+        LIST_FOREACH(conditions, c, head)
+                if (type < 0 || c->type == type) {
+                        LIST_REMOVE(conditions, head, c);
+                        condition_free(c);
+                }
 
-	IWLIST_FOREACH_SAFE (conditions, c, n, first)
-		condition_free(c);
-
-	return NULL;
+        assert(type >= 0 || !head);
+        return head;
 }
 
 static int
@@ -131,38 +137,35 @@ condition_test_kernel_command_line(Condition *c)
 	return false;
 }
 
-static int
-condition_test_virtualization(Condition *c)
-{
-	int b, v;
-	const char *id;
+static int condition_test_virtualization(Condition *c) {
+        Virtualization v;
+        int b;
 
-	assert(c);
-	assert(c->parameter);
-	assert(c->type == CONDITION_VIRTUALIZATION);
+        assert(c);
+        assert(c->parameter);
+        assert(c->type == CONDITION_VIRTUALIZATION);
 
-	v = detect_virtualization(&id);
-	if (v < 0)
-		return v;
+        if (streq(c->parameter, "private-users"))
+                return running_in_userns();
 
-	/* First, compare with yes/no */
-	b = parse_boolean(c->parameter);
+        v = detect_virtualization();
+        if (v < 0)
+                return v;
 
-	if (v > 0 && b > 0)
-		return true;
+        /* First, compare with yes/no */
+        b = parse_boolean(c->parameter);
+        if (b >= 0)
+                return b == (v != VIRTUALIZATION_NONE);
 
-	if (v == 0 && b == 0)
-		return true;
+        /* Then, compare categorization */
+        if (streq(c->parameter, "vm"))
+                return VIRTUALIZATION_IS_VM(v);
 
-	/* Then, compare categorization */
-	if (v == VIRTUALIZATION_VM && streq(c->parameter, "vm"))
-		return true;
+        if (streq(c->parameter, "container"))
+                return VIRTUALIZATION_IS_CONTAINER(v);
 
-	if (v == VIRTUALIZATION_CONTAINER && streq(c->parameter, "container"))
-		return true;
-
-	/* Finally compare id */
-	return v > 0 && streq(c->parameter, id);
+        /* Finally compare id */
+        return v != VIRTUALIZATION_NONE && streq(c->parameter, virtualization_to_string(v));
 }
 
 static int
@@ -387,7 +390,7 @@ condition_test_path_is_mount_point(Condition *c)
 	assert(c->parameter);
 	assert(c->type == CONDITION_PATH_IS_MOUNT_POINT);
 
-	return path_is_mount_point(c->parameter, true) > 0;
+	return path_is_mount_point(c->parameter) > 0;
 }
 
 static int
@@ -409,7 +412,7 @@ condition_test_directory_not_empty(Condition *c)
 	assert(c->parameter);
 	assert(c->type == CONDITION_DIRECTORY_NOT_EMPTY);
 
-	r = dir_is_empty(c->parameter);
+	r = dir_is_empty(c->parameter, true);
 	return r <= 0 && r != -ENOENT;
 }
 
@@ -500,29 +503,26 @@ condition_test(Condition *c)
 	return b;
 }
 
-void
-condition_dump(Condition *c, FILE *f, const char *prefix,
-	const char *(*to_string)(ConditionType t))
-{
-	assert(c);
-	assert(f);
+void condition_dump(Condition *c, FILE *f, const char *prefix, condition_to_string_t to_string) {
+        assert(c);
+        assert(f);
+        assert(to_string);
 
-	if (!prefix)
-		prefix = "";
+        prefix = strempty(prefix);
 
-	fprintf(f, "%s\t%s: %s%s%s %s\n", prefix, to_string(c->type),
-		c->trigger ? "|" : "", c->negate ? "!" : "", c->parameter,
-		condition_result_to_string(c->result));
+        fprintf(f,
+                "%s\t%s: %s%s%s %s\n",
+                prefix,
+                to_string(c->type),
+                c->trigger ? "|" : "",
+                c->negate ? "!" : "",
+                c->parameter,
+                condition_result_to_string(c->result));
 }
 
-void
-condition_dump_list(Condition *first, FILE *f, const char *prefix,
-	const char *(*to_string)(ConditionType t))
-{
-	Condition *c;
-
-	IWLIST_FOREACH (conditions, c, first)
-		condition_dump(c, f, prefix, to_string);
+void condition_dump_list(Condition *first, FILE *f, const char *prefix, condition_to_string_t to_string) {
+        LIST_FOREACH(conditions, c, first)
+                condition_dump(c, f, prefix, to_string);
 }
 
 static const char *const condition_type_table[_CONDITION_TYPE_MAX] = {

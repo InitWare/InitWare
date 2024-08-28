@@ -17,7 +17,9 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "alloc-util.h"
 #include "dbus-job.h"
+#include "dbus-util.h"
 #include "dbus.h"
 #include "job.h"
 #include "log.h"
@@ -33,7 +35,7 @@ verify_sys_admin_or_owner_sync(sd_bus_message *message, Job *j,
 {
 	int r;
 
-	if (sd_bus_track_contains(j->clients,
+	if (sd_bus_track_contains(j->bus_track,
 		    sd_bus_message_get_sender(message)))
 		return 0; /* One of the job owners is calling us */
 
@@ -67,68 +69,132 @@ property_get_unit(sd_bus *bus, const char *path, const char *interface,
 	return sd_bus_message_append(reply, "(so)", j->unit->id, p);
 }
 
-int
-bus_job_method_cancel(sd_bus *bus, sd_bus_message *message, void *userdata,
-	sd_bus_error *error)
-{
-	Job *j = userdata;
-	int r;
+int bus_job_method_cancel(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        Job *j = ASSERT_PTR(userdata);
+        int r;
 
-	assert(bus);
-	assert(message);
-	assert(j);
+        assert(message);
 
-	r = verify_sys_admin_or_owner_sync(message, j, error);
-	if (r < 0)
-		return r;
+        r = mac_selinux_unit_access_check(j->unit, message, "stop", error);
+        if (r < 0)
+                return r;
 
-	r = mac_selinux_unit_access_check(j->unit, message, "stop", error);
-	if (r < 0)
-		return r;
+        /* Access is granted to the job owner */
+        if (!sd_bus_track_contains(j->bus_track, sd_bus_message_get_sender(message))) {
 
-	job_finish_and_invalidate(j, JOB_CANCELED, true, false);
+                /* And for everybody else consult polkit */
+                r = bus_verify_manage_units_async(j->manager, message, error);
+                if (r < 0)
+                        return r;
+                if (r == 0)
+                        return 1; /* No authorization for now, but the async polkit stuff will call us again when it has it */
+        }
 
-	return sd_bus_reply_method_return(message, NULL);
+        job_finish_and_invalidate(j, JOB_CANCELED, true, false);
+
+        return sd_bus_reply_method_return(message, NULL);
 }
 
-const sd_bus_vtable bus_job_vtable[] = { SD_BUS_VTABLE_START(0),
-	SD_BUS_METHOD("Cancel", NULL, NULL, bus_job_method_cancel,
-		SD_BUS_VTABLE_UNPRIVILEGED),
-	SD_BUS_PROPERTY("Id", "u", NULL, offsetof(Job, id),
-		SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("Unit", "(so)", property_get_unit, 0,
-		SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("JobType", "s", property_get_type, offsetof(Job, type),
-		SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("State", "s", property_get_state, offsetof(Job, state),
-		SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
-	SD_BUS_VTABLE_END };
+int bus_job_method_get_waiting_jobs(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        _cleanup_(sd_bus_message_unrefp) sd_bus_message *reply = NULL;
+        _cleanup_free_ Job **list = NULL;
+        Job *j = userdata;
+        int r, n;
 
-static int
-send_new_signal(sd_bus *bus, void *userdata)
-{
-	_cleanup_bus_message_unref_ sd_bus_message *m = NULL;
-	_cleanup_free_ char *p = NULL;
-	Job *j = userdata;
-	int r;
+        if (strstr(sd_bus_message_get_member(message), "After"))
+                n = job_get_after(j, &list);
+        else
+                n = job_get_before(j, &list);
+        if (n < 0)
+                return n;
 
-	assert(bus);
-	assert(j);
+        r = sd_bus_message_new_method_return(message, &reply);
+        if (r < 0)
+                return r;
 
-	p = job_dbus_path(j);
-	if (!p)
-		return -ENOMEM;
+        r = sd_bus_message_open_container(reply, 'a', "(usssoo)");
+        if (r < 0)
+                return r;
 
-	r = sd_bus_message_new_signal(bus, &m, "/org/freedesktop/systemd1",
-		SVC_DBUS_INTERFACE ".Manager", "JobNew");
-	if (r < 0)
-		return r;
+        FOREACH_ARRAY(i, list, n) {
+                _cleanup_free_ char *unit_path = NULL, *job_path = NULL;
+                Job *job = *i;
 
-	r = sd_bus_message_append(m, "uos", j->id, p, j->unit->id);
-	if (r < 0)
-		return r;
+                job_path = job_dbus_path(job);
+                if (!job_path)
+                        return -ENOMEM;
 
-	return sd_bus_send(bus, m, NULL);
+                unit_path = unit_dbus_path(job->unit);
+                if (!unit_path)
+                        return -ENOMEM;
+
+                r = sd_bus_message_append(reply, "(usssoo)",
+                                          job->id,
+                                          job->unit->id,
+                                          job_type_to_string(job->type),
+                                          job_state_to_string(job->state),
+                                          job_path,
+                                          unit_path);
+                if (r < 0)
+                        return r;
+        }
+
+        r = sd_bus_message_close_container(reply);
+        if (r < 0)
+                return r;
+
+        return sd_bus_send(NULL, reply, NULL);
+}
+
+const sd_bus_vtable bus_job_vtable[] = {
+        SD_BUS_VTABLE_START(0),
+
+        SD_BUS_METHOD("Cancel", NULL, NULL, bus_job_method_cancel, SD_BUS_VTABLE_UNPRIVILEGED),
+        SD_BUS_METHOD_WITH_ARGS("GetAfter",
+                                 SD_BUS_NO_ARGS,
+                                 SD_BUS_RESULT("a(usssoo)", jobs),
+                                 bus_job_method_get_waiting_jobs,
+                                 SD_BUS_VTABLE_UNPRIVILEGED),
+        SD_BUS_METHOD_WITH_ARGS("GetBefore",
+                                 SD_BUS_NO_ARGS,
+                                 SD_BUS_RESULT("a(usssoo)", jobs),
+                                 bus_job_method_get_waiting_jobs,
+                                 SD_BUS_VTABLE_UNPRIVILEGED),
+
+        SD_BUS_PROPERTY("Id", "u", NULL, offsetof(Job, id), SD_BUS_VTABLE_PROPERTY_CONST),
+        SD_BUS_PROPERTY("Unit", "(so)", property_get_unit, 0, SD_BUS_VTABLE_PROPERTY_CONST),
+        SD_BUS_PROPERTY("JobType", "s", property_get_type, offsetof(Job, type), SD_BUS_VTABLE_PROPERTY_CONST),
+        SD_BUS_PROPERTY("State", "s", property_get_state, offsetof(Job, state), SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
+        SD_BUS_PROPERTY("ActivationDetails", "a(ss)", bus_property_get_activation_details, offsetof(Job, activation_details), SD_BUS_VTABLE_PROPERTY_CONST),
+        SD_BUS_VTABLE_END
+};
+
+static int send_new_signal(sd_bus *bus, void *userdata) {
+        _cleanup_(sd_bus_message_unrefp) sd_bus_message *m = NULL;
+        _cleanup_free_ char *p = NULL;
+        Job *j = ASSERT_PTR(userdata);
+        int r;
+
+        assert(bus);
+
+        p = job_dbus_path(j);
+        if (!p)
+                return -ENOMEM;
+
+        r = sd_bus_message_new_signal(
+                        bus,
+                        &m,
+                        "/org/freedesktop/systemd1",
+                        SVC_DBUS_INTERFACE ".Manager",
+                        "JobNew");
+        if (r < 0)
+                return r;
+
+        r = sd_bus_message_append(m, "uos", j->id, p, j->unit->id);
+        if (r < 0)
+                return r;
+
+        return sd_bus_send(bus, m, NULL);
 }
 
 static int
@@ -156,11 +222,11 @@ bus_job_send_change_signal(Job *j)
 	assert(j);
 
 	if (j->in_dbus_queue) {
-		IWLIST_REMOVE(dbus_queue, j->manager->dbus_job_queue, j);
+		LIST_REMOVE(dbus_queue, j->manager->dbus_job_queue, j);
 		j->in_dbus_queue = false;
 	}
 
-	r = bus_foreach_bus(j->manager, j->clients,
+	r = bus_foreach_bus(j->manager, j->bus_track,
 		j->sent_dbus_new_signal ? send_changed_signal : send_new_signal,
 		j);
 	if (r < 0)
@@ -170,32 +236,32 @@ bus_job_send_change_signal(Job *j)
 	j->sent_dbus_new_signal = true;
 }
 
-static int
-send_removed_signal(sd_bus *bus, void *userdata)
-{
-	_cleanup_bus_message_unref_ sd_bus_message *m = NULL;
-	_cleanup_free_ char *p = NULL;
-	Job *j = userdata;
-	int r;
+static int send_removed_signal(sd_bus *bus, void *userdata) {
+        _cleanup_(sd_bus_message_unrefp) sd_bus_message *m = NULL;
+        _cleanup_free_ char *p = NULL;
+        Job *j = ASSERT_PTR(userdata);
+        int r;
 
-	assert(bus);
-	assert(j);
+        assert(bus);
 
-	p = job_dbus_path(j);
-	if (!p)
-		return -ENOMEM;
+        p = job_dbus_path(j);
+        if (!p)
+                return -ENOMEM;
 
-	r = sd_bus_message_new_signal(bus, &m, "/org/freedesktop/systemd1",
-		SVC_DBUS_INTERFACE ".Manager", "JobRemoved");
-	if (r < 0)
-		return r;
+        r = sd_bus_message_new_signal(
+                        bus,
+                        &m,
+                        "/org/freedesktop/systemd1",
+                        SVC_DBUS_INTERFACE ".Manager",
+                        "JobRemoved");
+        if (r < 0)
+                return r;
 
-	r = sd_bus_message_append(m, "uoss", j->id, p, j->unit->id,
-		job_result_to_string(j->result));
-	if (r < 0)
-		return r;
+        r = sd_bus_message_append(m, "uoss", j->id, p, j->unit->id, job_result_to_string(j->result));
+        if (r < 0)
+                return r;
 
-	return sd_bus_send(bus, m, NULL);
+        return sd_bus_send(bus, m, NULL);
 }
 
 void
@@ -208,7 +274,7 @@ bus_job_send_removed_signal(Job *j)
 	if (!j->sent_dbus_new_signal)
 		bus_job_send_change_signal(j);
 
-	r = bus_foreach_bus(j->manager, j->clients, send_removed_signal, j);
+	r = bus_foreach_bus(j->manager, j->bus_track, send_removed_signal, j);
 	if (r < 0)
 		log_debug_errno(r,
 			"Failed to send job remove signal for %u: %m", j->id);

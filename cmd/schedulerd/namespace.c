@@ -33,6 +33,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "def.h"
 #include "dev-setup.h"
 #include "execute.h"
@@ -331,7 +332,7 @@ apply_mount(BindMount *m, const char *tmp_dir, const char *var_tmp_dir)
 		return mount_dev(m);
 
 	default:
-		assert_not_reached("Unknown mode");
+		assert_not_reached();
 	}
 
 	assert(what);

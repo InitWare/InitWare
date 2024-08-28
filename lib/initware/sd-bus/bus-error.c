@@ -24,8 +24,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "alloc-util.h"
 #include "bsdglibc.h"
 #include "errno-list.h"
+#include "errno-util.h"
+#include "string-util.h"
 #include "util.h"
 
 #include "bus-error.h"
@@ -312,6 +315,39 @@ bus_error_setfv(sd_bus_error *e, const char *name, const char *format,
 
 finish:
 	return -bus_error_name_to_errno(name);
+}
+
+_public_ int sd_bus_error_setfv(sd_bus_error *e, const char *name, const char *format, va_list ap) {
+        int r;
+
+        if (!name)
+                return 0;
+
+        if (e) {
+                assert_return(!bus_error_is_dirty(e), -EINVAL);
+
+                e->name = strdup(name);
+                if (!e->name) {
+                        *e = BUS_ERROR_OOM;
+                        return -ENOMEM;
+                }
+
+                if (format) {
+                        _cleanup_free_ char *mesg = NULL;
+
+                        /* If we hit OOM on formatting the pretty message, we ignore
+                         * this, since we at least managed to write the error name */
+
+                        if (vasprintf(&mesg, format, ap) >= 0)
+                                e->message = TAKE_PTR(mesg);
+                }
+
+                e->_need_free = 1;
+        }
+
+        r = bus_error_name_to_errno(name);
+        assert(r > 0);
+        return -r;
 }
 
 _public_ int

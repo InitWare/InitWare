@@ -20,6 +20,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "bus-common-errors.h"
 #include "bus-error.h"
 #include "bus-util.h"

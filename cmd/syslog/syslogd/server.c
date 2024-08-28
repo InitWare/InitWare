@@ -22,6 +22,7 @@
 #include <sys/statvfs.h>
 
 #include "acl-util.h"
+#include "alloc-util.h"
 #include "audit.h"
 #include "bsdsigfd.h"
 #include "cgroup-util.h"
@@ -1369,8 +1370,11 @@ server_process_datagram(sd_event_source *es, int fd, uint32_t revents,
 	m = PAGE_ALIGN(MAX((size_t)v + 1, (size_t)LINE_MAX));
 #endif
 
-	if (!GREEDY_REALLOC(s->buffer, s->buffer_size, m))
+	if (!GREEDY_REALLOC(s->buffer, m))
 		return log_oom();
+
+	// HACK: UPSTREAM REMOVED THIS FROM GREEDY_ALLOC
+	s->buffer_size = m;
 
 	iovec.iov_base = s->buffer;
 	iovec.iov_len = s->buffer_size -

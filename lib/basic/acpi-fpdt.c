@@ -26,6 +26,7 @@
 #include <unistd.h>
 
 #include "acpi-fpdt.h"
+#include "alloc-util.h"
 #include "fileio.h"
 #include "time-util.h"
 #include "util.h"

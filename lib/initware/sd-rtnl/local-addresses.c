@@ -18,6 +18,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "alloc-util.h"
 #include "local-addresses.h"
 #include "macro.h"
 #include "rtnl-util.h"
@@ -60,7 +61,7 @@ local_addresses(sd_rtnl *context, int ifindex, int af,
 	_cleanup_rtnl_message_unref_ sd_rtnl_message *req = NULL, *reply = NULL;
 	_cleanup_rtnl_unref_ sd_rtnl *rtnl = NULL;
 	_cleanup_free_ struct local_address *list = NULL;
-	size_t n_list = 0, n_allocated = 0;
+	size_t n_list = 0;
 	sd_rtnl_message *m;
 	int r;
 
@@ -116,7 +117,7 @@ local_addresses(sd_rtnl *context, int ifindex, int af,
 		if (flags & IFA_F_DEPRECATED)
 			continue;
 
-		if (!GREEDY_REALLOC0(list, n_allocated, n_list + 1))
+		if (!GREEDY_REALLOC0(list, n_list + 1))
 			return -ENOMEM;
 
 		a = list + n_list;
@@ -181,7 +182,7 @@ local_gateways(sd_rtnl *context, int ifindex, int af,
 	_cleanup_rtnl_unref_ sd_rtnl *rtnl = NULL;
 	_cleanup_free_ struct local_address *list = NULL;
 	sd_rtnl_message *m = NULL;
-	size_t n_list = 0, n_allocated = 0;
+	size_t n_list = 0;
 	int r;
 
 	assert(ret);
@@ -252,7 +253,7 @@ local_gateways(sd_rtnl *context, int ifindex, int af,
 		if (af != AF_UNSPEC && af != family)
 			continue;
 
-		if (!GREEDY_REALLOC0(list, n_allocated, n_list + 1))
+		if (!GREEDY_REALLOC0(list, n_list + 1))
 			return -ENOMEM;
 
 		a = list + n_list;

@@ -29,6 +29,7 @@
 
 #include "systemd/sd-id128.h"
 
+#include "alloc-util.h"
 #include "fileio.h"
 #include "log.h"
 #include "machine-id-setup.h"

@@ -27,15 +27,20 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "bsdglibc.h"
 #include "cgroup-util.h"
+#include "dirent-util.h"
+#include "extract-word.h"
 #include "fileio.h"
 #include "log.h"
 #include "macro.h"
 #include "mkdir.h"
+#include "nulstr-util.h"
 #include "path-util.h"
 #include "set.h"
 #include "special.h"
+#include "string-table.h"
 #include "strv.h"
 #include "unit-name.h"
 #include "util.h"
@@ -1396,6 +1401,23 @@ skip_user_manager(const char *p)
 	return p;
 }
 
+static const char *skip_user_prefix(const char *path) {
+        const char *e, *t;
+
+        assert(path);
+
+        /* Skip slices, if there are any */
+        e = skip_slices(path);
+
+        /* Skip the user manager, if it's in the path now... */
+        t = skip_user_manager(e);
+        if (t)
+                return t;
+
+        /* Alternatively skip the user session if it is in the path... */
+        return skip_session(e);
+}
+
 int
 cg_path_get_user_unit(const char *path, char **unit)
 {
@@ -1621,6 +1643,20 @@ cg_pid_get_slice(pid_t pid, char **slice)
 	return cg_path_get_slice(cgroup, slice);
 }
 
+int cg_path_get_user_slice(const char *p, char **ret_slice) {
+        const char *t;
+        assert(p);
+        assert(ret_slice);
+
+        t = skip_user_prefix(p);
+        if (!t)
+                return -ENXIO;
+
+        /* And now it looks pretty much the same as for a system slice, so let's just use the same parser
+         * from here on. */
+        return cg_path_get_slice(t, ret_slice);
+}
+
 char *
 cg_escape(const char *p)
 {
@@ -1716,6 +1752,7 @@ cg_slice_to_path(const char *unit, char **ret)
 {
 	_cleanup_free_ char *p = NULL, *s = NULL, *e = NULL;
 	const char *dash;
+	int r;
 
 	assert(unit);
 	assert(ret);
@@ -1726,9 +1763,9 @@ cg_slice_to_path(const char *unit, char **ret)
 	if (!endswith(unit, ".slice"))
 		return -EINVAL;
 
-	p = unit_name_to_prefix(unit);
-	if (!p)
-		return -ENOMEM;
+	r = unit_name_to_prefix(unit, &p);
+	if (r < 0)
+		return r;
 
 	dash = strchr(p, '-');
 	while (dash) {
@@ -1878,7 +1915,7 @@ cg_attach_many_everywhere(CGroupMask supported, const char *path, Set *pids,
 	void *pidp;
 	int r = 0;
 
-	SET_FOREACH (pidp, pids, i) {
+	SET_FOREACH (pidp, pids) {
 		pid_t pid = PTR_TO_LONG(pidp);
 		int q;
 
@@ -2026,6 +2063,22 @@ cg_mask_supported(CGroupMask *ret)
 	return 0;
 }
 
+bool cg_ns_supported(void) {
+        static thread_local int enabled = -1;
+
+        if (enabled >= 0)
+                return enabled;
+
+        if (access("/proc/self/ns/cgroup", F_OK) < 0) {
+                if (errno != ENOENT)
+                        log_debug_errno(errno, "Failed to check whether /proc/self/ns/cgroup is available, assuming not: %m");
+                enabled = false;
+        } else
+                enabled = true;
+
+        return enabled;
+}
+
 int
 cg_kernel_controllers(Set *controllers)
 {
@@ -2141,3 +2194,7 @@ static const char *cgroup_controller_table[_CGROUP_CONTROLLER_MAX] = {
 };
 
 DEFINE_STRING_TABLE_LOOKUP(cgroup_controller, CGroupController);
+
+int cg_all_unified(void) {
+		return cg_unified();
+}

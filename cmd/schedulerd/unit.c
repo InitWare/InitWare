@@ -25,6 +25,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "bsdsignal.h"
 #include "bus-common-errors.h"
 #include "cgroup-util.h"
@@ -349,7 +350,7 @@ unit_may_gc(Unit *u)
 		break;
 
 	default:
-		assert_not_reached("Unknown garbage collection mode");
+		assert_not_reached();
 	}
 
 	if (UNIT_VTABLE(u)->may_gc && !UNIT_VTABLE(u)->may_gc(u))
@@ -2081,7 +2082,7 @@ unit_notify(Unit *u, UnitActiveState os, UnitActiveState ns,
 			break;
 
 		default:
-			assert_not_reached("Job type unknown");
+			assert_not_reached();
 		}
 
 	} else
@@ -2386,7 +2387,7 @@ unit_job_is_applicable(Unit *u, JobType j)
 		return unit_can_reload(u) && unit_can_start(u);
 
 	default:
-		assert_not_reached("Invalid job type");
+		assert_not_reached();
 	}
 }
 
@@ -2440,7 +2441,7 @@ maybe_warn_about_dependency(const char *id, const char *other,
 		break;
 	}
 
-	assert_not_reached("Invalid dependency type");
+	assert_not_reached();
 }
 
 int
@@ -3939,7 +3940,7 @@ unit_kill_context(Unit *u, KillContext *c, KillOperation k, pid_t main_pid,
 		sig = c->kill_signal;
 		break;
 	default:
-		assert_not_reached("KillOperation unknown");
+		assert_not_reached();
 	}
 
 	if (main_pid > 0) {

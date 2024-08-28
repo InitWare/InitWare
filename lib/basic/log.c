@@ -26,15 +26,26 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "sd-messages.h"
+
+#include "alloc-util.h"
 #include "bsdglibc.h"
 #include "bsdprintf.h"
+#include "errno-util.h"
 #include "log.h"
 #include "macro.h"
 #include "missing.h"
+#include "process-util.h"
 #include "socket-util.h"
+#include "string-table.h"
+#include "string-util.h"
 #include "util.h"
+#include "utf8.h"
 
 #define SNDBUF_SIZE (8 * 1024 * 1024)
+
+static log_syntax_callback_t log_syntax_callback = NULL;
+static void *log_syntax_callback_userdata = NULL;
 
 static LogTarget log_target = LOG_TARGET_CONSOLE;
 static int log_max_level = LOG_INFO;
@@ -754,11 +765,10 @@ log_assert_failed(const char *text, const char *file, int line,
 }
 
 noreturn void
-log_assert_failed_unreachable(const char *text, const char *file, int line,
-	const char *func)
+log_assert_failed_unreachable(const char *file, int line, const char *func)
 {
-	log_assert(LOG_CRIT, text, file, line, func,
-		"Code should not be reached '%s' at %s:%u, function %s(). Aborting.");
+	log_assert(LOG_CRIT, "Code should not be reached", file, line, func,
+                   "%s at %s:%u, function %s(). Aborting. 💥");
 	abort();
 }
 
@@ -1092,6 +1102,100 @@ log_received_signal(int level, const struct sigfd_siginfo *si)
 			si ? signal_to_string(si->ssi_signo) : "NAL");
 }
 
+int log_syntax_internal(
+                const char *unit,
+                int level,
+                const char *config_file,
+                unsigned config_line,
+                int error,
+                const char *file,
+                int line,
+                const char *func,
+                const char *format, ...) {
+
+        PROTECT_ERRNO;
+
+        if (log_syntax_callback)
+                log_syntax_callback(unit, level, log_syntax_callback_userdata);
+
+        if (_likely_(LOG_PRI(level) > log_max_level) ||
+            log_target == LOG_TARGET_NULL)
+                return -ERRNO_VALUE(error);
+
+        char buffer[LINE_MAX];
+        va_list ap;
+        const char *unit_fmt = NULL;
+
+        errno = ERRNO_VALUE(error);
+
+        va_start(ap, format);
+        (void) vsnprintf(buffer, sizeof buffer, format, ap);
+        va_end(ap);
+
+        if (unit)
+                unit_fmt = getpid_cached() == 1 ? "UNIT=%s" : "USER_UNIT=%s";
+
+        if (config_file) {
+                if (config_line > 0)
+                        return log_struct_internal(
+                                        level,
+                                        error,
+                                        file, line, func,
+                                        "MESSAGE_ID=" SD_MESSAGE_INVALID_CONFIGURATION_STR,
+                                        "CONFIG_FILE=%s", config_file,
+                                        "CONFIG_LINE=%u", config_line,
+                                        LOG_MESSAGE("%s:%u: %s", config_file, config_line, buffer),
+                                        unit_fmt, unit,
+                                        NULL);
+                else
+                        return log_struct_internal(
+                                        level,
+                                        error,
+                                        file, line, func,
+                                        "MESSAGE_ID=" SD_MESSAGE_INVALID_CONFIGURATION_STR,
+                                        "CONFIG_FILE=%s", config_file,
+                                        LOG_MESSAGE("%s: %s", config_file, buffer),
+                                        unit_fmt, unit,
+                                        NULL);
+        } else if (unit)
+                return log_struct_internal(
+                                level,
+                                error,
+                                file, line, func,
+                                "MESSAGE_ID=" SD_MESSAGE_INVALID_CONFIGURATION_STR,
+                                LOG_MESSAGE("%s: %s", unit, buffer),
+                                unit_fmt, unit,
+                                NULL);
+        else
+                return log_struct_internal(
+                                level,
+                                error,
+                                file, line, func,
+                                "MESSAGE_ID=" SD_MESSAGE_INVALID_CONFIGURATION_STR,
+                                LOG_MESSAGE("%s", buffer),
+                                NULL);
+}
+
+int log_syntax_invalid_utf8_internal(
+                const char *unit,
+                int level,
+                const char *config_file,
+                unsigned config_line,
+                const char *file,
+                int line,
+                const char *func,
+                const char *rvalue) {
+
+        _cleanup_free_ char *p = NULL;
+
+        if (rvalue)
+                p = utf8_escape_invalid(rvalue);
+
+        return log_syntax_internal(unit, level, config_file, config_line,
+                                   SYNTHETIC_ERRNO(EINVAL), file, line, func,
+                                   "String is not UTF-8 clean, ignoring assignment: %s", strna(p));
+}
+
 void
 log_set_upgrade_syslog_to_journal(bool b)
 {
@@ -1102,4 +1206,12 @@ void
 log_set_always_reopen_console(bool b)
 {
 	always_reopen_console = b;
+}
+
+void log_setup(void) {
+        log_set_target(LOG_TARGET_AUTO);
+        log_parse_environment();
+        (void) log_open();
+        if (log_on_console() && show_color < 0)
+                log_show_color(true);
 }

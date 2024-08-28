@@ -24,7 +24,10 @@
 #define GPERF_LEN_TYPE register size_t
 
 /* header files */
+#cmakedefine HAVE_sys_auxv_h
 #cmakedefine HAVE_sys_endian_h
+#cmakedefine HAVE_sys_sendfile_h
+#cmakedefine HAVE_sys_sysmacros_h
 #cmakedefine HAVE_sys_timex_h
 #cmakedefine HAVE_sys_xattr_h
 #cmakedefine HAVE_endian_h
@@ -58,6 +61,9 @@
 #cmakedefine HAVE_strchrnul
 #cmakedefine HAVE_strtod_l
 #cmakedefine HAVE_waitid
+#cmakedefine HAVE_REALLOCARRAY
+#cmakedefine HAVE_PIDFD_SEND_SIGNAL
+#cmakedefine HAVE_PIDFD_OPEN
 
 /* paths */
 #define SVC_PKGDIRNAME "@SVC_PKGDIRNAME@"

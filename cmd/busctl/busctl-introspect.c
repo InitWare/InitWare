@@ -17,7 +17,9 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "alloc-util.h"
 #include "sd-bus-vtable.h"
+#include "string-util.h"
 #include "util.h"
 #include "xml.h"
 
@@ -197,7 +199,7 @@ parse_xml_annotation(Context *context, uint64_t *flags)
 			break;
 
 		default:
-			assert_not_reached("Bad state");
+			assert_not_reached();
 		}
 	}
 }

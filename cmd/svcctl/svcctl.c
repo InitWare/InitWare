@@ -34,6 +34,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "bsdglibc.h"
 #include "build.h"
 #include "bus-common-errors.h"
@@ -566,7 +567,6 @@ get_unit_list(sd_bus *bus, const char *machine, char **patterns,
 	_cleanup_bus_message_unref_ sd_bus_message *m = NULL;
 	_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
 	_cleanup_bus_message_unref_ sd_bus_message *reply = NULL;
-	size_t size = c;
 	int r;
 	UnitInfo u;
 
@@ -603,7 +603,7 @@ get_unit_list(sd_bus *bus, const char *machine, char **patterns,
 		if (!output_show_unit(&u, patterns))
 			continue;
 
-		if (!GREEDY_REALLOC(*unit_infos, size, c + 1))
+		if (!GREEDY_REALLOC(*unit_infos, c + 1))
 			return log_oom();
 
 		(*unit_infos)[c++] = u;
@@ -911,7 +911,6 @@ list_sockets(sd_bus *bus, char **args)
 	const UnitInfo *u;
 	struct socket_info *s;
 	unsigned cs = 0;
-	size_t size = 0;
 	int r = 0, n;
 
 	pager_open_if_enabled();
@@ -938,7 +937,7 @@ list_sockets(sd_bus *bus, char **args)
 			goto cleanup;
 		}
 
-		if (!GREEDY_REALLOC(socket_infos, size, cs + c)) {
+		if (!GREEDY_REALLOC(socket_infos, cs + c)) {
 			r = log_oom();
 			goto cleanup;
 		}
@@ -1216,7 +1215,6 @@ list_timers(sd_bus *bus, char **args)
 	_cleanup_free_ UnitInfo *unit_infos = NULL;
 	struct timer_info *t;
 	const UnitInfo *u;
-	size_t size = 0;
 	int n, c = 0;
 	dual_timestamp nw;
 	int r = 0;
@@ -1248,7 +1246,7 @@ list_timers(sd_bus *bus, char **args)
 
 		get_last_trigger(bus, u->unit_path, &last);
 
-		if (!GREEDY_REALLOC(timer_infos, size, c + 1)) {
+		if (!GREEDY_REALLOC(timer_infos, c + 1)) {
 			r = log_oom();
 			goto cleanup;
 		}
@@ -1389,7 +1387,6 @@ list_unit_files(sd_bus *bus, char **args)
 	_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
 	_cleanup_free_ UnitFileList *units = NULL;
 	UnitFileList *unit;
-	size_t size = 0;
 	unsigned c = 0;
 	const char *state;
 	char *path;
@@ -1450,7 +1447,7 @@ list_unit_files(sd_bus *bus, char **args)
 
 		while ((r = sd_bus_message_read(reply, "(ss)", &path, &state)) >
 			0) {
-			if (!GREEDY_REALLOC(units, size, c + 1))
+			if (!GREEDY_REALLOC(units, c + 1))
 				return log_oom();
 
 			units[c] = (struct UnitFileList){ path,
@@ -1811,7 +1808,6 @@ get_machine_list(sd_bus *bus, struct machine_info **_machine_infos,
 	struct machine_info *machine_infos = NULL;
 	_cleanup_strv_free_ char **m = NULL;
 	_cleanup_free_ char *hn = NULL;
-	size_t sz = 0;
 	char **i;
 	int c = 0;
 
@@ -1820,7 +1816,7 @@ get_machine_list(sd_bus *bus, struct machine_info **_machine_infos,
 		return log_oom();
 
 	if (output_show_machine(hn, patterns)) {
-		if (!GREEDY_REALLOC0(machine_infos, sz, c + 1))
+		if (!GREEDY_REALLOC0(machine_infos, c + 1))
 			return log_oom();
 
 		machine_infos[c].is_host = true;
@@ -1842,7 +1838,7 @@ get_machine_list(sd_bus *bus, struct machine_info **_machine_infos,
 		if (!streq_ptr(class, "container"))
 			continue;
 
-		if (!GREEDY_REALLOC0(machine_infos, sz, c + 1)) {
+		if (!GREEDY_REALLOC0(machine_infos, c + 1)) {
 			free_machines_list(machine_infos, c);
 			return log_oom();
 		}
@@ -2030,7 +2026,7 @@ dump_unit_file_changes(const UnitFileChange *changes, unsigned n_changes)
 				changes[i].path);
 			break;
 		default:
-			assert_not_reached("bad change type");
+			assert_not_reached();
 		}
 }
 
@@ -2191,7 +2187,6 @@ list_jobs(sd_bus *bus, char **args)
 	_cleanup_bus_message_unref_ sd_bus_message *reply = NULL;
 	const char *name, *type, *state, *job_path, *unit_path;
 	_cleanup_free_ struct job_info *jobs = NULL;
-	size_t size = 0;
 	unsigned c = 0;
 	uint32_t id;
 	int r;
@@ -2219,7 +2214,7 @@ list_jobs(sd_bus *bus, char **args)
 			continue;
 		}
 
-		if (!GREEDY_REALLOC(jobs, size, c + 1))
+		if (!GREEDY_REALLOC(jobs, c + 1))
 			return log_oom();
 
 		jobs[c++] = job;
@@ -5620,7 +5615,7 @@ enable_unit(sd_bus *bus, char **args)
 			r = unit_file_unmask(arg_scope, flags, arg_root, names,
 				&changes, &n_changes);
 		else
-			assert_not_reached("Unknown verb");
+			assert_not_reached();
 
 		if (r < 0) {
 			log_error_errno(r, "Operation failed: %m");
@@ -5667,7 +5662,7 @@ enable_unit(sd_bus *bus, char **args)
 			method = "UnmaskUnitFiles";
 			send_force = false;
 		} else
-			assert_not_reached("Unknown verb");
+			assert_not_reached();
 
 		r = sd_bus_message_new_method_call(bus, &m, SVC_DBUS_BUSNAME,
 			"/org/freedesktop/systemd1",
@@ -5790,7 +5785,7 @@ add_dependency(sd_bus *bus, char **args)
 	else if (streq(verb, "add-requires"))
 		dep = UNIT_REQUIRES;
 	else
-		assert_not_reached("Unknown verb");
+		assert_not_reached();
 
 	if (!bus || avoid_bus()) {
 		UnitFileChange *changes = NULL;
@@ -6171,7 +6166,7 @@ get_file_to_edit(const char *name, const char *user_home,
 		}
 		break;
 	default:
-		assert_not_reached("Invalid scope");
+		assert_not_reached();
 	}
 	if (!path || (arg_runtime && !run))
 		return log_oom();
@@ -7045,7 +7040,7 @@ systemctl_parse_argv(int argc, char *argv[])
 			return -EINVAL;
 
 		default:
-			assert_not_reached("Unhandled option");
+			assert_not_reached();
 		}
 
 	if (arg_transport != BUS_TRANSPORT_LOCAL &&
@@ -7126,7 +7121,7 @@ halt_parse_argv(int argc, char *argv[])
 			return -EINVAL;
 
 		default:
-			assert_not_reached("Unhandled option");
+			assert_not_reached();
 		}
 
 	if (arg_action == ACTION_REBOOT &&
@@ -7267,7 +7262,7 @@ shutdown_parse_argv(int argc, char *argv[])
 			return -EINVAL;
 
 		default:
-			assert_not_reached("Unhandled option");
+			assert_not_reached();
 		}
 
 	if (argc > optind && arg_action != ACTION_CANCEL_SHUTDOWN) {
@@ -7332,7 +7327,7 @@ telinit_parse_argv(int argc, char *argv[])
 			return -EINVAL;
 
 		default:
-			assert_not_reached("Unhandled option");
+			assert_not_reached();
 		}
 
 	if (optind >= argc) {
@@ -7393,7 +7388,7 @@ runlevel_parse_argv(int argc, char *argv[])
 			return -EINVAL;
 
 		default:
-			assert_not_reached("Unhandled option");
+			assert_not_reached();
 		}
 
 	if (optind < argc) {
@@ -7636,7 +7631,7 @@ found:
 		break;
 
 	default:
-		assert_not_reached("Unknown comparison operator.");
+		assert_not_reached();
 	}
 
 	/* Require a bus connection for all operations but
@@ -7804,7 +7799,7 @@ halt_now(enum action a)
 	}
 
 	default:
-		assert_not_reached("Unknown action.");
+		assert_not_reached();
 	}
 }
 
@@ -7992,7 +7987,7 @@ main(int argc, char *argv[])
 	case ACTION_RUNLEVEL:
 	case _ACTION_INVALID:
 	default:
-		assert_not_reached("Unknown action");
+		assert_not_reached();
 	}
 
 finish:

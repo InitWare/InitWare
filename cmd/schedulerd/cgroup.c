@@ -20,9 +20,13 @@
 #include <fcntl.h>
 #include <fnmatch.h>
 
+#include "alloc-util.h"
 #include "cgroup-util.h"
 #include "cgroup.h"
+#include "format-util.h"
+#include "nulstr-util.h"
 #include "path-util.h"
+#include "string-table.h"
 #include "special.h"
 #include "util.h"
 
@@ -58,7 +62,7 @@ cgroup_context_free_device_allow(CGroupContext *c, CGroupDeviceAllow *a)
 	assert(c);
 	assert(a);
 
-	IWLIST_REMOVE(device_allow, c->device_allow, a);
+	LIST_REMOVE(device_allow, c->device_allow, a);
 	free(a->path);
 	free(a);
 }
@@ -70,7 +74,7 @@ cgroup_context_free_blockio_device_weight(CGroupContext *c,
 	assert(c);
 	assert(w);
 
-	IWLIST_REMOVE(device_weights, c->blockio_device_weights, w);
+	LIST_REMOVE(device_weights, c->blockio_device_weights, w);
 	free(w->path);
 	free(w);
 }
@@ -82,7 +86,7 @@ cgroup_context_free_blockio_device_bandwidth(CGroupContext *c,
 	assert(c);
 	assert(b);
 
-	IWLIST_REMOVE(device_bandwidths, c->blockio_device_bandwidths, b);
+	LIST_REMOVE(device_bandwidths, c->blockio_device_bandwidths, b);
 	free(b->path);
 	free(b);
 }
@@ -142,15 +146,15 @@ cgroup_context_dump(CGroupContext *c, FILE *f, const char *prefix)
 		cgroup_device_policy_to_string(c->device_policy), prefix,
 		yes_no(c->delegate));
 
-	IWLIST_FOREACH (device_allow, a, c->device_allow)
+	LIST_FOREACH (device_allow, a, c->device_allow)
 		fprintf(f, "%sDeviceAllow=%s %s%s%s\n", prefix, a->path,
 			a->r ? "r" : "", a->w ? "w" : "", a->m ? "m" : "");
 
-	IWLIST_FOREACH (device_weights, w, c->blockio_device_weights)
+	LIST_FOREACH (device_weights, w, c->blockio_device_weights)
 		fprintf(f, "%sBlockIODeviceWeight=%s %" PRIu64, prefix, w->path,
 			w->weight);
 
-	IWLIST_FOREACH (device_bandwidths, b, c->blockio_device_bandwidths) {
+	LIST_FOREACH (device_bandwidths, b, c->blockio_device_bandwidths) {
 		char buf[FORMAT_BYTES_MAX];
 
 		fprintf(f, "%s%s=%s %s\n", prefix,
@@ -403,7 +407,7 @@ cgroup_context_apply(CGroupContext *c, CGroupMask mask, const char *path,
 					path);
 
 			/* FIXME: no way to reset this list */
-			IWLIST_FOREACH (device_weights, w,
+			LIST_FOREACH (device_weights, w,
 				c->blockio_device_weights) {
 				dev_t dev;
 
@@ -427,7 +431,7 @@ cgroup_context_apply(CGroupContext *c, CGroupMask mask, const char *path,
 		}
 
 		/* FIXME: no way to reset this list */
-		IWLIST_FOREACH (device_bandwidths, b,
+		LIST_FOREACH (device_bandwidths, b,
 			c->blockio_device_bandwidths) {
 			const char *a;
 			dev_t dev;
@@ -518,7 +522,7 @@ cgroup_context_apply(CGroupContext *c, CGroupMask mask, const char *path,
 			whitelist_major(path, "kdbus/*", 'c', "rw");
 		}
 
-		IWLIST_FOREACH (device_allow, a, c->device_allow) {
+		LIST_FOREACH (device_allow, a, c->device_allow) {
 			char acc[4];
 			unsigned k = 0;
 
@@ -632,7 +636,7 @@ unit_get_members_mask(Unit *u)
 		Unit *member;
 		Iterator i;
 
-		SET_FOREACH (member, u->dependencies[UNIT_BEFORE], i) {
+		SET_FOREACH (member, u->dependencies[UNIT_BEFORE]) {
 			if (member == u)
 				continue;
 
@@ -799,6 +803,137 @@ unit_create_cgroups(Unit *u, CGroupMask mask)
 	return 0;
 }
 
+// int unit_attach_pids_to_cgroup(Unit *u, Set *pids, const char *suffix_path) {
+//         _cleanup_free_ char *joined = NULL;
+//         CGroupMask delegated_mask;
+//         const char *p;
+//         PidRef *pid;
+//         int ret, r;
+
+//         assert(u);
+
+//         if (!UNIT_HAS_CGROUP_CONTEXT(u))
+//                 return -EINVAL;
+
+//         if (set_isempty(pids))
+//                 return 0;
+
+// // HACK: No BPF
+// #if 0
+//         /* Load any custom firewall BPF programs here once to test if they are existing and actually loadable.
+//          * Fail here early since later errors in the call chain unit_realize_cgroup to cgroup_context_apply are ignored. */
+//         r = bpf_firewall_load_custom(u);
+//         if (r < 0)
+//                 return r;
+// #endif
+
+//         r = unit_realize_cgroup(u);
+//         if (r < 0)
+//                 return r;
+
+//         CGroupRuntime *crt = ASSERT_PTR(unit_get_cgroup_runtime(u));
+
+//         if (isempty(suffix_path))
+//                 p = crt->cgroup_path;
+//         else {
+//                 joined = path_join(crt->cgroup_path, suffix_path);
+//                 if (!joined)
+//                         return -ENOMEM;
+
+//                 p = joined;
+//         }
+
+//         delegated_mask = unit_get_delegate_mask(u);
+
+//         ret = 0;
+//         SET_FOREACH(pid, pids) {
+
+//                 /* Unfortunately we cannot add pids by pidfd to a cgroup. Hence we have to use PIDs instead,
+//                  * which of course is racy. Let's shorten the race a bit though, and re-validate the PID
+//                  * before we use it */
+//                 r = pidref_verify(pid);
+//                 if (r < 0) {
+//                         log_unit_info_errno(u, r, "PID " PID_FMT " vanished before we could move it to target cgroup '%s', skipping: %m", pid->pid, empty_to_root(p));
+//                         continue;
+//                 }
+
+//                 /* First, attach the PID to the main cgroup hierarchy */
+//                 r = cg_attach(SYSTEMD_CGROUP_CONTROLLER, p, pid->pid);
+//                 if (r < 0) {
+//                         bool again = MANAGER_IS_USER(u->manager) && ERRNO_IS_PRIVILEGE(r);
+
+//                         log_unit_full_errno(u, again ? LOG_DEBUG : LOG_INFO,  r,
+//                                             "Couldn't move process "PID_FMT" to%s requested cgroup '%s': %m",
+//                                             pid->pid, again ? " directly" : "", empty_to_root(p));
+
+//                         if (again) {
+//                                 int z;
+
+//                                 /* If we are in a user instance, and we can't move the process ourselves due
+//                                  * to permission problems, let's ask the system instance about it instead.
+//                                  * Since it's more privileged it might be able to move the process across the
+//                                  * leaves of a subtree whose top node is not owned by us. */
+
+//                                 z = unit_attach_pid_to_cgroup_via_bus(u, pid->pid, suffix_path);
+//                                 if (z < 0)
+//                                         log_unit_info_errno(u, z, "Couldn't move process "PID_FMT" to requested cgroup '%s' (directly or via the system bus): %m", pid->pid, empty_to_root(p));
+//                                 else {
+//                                         if (ret >= 0)
+//                                                 ret++; /* Count successful additions */
+//                                         continue; /* When the bus thing worked via the bus we are fully done for this PID. */
+//                                 }
+//                         }
+
+//                         if (ret >= 0)
+//                                 ret = r; /* Remember first error */
+
+//                         continue;
+//                 } else if (ret >= 0)
+//                         ret++; /* Count successful additions */
+
+//                 r = cg_all_unified();
+//                 if (r < 0)
+//                         return r;
+//                 if (r > 0)
+//                         continue;
+
+//                 /* In the legacy hierarchy, attach the process to the request cgroup if possible, and if not to the
+//                  * innermost realized one */
+
+//                 for (CGroupController c = 0; c < _CGROUP_CONTROLLER_MAX; c++) {
+//                         CGroupMask bit = CGROUP_CONTROLLER_TO_MASK(c);
+//                         const char *realized;
+
+//                         if (!(u->manager->cgroup_supported & bit))
+//                                 continue;
+
+//                         /* If this controller is delegated and realized, honour the caller's request for the cgroup suffix. */
+//                         if (delegated_mask & crt->cgroup_realized_mask & bit) {
+//                                 r = cg_attach(cgroup_controller_to_string(c), p, pid->pid);
+//                                 if (r >= 0)
+//                                         continue; /* Success! */
+
+//                                 log_unit_debug_errno(u, r, "Failed to attach PID " PID_FMT " to requested cgroup %s in controller %s, falling back to unit's cgroup: %m",
+//                                                      pid->pid, empty_to_root(p), cgroup_controller_to_string(c));
+//                         }
+
+//                         /* So this controller is either not delegate or realized, or something else weird happened. In
+//                          * that case let's attach the PID at least to the closest cgroup up the tree that is
+//                          * realized. */
+//                         realized = unit_get_realized_cgroup_path(u, bit);
+//                         if (!realized)
+//                                 continue; /* Not even realized in the root slice? Then let's not bother */
+
+//                         r = cg_attach(cgroup_controller_to_string(c), realized, pid->pid);
+//                         if (r < 0)
+//                                 log_unit_debug_errno(u, r, "Failed to attach PID " PID_FMT " to realized cgroup %s in controller %s, ignoring: %m",
+//                                                      pid->pid, realized, cgroup_controller_to_string(c));
+//                 }
+//         }
+
+//         return ret;
+// }
+
 int
 unit_attach_pids_to_cgroup(Unit *u)
 {
@@ -840,7 +975,7 @@ unit_realize_cgroup_now(Unit *u, ManagerState state)
 	assert(u);
 
 	if (u->in_cgroup_queue) {
-		IWLIST_REMOVE(cgroup_queue, u->manager->cgroup_queue, u);
+		LIST_REMOVE(cgroup_queue, u->manager->cgroup_queue, u);
 		u->in_cgroup_queue = false;
 	}
 
@@ -874,7 +1009,7 @@ unit_add_to_cgroup_queue(Unit *u)
 	if (u->in_cgroup_queue)
 		return;
 
-	IWLIST_PREPEND(cgroup_queue, u->manager->cgroup_queue, u);
+	LIST_PREPEND(cgroup_queue, u->manager->cgroup_queue, u);
 	u->in_cgroup_queue = true;
 }
 
@@ -916,7 +1051,7 @@ unit_queue_siblings(Unit *u)
 		Iterator i;
 		Unit *m;
 
-		SET_FOREACH (m, slice->dependencies[UNIT_BEFORE], i) {
+		SET_FOREACH (m, slice->dependencies[UNIT_BEFORE]) {
 			if (m == u)
 				continue;
 

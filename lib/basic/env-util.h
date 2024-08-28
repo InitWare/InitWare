@@ -48,3 +48,5 @@ char *strv_env_get_n(char **l, const char *name, size_t k) _pure_;
 char *strv_env_get(char **x, const char *n) _pure_;
 
 int getenv_bool(const char *p);
+
+int setenv_systemd_exec_pid(bool update_only);

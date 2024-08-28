@@ -21,6 +21,8 @@
 
 #include <stdbool.h>
 
+#include "svc-config.h"
+
 #include "macro.h"
 
 #define UNIT_NAME_MAX 256
@@ -29,6 +31,7 @@ typedef enum UnitType UnitType;
 typedef enum UnitLoadState UnitLoadState;
 typedef enum UnitDependency UnitDependency;
 
+// HACK: USE_Device and USE_Mount undefined?
 enum UnitType {
 	UNIT_SERVICE = 0,
 	UNIT_SOCKET,
@@ -38,14 +41,14 @@ enum UnitType {
 	UNIT_PATH,
 	UNIT_SLICE,
 	UNIT_SCOPE,
-#ifdef SVC_USE_Device
+// #ifdef SVC_USE_Device
 	UNIT_DEVICE,
-#endif
-#ifdef SVC_USE_Mount
+// #endif
+// #ifdef SVC_USE_Mount
 	UNIT_MOUNT,
 	UNIT_AUTOMOUNT,
 	UNIT_SWAP,
-#endif
+// #endif
 	_UNIT_TYPE_MAX,
 	_UNIT_TYPE_INVALID = -1
 };
@@ -54,6 +57,7 @@ enum UnitLoadState {
 	UNIT_STUB = 0,
 	UNIT_LOADED,
 	UNIT_NOT_FOUND,
+	UNIT_BAD_SETTING,  /* error condition #2: we couldn't parse some essential unit file setting */
 	UNIT_ERROR,
 	UNIT_MERGED,
 	UNIT_MASKED,
@@ -109,11 +113,11 @@ enum UnitDependency {
 };
 
 typedef enum UnitNameFlags {
-	UNIT_NAME_PLAIN = 1, /* Allow foo.service */
-	UNIT_NAME_INSTANCE = 2, /* Allow foo@bar.service */
-	UNIT_NAME_TEMPLATE = 4, /* Allow foo@.service */
-	UNIT_NAME_ANY =
-		UNIT_NAME_PLAIN | UNIT_NAME_INSTANCE | UNIT_NAME_TEMPLATE,
+        UNIT_NAME_PLAIN    = 1 << 0, /* Allow foo.service */
+        UNIT_NAME_TEMPLATE = 1 << 1, /* Allow foo@.service */
+        UNIT_NAME_INSTANCE = 1 << 2, /* Allow foo@bar.service */
+        UNIT_NAME_ANY = UNIT_NAME_PLAIN|UNIT_NAME_TEMPLATE|UNIT_NAME_INSTANCE,
+        _UNIT_NAME_INVALID = -EINVAL,
 } UnitNameFlags;
 
 const char *unit_type_to_string(UnitType i) _const_;
@@ -122,9 +126,12 @@ UnitType unit_type_from_string(const char *s) _pure_;
 const char *unit_load_state_to_string(UnitLoadState i) _const_;
 UnitLoadState unit_load_state_from_string(const char *s) _pure_;
 
-int unit_name_to_instance(const char *n, char **instance);
-char *unit_name_to_prefix(const char *n);
-char *unit_name_to_prefix_and_instance(const char *n);
+UnitNameFlags unit_name_to_instance(const char *n, char **ret);
+static inline UnitNameFlags unit_name_classify(const char *n) {
+        return unit_name_to_instance(n, NULL);
+}
+int unit_name_to_prefix(const char *n, char **ret);
+int unit_name_to_prefix_and_instance(const char *n, char **ret);
 
 bool unit_name_is_valid(const char *n, UnitNameFlags flags) _pure_;
 bool unit_prefix_is_valid(const char *p) _pure_;
@@ -134,25 +141,34 @@ UnitType unit_name_to_type(const char *n) _pure_;
 
 char *unit_name_change_suffix(const char *n, const char *suffix);
 
-char *unit_name_build(const char *prefix, const char *instance,
-	const char *suffix);
+int unit_name_build(const char *prefix, const char *instance, const char *suffix, char **ret);
+int unit_name_build_from_type(const char *prefix, const char *instance, UnitType type, char **ret);
 
 char *unit_name_escape(const char *f);
-char *unit_name_unescape(const char *f);
+int unit_name_unescape(const char *f, char **ret);
 char *unit_name_path_escape(const char *f);
-char *unit_name_path_unescape(const char *f);
+int unit_name_path_unescape(const char *f, char **ret);
+
+bool unit_name_is_hashed(const char *name);
 
 bool unit_name_is_template(const char *n) _pure_;
 bool unit_name_is_instance(const char *n) _pure_;
 
-char *unit_name_replace_instance(const char *f, const char *i);
+int unit_name_replace_instance_full(
+                const char *original,
+                const char *instance,
+                bool accept_glob,
+                char **ret);
+static inline int unit_name_replace_instance(const char *original, const char *instance, char **ret) {
+        return unit_name_replace_instance_full(original, instance, false, ret);
+}
 
-char *unit_name_template(const char *f);
+int unit_name_template(const char *f, char **ret);
 
 char *unit_name_from_path(const char *path, const char *suffix);
 char *unit_name_from_path_instance(const char *prefix, const char *path,
 	const char *suffix);
-char *unit_name_to_path(const char *name);
+int unit_name_to_path(const char *name, char **ret);
 
 char *unit_dbus_path_from_name(const char *name);
 int unit_name_from_dbus_path(const char *path, char **name);

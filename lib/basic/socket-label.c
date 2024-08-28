@@ -30,6 +30,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "label.h"
 #include "macro.h"
 #include "missing.h"
@@ -49,7 +50,7 @@ socket_address_listen(const SocketAddress *a, int flags, int backlog,
 
 	assert(a);
 
-	r = socket_address_verify(a);
+	r = socket_address_verify(a, true);
 	if (r < 0)
 		return r;
 

@@ -21,6 +21,7 @@
 #include <unistd.h>
 
 #include "async.h"
+#include "errno-util.h"
 #include "log.h"
 #include "util.h"
 

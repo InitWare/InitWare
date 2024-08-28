@@ -19,6 +19,7 @@
 
 #include <string.h>
 
+#include "alloc-util.h"
 #include "def.h"
 #include "macro.h"
 #include "replace-var.h"

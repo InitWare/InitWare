@@ -84,7 +84,7 @@ struct ExecCommand {
 	char *path;
 	char **argv;
 	ExecStatus exec_status;
-	IWLIST_FIELDS(ExecCommand, command); /* useful for chaining commands */
+	LIST_FIELDS(ExecCommand, command); /* useful for chaining commands */
 	bool ignore;
 };
 
@@ -260,6 +260,8 @@ int exec_context_load_environment(const ExecContext *c, const char *unit_id,
 
 bool exec_context_may_touch_console(ExecContext *c);
 bool exec_context_maintains_privileges(ExecContext *c);
+
+void exec_context_tty_reset(const ExecContext *context, const ExecParameters *p);
 
 void exec_status_start(ExecStatus *s, pid_t pid);
 void exec_status_exit(ExecStatus *s, ExecContext *context, pid_t pid, int code,

@@ -34,14 +34,23 @@
 #include "journal-def.h"
 #include "macro.h"
 #include "sparse-endian.h"
+#include "string-table.h"
 #include "util.h"
 
 #define ALIGN_8(l) ALIGN_TO(l, sizeof(size_t))
 
-static const char *const object_compressed_table[_OBJECT_COMPRESSED_MAX] = {
+static const char *const object_compressed_table[_OBJECT_COMPRESSED_MASK] = {
 	[OBJECT_COMPRESSED_XZ] = "XZ",
 	[OBJECT_COMPRESSED_LZ4] = "LZ4",
 };
+
+static const char* const compression_table[_COMPRESSION_MAX] = {
+        [COMPRESSION_NONE] = "NONE",
+        [COMPRESSION_XZ]   = "XZ",
+        [COMPRESSION_LZ4]  = "LZ4",
+};
+
+DEFINE_STRING_TABLE_LOOKUP(compression, Compression);
 
 DEFINE_STRING_TABLE_LOOKUP(object_compressed, int);
 
@@ -121,120 +130,136 @@ compress_blob_lz4(const void *src, uint64_t src_size, void *dst,
 #endif
 }
 
-int
-decompress_blob_xz(const void *src, uint64_t src_size, void **dst,
-	size_t *dst_alloc_size, size_t *dst_size, size_t dst_max)
-{
+int decompress_blob_xz(
+                const void *src,
+                uint64_t src_size,
+                void **dst,
+                size_t* dst_size,
+                size_t dst_max) {
+
+        assert(src);
+        assert(src_size > 0);
+        assert(dst);
+        assert(dst_size);
+
 #ifdef HAVE_XZ
-	_cleanup_(lzma_end) lzma_stream s = LZMA_STREAM_INIT;
-	lzma_ret ret;
-	size_t space;
+        _cleanup_(lzma_end_wrapper) lzma_stream s = LZMA_STREAM_INIT;
+        lzma_ret ret;
+        size_t space;
+        int r;
 
-	assert(src);
-	assert(src_size > 0);
-	assert(dst);
-	assert(dst_alloc_size);
-	assert(dst_size);
-	assert(*dst_alloc_size == 0 || *dst);
+        r = dlopen_lzma();
+        if (r < 0)
+                return r;
 
-	ret = lzma_stream_decoder(&s, UINT64_MAX, 0);
-	if (ret != LZMA_OK)
-		return -ENOMEM;
+        ret = sym_lzma_stream_decoder(&s, UINT64_MAX, 0);
+        if (ret != LZMA_OK)
+                return -ENOMEM;
 
-	space = MIN(src_size * 2, dst_max ?: (size_t)-1);
-	if (!greedy_realloc(dst, dst_alloc_size, space, 1))
-		return -ENOMEM;
+        space = MIN(src_size * 2, dst_max ?: SIZE_MAX);
+        if (!greedy_realloc(dst, space, 1))
+                return -ENOMEM;
 
-	s.next_in = src;
-	s.avail_in = src_size;
+        s.next_in = src;
+        s.avail_in = src_size;
 
-	s.next_out = *dst;
-	s.avail_out = space;
+        s.next_out = *dst;
+        s.avail_out = space;
 
-	for (;;) {
-		size_t used;
+        for (;;) {
+                size_t used;
 
-		ret = lzma_code(&s, LZMA_FINISH);
+                ret = sym_lzma_code(&s, LZMA_FINISH);
 
-		if (ret == LZMA_STREAM_END)
-			break;
-		else if (ret != LZMA_OK)
-			return -ENOMEM;
+                if (ret == LZMA_STREAM_END)
+                        break;
+                else if (ret != LZMA_OK)
+                        return -ENOMEM;
 
-		if (dst_max > 0 && (space - s.avail_out) >= dst_max)
-			break;
-		else if (dst_max > 0 && space == dst_max)
-			return -ENOBUFS;
+                if (dst_max > 0 && (space - s.avail_out) >= dst_max)
+                        break;
+                else if (dst_max > 0 && space == dst_max)
+                        return -ENOBUFS;
 
-		used = space - s.avail_out;
-		space = MIN(2 * space, dst_max ?: (size_t)-1);
-		if (!greedy_realloc(dst, dst_alloc_size, space, 1))
-			return -ENOMEM;
+                used = space - s.avail_out;
+                space = MIN(2 * space, dst_max ?: SIZE_MAX);
+                if (!greedy_realloc(dst, space, 1))
+                        return -ENOMEM;
 
-		s.avail_out = space - used;
-		s.next_out = *dst + used;
-	}
+                s.avail_out = space - used;
+                s.next_out = *(uint8_t**)dst + used;
+        }
 
-	*dst_size = space - s.avail_out;
-	return 0;
+        *dst_size = space - s.avail_out;
+        return 0;
 #else
-	return -EPROTONOSUPPORT;
+        return -EPROTONOSUPPORT;
 #endif
 }
 
-int
-decompress_blob_lz4(const void *src, uint64_t src_size, void **dst,
-	size_t *dst_alloc_size, size_t *dst_size, size_t dst_max)
-{
+int decompress_blob_lz4(
+                const void *src,
+                uint64_t src_size,
+                void **dst,
+                size_t* dst_size,
+                size_t dst_max) {
+
+        assert(src);
+        assert(src_size > 0);
+        assert(dst);
+        assert(dst_size);
+
 #ifdef HAVE_LZ4
-	char *out;
-	int r, size; /* LZ4 uses int for size */
+        char* out;
+        int r, size; /* LZ4 uses int for size */
 
-	assert(src);
-	assert(src_size > 0);
-	assert(dst);
-	assert(dst_alloc_size);
-	assert(dst_size);
-	assert(*dst_alloc_size == 0 || *dst);
+        r = dlopen_lz4();
+        if (r < 0)
+                return r;
 
-	if (src_size <= 8)
-		return -EBADMSG;
+        if (src_size <= 8)
+                return -EBADMSG;
 
-	size = le64toh(*(le64_t *)src);
-	if (size < 0 || (unsigned)size != le64toh(*(le64_t *)src))
-		return -EFBIG;
-	if ((size_t)size > *dst_alloc_size) {
-		out = realloc(*dst, size);
-		if (!out)
-			return -ENOMEM;
-		*dst = out;
-		*dst_alloc_size = size;
-	} else
-		out = *dst;
+        size = unaligned_read_le64(src);
+        if (size < 0 || (unsigned) size != unaligned_read_le64(src))
+                return -EFBIG;
+        out = greedy_realloc(dst, size, 1);
+        if (!out)
+                return -ENOMEM;
 
-	r = LZ4_decompress_safe(src + 8, out, src_size - 8, size);
-	if (r < 0 || r != size)
-		return -EBADMSG;
+        r = sym_LZ4_decompress_safe((char*)src + 8, out, src_size - 8, size);
+        if (r < 0 || r != size)
+                return -EBADMSG;
 
-	*dst_size = size;
-	return 0;
+        *dst_size = size;
+        return 0;
 #else
-	return -EPROTONOSUPPORT;
+        return -EPROTONOSUPPORT;
 #endif
 }
 
-int
-decompress_blob(int compression, const void *src, uint64_t src_size, void **dst,
-	size_t *dst_alloc_size, size_t *dst_size, size_t dst_max)
-{
-	if (compression == OBJECT_COMPRESSED_XZ)
-		return decompress_blob_xz(src, src_size, dst, dst_alloc_size,
-			dst_size, dst_max);
-	else if (compression == OBJECT_COMPRESSED_LZ4)
-		return decompress_blob_lz4(src, src_size, dst, dst_alloc_size,
-			dst_size, dst_max);
-	else
-		return -EBADMSG;
+int decompress_blob(
+                Compression compression,
+                const void *src,
+                uint64_t src_size,
+                void **dst,
+                size_t* dst_size,
+                size_t dst_max) {
+
+        if (compression == COMPRESSION_XZ)
+                return decompress_blob_xz(
+                                src, src_size,
+                                dst, dst_size, dst_max);
+        else if (compression == COMPRESSION_LZ4)
+                return decompress_blob_lz4(
+                                src, src_size,
+                                dst, dst_size, dst_max);
+        // else if (compression == COMPRESSION_ZSTD)
+        //         return decompress_blob_zstd(
+        //                         src, src_size,
+        //                         dst, dst_size, dst_max);
+        else
+                return -EPROTONOSUPPORT;
 }
 
 int

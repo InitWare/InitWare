@@ -17,17 +17,23 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "alloc-util.h"
 #include "dbus-unit.h"
 #include "bsdsignal.h"
 #include "bus-common-errors.h"
 #include "cgroup-util.h"
+#include "dbus-job.h"
 #include "dbus-manager.h"
+#include "dbus-util.h"
 #include "dbus.h"
 #include "fileio.h"
+#include "locale-util.h"
 #include "log.h"
 #include "path-util.h"
 #include "sd-bus.h"
 #include "selinux-access.h"
+#include "signal-util.h"
+#include "special.h"
 #include "strv.h"
 
 static BUS_DEFINE_PROPERTY_GET_ENUM(property_get_load_state, unit_load_state,
@@ -56,7 +62,7 @@ property_get_names(sd_bus *bus, const char *path, const char *interface,
 	if (r < 0)
 		return r;
 
-	SET_FOREACH (t, u->names, i) {
+	SET_FOREACH (t, u->names) {
 		r = sd_bus_message_append(reply, "s", t);
 		if (r < 0)
 			return r;
@@ -97,7 +103,7 @@ property_get_dependencies(sd_bus *bus, const char *path, const char *interface,
 	if (r < 0)
 		return r;
 
-	SET_FOREACH (u, s, j) {
+	SET_FOREACH (u, s) {
 		r = sd_bus_message_append(reply, "s", u->id);
 		if (r < 0)
 			return r;
@@ -302,7 +308,7 @@ property_get_conditions(sd_bus *bus, const char *path, const char *interface,
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH (conditions, c, *list) {
+	LIST_FOREACH (conditions, c, *list) {
 		int tristate;
 
 		tristate = c->result == CONDITION_UNTESTED ? 0 :
@@ -318,212 +324,244 @@ property_get_conditions(sd_bus *bus, const char *path, const char *interface,
 	return sd_bus_message_close_container(reply);
 }
 
-static int
-property_get_load_error(sd_bus *bus, const char *path, const char *interface,
-	const char *property, sd_bus_message *reply, void *userdata,
-	sd_bus_error *error)
-{
-	_cleanup_bus_error_free_ sd_bus_error e = SD_BUS_ERROR_NULL;
-	Unit *u = userdata;
+static int property_get_load_error(
+                sd_bus *bus,
+                const char *path,
+                const char *interface,
+                const char *property,
+                sd_bus_message *reply,
+                void *userdata,
+                sd_bus_error *error) {
 
-	assert(bus);
-	assert(reply);
-	assert(u);
+        _cleanup_(sd_bus_error_free) sd_bus_error e = SD_BUS_ERROR_NULL;
+        Unit *u = ASSERT_PTR(userdata);
+        int r;
 
-	if (u->load_error != 0)
-		sd_bus_error_set_errno(&e, u->load_error);
+        assert(bus);
+        assert(reply);
 
-	return sd_bus_message_append(reply, "(ss)", e.name, e.message);
+        r = bus_unit_validate_load_state(u, &e);
+        if (r < 0)
+                return sd_bus_message_append(reply, "(ss)", e.name, e.message);
+
+        return sd_bus_message_append(reply, "(ss)", NULL, NULL);
 }
 
-int
-bus_unit_method_start_generic(sd_bus *bus, sd_bus_message *message, Unit *u,
-	JobType job_type, bool reload_if_possible, sd_bus_error *error)
-{
-	const char *smode;
-	JobMode mode;
-	int r;
+static const char *const polkit_message_for_job[_JOB_TYPE_MAX] = {
+        [JOB_START]       = N_("Authentication is required to start '$(unit)'."),
+        [JOB_STOP]        = N_("Authentication is required to stop '$(unit)'."),
+        [JOB_RELOAD]      = N_("Authentication is required to reload '$(unit)'."),
+        [JOB_RESTART]     = N_("Authentication is required to restart '$(unit)'."),
+        [JOB_TRY_RESTART] = N_("Authentication is required to restart '$(unit)'."),
+};
 
-	assert(bus);
-	assert(message);
-	assert(u);
-	assert(job_type >= 0 && job_type < _JOB_TYPE_MAX);
+int bus_unit_method_start_generic(
+                sd_bus_message *message,
+                Unit *u,
+                JobType job_type,
+                bool reload_if_possible,
+                sd_bus_error *error) {
 
-	r = sd_bus_message_read(message, "s", &smode);
-	if (r < 0)
-		return r;
+        BusUnitQueueFlags job_flags = reload_if_possible ? BUS_UNIT_QUEUE_RELOAD_IF_POSSIBLE : 0;
+        const char *smode, *verb;
+        JobMode mode;
+        int r;
 
-	mode = job_mode_from_string(smode);
-	if (mode < 0)
-		return sd_bus_error_setf(error, SD_BUS_ERROR_INVALID_ARGS,
-			"Job mode %s invalid", smode);
+        assert(message);
+        assert(u);
+        assert(job_type >= 0 && job_type < _JOB_TYPE_MAX);
 
-	return bus_unit_queue_job(bus, message, u, job_type, mode,
-		reload_if_possible, error);
+        r = mac_selinux_unit_access_check(
+                        u, message,
+                        job_type_to_access_method(job_type),
+                        error);
+        if (r < 0)
+                return r;
+
+        r = sd_bus_message_read(message, "s", &smode);
+        if (r < 0)
+                return r;
+
+        mode = job_mode_from_string(smode);
+        if (mode < 0)
+                return sd_bus_error_setf(error, SD_BUS_ERROR_INVALID_ARGS, "Job mode %s invalid", smode);
+
+        if (reload_if_possible)
+                verb = strjoina("reload-or-", job_type_to_string(job_type));
+        else
+                verb = job_type_to_string(job_type);
+
+        if (sd_bus_message_is_method_call(message, NULL, "StartUnitWithFlags")) {
+                uint64_t input_flags = 0;
+
+                r = sd_bus_message_read(message, "t", &input_flags);
+                if (r < 0)
+                        return r;
+                /* Let clients know that this version doesn't support any flags at the moment. */
+                if (input_flags != 0)
+                        return sd_bus_reply_method_errorf(message, SD_BUS_ERROR_INVALID_ARGS,
+                                                          "Invalid 'flags' parameter '%" PRIu64 "'",
+                                                          input_flags);
+        }
+
+        r = bus_verify_manage_units_async_full(
+                        u,
+                        verb,
+                        polkit_message_for_job[job_type],
+                        message,
+                        error);
+        if (r < 0)
+                return r;
+        if (r == 0)
+                return 1; /* No authorization for now, but the async polkit stuff will call us again when it has it */
+
+        return bus_unit_queue_job(message, u, job_type, mode, job_flags, error);
 }
 
-static int
-method_start(sd_bus *bus, sd_bus_message *message, void *userdata,
-	sd_bus_error *error)
-{
-	return bus_unit_method_start_generic(bus, message, userdata, JOB_START,
-		false, error);
+static int bus_unit_method_start(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        return bus_unit_method_start_generic(message, userdata, JOB_START, false, error);
 }
 
-static int
-method_stop(sd_bus *bus, sd_bus_message *message, void *userdata,
-	sd_bus_error *error)
-{
-	return bus_unit_method_start_generic(bus, message, userdata, JOB_STOP,
-		false, error);
+static int bus_unit_method_stop(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        return bus_unit_method_start_generic(message, userdata, JOB_STOP, false, error);
 }
 
-static int
-method_reload(sd_bus *bus, sd_bus_message *message, void *userdata,
-	sd_bus_error *error)
-{
-	return bus_unit_method_start_generic(bus, message, userdata, JOB_RELOAD,
-		false, error);
+static int bus_unit_method_reload(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        return bus_unit_method_start_generic(message, userdata, JOB_RELOAD, false, error);
 }
 
-static int
-method_restart(sd_bus *bus, sd_bus_message *message, void *userdata,
-	sd_bus_error *error)
-{
-	return bus_unit_method_start_generic(bus, message, userdata,
-		JOB_RESTART, false, error);
+static int bus_unit_method_restart(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        return bus_unit_method_start_generic(message, userdata, JOB_RESTART, false, error);
 }
 
-static int
-method_try_restart(sd_bus *bus, sd_bus_message *message, void *userdata,
-	sd_bus_error *error)
-{
-	return bus_unit_method_start_generic(bus, message, userdata,
-		JOB_TRY_RESTART, false, error);
+static int bus_unit_method_try_restart(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        return bus_unit_method_start_generic(message, userdata, JOB_TRY_RESTART, false, error);
 }
 
-static int
-method_reload_or_restart(sd_bus *bus, sd_bus_message *message, void *userdata,
-	sd_bus_error *error)
-{
-	return bus_unit_method_start_generic(bus, message, userdata,
-		JOB_RESTART, true, error);
+static int bus_unit_method_reload_or_restart(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        return bus_unit_method_start_generic(message, userdata, JOB_RESTART, true, error);
 }
 
-static int
-method_reload_or_try_restart(sd_bus *bus, sd_bus_message *message,
-	void *userdata, sd_bus_error *error)
-{
-	return bus_unit_method_start_generic(bus, message, userdata,
-		JOB_TRY_RESTART, true, error);
+static int bus_unit_method_reload_or_try_restart(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        return bus_unit_method_start_generic(message, userdata, JOB_TRY_RESTART, true, error);
 }
 
-int
-bus_unit_method_kill(sd_bus *bus, sd_bus_message *message, void *userdata,
-	sd_bus_error *error)
-{
-	Unit *u = userdata;
-	const char *swho;
-	int32_t signo;
-	KillWho who;
-	int r;
+int bus_unit_method_kill(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        Unit *u = ASSERT_PTR(userdata);
+        int32_t value = 0;
+        const char *swho;
+        int32_t signo;
+        KillWho who;
+        int r, code;
 
-	assert(bus);
-	assert(message);
-	assert(u);
+        assert(message);
 
-	r = bus_verify_manage_unit_async_for_kill(u->manager, message, error);
-	if (r < 0)
-		return r;
-	if (r == 0)
-		return 1; /* No authorization for now, but the async polkit stuff will call us again when it has it */
+        r = mac_selinux_unit_access_check(u, message, "stop", error);
+        if (r < 0)
+                return r;
 
-	r = sd_bus_message_read(message, "si", &swho, &signo);
-	if (r < 0)
-		return r;
+        r = sd_bus_message_read(message, "si", &swho, &signo);
+        if (r < 0)
+                return r;
 
-	if (isempty(swho))
-		who = KILL_ALL;
-	else {
-		who = kill_who_from_string(swho);
-		if (who < 0)
-			return sd_bus_error_setf(error,
-				SD_BUS_ERROR_INVALID_ARGS,
-				"Invalid who argument %s", swho);
-	}
+        if (startswith(sd_bus_message_get_member(message), "QueueSignal")) {
+                r = sd_bus_message_read(message, "i", &value);
+                if (r < 0)
+                        return r;
 
-	if (signo <= 0 || signo >= _NSIG)
-		return sd_bus_error_setf(error, SD_BUS_ERROR_INVALID_ARGS,
-			"Signal number out of range.");
+                code = SI_QUEUE;
+        } else
+                code = SI_USER;
 
-	r = mac_selinux_unit_access_check(u, message, "stop", error);
-	if (r < 0)
-		return r;
+        if (isempty(swho))
+                who = KILL_ALL;
+        else {
+                who = kill_who_from_string(swho);
+                if (who < 0)
+                        return sd_bus_error_setf(error, SD_BUS_ERROR_INVALID_ARGS, "Invalid who argument: %s", swho);
+        }
 
-	r = unit_kill(u, who, signo, error);
-	if (r < 0)
-		return r;
+        if (!SIGNAL_VALID(signo))
+                return sd_bus_error_set(error, SD_BUS_ERROR_INVALID_ARGS, "Signal number out of range.");
 
-	return sd_bus_reply_method_return(message, NULL);
+        if (code == SI_QUEUE && !((signo >= SIGRTMIN) && (signo <= SIGRTMAX)))
+                return sd_bus_error_setf(error, SD_BUS_ERROR_INVALID_ARGS,
+                                         "Value parameter only accepted for realtime signals (SIGRTMIN…SIGRTMAX), refusing for signal SIG%s.", signal_to_string(signo));
+
+        r = bus_verify_manage_units_async_full(
+                        u,
+                        "kill",
+                        N_("Authentication is required to send a UNIX signal to the processes of '$(unit)'."),
+                        message,
+                        error);
+        if (r < 0)
+                return r;
+        if (r == 0)
+                return 1; /* No authorization for now, but the async polkit stuff will call us again when it has it */
+
+        r = unit_kill(u, who, signo, code, value, error);
+        if (r < 0)
+                return r;
+
+        return sd_bus_reply_method_return(message, NULL);
 }
 
-int
-bus_unit_method_reset_failed(sd_bus *bus, sd_bus_message *message,
-	void *userdata, sd_bus_error *error)
-{
-	Unit *u = userdata;
-	int r;
+int bus_unit_method_reset_failed(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        Unit *u = ASSERT_PTR(userdata);
+        int r;
 
-	assert(bus);
-	assert(message);
-	assert(u);
+        assert(message);
 
-	r = bus_verify_manage_unit_async(u->manager, message, error);
-	if (r < 0)
-		return r;
-	if (r == 0)
-		return 1; /* No authorization for now, but the async polkit stuff will call us again when it has it */
+        r = mac_selinux_unit_access_check(u, message, "reload", error);
+        if (r < 0)
+                return r;
 
-	r = mac_selinux_unit_access_check(u, message, "reload", error);
-	if (r < 0)
-		return r;
+        r = bus_verify_manage_units_async_full(
+                        u,
+                        "reset-failed",
+                        N_("Authentication is required to reset the \"failed\" state of '$(unit)'."),
+                        message,
+                        error);
+        if (r < 0)
+                return r;
+        if (r == 0)
+                return 1; /* No authorization for now, but the async polkit stuff will call us again when it has it */
 
-	unit_reset_failed(u);
+        unit_reset_failed(u);
 
-	return sd_bus_reply_method_return(message, NULL);
+        return sd_bus_reply_method_return(message, NULL);
 }
 
-int
-bus_unit_method_set_properties(sd_bus *bus, sd_bus_message *message,
-	void *userdata, sd_bus_error *error)
-{
-	Unit *u = userdata;
-	int runtime, r;
+int bus_unit_method_set_properties(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        Unit *u = ASSERT_PTR(userdata);
+        int runtime, r;
 
-	assert(bus);
-	assert(message);
-	assert(u);
+        assert(message);
 
-	r = bus_verify_manage_unit_async(u->manager, message, error);
-	if (r < 0)
-		return r;
-	if (r == 0)
-		return 1; /* No authorization for now, but the async polkit stuff will call us again when it has it */
+        r = mac_selinux_unit_access_check(u, message, "start", error);
+        if (r < 0)
+                return r;
 
-	r = sd_bus_message_read(message, "b", &runtime);
-	if (r < 0)
-		return r;
+        r = sd_bus_message_read(message, "b", &runtime);
+        if (r < 0)
+                return r;
 
-	r = mac_selinux_unit_access_check(u, message, "start", error);
-	if (r < 0)
-		return r;
+        r = bus_verify_manage_units_async_full(
+                        u,
+                        "set-property",
+                        N_("Authentication is required to set properties on '$(unit)'."),
+                        message,
+                        error);
+        if (r < 0)
+                return r;
+        if (r == 0)
+                return 1; /* No authorization for now, but the async polkit stuff will call us again when it has it */
 
-	r = bus_unit_set_properties(u, message,
-		runtime ? UNIT_RUNTIME : UNIT_PERSISTENT, true, error);
-	if (r < 0)
-		return r;
+        r = bus_unit_set_properties(u, message, runtime ? UNIT_RUNTIME : UNIT_PERSISTENT, true, error);
+        if (r < 0)
+                return r;
 
-	return sd_bus_reply_method_return(message, NULL);
+        return sd_bus_reply_method_return(message, NULL);
 }
 
 const sd_bus_vtable bus_unit_vtable[] = { SD_BUS_VTABLE_START(0),
@@ -702,14 +740,14 @@ const sd_bus_vtable bus_unit_vtable[] = { SD_BUS_VTABLE_START(0),
 	SD_BUS_PROPERTY("CollectMode", "s", property_get_collect_mode,
 		offsetof(Unit, collect_mode), SD_BUS_VTABLE_PROPERTY_CONST),
 
-	SD_BUS_METHOD("Start", "s", "o", method_start, 0),
-	SD_BUS_METHOD("Stop", "s", "o", method_stop, 0),
-	SD_BUS_METHOD("Reload", "s", "o", method_reload, 0),
-	SD_BUS_METHOD("Restart", "s", "o", method_restart, 0),
-	SD_BUS_METHOD("TryRestart", "s", "o", method_try_restart, 0),
-	SD_BUS_METHOD("ReloadOrRestart", "s", "o", method_reload_or_restart, 0),
+	SD_BUS_METHOD("Start", "s", "o", bus_unit_method_start, 0),
+	SD_BUS_METHOD("Stop", "s", "o", bus_unit_method_stop, 0),
+	SD_BUS_METHOD("Reload", "s", "o", bus_unit_method_reload, 0),
+	SD_BUS_METHOD("Restart", "s", "o", bus_unit_method_restart, 0),
+	SD_BUS_METHOD("TryRestart", "s", "o", bus_unit_method_try_restart, 0),
+	SD_BUS_METHOD("ReloadOrRestart", "s", "o", bus_unit_method_reload_or_restart, 0),
 	SD_BUS_METHOD("ReloadOrTryRestart", "s", "o",
-		method_reload_or_try_restart, 0),
+		bus_unit_method_reload_or_try_restart, 0),
 	SD_BUS_METHOD("Kill", "si", NULL, bus_unit_method_kill, 0),
 	SD_BUS_METHOD("ResetFailed", NULL, NULL, bus_unit_method_reset_failed,
 		0),
@@ -795,31 +833,32 @@ const sd_bus_vtable bus_unit_cgroup_vtable[] = { SD_BUS_VTABLE_START(0),
 	SD_BUS_PROPERTY("TasksCurrent", "t", property_get_current_tasks, 0, 0),
 	SD_BUS_VTABLE_END };
 
-static int
-send_new_signal(sd_bus *bus, void *userdata)
-{
-	_cleanup_bus_message_unref_ sd_bus_message *m = NULL;
-	_cleanup_free_ char *p = NULL;
-	Unit *u = userdata;
-	int r;
+static int send_new_signal(sd_bus *bus, void *userdata) {
+        _cleanup_(sd_bus_message_unrefp) sd_bus_message *m = NULL;
+        _cleanup_free_ char *p = NULL;
+        Unit *u = ASSERT_PTR(userdata);
+        int r;
 
-	assert(bus);
-	assert(u);
+        assert(bus);
 
-	p = unit_dbus_path(u);
-	if (!u)
-		return -ENOMEM;
+        p = unit_dbus_path(u);
+        if (!p)
+                return -ENOMEM;
 
-	r = sd_bus_message_new_signal(bus, &m, "/org/freedesktop/systemd1",
-		SVC_DBUS_INTERFACE ".Manager", "UnitNew");
-	if (r < 0)
-		return r;
+        r = sd_bus_message_new_signal(
+                        bus,
+                        &m,
+                        "/org/freedesktop/systemd1",
+                        SVC_DBUS_INTERFACE ".Manager",
+                        "UnitNew");
+        if (r < 0)
+                return r;
 
-	r = sd_bus_message_append(m, "so", u->id, p);
-	if (r < 0)
-		return r;
+        r = sd_bus_message_append(m, "so", u->id, p);
+        if (r < 0)
+                return r;
 
-	return sd_bus_send(bus, m, NULL);
+        return sd_bus_send(bus, m, NULL);
 }
 
 static int
@@ -856,7 +895,7 @@ bus_unit_send_change_signal(Unit *u)
 	assert(u);
 
 	if (u->in_dbus_queue) {
-		IWLIST_REMOVE(dbus_queue, u->manager->dbus_unit_queue, u);
+		LIST_REMOVE(dbus_queue, u->manager->dbus_unit_queue, u);
 		u->in_dbus_queue = false;
 	}
 
@@ -873,31 +912,32 @@ bus_unit_send_change_signal(Unit *u)
 	u->sent_dbus_new_signal = true;
 }
 
-static int
-send_removed_signal(sd_bus *bus, void *userdata)
-{
-	_cleanup_bus_message_unref_ sd_bus_message *m = NULL;
-	_cleanup_free_ char *p = NULL;
-	Unit *u = userdata;
-	int r;
+static int send_removed_signal(sd_bus *bus, void *userdata) {
+        _cleanup_(sd_bus_message_unrefp) sd_bus_message *m = NULL;
+        _cleanup_free_ char *p = NULL;
+        Unit *u = ASSERT_PTR(userdata);
+        int r;
 
-	assert(bus);
-	assert(u);
+        assert(bus);
 
-	p = unit_dbus_path(u);
-	if (!u)
-		return -ENOMEM;
+        p = unit_dbus_path(u);
+        if (!p)
+                return -ENOMEM;
 
-	r = sd_bus_message_new_signal(bus, &m, "/org/freedesktop/systemd1",
-		SVC_DBUS_INTERFACE ".Manager", "UnitRemoved");
-	if (r < 0)
-		return r;
+        r = sd_bus_message_new_signal(
+                        bus,
+                        &m,
+                        "/org/freedesktop/systemd1",
+                        SVC_DBUS_INTERFACE ".Manager",
+                        "UnitRemoved");
+        if (r < 0)
+                return r;
 
-	r = sd_bus_message_append(m, "so", u->id, p);
-	if (r < 0)
-		return r;
+        r = sd_bus_message_append(m, "so", u->id, p);
+        if (r < 0)
+                return r;
 
-	return sd_bus_send(bus, m, NULL);
+        return sd_bus_send(bus, m, NULL);
 }
 
 void
@@ -918,73 +958,162 @@ bus_unit_send_removed_signal(Unit *u)
 			"Failed to send unit remove signal for %s: %m", u->id);
 }
 
-int
-bus_unit_queue_job(sd_bus *bus, sd_bus_message *message, Unit *u, JobType type,
-	JobMode mode, bool reload_if_possible, sd_bus_error *error)
-{
-	_cleanup_free_ char *path = NULL;
-	Job *j;
-	int r;
+int bus_unit_queue_job_one(
+                sd_bus_message *message,
+                Unit *u,
+                JobType type,
+                JobMode mode,
+                BusUnitQueueFlags flags,
+                sd_bus_message *reply,
+                sd_bus_error *error) {
 
-	assert(bus);
-	assert(message);
-	assert(u);
-	assert(type >= 0 && type < _JOB_TYPE_MAX);
-	assert(mode >= 0 && mode < _JOB_MODE_MAX);
+        _cleanup_set_free_ Set *affected = NULL;
+        _cleanup_free_ char *job_path = NULL, *unit_path = NULL;
+        Job *j, *a;
+        int r;
 
-	if (reload_if_possible && unit_can_reload(u)) {
-		if (type == JOB_RESTART)
-			type = JOB_RELOAD_OR_START;
-		else if (type == JOB_TRY_RESTART)
-			type = JOB_TRY_RELOAD;
-	}
+        if (FLAGS_SET(flags, BUS_UNIT_QUEUE_RELOAD_IF_POSSIBLE) && unit_can_reload(u)) {
+                if (type == JOB_RESTART)
+                        type = JOB_RELOAD_OR_START;
+                else if (type == JOB_TRY_RESTART)
+                        type = JOB_TRY_RELOAD;
+        }
 
-	r = mac_selinux_unit_access_check(u, message,
-		(type == JOB_START || type == JOB_RESTART ||
-			type == JOB_TRY_RESTART) ?
-						 "start" :
-			type == JOB_STOP ? "stop" :
-						 "reload",
-		error);
-	if (r < 0)
-		return r;
+        if (type == JOB_STOP &&
+            IN_SET(u->load_state, UNIT_NOT_FOUND, UNIT_ERROR, UNIT_BAD_SETTING) &&
+            unit_active_state(u) == UNIT_INACTIVE)
+                return sd_bus_error_setf(error, BUS_ERROR_NO_SUCH_UNIT, "Unit %s not loaded.", u->id);
 
-	if (type == JOB_STOP &&
-		(u->load_state == UNIT_NOT_FOUND ||
-			u->load_state == UNIT_ERROR) &&
-		unit_active_state(u) == UNIT_INACTIVE)
-		return sd_bus_error_setf(error, BUS_ERROR_NO_SUCH_UNIT,
-			"Unit %s not loaded.", u->id);
+        if ((type == JOB_START && u->refuse_manual_start) ||
+            (type == JOB_STOP && u->refuse_manual_stop) ||
+            (IN_SET(type, JOB_RESTART, JOB_TRY_RESTART) && (u->refuse_manual_start || u->refuse_manual_stop)) ||
+            (type == JOB_RELOAD_OR_START && job_type_collapse(type, u) == JOB_START && u->refuse_manual_start))
+                return sd_bus_error_setf(error,
+                                         BUS_ERROR_ONLY_BY_DEPENDENCY,
+                                         "Operation refused, unit %s may be requested by dependency only (it is configured to refuse manual start/stop).",
+                                         u->id);
 
-	if ((type == JOB_START && u->refuse_manual_start) ||
-		(type == JOB_STOP && u->refuse_manual_stop) ||
-		((type == JOB_RESTART || type == JOB_TRY_RESTART) &&
-			(u->refuse_manual_start || u->refuse_manual_stop)))
-		return sd_bus_error_setf(error, BUS_ERROR_ONLY_BY_DEPENDENCY,
-			"Operation refused, unit %s may be requested by dependency only (it is configured to refuse manual start/stop).",
-			u->id);
+        /* dbus-broker issues StartUnit for activation requests, and Type=dbus services automatically
+         * gain dependency on dbus.socket. Therefore, if dbus has a pending stop job, the new start
+         * job that pulls in dbus again would cause job type conflict. Let's avoid that by rejecting
+         * job enqueuing early.
+         *
+         * Note that unlike signal_activation_request(), we can't use unit_inactive_or_pending()
+         * here. StartUnit is a more generic interface, and thus users are allowed to use e.g. systemctl
+         * to start Type=dbus services even when dbus is inactive. */
+        if (type == JOB_START && u->type == UNIT_SERVICE && SERVICE(u)->type == SERVICE_DBUS)
+                FOREACH_STRING(dbus_unit, SPECIAL_DBUS_SOCKET, SPECIAL_DBUS_SERVICE) {
+                        Unit *dbus;
 
-	r = manager_add_job(u->manager, type, u, mode, true, error, &j);
-	if (r < 0)
-		return r;
+                        dbus = manager_get_unit(u->manager, dbus_unit);
+                        if (dbus && unit_stop_pending(dbus))
+                                return sd_bus_error_setf(error,
+                                                         BUS_ERROR_SHUTTING_DOWN,
+                                                         "Operation for unit %s refused, D-Bus is shutting down.",
+                                                         u->id);
+                }
 
-	if (bus == u->manager->api_bus) {
-		if (!j->clients) {
-			r = sd_bus_track_new(bus, &j->clients, NULL, NULL);
-			if (r < 0)
-				return r;
-		}
+        if (FLAGS_SET(flags, BUS_UNIT_QUEUE_VERBOSE_REPLY)) {
+                affected = set_new(NULL);
+                if (!affected)
+                        return -ENOMEM;
+        }
 
-		r = sd_bus_track_add_sender(j->clients, message);
-		if (r < 0)
-			return r;
-	}
+        r = manager_add_job(u->manager, type, u, mode, affected, error, &j);
+        if (r < 0)
+                return r;
 
-	path = job_dbus_path(j);
-	if (!path)
-		return -ENOMEM;
+        r = bus_job_track_sender(j, message);
+        if (r < 0)
+                return r;
 
-	return sd_bus_reply_method_return(message, "o", path);
+        /* Before we send the method reply, force out the announcement JobNew for this job */
+        bus_job_send_pending_change_signal(j, true);
+
+        job_path = job_dbus_path(j);
+        if (!job_path)
+                return -ENOMEM;
+
+        /* The classic response is just a job object path */
+        if (!FLAGS_SET(flags, BUS_UNIT_QUEUE_VERBOSE_REPLY))
+                return sd_bus_message_append(reply, "o", job_path);
+
+        /* In verbose mode respond with the anchor job plus everything that has been affected */
+
+        unit_path = unit_dbus_path(j->unit);
+        if (!unit_path)
+                return -ENOMEM;
+
+        r = sd_bus_message_append(reply, "uosos",
+                                  j->id, job_path,
+                                  j->unit->id, unit_path,
+                                  job_type_to_string(j->type));
+        if (r < 0)
+                return r;
+
+        r = sd_bus_message_open_container(reply, 'a', "(uosos)");
+        if (r < 0)
+                return r;
+
+        SET_FOREACH(a, affected) {
+                if (a->id == j->id)
+                        continue;
+
+                /* Free paths from previous iteration */
+                job_path = mfree(job_path);
+                unit_path = mfree(unit_path);
+
+                job_path = job_dbus_path(a);
+                if (!job_path)
+                        return -ENOMEM;
+
+                unit_path = unit_dbus_path(a->unit);
+                if (!unit_path)
+                        return -ENOMEM;
+
+                r = sd_bus_message_append(reply, "(uosos)",
+                                          a->id, job_path,
+                                          a->unit->id, unit_path,
+                                          job_type_to_string(a->type));
+                if (r < 0)
+                        return r;
+        }
+
+        return sd_bus_message_close_container(reply);
+}
+
+int bus_unit_queue_job(
+                sd_bus_message *message,
+                Unit *u,
+                JobType type,
+                JobMode mode,
+                BusUnitQueueFlags flags,
+                sd_bus_error *error) {
+
+        _cleanup_(sd_bus_message_unrefp) sd_bus_message *reply = NULL;
+        int r;
+
+        assert(message);
+        assert(u);
+        assert(type >= 0 && type < _JOB_TYPE_MAX);
+        assert(mode >= 0 && mode < _JOB_MODE_MAX);
+
+        r = mac_selinux_unit_access_check(
+                        u, message,
+                        job_type_to_access_method(type),
+                        error);
+        if (r < 0)
+                return r;
+
+        r = sd_bus_message_new_method_return(message, &reply);
+        if (r < 0)
+                return r;
+
+        r = bus_unit_queue_job_one(message, u, type, mode, flags, reply, error);
+        if (r < 0)
+                return r;
+
+        return sd_bus_send(NULL, reply, NULL);
 }
 
 static int

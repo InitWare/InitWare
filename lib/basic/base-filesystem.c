@@ -24,11 +24,13 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "base-filesystem.h"
 #include "label.h"
 #include "log.h"
 #include "macro.h"
 #include "mkdir.h"
+#include "nulstr-util.h"
 #include "strv.h"
 #include "util.h"
 

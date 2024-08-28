@@ -24,20 +24,32 @@
 #include <stddef.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "catalog.h"
 #include "compress.h"
+#include "dirent-util.h"
+#include "env-file.h"
+#include "fd-util.h"
 #include "fileio.h"
 #include "hashmap.h"
+#include "hostname-util.h"
+#include "id128-util.h"
+#include "inotify-util.h"
 #include "journal-def.h"
 #include "journal-file.h"
 #include "journal-internal.h"
 #include "list.h"
 #include "lookup3.h"
 #include "missing.h"
+#include "nulstr-util.h"
+#include "origin-id.h"
 #include "path-util.h"
 #include "replace-var.h"
 #include "sd-journal.h"
+#include "sort-util.h"
+#include "stat-util.h"
 #include "strv.h"
+#include "syslog-util.h"
 
 #ifdef SVC_PLATFORM_Linux
 #include <sys/vfs.h>
@@ -52,18 +64,9 @@
 
 #define DEFAULT_DATA_THRESHOLD (64 * 1024)
 
+DEFINE_PRIVATE_ORIGIN_ID_HELPERS(sd_journal, journal);
+
 static void remove_file_real(sd_journal *j, JournalFile *f);
-
-static bool
-journal_pid_changed(sd_journal *j)
-{
-	assert(j);
-
-	/* We don't support people creating a journal object and
-         * keeping it around over a fork(). Let's complain. */
-
-	return j->original_pid != getpid();
-}
 
 static int
 journal_put_error(sd_journal *j, int r, const char *path)
@@ -109,19 +112,16 @@ journal_put_error(sd_journal *j, int r, const char *path)
 	return 0;
 }
 
-static void
-detach_location(sd_journal *j)
-{
-	Iterator i;
-	JournalFile *f;
+static void detach_location(sd_journal *j) {
+        JournalFile *f;
 
-	assert(j);
+        assert(j);
 
-	j->current_file = NULL;
-	j->current_field = 0;
+        j->current_file = NULL;
+        j->current_field = 0;
 
-	ORDERED_HASHMAP_FOREACH (f, j->files, i)
-		journal_file_reset_location(f);
+        ORDERED_HASHMAP_FOREACH(f, j->files)
+                journal_file_reset_location(f);
 }
 
 static void
@@ -217,7 +217,7 @@ same_field(const void *_a, size_t s, const void *_b, size_t t)
 			return true;
 	}
 
-	assert_not_reached("\"=\" not found");
+	assert_not_reached();
 }
 
 static Match *
@@ -233,174 +233,204 @@ match_new(Match *p, MatchType t)
 
 	if (p) {
 		m->parent = p;
-		IWLIST_PREPEND(matches, p->matches, m);
+		LIST_PREPEND(matches, p->matches, m);
 	}
 
 	return m;
 }
 
-static void
-match_free(Match *m)
-{
-	assert(m);
+static Match *match_free(Match *m) {
+        assert(m);
 
-	while (m->matches)
-		match_free(m->matches);
+        while (m->matches)
+                match_free(m->matches);
 
-	if (m->parent)
-		IWLIST_REMOVE(matches, m->parent->matches, m);
+        if (m->parent)
+                LIST_REMOVE(matches, m->parent->matches, m);
 
-	free(m->data);
-	free(m);
+        free(m->data);
+        return mfree(m);
 }
 
-static void
-match_free_if_empty(Match *m)
-{
-	if (!m || m->matches)
-		return;
+static Match *match_free_if_empty(Match *m) {
+        if (!m || m->matches)
+                return m;
 
-	match_free(m);
+        return match_free(m);
 }
 
-_public_ int
-sd_journal_add_match(sd_journal *j, const void *data, size_t size)
-{
-	Match *l3, *l4, *add_here = NULL, *m;
-	le64_t le_hash;
+_public_ int sd_journal_add_match(sd_journal *j, const void *data, size_t size) {
+        Match *add_here = NULL, *m = NULL;
+        uint64_t hash;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
-	assert_return(data, -EINVAL);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(data, -EINVAL);
 
-	if (size == 0)
-		size = strlen(data);
+        /* If the size is unspecified, assume it's a string. Note: 0 is the public value we document for
+         * this, for historical reasons. Internally, we pretty widely started using SIZE_MAX for this in
+         * similar cases however, hence accept that too. And internally we actually prefer it, to make things
+         * less surprising. */
+        if (IN_SET(size, 0, SIZE_MAX))
+                size = strlen(data);
 
-	assert_return(match_is_valid(data, size), -EINVAL);
+        if (!match_is_valid(data, size))
+                return -EINVAL;
 
-	/* level 0: AND term
+        /* level 0: AND term
          * level 1: OR terms
          * level 2: AND terms
          * level 3: OR terms
          * level 4: concrete matches */
 
-	if (!j->level0) {
-		j->level0 = match_new(NULL, MATCH_AND_TERM);
-		if (!j->level0)
-			return -ENOMEM;
-	}
+        if (!j->level0) {
+                j->level0 = match_new(NULL, MATCH_AND_TERM);
+                if (!j->level0)
+                        return -ENOMEM;
+        }
 
-	if (!j->level1) {
-		j->level1 = match_new(j->level0, MATCH_OR_TERM);
-		if (!j->level1)
-			return -ENOMEM;
-	}
+        if (!j->level1) {
+                j->level1 = match_new(j->level0, MATCH_OR_TERM);
+                if (!j->level1)
+                        return -ENOMEM;
+        }
 
-	if (!j->level2) {
-		j->level2 = match_new(j->level1, MATCH_AND_TERM);
-		if (!j->level2)
-			return -ENOMEM;
-	}
+        if (!j->level2) {
+                j->level2 = match_new(j->level1, MATCH_AND_TERM);
+                if (!j->level2)
+                        return -ENOMEM;
+        }
 
-	assert(j->level0->type == MATCH_AND_TERM);
-	assert(j->level1->type == MATCH_OR_TERM);
-	assert(j->level2->type == MATCH_AND_TERM);
+        assert(j->level0->type == MATCH_AND_TERM);
+        assert(j->level1->type == MATCH_OR_TERM);
+        assert(j->level2->type == MATCH_AND_TERM);
 
-	le_hash = htole64(hash64(data, size));
+        /* Old-style Jenkins (unkeyed) hashing only here. We do not cover new-style siphash (keyed) hashing
+         * here, since it's different for each file, and thus can't be pre-calculated in the Match object. */
+        hash = jenkins_hash64(data, size);
 
-	IWLIST_FOREACH (matches, l3, j->level2->matches) {
-		assert(l3->type == MATCH_OR_TERM);
+        LIST_FOREACH(matches, l3, j->level2->matches) {
+                assert(l3->type == MATCH_OR_TERM);
 
-		IWLIST_FOREACH (matches, l4, l3->matches) {
-			assert(l4->type == MATCH_DISCRETE);
+                LIST_FOREACH(matches, l4, l3->matches) {
+                        assert(l4->type == MATCH_DISCRETE);
 
-			/* Exactly the same match already? Then ignore
+                        /* Exactly the same match already? Then ignore
                          * this addition */
-			if (l4->le_hash == le_hash && l4->size == size &&
-				memcmp(l4->data, data, size) == 0)
-				return 0;
+                        if (l4->hash == hash &&
+                            l4->size == size &&
+                            memcmp(l4->data, data, size) == 0)
+                                return 0;
 
-			/* Same field? Then let's add this to this OR term */
-			if (same_field(data, size, l4->data, l4->size)) {
-				add_here = l3;
-				break;
-			}
-		}
+                        /* Same field? Then let's add this to this OR term */
+                        if (same_field(data, size, l4->data, l4->size)) {
+                                add_here = l3;
+                                break;
+                        }
+                }
 
-		if (add_here)
-			break;
-	}
+                if (add_here)
+                        break;
+        }
 
-	if (!add_here) {
-		add_here = match_new(j->level2, MATCH_OR_TERM);
-		if (!add_here)
-			goto fail;
-	}
+        if (!add_here) {
+                add_here = match_new(j->level2, MATCH_OR_TERM);
+                if (!add_here)
+                        goto fail;
+        }
 
-	m = match_new(add_here, MATCH_DISCRETE);
-	if (!m)
-		goto fail;
+        m = match_new(add_here, MATCH_DISCRETE);
+        if (!m)
+                goto fail;
 
-	m->le_hash = le_hash;
-	m->size = size;
-	m->data = memdup(data, size);
-	if (!m->data)
-		goto fail;
+        m->hash = hash;
+        m->size = size;
+        m->data = memdup(data, size);
+        if (!m->data)
+                goto fail;
 
-	detach_location(j);
+        detach_location(j);
 
-	return 0;
+        return 0;
 
 fail:
-	match_free_if_empty(add_here);
-	match_free_if_empty(j->level2);
-	match_free_if_empty(j->level1);
-	match_free_if_empty(j->level0);
+        match_free(m);
+        match_free_if_empty(add_here);
+        j->level2 = match_free_if_empty(j->level2);
+        j->level1 = match_free_if_empty(j->level1);
+        j->level0 = match_free_if_empty(j->level0);
 
-	return -ENOMEM;
+        return -ENOMEM;
 }
 
-_public_ int
-sd_journal_add_conjunction(sd_journal *j)
-{
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
+int journal_add_match_pair(sd_journal *j, const char *field, const char *value) {
+        _cleanup_free_ char *s = NULL;
 
-	if (!j->level0)
-		return 0;
+        assert(j);
+        assert(field);
+        assert(value);
 
-	if (!j->level1)
-		return 0;
+        s = strjoin(field, "=", value);
+        if (!s)
+                return -ENOMEM;
 
-	if (!j->level1->matches)
-		return 0;
-
-	j->level1 = NULL;
-	j->level2 = NULL;
-
-	return 0;
+        return sd_journal_add_match(j, s, SIZE_MAX);
 }
 
-_public_ int
-sd_journal_add_disjunction(sd_journal *j)
-{
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
+int journal_add_matchf(sd_journal *j, const char *format, ...) {
+        _cleanup_free_ char *s = NULL;
+        va_list ap;
+        int r;
 
-	if (!j->level0)
-		return 0;
+        assert(j);
+        assert(format);
 
-	if (!j->level1)
-		return 0;
+        va_start(ap, format);
+        r = vasprintf(&s, format, ap);
+        va_end(ap);
+        if (r < 0)
+                return -ENOMEM;
 
-	if (!j->level2)
-		return 0;
+        return sd_journal_add_match(j, s, SIZE_MAX);
+}
 
-	if (!j->level2->matches)
-		return 0;
+_public_ int sd_journal_add_conjunction(sd_journal *j) {
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
 
-	j->level2 = NULL;
-	return 0;
+        if (!j->level0)
+                return 0;
+
+        if (!j->level1)
+                return 0;
+
+        if (!j->level1->matches)
+                return 0;
+
+        j->level1 = NULL;
+        j->level2 = NULL;
+
+        return 0;
+}
+
+_public_ int sd_journal_add_disjunction(sd_journal *j) {
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+
+        if (!j->level0)
+                return 0;
+
+        if (!j->level1)
+                return 0;
+
+        if (!j->level2)
+                return 0;
+
+        if (!j->level2->matches)
+                return 0;
+
+        j->level2 = NULL;
+        return 0;
 }
 
 static char *
@@ -417,7 +447,7 @@ match_make_string(Match *m)
 		return strndup(m->data, m->size);
 
 	p = NULL;
-	IWLIST_FOREACH (matches, i, m->matches) {
+	LIST_FOREACH (matches, i, m->matches) {
 		char *t, *k;
 
 		t = match_make_string(i);
@@ -474,453 +504,768 @@ sd_journal_flush_matches(sd_journal *j)
 	detach_location(j);
 }
 
-_pure_ static int
-compare_with_location(JournalFile *f, Location *l)
-{
-	assert(f);
-	assert(l);
-	assert(f->location_type == LOCATION_SEEK);
-	assert(l->type == LOCATION_DISCRETE || l->type == LOCATION_SEEK);
-
-	if (l->monotonic_set &&
-		sd_id128_equal(f->current_boot_id, l->boot_id) &&
-		l->realtime_set && f->current_realtime == l->realtime &&
-		l->xor_hash_set && f->current_xor_hash == l->xor_hash)
-		return 0;
-
-	if (l->seqnum_set &&
-		sd_id128_equal(f->header->seqnum_id, l->seqnum_id)) {
-		if (f->current_seqnum < l->seqnum)
-			return -1;
-		if (f->current_seqnum > l->seqnum)
-			return 1;
-	}
-
-	if (l->monotonic_set &&
-		sd_id128_equal(f->current_boot_id, l->boot_id)) {
-		if (f->current_monotonic < l->monotonic)
-			return -1;
-		if (f->current_monotonic > l->monotonic)
-			return 1;
-	}
-
-	if (l->realtime_set) {
-		if (f->current_realtime < l->realtime)
-			return -1;
-		if (f->current_realtime > l->realtime)
-			return 1;
-	}
-
-	if (l->xor_hash_set) {
-		if (f->current_xor_hash < l->xor_hash)
-			return -1;
-		if (f->current_xor_hash > l->xor_hash)
-			return 1;
-	}
-
-	return 0;
+static int newest_by_boot_id_compare(const NewestByBootId *a, const NewestByBootId *b) {
+        return id128_compare_func(&a->boot_id, &b->boot_id);
 }
 
-static int
-next_for_match(sd_journal *j, Match *m, JournalFile *f, uint64_t after_offset,
-	direction_t direction, Object **ret, uint64_t *offset)
-{
-	int r;
-	uint64_t np = 0;
-	Object *n;
+static void journal_file_unlink_newest_by_boot_id(sd_journal *j, JournalFile *f) {
+        NewestByBootId *found;
 
-	assert(j);
-	assert(m);
-	assert(f);
+        assert(j);
+        assert(f);
 
-	if (m->type == MATCH_DISCRETE) {
-		uint64_t dp;
+        if (f->newest_boot_id_prioq_idx == PRIOQ_IDX_NULL) /* not linked currently, hence this is a NOP */
+                return;
 
-		r = journal_file_find_data_object_with_hash(f, m->data, m->size,
-			le64toh(m->le_hash), NULL, &dp);
-		if (r <= 0)
-			return r;
+        found = typesafe_bsearch(&(NewestByBootId) { .boot_id = f->newest_boot_id },
+                                 j->newest_by_boot_id, j->n_newest_by_boot_id, newest_by_boot_id_compare);
+        assert(found);
 
-		return journal_file_move_to_entry_by_offset_for_data(f, dp,
-			after_offset, direction, ret, offset);
+        assert_se(prioq_remove(found->prioq, f, &f->newest_boot_id_prioq_idx) > 0);
+        f->newest_boot_id_prioq_idx = PRIOQ_IDX_NULL;
 
-	} else if (m->type == MATCH_OR_TERM) {
-		Match *i;
+        /* The prioq may be empty, but that should not cause any issue. Let's keep it. */
+}
 
-		/* Find the earliest match beyond after_offset */
+static void journal_clear_newest_by_boot_id(sd_journal *j) {
+        FOREACH_ARRAY(i, j->newest_by_boot_id, j->n_newest_by_boot_id) {
+                JournalFile *f;
 
-		IWLIST_FOREACH (matches, i, m->matches) {
-			uint64_t cp;
+                while ((f = prioq_peek(i->prioq)))
+                        journal_file_unlink_newest_by_boot_id(j, f);
 
-			r = next_for_match(j, i, f, after_offset, direction,
-				NULL, &cp);
-			if (r < 0)
-				return r;
-			else if (r > 0) {
-				if (np == 0 ||
-					(direction == DIRECTION_DOWN ? cp < np :
-									     cp > np))
-					np = cp;
-			}
-		}
+                prioq_free(i->prioq);
+        }
 
-		if (np == 0)
-			return 0;
+        j->newest_by_boot_id = mfree(j->newest_by_boot_id);
+        j->n_newest_by_boot_id = 0;
+}
 
-	} else if (m->type == MATCH_AND_TERM) {
-		Match *i, *last_moved;
+static int journal_file_newest_monotonic_compare(const void *a, const void *b) {
+        const JournalFile *x = a, *y = b;
 
-		/* Always jump to the next matching entry and repeat
+        return -CMP(x->newest_monotonic_usec, y->newest_monotonic_usec); /* Invert order, we want newest first! */
+}
+
+static int journal_file_reshuffle_newest_by_boot_id(sd_journal *j, JournalFile *f) {
+        NewestByBootId *found;
+        int r;
+
+        assert(j);
+        assert(f);
+
+        found = typesafe_bsearch(&(NewestByBootId) { .boot_id = f->newest_boot_id },
+                                 j->newest_by_boot_id, j->n_newest_by_boot_id, newest_by_boot_id_compare);
+        if (found) {
+                /* There's already a priority queue for this boot ID */
+
+                if (f->newest_boot_id_prioq_idx == PRIOQ_IDX_NULL) {
+                        r = prioq_put(found->prioq, f, &f->newest_boot_id_prioq_idx); /* Insert if we aren't in there yet */
+                        if (r < 0)
+                                return r;
+                } else
+                        prioq_reshuffle(found->prioq, f, &f->newest_boot_id_prioq_idx); /* Reshuffle otherwise */
+
+        } else {
+                _cleanup_(prioq_freep) Prioq *q = NULL;
+
+                /* No priority queue yet, then allocate one */
+
+                assert(f->newest_boot_id_prioq_idx == PRIOQ_IDX_NULL); /* we can't be a member either */
+
+                q = prioq_new(journal_file_newest_monotonic_compare);
+                if (!q)
+                        return -ENOMEM;
+
+                r = prioq_put(q, f, &f->newest_boot_id_prioq_idx);
+                if (r < 0)
+                        return r;
+
+                if (!GREEDY_REALLOC(j->newest_by_boot_id, j->n_newest_by_boot_id + 1)) {
+                        f->newest_boot_id_prioq_idx = PRIOQ_IDX_NULL;
+                        return -ENOMEM;
+                }
+
+                j->newest_by_boot_id[j->n_newest_by_boot_id++] = (NewestByBootId) {
+                        .boot_id = f->newest_boot_id,
+                        .prioq = TAKE_PTR(q),
+                };
+
+                typesafe_qsort(j->newest_by_boot_id, j->n_newest_by_boot_id, newest_by_boot_id_compare);
+        }
+
+        return 0;
+}
+
+static int journal_file_read_tail_timestamp(sd_journal *j, JournalFile *f) {
+        uint64_t offset, mo, rt;
+        sd_id128_t id;
+        ObjectType type;
+        Object *o;
+        int r;
+
+        assert(j);
+        assert(f);
+        assert(f->header);
+
+        /* Tries to read the timestamp of the most recently written entry. */
+
+        if (FLAGS_SET(j->flags, SD_JOURNAL_ASSUME_IMMUTABLE) && f->newest_entry_offset != 0)
+                return 0; /* We have already read the file, and we assume that the file is immutable. */
+
+        if (f->header->state == f->newest_state &&
+            f->header->state == STATE_ARCHIVED &&
+            f->newest_entry_offset != 0)
+                return 0; /* We have already read archived file. */
+
+        if (JOURNAL_HEADER_CONTAINS(f->header, tail_entry_offset)) {
+                offset = le64toh(READ_NOW(f->header->tail_entry_offset));
+                type = OBJECT_ENTRY;
+        } else {
+                offset = le64toh(READ_NOW(f->header->tail_object_offset));
+                type = OBJECT_UNUSED;
+        }
+        if (offset == 0)
+                return -ENODATA; /* not a single object/entry, hence no tail timestamp */
+        if (offset == f->newest_entry_offset)
+                return 0; /* No new entry is added after we read last time. */
+
+        /* Move to the last object in the journal file, in the hope it is an entry (which it usually will
+         * be). If we lack the "tail_entry_offset" field in the header, we specify the type as OBJECT_UNUSED
+         * here, since we cannot be sure what the last object will be, and want no noisy logging if it isn't
+         * an entry. We instead check after figuring out the pointer. */
+        r = journal_file_move_to_object(f, type, offset, &o);
+        if (r < 0) {
+                log_debug_errno(r, "Failed to move to last object in journal file, ignoring: %m");
+                o = NULL;
+                offset = 0;
+        }
+        if (o && o->object.type == OBJECT_ENTRY) {
+                /* Yay, last object is an entry, let's use the data. */
+                id = o->entry.boot_id;
+                mo = le64toh(o->entry.monotonic);
+                rt = le64toh(o->entry.realtime);
+        } else {
+                /* So the object is not an entry or we couldn't access it? In that case, let's read the most
+                 * recent entry timestamps from the header. It's equally good. Unfortunately though, in old
+                 * versions of the journal the boot ID in the header doesn't have to match the monotonic
+                 * timestamp of the header. Let's check the header flag that indicates whether this strictly
+                 * matches first hence, before using the data. */
+
+                if (JOURNAL_HEADER_TAIL_ENTRY_BOOT_ID(f->header) && f->header->state == STATE_ARCHIVED) {
+                        mo = le64toh(f->header->tail_entry_monotonic);
+                        rt = le64toh(f->header->tail_entry_realtime);
+                        id = f->header->tail_entry_boot_id;
+                        offset = UINT64_MAX;
+                } else {
+                        /* Otherwise let's find the last entry manually (this possibly means traversing the
+                         * chain of entry arrays, till the end */
+                        r = journal_file_next_entry(f, 0, DIRECTION_UP, &o, offset == 0 ? &offset : NULL);
+                        if (r < 0)
+                                return r;
+                        if (r == 0)
+                                return -ENODATA;
+
+                        id = o->entry.boot_id;
+                        mo = le64toh(o->entry.monotonic);
+                        rt = le64toh(o->entry.realtime);
+                }
+        }
+
+        if (mo > rt) /* monotonic clock is further ahead than realtime? that's weird, refuse to use the data */
+                return -ENODATA;
+
+        if (offset == f->newest_entry_offset) {
+                /* Cached data and the current one should be equivalent. */
+                if (!sd_id128_equal(f->newest_machine_id, f->header->machine_id) ||
+                    !sd_id128_equal(f->newest_boot_id, id) ||
+                    f->newest_monotonic_usec != mo ||
+                    f->newest_realtime_usec != rt)
+                        return -EBADMSG;
+
+                return 0; /* No new entry is added after we read last time. */
+        }
+
+        if (!sd_id128_equal(f->newest_boot_id, id))
+                journal_file_unlink_newest_by_boot_id(j, f);
+
+        f->newest_boot_id = id;
+        f->newest_monotonic_usec = mo;
+        f->newest_realtime_usec = rt;
+        f->newest_machine_id = f->header->machine_id;
+        f->newest_entry_offset = offset;
+        f->newest_state = f->header->state;
+
+        r = journal_file_reshuffle_newest_by_boot_id(j, f);
+        if (r < 0)
+                return r;
+
+        return 1; /* Updated. */
+}
+
+static int journal_file_find_newest_for_boot_id(
+                sd_journal *j,
+                sd_id128_t id,
+                JournalFile **ret) {
+
+        JournalFile *prev = NULL;
+        int r;
+
+        assert(j);
+        assert(ret);
+
+        /* Before we use it, let's refresh the timestamp from the header, and reshuffle our prioq
+         * accordingly. We do this only a bunch of times, to not be caught in some update loop. */
+        for (unsigned n_tries = 0;; n_tries++) {
+                NewestByBootId *found;
+                JournalFile *f;
+
+                found = typesafe_bsearch(&(NewestByBootId) { .boot_id = id },
+                                         j->newest_by_boot_id, j->n_newest_by_boot_id, newest_by_boot_id_compare);
+
+                f = found ? prioq_peek(found->prioq) : NULL;
+                if (!f)
+                        return log_debug_errno(SYNTHETIC_ERRNO(ENODATA),
+                                               "Requested delta for boot ID %s, but we have no information about that boot ID.", SD_ID128_TO_STRING(id));
+
+                if (f == prev || n_tries >= 5) {
+                        /* This was already the best answer in the previous run, or we tried too often, use it */
+                        *ret = f;
+                        return 0;
+                }
+
+                prev = f;
+
+                /* Let's read the journal file's current timestamp once, before we return it, maybe it has changed. */
+                r = journal_file_read_tail_timestamp(j, f);
+                if (r < 0)
+                        return log_debug_errno(r, "Failed to read tail timestamp while trying to find newest journal file for boot ID %s.", SD_ID128_TO_STRING(id));
+                if (r == 0) {
+                        /* No new entry found. */
+                        *ret = f;
+                        return 0;
+                }
+
+                /* Refreshing the timestamp we read might have reshuffled the prioq, hence let's check the
+                 * prioq again and only use the information once we reached an equilibrium or hit a limit */
+        }
+}
+
+static int compare_boot_ids(sd_journal *j, sd_id128_t a, sd_id128_t b) {
+        JournalFile *x, *y;
+
+        assert(j);
+
+        /* Try to find the newest open journal file for the two boot ids */
+        if (journal_file_find_newest_for_boot_id(j, a, &x) < 0 ||
+            journal_file_find_newest_for_boot_id(j, b, &y) < 0)
+                return 0;
+
+        /* Only compare the boot id timestamps if they originate from the same machine. If they are from
+         * different machines, then we timestamps of the boot ids might be as off as the timestamps on the
+         * entries and hence not useful for comparing. */
+        if (!sd_id128_equal(x->newest_machine_id, y->newest_machine_id))
+                return 0;
+
+        return CMP(x->newest_realtime_usec, y->newest_realtime_usec);
+}
+
+static int compare_with_location(
+                sd_journal *j,
+                const JournalFile *f,
+                const Location *l,
+                const JournalFile *current_file) {
+        int r;
+
+        assert(j);
+        assert(f);
+        assert(l);
+        assert(f->location_type == LOCATION_SEEK);
+        assert(IN_SET(l->type, LOCATION_DISCRETE, LOCATION_SEEK));
+
+        if (l->monotonic_set &&
+            sd_id128_equal(f->current_boot_id, l->boot_id) &&
+            l->realtime_set &&
+            f->current_realtime == l->realtime &&
+            l->xor_hash_set &&
+            f->current_xor_hash == l->xor_hash &&
+            l->seqnum_set &&
+            sd_id128_equal(f->header->seqnum_id, l->seqnum_id) &&
+            f->current_seqnum == l->seqnum &&
+            f != current_file)
+                return 0;
+
+        if (l->seqnum_set &&
+            sd_id128_equal(f->header->seqnum_id, l->seqnum_id)) {
+                r = CMP(f->current_seqnum, l->seqnum);
+                if (r != 0)
+                        return r;
+        }
+
+        if (l->monotonic_set) {
+                /* If both arguments have the same boot ID, then we can compare the monotonic timestamps. If
+                 * they are distinct, then we might able to lookup the timestamps of those boot IDs (if they
+                 * are from the same machine) and order by that. */
+                if (sd_id128_equal(f->current_boot_id, l->boot_id))
+                        r = CMP(f->current_monotonic, l->monotonic);
+                else
+                        r = compare_boot_ids(j, f->current_boot_id, l->boot_id);
+                if (r != 0)
+                        return r;
+        }
+
+        if (l->realtime_set) {
+                r = CMP(f->current_realtime, l->realtime);
+                if (r != 0)
+                        return r;
+        }
+
+        if (l->xor_hash_set) {
+                r = CMP(f->current_xor_hash, l->xor_hash);
+                if (r != 0)
+                        return r;
+        }
+
+        return 0;
+}
+
+static int next_for_match(
+                sd_journal *j,
+                Match *m,
+                JournalFile *f,
+                uint64_t after_offset,
+                direction_t direction,
+                Object **ret,
+                uint64_t *offset) {
+
+        int r;
+        uint64_t np = 0;
+
+        assert(j);
+        assert(m);
+        assert(f);
+
+        if (m->type == MATCH_DISCRETE) {
+                Object *d;
+                uint64_t hash;
+
+                /* If the keyed hash logic is used, we need to calculate the hash fresh per file. Otherwise
+                 * we can use what we pre-calculated. */
+                if (JOURNAL_HEADER_KEYED_HASH(f->header))
+                        hash = journal_file_hash_data(f, m->data, m->size);
+                else
+                        hash = m->hash;
+
+                r = journal_file_find_data_object_with_hash(f, m->data, m->size, hash, &d, NULL);
+                if (r <= 0)
+                        return r;
+
+                return journal_file_move_to_entry_by_offset_for_data(f, d, after_offset, direction, ret, offset);
+
+        } else if (m->type == MATCH_OR_TERM) {
+
+                /* Find the earliest match beyond after_offset */
+
+                LIST_FOREACH(matches, i, m->matches) {
+                        uint64_t cp;
+
+                        r = next_for_match(j, i, f, after_offset, direction, NULL, &cp);
+                        if (r < 0)
+                                return r;
+                        else if (r > 0) {
+                                if (np == 0 || (direction == DIRECTION_DOWN ? cp < np : cp > np))
+                                        np = cp;
+                        }
+                }
+
+                if (np == 0)
+                        return 0;
+
+        } else if (m->type == MATCH_AND_TERM) {
+                Match *last_moved;
+
+                /* Always jump to the next matching entry and repeat
                  * this until we find an offset that matches for all
                  * matches. */
 
-		if (!m->matches)
-			return 0;
+                if (!m->matches)
+                        return 0;
 
-		r = next_for_match(j, m->matches, f, after_offset, direction,
-			NULL, &np);
-		if (r <= 0)
-			return r;
+                r = next_for_match(j, m->matches, f, after_offset, direction, NULL, &np);
+                if (r <= 0)
+                        return r;
 
-		assert(direction == DIRECTION_DOWN ? np >= after_offset :
-							   np <= after_offset);
-		last_moved = m->matches;
+                assert(direction == DIRECTION_DOWN ? np >= after_offset : np <= after_offset);
+                last_moved = m->matches;
 
-		IWLIST_LOOP_BUT_ONE(matches, i, m->matches, last_moved)
-		{
-			uint64_t cp;
+                LIST_LOOP_BUT_ONE(matches, i, m->matches, last_moved) {
+                        uint64_t cp;
 
-			r = next_for_match(j, i, f, np, direction, NULL, &cp);
-			if (r <= 0)
-				return r;
+                        r = next_for_match(j, i, f, np, direction, NULL, &cp);
+                        if (r <= 0)
+                                return r;
 
-			assert(direction == DIRECTION_DOWN ? cp >= np :
-								   cp <= np);
-			if (direction == DIRECTION_DOWN ? cp > np : cp < np) {
-				np = cp;
-				last_moved = i;
-			}
-		}
-	}
+                        assert(direction == DIRECTION_DOWN ? cp >= np : cp <= np);
+                        if (direction == DIRECTION_DOWN ? cp > np : cp < np) {
+                                np = cp;
+                                last_moved = i;
+                        }
+                }
+        }
 
-	assert(np > 0);
+        assert(np > 0);
 
-	r = journal_file_move_to_object(f, OBJECT_ENTRY, np, &n);
-	if (r < 0)
-		return r;
+        if (ret) {
+                r = journal_file_move_to_object(f, OBJECT_ENTRY, np, ret);
+                if (r < 0)
+                        return r;
+        }
 
-	if (ret)
-		*ret = n;
-	if (offset)
-		*offset = np;
+        if (offset)
+                *offset = np;
 
-	return 1;
+        return 1;
 }
 
-static int
-find_location_for_match(sd_journal *j, Match *m, JournalFile *f,
-	direction_t direction, Object **ret, uint64_t *offset)
-{
-	int r;
+static int find_location_for_match(
+                sd_journal *j,
+                Match *m,
+                JournalFile *f,
+                direction_t direction,
+                Object **ret,
+                uint64_t *offset) {
 
-	assert(j);
-	assert(m);
-	assert(f);
+        int r;
 
-	if (m->type == MATCH_DISCRETE) {
-		uint64_t dp;
+        assert(j);
+        assert(m);
+        assert(f);
 
-		r = journal_file_find_data_object_with_hash(f, m->data, m->size,
-			le64toh(m->le_hash), NULL, &dp);
-		if (r <= 0)
-			return r;
+        if (m->type == MATCH_DISCRETE) {
+                Object *d;
+                uint64_t dp, hash;
 
-		/* FIXME: missing: find by monotonic */
+                if (JOURNAL_HEADER_KEYED_HASH(f->header))
+                        hash = journal_file_hash_data(f, m->data, m->size);
+                else
+                        hash = m->hash;
 
-		if (j->current_location.type == LOCATION_HEAD)
-			return journal_file_next_entry_for_data(f, NULL, 0, dp,
-				DIRECTION_DOWN, ret, offset);
-		if (j->current_location.type == LOCATION_TAIL)
-			return journal_file_next_entry_for_data(f, NULL, 0, dp,
-				DIRECTION_UP, ret, offset);
-		if (j->current_location.seqnum_set &&
-			sd_id128_equal(j->current_location.seqnum_id,
-				f->header->seqnum_id))
-			return journal_file_move_to_entry_by_seqnum_for_data(f,
-				dp, j->current_location.seqnum, direction, ret,
-				offset);
-		if (j->current_location.monotonic_set) {
-			r = journal_file_move_to_entry_by_monotonic_for_data(f,
-				dp, j->current_location.boot_id,
-				j->current_location.monotonic, direction, ret,
-				offset);
-			if (r != -ENOENT)
-				return r;
-		}
-		if (j->current_location.realtime_set)
-			return journal_file_move_to_entry_by_realtime_for_data(
-				f, dp, j->current_location.realtime, direction,
-				ret, offset);
+                r = journal_file_find_data_object_with_hash(f, m->data, m->size, hash, &d, &dp);
+                if (r <= 0)
+                        return r;
 
-		return journal_file_next_entry_for_data(f, NULL, 0, dp,
-			direction, ret, offset);
+                /* FIXME: missing: find by monotonic */
 
-	} else if (m->type == MATCH_OR_TERM) {
-		uint64_t np = 0;
-		Object *n;
-		Match *i;
+                if (j->current_location.type == LOCATION_HEAD)
+                        return direction == DIRECTION_DOWN ? journal_file_move_to_entry_for_data(f, d, DIRECTION_DOWN, ret, offset) : 0;
+                if (j->current_location.type == LOCATION_TAIL)
+                        return direction == DIRECTION_UP ? journal_file_move_to_entry_for_data(f, d, DIRECTION_UP, ret, offset) : 0;
+                if (j->current_location.seqnum_set && sd_id128_equal(j->current_location.seqnum_id, f->header->seqnum_id))
+                        return journal_file_move_to_entry_by_seqnum_for_data(f, d, j->current_location.seqnum, direction, ret, offset);
+                if (j->current_location.monotonic_set) {
+                        r = journal_file_move_to_entry_by_monotonic_for_data(f, d, j->current_location.boot_id, j->current_location.monotonic, direction, ret, offset);
+                        if (r != 0)
+                                return r;
 
-		/* Find the earliest match */
+                        /* The data object might have been invalidated. */
+                        r = journal_file_move_to_object(f, OBJECT_DATA, dp, &d);
+                        if (r < 0)
+                                return r;
+                }
+                if (j->current_location.realtime_set)
+                        return journal_file_move_to_entry_by_realtime_for_data(f, d, j->current_location.realtime, direction, ret, offset);
 
-		IWLIST_FOREACH (matches, i, m->matches) {
-			uint64_t cp;
+                return journal_file_move_to_entry_for_data(f, d, direction, ret, offset);
 
-			r = find_location_for_match(j, i, f, direction, NULL,
-				&cp);
-			if (r < 0)
-				return r;
-			else if (r > 0) {
-				if (np == 0 ||
-					(direction == DIRECTION_DOWN ? np > cp :
-									     np < cp))
-					np = cp;
-			}
-		}
+        } else if (m->type == MATCH_OR_TERM) {
+                uint64_t np = 0;
 
-		if (np == 0)
-			return 0;
+                /* Find the earliest match */
 
-		r = journal_file_move_to_object(f, OBJECT_ENTRY, np, &n);
-		if (r < 0)
-			return r;
+                LIST_FOREACH(matches, i, m->matches) {
+                        uint64_t cp;
 
-		if (ret)
-			*ret = n;
-		if (offset)
-			*offset = np;
+                        r = find_location_for_match(j, i, f, direction, NULL, &cp);
+                        if (r < 0)
+                                return r;
+                        else if (r > 0) {
+                                if (np == 0 || (direction == DIRECTION_DOWN ? np > cp : np < cp))
+                                        np = cp;
+                        }
+                }
 
-		return 1;
+                if (np == 0)
+                        return 0;
 
-	} else {
-		Match *i;
-		uint64_t np = 0;
+                if (ret) {
+                        r = journal_file_move_to_object(f, OBJECT_ENTRY, np, ret);
+                        if (r < 0)
+                                return r;
+                }
 
-		assert(m->type == MATCH_AND_TERM);
+                if (offset)
+                        *offset = np;
 
-		/* First jump to the last match, and then find the
+                return 1;
+
+        } else {
+                uint64_t np = 0;
+
+                assert(m->type == MATCH_AND_TERM);
+
+                /* First jump to the last match, and then find the
                  * next one where all matches match */
 
-		if (!m->matches)
-			return 0;
+                if (!m->matches)
+                        return 0;
 
-		IWLIST_FOREACH (matches, i, m->matches) {
-			uint64_t cp;
+                LIST_FOREACH(matches, i, m->matches) {
+                        uint64_t cp;
 
-			r = find_location_for_match(j, i, f, direction, NULL,
-				&cp);
-			if (r <= 0)
-				return r;
+                        r = find_location_for_match(j, i, f, direction, NULL, &cp);
+                        if (r <= 0)
+                                return r;
 
-			if (np == 0 ||
-				(direction == DIRECTION_DOWN ? cp > np :
-								     cp < np))
-				np = cp;
-		}
+                        if (np == 0 || (direction == DIRECTION_DOWN ? cp > np : cp < np))
+                                np = cp;
+                }
 
-		return next_for_match(j, m, f, np, direction, ret, offset);
-	}
+                return next_for_match(j, m, f, np, direction, ret, offset);
+        }
 }
 
-static int
-find_location_with_matches(sd_journal *j, JournalFile *f, direction_t direction,
-	Object **ret, uint64_t *offset)
-{
-	int r;
+static int find_location_with_matches(
+                sd_journal *j,
+                JournalFile *f,
+                direction_t direction,
+                Object **ret,
+                uint64_t *offset) {
 
-	assert(j);
-	assert(f);
-	assert(ret);
-	assert(offset);
+        int r;
 
-	if (!j->level0) {
-		/* No matches is simple */
+        assert(j);
+        assert(f);
+        assert(ret);
+        assert(offset);
 
-		if (j->current_location.type == LOCATION_HEAD)
-			return journal_file_next_entry(f, 0, DIRECTION_DOWN,
-				ret, offset);
-		if (j->current_location.type == LOCATION_TAIL)
-			return journal_file_next_entry(f, 0, DIRECTION_UP, ret,
-				offset);
-		if (j->current_location.seqnum_set &&
-			sd_id128_equal(j->current_location.seqnum_id,
-				f->header->seqnum_id))
-			return journal_file_move_to_entry_by_seqnum(f,
-				j->current_location.seqnum, direction, ret,
-				offset);
-		if (j->current_location.monotonic_set) {
-			r = journal_file_move_to_entry_by_monotonic(f,
-				j->current_location.boot_id,
-				j->current_location.monotonic, direction, ret,
-				offset);
-			if (r != -ENOENT)
-				return r;
-		}
-		if (j->current_location.realtime_set)
-			return journal_file_move_to_entry_by_realtime(f,
-				j->current_location.realtime, direction, ret,
-				offset);
+        if (!j->level0) {
+                /* No matches is simple */
 
-		return journal_file_next_entry(f, 0, direction, ret, offset);
-	} else
-		return find_location_for_match(j, j->level0, f, direction, ret,
-			offset);
+                if (j->current_location.type == LOCATION_HEAD)
+                        return direction == DIRECTION_DOWN ? journal_file_next_entry(f, 0, DIRECTION_DOWN, ret, offset) : 0;
+                if (j->current_location.type == LOCATION_TAIL)
+                        return direction == DIRECTION_UP ? journal_file_next_entry(f, 0, DIRECTION_UP, ret, offset) : 0;
+                if (j->current_location.seqnum_set && sd_id128_equal(j->current_location.seqnum_id, f->header->seqnum_id))
+                        return journal_file_move_to_entry_by_seqnum(f, j->current_location.seqnum, direction, ret, offset);
+                if (j->current_location.monotonic_set) {
+                        r = journal_file_move_to_entry_by_monotonic(f, j->current_location.boot_id, j->current_location.monotonic, direction, ret, offset);
+                        if (r != 0)
+                                return r;
+                }
+                if (j->current_location.realtime_set)
+                        return journal_file_move_to_entry_by_realtime(f, j->current_location.realtime, direction, ret, offset);
+
+                return journal_file_next_entry(f, 0, direction, ret, offset);
+        } else
+                return find_location_for_match(j, j->level0, f, direction, ret, offset);
 }
 
-static int
-next_with_matches(sd_journal *j, JournalFile *f, direction_t direction,
-	Object **ret, uint64_t *offset)
-{
-	assert(j);
-	assert(f);
-	assert(ret);
-	assert(offset);
+static int next_with_matches(
+                sd_journal *j,
+                JournalFile *f,
+                direction_t direction,
+                Object **ret,
+                uint64_t *offset) {
 
-	/* No matches is easy. We simple advance the file
+        assert(j);
+        assert(f);
+        assert(ret);
+        assert(offset);
+
+        /* No matches is easy. We simple advance the file
          * pointer by one. */
-	if (!j->level0)
-		return journal_file_next_entry(f, f->current_offset, direction,
-			ret, offset);
+        if (!j->level0)
+                return journal_file_next_entry(f, f->current_offset, direction, ret, offset);
 
-	/* If we have a match then we look for the next matching entry
+        /* If we have a match then we look for the next matching entry
          * with an offset at least one step larger */
-	return next_for_match(j, j->level0, f,
-		direction == DIRECTION_DOWN ? f->current_offset + 1 :
-						    f->current_offset - 1,
-		direction, ret, offset);
+        return next_for_match(j, j->level0, f,
+                              direction == DIRECTION_DOWN ? f->current_offset + 1
+                                                          : f->current_offset - 1,
+                              direction, ret, offset);
 }
 
-static int
-next_beyond_location(sd_journal *j, JournalFile *f, direction_t direction)
-{
-	Object *c;
-	uint64_t cp, n_entries;
-	int r;
+static int next_beyond_location(sd_journal *j, JournalFile *f, direction_t direction) {
+        Object *c;
+        uint64_t cp, n_entries;
+        int r;
 
-	assert(j);
-	assert(f);
+        assert(j);
+        assert(f);
 
-	n_entries = le64toh(f->header->n_entries);
+        (void) journal_file_read_tail_timestamp(j, f);
 
-	/* If we hit EOF before, we don't need to look into this file again
+        n_entries = le64toh(f->header->n_entries);
+
+        /* If we hit EOF before, we don't need to look into this file again
          * unless direction changed or new entries appeared. */
-	if (f->last_direction == direction &&
-		f->location_type == LOCATION_TAIL &&
-		n_entries == f->last_n_entries)
-		return 0;
+        if (f->last_direction == direction &&
+            f->location_type == (direction == DIRECTION_DOWN ? LOCATION_TAIL : LOCATION_HEAD) &&
+            n_entries == f->last_n_entries)
+                return 0;
 
-	f->last_n_entries = n_entries;
+        f->last_n_entries = n_entries;
 
-	if (f->last_direction == direction && f->current_offset > 0) {
-		/* LOCATION_SEEK here means we did the work in a previous
+        if (f->last_direction == direction && f->current_offset > 0) {
+                /* LOCATION_SEEK here means we did the work in a previous
                  * iteration and the current location already points to a
                  * candidate entry. */
-		if (f->location_type != LOCATION_SEEK) {
-			r = next_with_matches(j, f, direction, &c, &cp);
-			if (r <= 0)
-				return r;
+                if (f->location_type != LOCATION_SEEK) {
+                        r = next_with_matches(j, f, direction, &c, &cp);
+                        if (r <= 0)
+                                return r;
 
-			journal_file_save_location(f, c, cp);
-		}
-	} else {
-		f->last_direction = direction;
+                        journal_file_save_location(f, c, cp);
+                }
+        } else {
+                f->last_direction = direction;
 
-		r = find_location_with_matches(j, f, direction, &c, &cp);
-		if (r <= 0)
-			return r;
+                r = find_location_with_matches(j, f, direction, &c, &cp);
+                if (r <= 0)
+                        return r;
 
-		journal_file_save_location(f, c, cp);
-	}
+                journal_file_save_location(f, c, cp);
+        }
 
-	/* OK, we found the spot, now let's advance until an entry
+        /* OK, we found the spot, now let's advance until an entry
          * that is actually different from what we were previously
          * looking at. This is necessary to handle entries which exist
          * in two (or more) journal files, and which shall all be
          * suppressed but one. */
 
-	for (;;) {
-		bool found;
+        for (;;) {
+                bool found;
 
-		if (j->current_location.type == LOCATION_DISCRETE) {
-			int k;
+                if (j->current_location.type == LOCATION_DISCRETE) {
+                        int k;
 
-			k = compare_with_location(f, &j->current_location);
+                        k = compare_with_location(j, f, &j->current_location, j->current_file);
 
-			found = direction == DIRECTION_DOWN ? k > 0 : k < 0;
-		} else
-			found = true;
+                        found = direction == DIRECTION_DOWN ? k > 0 : k < 0;
+                } else
+                        found = true;
 
-		if (found)
-			return 1;
+                if (found)
+                        return 1;
 
-		r = next_with_matches(j, f, direction, &c, &cp);
-		if (r <= 0)
-			return r;
+                r = next_with_matches(j, f, direction, &c, &cp);
+                if (r <= 0)
+                        return r;
 
-		journal_file_save_location(f, c, cp);
-	}
+                journal_file_save_location(f, c, cp);
+        }
 }
 
-static int
-real_journal_next(sd_journal *j, direction_t direction)
-{
-	JournalFile *f, *new_file = NULL;
-	Iterator i;
-	Object *o;
-	int r;
+static int compare_locations(sd_journal *j, JournalFile *af, JournalFile *bf) {
+        int r;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
+        assert(j);
+        assert(af);
+        assert(af->header);
+        assert(bf);
+        assert(bf->header);
+        assert(af->location_type == LOCATION_SEEK);
+        assert(bf->location_type == LOCATION_SEEK);
 
-	ORDERED_HASHMAP_FOREACH (f, j->files, i) {
-		bool found;
+        /* If contents, timestamps and seqnum match, these entries are identical. */
+        if (sd_id128_equal(af->current_boot_id, bf->current_boot_id) &&
+            af->current_monotonic == bf->current_monotonic &&
+            af->current_realtime == bf->current_realtime &&
+            af->current_xor_hash == bf->current_xor_hash &&
+            sd_id128_equal(af->header->seqnum_id, bf->header->seqnum_id) &&
+            af->current_seqnum == bf->current_seqnum)
+                return 0;
 
-		r = next_beyond_location(j, f, direction);
-		if (r < 0) {
-			log_debug_errno(r,
-				"Can't iterate through %s, ignoring: %m",
-				f->path);
-			remove_file_real(j, f);
-			continue;
-		} else if (r == 0) {
-			f->location_type = LOCATION_TAIL;
-			continue;
-		}
+        if (sd_id128_equal(af->header->seqnum_id, bf->header->seqnum_id)) {
+                /* If this is from the same seqnum source, compare seqnums */
+                r = CMP(af->current_seqnum, bf->current_seqnum);
+                if (r != 0)
+                        return r;
 
-		if (!new_file)
-			found = true;
-		else {
-			int k;
+                /* Wow! This is weird, different data but the same seqnums? Something is borked, but let's
+                 * make the best of it and compare by time. */
+        }
 
-			k = journal_file_compare_locations(f, new_file);
+        if (sd_id128_equal(af->current_boot_id, bf->current_boot_id))
+                /* If the boot id matches, compare monotonic time */
+                r = CMP(af->current_monotonic, bf->current_monotonic);
+        else
+                /* If they don't match try to compare boot IDs */
+                r = compare_boot_ids(j, af->current_boot_id, bf->current_boot_id);
+        if (r != 0)
+                return r;
 
-			found = direction == DIRECTION_DOWN ? k < 0 : k > 0;
-		}
+        /* Otherwise, compare UTC time */
+        r = CMP(af->current_realtime, bf->current_realtime);
+        if (r != 0)
+                return r;
 
-		if (found)
-			new_file = f;
-	}
+        /* Finally, compare by contents */
+        return CMP(af->current_xor_hash, bf->current_xor_hash);
+}
 
-	if (!new_file)
-		return 0;
+static int real_journal_next(sd_journal *j, direction_t direction) {
+        JournalFile *new_file = NULL;
+        unsigned n_files;
+        const void **files;
+        Object *o;
+        int r;
 
-	r = journal_file_move_to_object(new_file, OBJECT_ENTRY,
-		new_file->current_offset, &o);
-	if (r < 0)
-		return r;
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
 
-	set_location(j, new_file, o);
+        r = iterated_cache_get(j->files_cache, NULL, &files, &n_files);
+        if (r < 0)
+                return r;
 
-	return 1;
+        FOREACH_ARRAY(_f, files, n_files) {
+                JournalFile *f = (JournalFile*) *_f;
+                bool found;
+
+                r = next_beyond_location(j, f, direction);
+                if (r < 0) {
+                        log_debug_errno(r, "Can't iterate through %s, ignoring: %m", f->path);
+                        remove_file_real(j, f);
+                        continue;
+                } else if (r == 0) {
+                        f->location_type = direction == DIRECTION_DOWN ? LOCATION_TAIL : LOCATION_HEAD;
+                        continue;
+                }
+
+                if (!new_file)
+                        found = true;
+                else {
+                        int k;
+
+                        k = compare_locations(j, f, new_file);
+
+                        found = direction == DIRECTION_DOWN ? k < 0 : k > 0;
+                }
+
+                if (found)
+                        new_file = f;
+        }
+
+        if (!new_file)
+                return 0;
+
+        r = journal_file_move_to_object(new_file, OBJECT_ENTRY, new_file->current_offset, &o);
+        if (r < 0)
+                return r;
+
+        set_location(j, new_file, o);
+
+        return 1;
 }
 
 _public_ int
@@ -935,36 +1280,38 @@ sd_journal_previous(sd_journal *j)
 	return real_journal_next(j, DIRECTION_UP);
 }
 
-static int
-real_journal_next_skip(sd_journal *j, direction_t direction, uint64_t skip)
-{
-	int c = 0, r;
+static int real_journal_next_skip(sd_journal *j, direction_t direction, uint64_t skip) {
+        int c = 0, r;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(skip <= INT_MAX, -ERANGE);
 
-	if (skip == 0) {
-		/* If this is not a discrete skip, then at least
+        if (skip == 0) {
+                /* If this is not a discrete skip, then at least
                  * resolve the current location */
-		if (j->current_location.type != LOCATION_DISCRETE)
-			return real_journal_next(j, direction);
+                if (j->current_location.type != LOCATION_DISCRETE) {
+                        r = real_journal_next(j, direction);
+                        if (r < 0)
+                                return r;
+                }
 
-		return 0;
-	}
+                return 0;
+        }
 
-	do {
-		r = real_journal_next(j, direction);
-		if (r < 0)
-			return r;
+        do {
+                r = real_journal_next(j, direction);
+                if (r < 0)
+                        return r;
 
-		if (r == 0)
-			return c;
+                if (r == 0)
+                        return c;
 
-		skip--;
-		c++;
-	} while (skip > 0);
+                skip--;
+                c++;
+        } while (skip > 0);
 
-	return c;
+        return c;
 }
 
 _public_ int
@@ -979,297 +1326,284 @@ sd_journal_previous_skip(sd_journal *j, uint64_t skip)
 	return real_journal_next_skip(j, DIRECTION_UP, skip);
 }
 
-_public_ int
-sd_journal_get_cursor(sd_journal *j, char **cursor)
-{
-	Object *o;
-	int r;
-	char bid[33], sid[33];
+_public_ int sd_journal_get_cursor(sd_journal *j, char **cursor) {
+        Object *o;
+        int r;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
-	assert_return(cursor, -EINVAL);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(cursor, -EINVAL);
 
-	if (!j->current_file || j->current_file->current_offset <= 0)
-		return -EADDRNOTAVAIL;
+        if (!j->current_file || j->current_file->current_offset <= 0)
+                return -EADDRNOTAVAIL;
 
-	r = journal_file_move_to_object(j->current_file, OBJECT_ENTRY,
-		j->current_file->current_offset, &o);
-	if (r < 0)
-		return r;
+        r = journal_file_move_to_object(j->current_file, OBJECT_ENTRY, j->current_file->current_offset, &o);
+        if (r < 0)
+                return r;
 
-	sd_id128_to_string(j->current_file->header->seqnum_id, sid);
-	sd_id128_to_string(o->entry.boot_id, bid);
+        if (asprintf(cursor,
+                     "s=%s;i=%"PRIx64";b=%s;m=%"PRIx64";t=%"PRIx64";x=%"PRIx64,
+                     SD_ID128_TO_STRING(j->current_file->header->seqnum_id), le64toh(o->entry.seqnum),
+                     SD_ID128_TO_STRING(o->entry.boot_id), le64toh(o->entry.monotonic),
+                     le64toh(o->entry.realtime),
+                     le64toh(o->entry.xor_hash)) < 0)
+                return -ENOMEM;
 
-	if (asprintf(cursor,
-		    "s=%s;i=%" PRIx64 ";b=%s;m=%" PRIx64 ";t=%" PRIx64
-		    ";x=%" PRIx64,
-		    sid, le64toh(o->entry.seqnum), bid,
-		    le64toh(o->entry.monotonic), le64toh(o->entry.realtime),
-		    le64toh(o->entry.xor_hash)) < 0)
-		return -ENOMEM;
-
-	return 0;
+        return 0;
 }
 
-_public_ int
-sd_journal_seek_cursor(sd_journal *j, const char *cursor)
-{
-	const char *word, *state;
-	size_t l;
-	unsigned long long seqnum, monotonic, realtime, xor_hash;
-	bool seqnum_id_set = false, seqnum_set = false, boot_id_set = false,
-	     monotonic_set = false, realtime_set = false, xor_hash_set = false;
-	sd_id128_t seqnum_id, boot_id;
+_public_ int sd_journal_seek_cursor(sd_journal *j, const char *cursor) {
+        unsigned long long seqnum, monotonic, realtime, xor_hash;
+        bool seqnum_id_set = false,
+             seqnum_set = false,
+             boot_id_set = false,
+             monotonic_set = false,
+             realtime_set = false,
+             xor_hash_set = false;
+        sd_id128_t seqnum_id, boot_id;
+        int r;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
-	assert_return(!isempty(cursor), -EINVAL);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(!isempty(cursor), -EINVAL);
 
-	FOREACH_WORD_SEPARATOR(word, l, cursor, ";", state)
-	{
-		char *item;
-		int k = 0;
+        for (const char *p = cursor;;) {
+                _cleanup_free_ char *word = NULL;
 
-		if (l < 2 || word[1] != '=')
-			return -EINVAL;
+                r = extract_first_word(&p, &word, ";", EXTRACT_DONT_COALESCE_SEPARATORS);
+                if (r < 0)
+                        return r;
+                if (r == 0)
+                        break;
 
-		item = strndup(word, l);
-		if (!item)
-			return -ENOMEM;
+                if (word[0] == '\0' || word[1] != '=')
+                        return -EINVAL;
 
-		switch (word[0]) {
-		case 's':
-			seqnum_id_set = true;
-			k = sd_id128_from_string(item + 2, &seqnum_id);
-			break;
+                switch (word[0]) {
+                case 's':
+                        seqnum_id_set = true;
+                        r = sd_id128_from_string(word + 2, &seqnum_id);
+                        if (r < 0)
+                                return r;
+                        break;
 
-		case 'i':
-			seqnum_set = true;
-			if (sscanf(item + 2, "%llx", &seqnum) != 1)
-				k = -EINVAL;
-			break;
+                case 'i':
+                        seqnum_set = true;
+                        if (sscanf(word + 2, "%llx", &seqnum) != 1)
+                                return -EINVAL;
+                        break;
 
-		case 'b':
-			boot_id_set = true;
-			k = sd_id128_from_string(item + 2, &boot_id);
-			break;
+                case 'b':
+                        boot_id_set = true;
+                        r = sd_id128_from_string(word + 2, &boot_id);
+                        if (r < 0)
+                                return r;
+                        break;
 
-		case 'm':
-			monotonic_set = true;
-			if (sscanf(item + 2, "%llx", &monotonic) != 1)
-				k = -EINVAL;
-			break;
+                case 'm':
+                        monotonic_set = true;
+                        if (sscanf(word + 2, "%llx", &monotonic) != 1)
+                                return -EINVAL;
+                        break;
 
-		case 't':
-			realtime_set = true;
-			if (sscanf(item + 2, "%llx", &realtime) != 1)
-				k = -EINVAL;
-			break;
+                case 't':
+                        realtime_set = true;
+                        if (sscanf(word + 2, "%llx", &realtime) != 1)
+                                return -EINVAL;
+                        break;
 
-		case 'x':
-			xor_hash_set = true;
-			if (sscanf(item + 2, "%llx", &xor_hash) != 1)
-				k = -EINVAL;
-			break;
-		}
+                case 'x':
+                        xor_hash_set = true;
+                        if (sscanf(word + 2, "%llx", &xor_hash) != 1)
+                                return -EINVAL;
+                        break;
+                }
+        }
 
-		free(item);
+        if ((!seqnum_set || !seqnum_id_set) &&
+            (!monotonic_set || !boot_id_set) &&
+            !realtime_set)
+                return -EINVAL;
 
-		if (k < 0)
-			return k;
-	}
+        detach_location(j);
+        j->current_location = (Location) {
+                .type = LOCATION_SEEK,
+        };
 
-	if ((!seqnum_set || !seqnum_id_set) &&
-		(!monotonic_set || !boot_id_set) && !realtime_set)
-		return -EINVAL;
+        if (realtime_set) {
+                j->current_location.realtime = (uint64_t) realtime;
+                j->current_location.realtime_set = true;
+        }
 
-	reset_location(j);
+        if (seqnum_set && seqnum_id_set) {
+                j->current_location.seqnum = (uint64_t) seqnum;
+                j->current_location.seqnum_id = seqnum_id;
+                j->current_location.seqnum_set = true;
+        }
 
-	j->current_location.type = LOCATION_SEEK;
+        if (monotonic_set && boot_id_set) {
+                j->current_location.monotonic = (uint64_t) monotonic;
+                j->current_location.boot_id = boot_id;
+                j->current_location.monotonic_set = true;
+        }
 
-	if (realtime_set) {
-		j->current_location.realtime = (uint64_t)realtime;
-		j->current_location.realtime_set = true;
-	}
+        if (xor_hash_set) {
+                j->current_location.xor_hash = (uint64_t) xor_hash;
+                j->current_location.xor_hash_set = true;
+        }
 
-	if (seqnum_set && seqnum_id_set) {
-		j->current_location.seqnum = (uint64_t)seqnum;
-		j->current_location.seqnum_id = seqnum_id;
-		j->current_location.seqnum_set = true;
-	}
-
-	if (monotonic_set && boot_id_set) {
-		j->current_location.monotonic = (uint64_t)monotonic;
-		j->current_location.boot_id = boot_id;
-		j->current_location.monotonic_set = true;
-	}
-
-	if (xor_hash_set) {
-		j->current_location.xor_hash = (uint64_t)xor_hash;
-		j->current_location.xor_hash_set = true;
-	}
-
-	return 0;
+        return 0;
 }
 
-_public_ int
-sd_journal_test_cursor(sd_journal *j, const char *cursor)
-{
-	int r;
-	const char *word, *state;
-	size_t l;
-	Object *o;
+_public_ int sd_journal_test_cursor(sd_journal *j, const char *cursor) {
+        int r;
+        Object *o;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
-	assert_return(!isempty(cursor), -EINVAL);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(!isempty(cursor), -EINVAL);
 
-	if (!j->current_file || j->current_file->current_offset <= 0)
-		return -EADDRNOTAVAIL;
+        if (!j->current_file || j->current_file->current_offset <= 0)
+                return -EADDRNOTAVAIL;
 
-	r = journal_file_move_to_object(j->current_file, OBJECT_ENTRY,
-		j->current_file->current_offset, &o);
-	if (r < 0)
-		return r;
+        r = journal_file_move_to_object(j->current_file, OBJECT_ENTRY, j->current_file->current_offset, &o);
+        if (r < 0)
+                return r;
 
-	FOREACH_WORD_SEPARATOR(word, l, cursor, ";", state)
-	{
-		_cleanup_free_ char *item = NULL;
-		sd_id128_t id;
-		unsigned long long ll;
-		int k = 0;
+        for (;;) {
+                _cleanup_free_ char *item = NULL;
+                unsigned long long ll;
+                sd_id128_t id;
+                int k = 0;
 
-		if (l < 2 || word[1] != '=')
-			return -EINVAL;
+                r = extract_first_word(&cursor, &item, ";", EXTRACT_DONT_COALESCE_SEPARATORS);
+                if (r < 0)
+                        return r;
 
-		item = strndup(word, l);
-		if (!item)
-			return -ENOMEM;
+                if (r == 0)
+                        break;
 
-		switch (word[0]) {
-		case 's':
-			k = sd_id128_from_string(item + 2, &id);
-			if (k < 0)
-				return k;
-			if (!sd_id128_equal(id,
-				    j->current_file->header->seqnum_id))
-				return 0;
-			break;
+                if (strlen(item) < 2 || item[1] != '=')
+                        return -EINVAL;
 
-		case 'i':
-			if (sscanf(item + 2, "%llx", &ll) != 1)
-				return -EINVAL;
-			if (ll != le64toh(o->entry.seqnum))
-				return 0;
-			break;
+                switch (item[0]) {
 
-		case 'b':
-			k = sd_id128_from_string(item + 2, &id);
-			if (k < 0)
-				return k;
-			if (!sd_id128_equal(id, o->entry.boot_id))
-				return 0;
-			break;
+                case 's':
+                        k = sd_id128_from_string(item+2, &id);
+                        if (k < 0)
+                                return k;
+                        if (!sd_id128_equal(id, j->current_file->header->seqnum_id))
+                                return 0;
+                        break;
 
-		case 'm':
-			if (sscanf(item + 2, "%llx", &ll) != 1)
-				return -EINVAL;
-			if (ll != le64toh(o->entry.monotonic))
-				return 0;
-			break;
+                case 'i':
+                        if (sscanf(item+2, "%llx", &ll) != 1)
+                                return -EINVAL;
+                        if (ll != le64toh(o->entry.seqnum))
+                                return 0;
+                        break;
 
-		case 't':
-			if (sscanf(item + 2, "%llx", &ll) != 1)
-				return -EINVAL;
-			if (ll != le64toh(o->entry.realtime))
-				return 0;
-			break;
+                case 'b':
+                        k = sd_id128_from_string(item+2, &id);
+                        if (k < 0)
+                                return k;
+                        if (!sd_id128_equal(id, o->entry.boot_id))
+                                return 0;
+                        break;
 
-		case 'x':
-			if (sscanf(item + 2, "%llx", &ll) != 1)
-				return -EINVAL;
-			if (ll != le64toh(o->entry.xor_hash))
-				return 0;
-			break;
-		}
-	}
+                case 'm':
+                        if (sscanf(item+2, "%llx", &ll) != 1)
+                                return -EINVAL;
+                        if (ll != le64toh(o->entry.monotonic))
+                                return 0;
+                        break;
 
-	return 1;
+                case 't':
+                        if (sscanf(item+2, "%llx", &ll) != 1)
+                                return -EINVAL;
+                        if (ll != le64toh(o->entry.realtime))
+                                return 0;
+                        break;
+
+                case 'x':
+                        if (sscanf(item+2, "%llx", &ll) != 1)
+                                return -EINVAL;
+                        if (ll != le64toh(o->entry.xor_hash))
+                                return 0;
+                        break;
+                }
+        }
+
+        return 1;
 }
 
-_public_ int
-sd_journal_seek_monotonic_usec(sd_journal *j, sd_id128_t boot_id, uint64_t usec)
-{
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
+_public_ int sd_journal_seek_monotonic_usec(sd_journal *j, sd_id128_t boot_id, uint64_t usec) {
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
 
-	reset_location(j);
-	j->current_location.type = LOCATION_SEEK;
-	j->current_location.boot_id = boot_id;
-	j->current_location.monotonic = usec;
-	j->current_location.monotonic_set = true;
+        detach_location(j);
 
-	return 0;
+        j->current_location = (Location) {
+                .type = LOCATION_SEEK,
+                .boot_id = boot_id,
+                .monotonic = usec,
+                .monotonic_set = true,
+        };
+
+        return 0;
 }
 
-_public_ int
-sd_journal_seek_realtime_usec(sd_journal *j, uint64_t usec)
-{
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
+_public_ int sd_journal_seek_realtime_usec(sd_journal *j, uint64_t usec) {
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
 
-	reset_location(j);
-	j->current_location.type = LOCATION_SEEK;
-	j->current_location.realtime = usec;
-	j->current_location.realtime_set = true;
+        detach_location(j);
 
-	return 0;
+        j->current_location = (Location) {
+                .type = LOCATION_SEEK,
+                .realtime = usec,
+                .realtime_set = true,
+        };
+
+        return 0;
 }
 
-_public_ int
-sd_journal_seek_head(sd_journal *j)
-{
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
+_public_ int sd_journal_seek_head(sd_journal *j) {
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
 
-	reset_location(j);
-	j->current_location.type = LOCATION_HEAD;
+        detach_location(j);
 
-	return 0;
+        j->current_location = (Location) {
+                .type = LOCATION_HEAD,
+        };
+
+        return 0;
 }
 
-_public_ int
-sd_journal_seek_tail(sd_journal *j)
-{
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
+_public_ int sd_journal_seek_tail(sd_journal *j) {
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
 
-	reset_location(j);
-	j->current_location.type = LOCATION_TAIL;
+        detach_location(j);
 
-	return 0;
+        j->current_location = (Location) {
+                .type = LOCATION_TAIL,
+        };
+
+        return 0;
 }
 
 static void
 check_network(sd_journal *j, int fd)
 {
 #ifdef SVC_PLATFORM_Linux
-	struct statfs sfs;
-
 	assert(j);
 
-	if (j->on_network)
-		return;
+        if (j->on_network)
+                return;
 
-	if (fstatfs(fd, &sfs) < 0)
-		return;
-
-	j->on_network = F_TYPE_EQUAL(sfs.f_type, CIFS_MAGIC_NUMBER) ||
-		F_TYPE_EQUAL(sfs.f_type, CODA_SUPER_MAGIC) ||
-		F_TYPE_EQUAL(sfs.f_type, NCP_SUPER_MAGIC) ||
-		F_TYPE_EQUAL(sfs.f_type, NFS_SUPER_MAGIC) ||
-		F_TYPE_EQUAL(sfs.f_type, SMB_SUPER_MAGIC);
+        j->on_network = fd_is_network_fs(fd);
 #else
 	unimplemented();
 #endif
@@ -1320,128 +1654,183 @@ file_type_wanted(int flags, const char *filename)
 #define EBADFD EBADF
 #endif
 
-static int
-add_any_file(sd_journal *j, const char *path)
-{
-	JournalFile *f = NULL;
-	struct stat st;
-	int r, k;
+static bool path_has_prefix(sd_journal *j, const char *path, const char *prefix) {
+        assert(j);
+        assert(path);
+        assert(prefix);
 
-	assert(j);
-	assert(path);
+        if (j->toplevel_fd >= 0)
+                return false;
 
-	if (stat(path, &st) < 0) {
-		r = log_debug_errno(errno, "Failed to stat file '%s': %m",
-			path);
-		return -errno;
-	}
-	if (S_ISDIR(st.st_mode)) {
-		log_debug("Uh, file '%s' is a directory? Refusing.", path);
-		return -EISDIR;
-	}
-	if (!S_ISREG(st.st_mode)) {
-		log_debug("Uh, file '%s' is not a regular file? Refusing.",
-			path);
-		return -EBADFD;
-	}
-
-	f = ordered_hashmap_get(j->files, path);
-	if (f) {
-		if (f->last_stat.st_dev == st.st_dev &&
-			f->last_stat.st_ino == st.st_ino) {
-			/* We already track this file, under the same path and with the same device/inode numbers, it's hence
-                         * really the same. Mark this file as seen in this generation. This is used to GC old files in
-                         * process_q_overflow() to detect journal files that are still and discern them from those who are
-                         * gone. */
-
-			f->last_seen_generation = j->generation;
-			return 0;
-		}
-
-		/* So we tracked a file under this name, but it has a different inode/device. In that case, it got
-                 * replaced (probably due to rotation?), let's drop it hence from our list. */
-		remove_file_real(j, f);
-		f = NULL;
-	}
-
-	if (ordered_hashmap_size(j->files) >= JOURNAL_FILES_MAX) {
-		log_debug("Too many open journal files, not adding %s.", path);
-		r = -ETOOMANYREFS;
-		goto fail;
-	}
-
-	r = journal_file_open(path, O_RDONLY, 0, false, false, NULL, j->mmap,
-		NULL, &f);
-	if (r < 0) {
-		log_debug_errno(r, "Failed to open journal file %s: %m", path);
-		goto fail;
-	}
-
-	/* journal_file_dump(f); */
-
-	r = ordered_hashmap_put(j->files, f->path, f);
-	if (r < 0) {
-		journal_file_close(f);
-		goto fail;
-	}
-
-	f->last_seen_generation = j->generation;
-
-	log_debug("File %s added.", f->path);
-
-	check_network(j, f->fd);
-
-	j->current_invalidate_counter++;
-
-	return 0;
-
-fail:
-	k = journal_put_error(j, r, path);
-	if (k < 0)
-		return k;
-
-	return r;
+        return path_startswith(path, prefix);
 }
 
-static int
-add_file(sd_journal *j, const char *prefix, const char *filename)
-{
-	const char *path;
+static void track_file_disposition(sd_journal *j, JournalFile *f) {
+        assert(j);
+        assert(f);
 
-	assert(j);
-	assert(prefix);
-	assert(filename);
-
-	if (j->no_new_files || !file_type_wanted(j->flags, filename))
-		return 0;
-
-	path = strjoina(prefix, "/", filename);
-
-	if (!j->has_runtime_files && path_startswith(path, SVC_RUNTIMELOGDIR))
-		j->has_runtime_files = true;
-	else if (!j->has_persistent_files &&
-		path_startswith(path, SVC_PERSISTENTLOGDIR))
-		j->has_persistent_files = true;
-
-	return add_any_file(j, path);
+        if (!j->has_runtime_files && path_has_prefix(j, f->path, "/run"))
+                j->has_runtime_files = true;
+        else if (!j->has_persistent_files && path_has_prefix(j, f->path, "/var"))
+                j->has_persistent_files = true;
 }
 
-static void
-remove_file(sd_journal *j, const char *prefix, const char *filename)
-{
-	const char *path;
-	JournalFile *f;
+static int add_any_file(
+                sd_journal *j,
+                int fd,
+                const char *path) {
 
-	assert(j);
-	assert(prefix);
-	assert(filename);
+        _cleanup_close_ int our_fd = -EBADF;
+        JournalFile *f;
+        struct stat st;
+        int r;
 
-	path = strjoina(prefix, "/", filename);
-	f = ordered_hashmap_get(j->files, path);
-	if (!f)
-		return;
+        assert(j);
+        assert(fd >= 0 || path);
 
-	remove_file_real(j, f);
+        if (fd < 0) {
+                assert(path);  /* For gcc. */
+                if (j->toplevel_fd >= 0)
+                        /* If there's a top-level fd defined make the path relative, explicitly, since otherwise
+                         * openat() ignores the first argument. */
+
+                        fd = our_fd = openat(j->toplevel_fd, skip_leading_slash(path), O_RDONLY|O_CLOEXEC|O_NONBLOCK);
+                else
+                        fd = our_fd = open(path, O_RDONLY|O_CLOEXEC|O_NONBLOCK);
+                if (fd < 0) {
+                        r = log_debug_errno(errno, "Failed to open journal file %s: %m", path);
+                        goto error;
+                }
+
+                r = fd_nonblock(fd, false);
+                if (r < 0) {
+                        r = log_debug_errno(errno, "Failed to turn off O_NONBLOCK for %s: %m", path);
+                        goto error;
+                }
+        }
+
+        if (fstat(fd, &st) < 0) {
+                r = log_debug_errno(errno, "Failed to fstat %s: %m", path ?: "fd");
+                goto error;
+        }
+
+        r = stat_verify_regular(&st);
+        if (r < 0) {
+                log_debug_errno(r, "Refusing to open %s: %m", path ?: "fd");
+                goto error;
+        }
+
+        if (path) {
+                f = ordered_hashmap_get(j->files, path);
+                if (f) {
+                        if (stat_inode_same(&f->last_stat, &st)) {
+                                /* We already track this file, under the same path and with the same
+                                 * device/inode numbers, it's hence really the same. Mark this file as seen
+                                 * in this generation. This is used to GC old files in process_q_overflow()
+                                 * to detect journal files that are still there and discern them from those
+                                 * which are gone. */
+
+                                f->last_seen_generation = j->generation;
+                                (void) journal_file_read_tail_timestamp(j, f);
+                                return 0;
+                        }
+
+                        /* So we tracked a file under this name, but it has a different inode/device. In that
+                         * case, it got replaced (probably due to rotation?), let's drop it hence from our
+                         * list. */
+                        remove_file_real(j, f);
+                        f = NULL;
+                }
+        }
+
+        if (ordered_hashmap_size(j->files) >= JOURNAL_FILES_MAX) {
+                r = log_debug_errno(SYNTHETIC_ERRNO(ETOOMANYREFS),
+                                    "Too many open journal files, not adding %s.", path ?: "fd");
+                goto error;
+        }
+
+        r = journal_file_open(fd, path, O_RDONLY, 0, 0, 0, NULL, j->mmap, NULL, &f);
+        if (r < 0) {
+                log_debug_errno(r, "Failed to open journal file %s: %m", path ?: "from fd");
+                goto error;
+        }
+
+        /* journal_file_dump(f); */
+
+        /* journal_file_open() generates an replacement fname if necessary, so we can use f->path. */
+        r = ordered_hashmap_put(j->files, f->path, f);
+        if (r < 0) {
+                f->close_fd = false; /* Make sure journal_file_close() doesn't close the caller's fd
+                                      * (or our own). The caller or we will do that ourselves. */
+                (void) journal_file_close(f);
+                goto error;
+        }
+
+        TAKE_FD(our_fd); /* the fd is now owned by the JournalFile object */
+
+        f->last_seen_generation = j->generation;
+
+        track_file_disposition(j, f);
+        check_network(j, f->fd);
+        (void) journal_file_read_tail_timestamp(j, f);
+
+        j->current_invalidate_counter++;
+
+        log_debug("File %s added.", f->path);
+
+        return 0;
+
+error:
+        (void) journal_put_error(j, r, path);   /* path==NULL is OK. */
+        return r;
+}
+
+static int add_file_by_name(
+                sd_journal *j,
+                const char *prefix,
+                const char *filename) {
+
+        _cleanup_free_ char *path = NULL;
+
+        assert(j);
+        assert(prefix);
+        assert(filename);
+
+        if (j->no_new_files)
+                return 0;
+
+        if (!file_type_wanted(j->flags, filename))
+                return 0;
+
+        path = path_join(prefix, filename);
+        if (!path)
+                return -ENOMEM;
+
+        return add_any_file(j, -1, path);
+}
+
+static int remove_file_by_name(
+                sd_journal *j,
+                const char *prefix,
+                const char *filename) {
+
+        _cleanup_free_ char *path = NULL;
+        JournalFile *f;
+
+        assert(j);
+        assert(prefix);
+        assert(filename);
+
+        path = path_join(prefix, filename);
+        if (!path)
+                return -ENOMEM;
+
+        f = ordered_hashmap_get(j->files, path);
+        if (!f)
+                return 0;
+
+        remove_file_real(j, f);
+        return 1;
 }
 
 static void
@@ -1502,6 +1891,28 @@ dirent_is_journal_file(const struct dirent *de)
 		endswith(de->d_name, ".journal~");
 }
 
+static bool dirent_is_journal_subdir(const struct dirent *de) {
+        const char *e, *n;
+        assert(de);
+
+        /* returns true if the specified directory entry looks like a directory that might contain journal
+         * files we might be interested in, i.e. is either a 128-bit ID or a 128-bit ID suffixed by a
+         * namespace. */
+
+        if (!IN_SET(de->d_type, DT_DIR, DT_LNK, DT_UNKNOWN))
+                return false;
+
+        e = strchr(de->d_name, '.');
+        if (!e)
+                return id128_is_valid(de->d_name); /* No namespace */
+
+        n = strndupa_safe(de->d_name, e - de->d_name);
+        if (!id128_is_valid(n))
+                return false;
+
+        return log_namespace_name_valid(e + 1);
+}
+
 static bool
 dirent_is_id128_subdir(const struct dirent *de)
 {
@@ -1530,31 +1941,53 @@ directory_open(sd_journal *j, const char *path, DIR **ret)
 	return 0;
 }
 
+static Directory* directory_free(Directory *d) {
+        if (!d)
+                return NULL;
+
+        if (d->journal) {
+                if (d->wd > 0 &&
+                    hashmap_remove_value(d->journal->directories_by_wd, INT_TO_PTR(d->wd), d) &&
+                    d->journal->inotify_fd >= 0)
+                        (void) inotify_rm_watch(d->journal->inotify_fd, d->wd);
+
+                if (d->path)
+                        hashmap_remove_value(d->journal->directories_by_path, d->path, d);
+        }
+
+        if (d->path) {
+                if (d->is_root)
+                        log_debug("Root directory %s removed.", d->path);
+                else
+                        log_debug("Directory %s removed.", d->path);
+
+                free(d->path);
+        }
+
+        return mfree(d);
+}
+
+DEFINE_TRIVIAL_CLEANUP_FUNC(Directory*, directory_free);
+
 static int add_directory(sd_journal *j, const char *prefix,
 	const char *dirname);
 
-static void
-directory_enumerate(sd_journal *j, Directory *m, DIR *d)
-{
-	struct dirent *de;
+static void directory_enumerate(sd_journal *j, Directory *m, DIR *d) {
+        assert(j);
+        assert(m);
+        assert(d);
 
-	assert(j);
-	assert(m);
-	assert(d);
+        FOREACH_DIRENT_ALL(de, d, goto fail) {
+                if (dirent_is_journal_file(de))
+                        (void) add_file_by_name(j, m->path, de->d_name);
 
-	FOREACH_DIRENT_ALL (de, d, goto fail) {
-		if (dirent_is_journal_file(de))
-			(void)add_file(j, m->path, de->d_name);
+                if (m->is_root && dirent_is_journal_subdir(de))
+                        (void) add_directory(j, m->path, de->d_name);
+        }
 
-		if (m->is_root && dirent_is_id128_subdir(de))
-			(void)add_directory(j, m->path, de->d_name);
-	}
-
-	return;
-
+        return;
 fail:
-	log_debug_errno(errno, "Failed to enumerate directory %s, ignoring: %m",
-		m->path);
+        log_debug_errno(errno, "Failed to enumerate directory %s, ignoring: %m", m->path);
 }
 
 static void
@@ -1801,33 +2234,29 @@ add_search_paths(sd_journal *j)
 	return 0;
 }
 
-static int
-add_current_paths(sd_journal *j)
-{
-	Iterator i;
-	JournalFile *f;
+static int add_current_paths(sd_journal *j) {
+        JournalFile *f;
 
-	assert(j);
-	assert(j->no_new_files);
+        assert(j);
+        assert(j->no_new_files);
 
-	/* Simply adds all directories for files we have open as
-         * "root" directories. We don't expect errors here, so we
+        /* Simply adds all directories for files we have open as directories. We don't expect errors here, so we
          * treat them as fatal. */
 
-	ORDERED_HASHMAP_FOREACH (f, j->files, i) {
-		_cleanup_free_ char *dir;
-		int r;
+        ORDERED_HASHMAP_FOREACH(f, j->files) {
+                _cleanup_free_ char *dir = NULL;
+                int r;
 
-		dir = dirname_malloc(f->path);
-		if (!dir)
-			return -ENOMEM;
+                r = path_extract_directory(f->path, &dir);
+                if (r < 0)
+                        return r;
 
-		r = add_root_directory(j, dir, true);
-		if (r < 0)
-			return r;
-	}
+                r = add_directory(j, dir, NULL);
+                if (r < 0)
+                        return r;
+        }
 
-	return 0;
+        return 0;
 }
 
 static int
@@ -1850,283 +2279,287 @@ allocate_inotify(sd_journal *j)
 	return 0;
 }
 
-static sd_journal *
-journal_new(int flags, const char *path)
-{
-	sd_journal *j;
+static sd_journal *journal_new(int flags, const char *path, const char *namespace) {
+        _cleanup_(sd_journal_closep) sd_journal *j = NULL;
 
-	j = new0(sd_journal, 1);
-	if (!j)
-		return NULL;
+        j = new(sd_journal, 1);
+        if (!j)
+                return NULL;
 
-	j->original_pid = getpid();
-	j->inotify_fd = -1;
-	j->flags = flags;
-	j->data_threshold = DEFAULT_DATA_THRESHOLD;
+        *j = (sd_journal) {
+                .origin_id = origin_id_query(),
+                .toplevel_fd = -EBADF,
+                .inotify_fd = -EBADF,
+                .flags = flags,
+                .data_threshold = DEFAULT_DATA_THRESHOLD,
+        };
 
-	if (path) {
-		j->path = strdup(path);
-		if (!j->path)
-			goto fail;
-	}
+        if (path) {
+                char *t;
 
-	j->files = ordered_hashmap_new(&string_hash_ops);
-	j->directories_by_path = hashmap_new(&string_hash_ops);
-	j->mmap = mmap_cache_new();
-	if (!j->files || !j->directories_by_path || !j->mmap)
-		goto fail;
+                t = strdup(path);
+                if (!t)
+                        return NULL;
 
-	return j;
+                if (flags & SD_JOURNAL_OS_ROOT)
+                        j->prefix = t;
+                else
+                        j->path = t;
+        }
 
-fail:
-	sd_journal_close(j);
-	return NULL;
+        if (namespace) {
+                j->namespace = strdup(namespace);
+                if (!j->namespace)
+                        return NULL;
+        }
+
+        j->files = ordered_hashmap_new(&path_hash_ops);
+        if (!j->files)
+                return NULL;
+
+        j->files_cache = ordered_hashmap_iterated_cache_new(j->files);
+        j->mmap = mmap_cache_new();
+        if (!j->files_cache || !j->mmap)
+                return NULL;
+
+        return TAKE_PTR(j);
 }
 
-_public_ int
-sd_journal_open(sd_journal **ret, int flags)
-{
-	sd_journal *j;
-	int r;
+#define OPEN_ALLOWED_FLAGS                              \
+        (SD_JOURNAL_LOCAL_ONLY |                        \
+         SD_JOURNAL_RUNTIME_ONLY |                      \
+         SD_JOURNAL_SYSTEM |                            \
+         SD_JOURNAL_CURRENT_USER |                      \
+         SD_JOURNAL_ALL_NAMESPACES |                    \
+         SD_JOURNAL_INCLUDE_DEFAULT_NAMESPACE |         \
+         SD_JOURNAL_ASSUME_IMMUTABLE)
 
-	assert_return(ret, -EINVAL);
-	assert_return(
-		(flags &
-			~(SD_JOURNAL_LOCAL_ONLY | SD_JOURNAL_RUNTIME_ONLY |
-				SD_JOURNAL_SYSTEM | SD_JOURNAL_CURRENT_USER)) ==
-			0,
-		-EINVAL);
+_public_ int sd_journal_open_namespace(sd_journal **ret, const char *namespace, int flags) {
+        _cleanup_(sd_journal_closep) sd_journal *j = NULL;
+        int r;
 
-	j = journal_new(flags, NULL);
-	if (!j)
-		return -ENOMEM;
+        assert_return(ret, -EINVAL);
+        assert_return((flags & ~OPEN_ALLOWED_FLAGS) == 0, -EINVAL);
 
-	r = add_search_paths(j);
-	if (r < 0)
-		goto fail;
+        j = journal_new(flags, NULL, namespace);
+        if (!j)
+                return -ENOMEM;
 
-	*ret = j;
-	return 0;
+        r = add_search_paths(j);
+        if (r < 0)
+                return r;
 
-fail:
-	sd_journal_close(j);
-
-	return r;
+        *ret = TAKE_PTR(j);
+        return 0;
 }
 
-_public_ int
-sd_journal_open_container(sd_journal **ret, const char *machine, int flags)
-{
-	_cleanup_free_ char *root = NULL, *class = NULL;
-	sd_journal *j;
-	char *p;
-	int r;
-
-	assert_return(machine, -EINVAL);
-	assert_return(ret, -EINVAL);
-	assert_return((flags & ~(SD_JOURNAL_LOCAL_ONLY | SD_JOURNAL_SYSTEM)) ==
-			0,
-		-EINVAL);
-	assert_return(machine_name_is_valid(machine), -EINVAL);
-
-	p = strjoina(SVC_PKGRUNSTATEDIR "/machines/", machine);
-	r = parse_env_file(p, NEWLINE, "ROOT", &root, "CLASS", &class, NULL);
-	if (r == -ENOENT)
-		return -EHOSTDOWN;
-	if (r < 0)
-		return r;
-	if (!root)
-		return -ENODATA;
-
-	if (!streq_ptr(class, "container"))
-		return -EIO;
-
-	j = journal_new(flags, NULL);
-	if (!j)
-		return -ENOMEM;
-
-	j->prefix = root;
-	root = NULL;
-
-	r = add_search_paths(j);
-	if (r < 0)
-		goto fail;
-
-	*ret = j;
-	return 0;
-
-fail:
-	sd_journal_close(j);
-	return r;
+_public_ int sd_journal_open(sd_journal **ret, int flags) {
+        return sd_journal_open_namespace(ret, NULL, flags);
 }
 
-_public_ int
-sd_journal_open_directory(sd_journal **ret, const char *path, int flags)
-{
-	sd_journal *j;
-	int r;
+#define OPEN_CONTAINER_ALLOWED_FLAGS                    \
+        (SD_JOURNAL_LOCAL_ONLY |                        \
+         SD_JOURNAL_SYSTEM |                            \
+         SD_JOURNAL_ASSUME_IMMUTABLE)
 
-	assert_return(ret, -EINVAL);
-	assert_return(path, -EINVAL);
-	assert_return(flags == 0, -EINVAL);
+_public_ int sd_journal_open_container(sd_journal **ret, const char *machine, int flags) {
+        _cleanup_free_ char *root = NULL, *class = NULL;
+        _cleanup_(sd_journal_closep) sd_journal *j = NULL;
+        char *p;
+        int r;
 
-	j = journal_new(flags, path);
-	if (!j)
-		return -ENOMEM;
+        /* This is deprecated, people should use machined's OpenMachineRootDirectory() call instead in
+         * combination with sd_journal_open_directory_fd(). */
 
-	r = add_root_directory(j, path, false);
-	if (r < 0)
-		goto fail;
+        assert_return(machine, -EINVAL);
+        assert_return(ret, -EINVAL);
+        assert_return((flags & ~OPEN_CONTAINER_ALLOWED_FLAGS) == 0, -EINVAL);
+        assert_return(hostname_is_valid(machine, 0), -EINVAL);
 
-	*ret = j;
-	return 0;
+        p = strjoina(SVC_PKGRUNSTATEDIR "/machines/", machine);
+        r = parse_env_file(NULL, p,
+                           "ROOT", &root,
+                           "CLASS", &class);
+        if (r == -ENOENT)
+                return -EHOSTDOWN;
+        if (r < 0)
+                return r;
+        if (!root)
+                return -ENODATA;
 
-fail:
-	sd_journal_close(j);
+        if (!streq_ptr(class, "container"))
+                return -EIO;
 
-	return r;
+        j = journal_new(flags, root, NULL);
+        if (!j)
+                return -ENOMEM;
+
+        r = add_search_paths(j);
+        if (r < 0)
+                return r;
+
+        *ret = TAKE_PTR(j);
+        return 0;
 }
 
-_public_ int
-sd_journal_open_files(sd_journal **ret, const char **paths, int flags)
-{
-	sd_journal *j;
-	const char **path;
-	int r;
+#define OPEN_DIRECTORY_ALLOWED_FLAGS                    \
+        (SD_JOURNAL_OS_ROOT |                           \
+         SD_JOURNAL_SYSTEM |                            \
+         SD_JOURNAL_CURRENT_USER |                      \
+         SD_JOURNAL_ASSUME_IMMUTABLE)
 
-	assert_return(ret, -EINVAL);
-	assert_return(flags == 0, -EINVAL);
+_public_ int sd_journal_open_directory(sd_journal **ret, const char *path, int flags) {
+        _cleanup_(sd_journal_closep) sd_journal *j = NULL;
+        int r;
 
-	j = journal_new(flags, NULL);
-	if (!j)
-		return -ENOMEM;
+        assert_return(ret, -EINVAL);
+        assert_return(path, -EINVAL);
+        assert_return((flags & ~OPEN_DIRECTORY_ALLOWED_FLAGS) == 0, -EINVAL);
 
-	STRV_FOREACH (path, paths) {
-		r = add_any_file(j, *path);
-		if (r < 0)
-			goto fail;
-	}
+        j = journal_new(flags, path, NULL);
+        if (!j)
+                return -ENOMEM;
 
-	j->no_new_files = true;
+        if (flags & SD_JOURNAL_OS_ROOT)
+                r = add_search_paths(j);
+        else
+                r = add_root_directory(j, path, false);
+        if (r < 0)
+                return r;
 
-	*ret = j;
-	return 0;
-
-fail:
-	sd_journal_close(j);
-
-	return r;
+        *ret = TAKE_PTR(j);
+        return 0;
 }
 
-_public_ void
-sd_journal_close(sd_journal *j)
-{
-	Directory *d;
-	JournalFile *f;
-	char *p;
+#define OPEN_FILES_ALLOWED_FLAGS                        \
+        (SD_JOURNAL_ASSUME_IMMUTABLE)
 
-	if (!j)
-		return;
+_public_ int sd_journal_open_files(sd_journal **ret, const char **paths, int flags) {
+        _cleanup_(sd_journal_closep) sd_journal *j = NULL;
+        int r;
 
-	sd_journal_flush_matches(j);
+        assert_return(ret, -EINVAL);
+        assert_return((flags & ~OPEN_FILES_ALLOWED_FLAGS) == 0, -EINVAL);
 
-	while ((f = ordered_hashmap_steal_first(j->files)))
-		journal_file_close(f);
+        j = journal_new(flags, NULL, NULL);
+        if (!j)
+                return -ENOMEM;
 
-	ordered_hashmap_free(j->files);
+        STRV_FOREACH(path, paths) {
+                r = add_any_file(j, -1, *path);
+                if (r < 0)
+                        return r;
+        }
 
-	while ((d = hashmap_first(j->directories_by_path)))
-		remove_directory(j, d);
+        j->no_new_files = true;
 
-	while ((d = hashmap_first(j->directories_by_wd)))
-		remove_directory(j, d);
-
-	hashmap_free(j->directories_by_path);
-	hashmap_free(j->directories_by_wd);
-
-	safe_close(j->inotify_fd);
-
-	if (j->mmap) {
-		log_debug("mmap cache statistics: %u hit, %u miss",
-			mmap_cache_get_hit(j->mmap),
-			mmap_cache_get_missed(j->mmap));
-		mmap_cache_unref(j->mmap);
-	}
-
-	while ((p = hashmap_steal_first(j->errors)))
-		free(p);
-	hashmap_free(j->errors);
-
-	free(j->path);
-	free(j->prefix);
-	free(j->unique_field);
-	free(j);
+        *ret = TAKE_PTR(j);
+        return 0;
 }
 
-_public_ int
-sd_journal_get_realtime_usec(sd_journal *j, uint64_t *ret)
-{
-	Object *o;
-	JournalFile *f;
-	int r;
+_public_ void sd_journal_close(sd_journal *j) {
+        if (!j || journal_origin_changed(j))
+                return;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
-	assert_return(ret, -EINVAL);
+        journal_clear_newest_by_boot_id(j);
 
-	f = j->current_file;
-	if (!f)
-		return -EADDRNOTAVAIL;
+        sd_journal_flush_matches(j);
 
-	if (f->current_offset <= 0)
-		return -EADDRNOTAVAIL;
+        ordered_hashmap_free_with_destructor(j->files, journal_file_close);
+        iterated_cache_free(j->files_cache);
 
-	r = journal_file_move_to_object(f, OBJECT_ENTRY, f->current_offset, &o);
-	if (r < 0)
-		return r;
+        hashmap_free(j->directories_by_path);
+        hashmap_free(j->directories_by_wd);
 
-	*ret = le64toh(o->entry.realtime);
-	return 0;
+        if (FLAGS_SET(j->flags, SD_JOURNAL_TAKE_DIRECTORY_FD))
+                safe_close(j->toplevel_fd);
+
+        safe_close(j->inotify_fd);
+
+        if (j->mmap) {
+                mmap_cache_stats_log_debug(j->mmap);
+                mmap_cache_unref(j->mmap);
+        }
+
+        hashmap_free_free(j->errors);
+
+        set_free(j->exclude_syslog_identifiers);
+
+        free(j->path);
+        free(j->prefix);
+        free(j->namespace);
+        free(j->unique_field);
+        free(j->fields_buffer);
+        free(j);
 }
 
-_public_ int
-sd_journal_get_monotonic_usec(sd_journal *j, uint64_t *ret,
-	sd_id128_t *ret_boot_id)
-{
-	Object *o;
-	JournalFile *f;
-	int r;
-	sd_id128_t id;
+_public_ int sd_journal_get_realtime_usec(sd_journal *j, uint64_t *ret) {
+        JournalFile *f;
+        Object *o;
+        int r;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
 
-	f = j->current_file;
-	if (!f)
-		return -EADDRNOTAVAIL;
+        f = j->current_file;
+        if (!f)
+                return -EADDRNOTAVAIL;
+        if (f->current_offset <= 0)
+                return -EADDRNOTAVAIL;
 
-	if (f->current_offset <= 0)
-		return -EADDRNOTAVAIL;
+        r = journal_file_move_to_object(f, OBJECT_ENTRY, f->current_offset, &o);
+        if (r < 0)
+                return r;
 
-	r = journal_file_move_to_object(f, OBJECT_ENTRY, f->current_offset, &o);
-	if (r < 0)
-		return r;
+        uint64_t t = le64toh(o->entry.realtime);
+        if (!VALID_REALTIME(t))
+                return -EBADMSG;
 
-	if (ret_boot_id)
-		*ret_boot_id = o->entry.boot_id;
-	else {
-		r = sd_id128_get_boot(&id);
-		if (r < 0)
-			return r;
+        if (ret)
+                *ret = t;
 
-		if (!sd_id128_equal(id, o->entry.boot_id))
-			return -ESTALE;
-	}
+        return 0;
+}
 
-	if (ret)
-		*ret = le64toh(o->entry.monotonic);
+_public_ int sd_journal_get_monotonic_usec(sd_journal *j, uint64_t *ret, sd_id128_t *ret_boot_id) {
+        JournalFile *f;
+        Object *o;
+        int r;
 
-	return 0;
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+
+        f = j->current_file;
+        if (!f)
+                return -EADDRNOTAVAIL;
+        if (f->current_offset <= 0)
+                return -EADDRNOTAVAIL;
+
+        r = journal_file_move_to_object(f, OBJECT_ENTRY, f->current_offset, &o);
+        if (r < 0)
+                return r;
+
+        if (!ret_boot_id) {
+                sd_id128_t id;
+
+                r = sd_id128_get_boot(&id);
+                if (r < 0)
+                        return r;
+
+                if (!sd_id128_equal(id, o->entry.boot_id))
+                        return -ESTALE;
+        }
+
+        uint64_t t = le64toh(o->entry.monotonic);
+        if (!VALID_MONOTONIC(t))
+                return -EBADMSG;
+
+        if (ret)
+                *ret = t;
+        if (ret_boot_id)
+                *ret_boot_id = o->entry.boot_id;
+
+        return 0;
 }
 
 static bool
@@ -2158,186 +2591,143 @@ field_is_valid(const char *field)
 	return true;
 }
 
-_public_ int
-sd_journal_get_data(sd_journal *j, const char *field, const void **data,
-	size_t *size)
-{
-	JournalFile *f;
-	uint64_t i, n;
-	size_t field_length;
-	int r;
-	Object *o;
+_public_ int sd_journal_get_data(sd_journal *j, const char *field, const void **data, size_t *size) {
+        JournalFile *f;
+        size_t field_length;
+        Object *o;
+        int r;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
-	assert_return(field, -EINVAL);
-	assert_return(data, -EINVAL);
-	assert_return(size, -EINVAL);
-	assert_return(field_is_valid(field), -EINVAL);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(field, -EINVAL);
+        assert_return(data, -EINVAL);
+        assert_return(size, -EINVAL);
+        assert_return(field_is_valid(field), -EINVAL);
 
-	f = j->current_file;
-	if (!f)
-		return -EADDRNOTAVAIL;
+        f = j->current_file;
+        if (!f)
+                return -EADDRNOTAVAIL;
 
-	if (f->current_offset <= 0)
-		return -EADDRNOTAVAIL;
+        if (f->current_offset <= 0)
+                return -EADDRNOTAVAIL;
 
-	r = journal_file_move_to_object(f, OBJECT_ENTRY, f->current_offset, &o);
-	if (r < 0)
-		return r;
+        r = journal_file_move_to_object(f, OBJECT_ENTRY, f->current_offset, &o);
+        if (r < 0)
+                return r;
 
-	field_length = strlen(field);
+        field_length = strlen(field);
 
-	n = journal_file_entry_n_items(o);
-	for (i = 0; i < n; i++) {
-		uint64_t p, l;
-		le64_t le_hash;
-		size_t t;
-		int compression;
+        uint64_t n = journal_file_entry_n_items(f, o);
+        for (uint64_t i = 0; i < n; i++) {
+                uint64_t p;
+                void *d;
+                size_t l;
 
-		p = le64toh(o->entry.items[i].object_offset);
-		le_hash = o->entry.items[i].hash;
-		r = journal_file_move_to_object(f, OBJECT_DATA, p, &o);
-		if (r < 0)
-			return r;
+                p = journal_file_entry_item_object_offset(f, o, i);
+                r = journal_file_data_payload(f, NULL, p, field, field_length, j->data_threshold, &d, &l);
+                if (r == 0)
+                        continue;
+                if (IN_SET(r, -EADDRNOTAVAIL, -EBADMSG)) {
+                        log_debug_errno(r, "Entry item %"PRIu64" data object is bad, skipping over it: %m", i);
+                        continue;
+                }
+                if (r < 0)
+                        return r;
 
-		if (le_hash != o->data.hash)
-			return -EBADMSG;
+                *data = d;
+                *size = l;
 
-		l = le64toh(o->object.size) - offsetof(Object, data.payload);
+                return 0;
+        }
 
-		compression = o->object.flags & OBJECT_COMPRESSION_MASK;
-		if (compression) {
-#if defined(HAVE_XZ) || defined(HAVE_LZ4)
-			if (decompress_startswith(compression, o->data.payload,
-				    l, &f->compress_buffer,
-				    &f->compress_buffer_size, field,
-				    field_length, '=')) {
-				size_t rsize;
-
-				r = decompress_blob(compression,
-					o->data.payload, l, &f->compress_buffer,
-					&f->compress_buffer_size, &rsize,
-					j->data_threshold);
-				if (r < 0)
-					return r;
-
-				*data = f->compress_buffer;
-				*size = (size_t)rsize;
-
-				return 0;
-			}
-#else
-			return -EPROTONOSUPPORT;
-#endif
-		} else if (l >= field_length + 1 &&
-			memcmp(o->data.payload, field, field_length) == 0 &&
-			o->data.payload[field_length] == '=') {
-			t = (size_t)l;
-
-			if ((uint64_t)t != l)
-				return -E2BIG;
-
-			*data = o->data.payload;
-			*size = t;
-
-			return 0;
-		}
-
-		r = journal_file_move_to_object(f, OBJECT_ENTRY,
-			f->current_offset, &o);
-		if (r < 0)
-			return r;
-	}
-
-	return -ENOENT;
+        return -ENOENT;
 }
 
-static int
-return_data(sd_journal *j, JournalFile *f, Object *o, const void **data,
-	size_t *size)
-{
-	size_t t;
-	uint64_t l;
-	int compression;
+// static int
+// return_data(sd_journal *j, JournalFile *f, Object *o, const void **data,
+// 	size_t *size)
+// {
+// 	size_t t;
+// 	uint64_t l;
+// 	int compression;
 
-	l = le64toh(o->object.size) - offsetof(Object, data.payload);
-	t = (size_t)l;
+// 	l = le64toh(o->object.size) - offsetof(Object, data.payload);
+// 	t = (size_t)l;
 
-	/* We can't read objects larger than 4G on a 32bit machine */
-	if ((uint64_t)t != l)
-		return -E2BIG;
+// 	/* We can't read objects larger than 4G on a 32bit machine */
+// 	if ((uint64_t)t != l)
+// 		return -E2BIG;
 
-	compression = o->object.flags & OBJECT_COMPRESSION_MASK;
-	if (compression) {
-#if defined(HAVE_XZ) || defined(HAVE_LZ4)
-		size_t rsize;
-		int r;
+// 	compression = o->object.flags & OBJECT_COMPRESSION_MASK;
+// 	if (compression) {
+// #if defined(HAVE_XZ) || defined(HAVE_LZ4)
+// 		size_t rsize;
+// 		int r;
 
-		r = decompress_blob(compression, o->data.payload, l,
-			&f->compress_buffer, &f->compress_buffer_size, &rsize,
-			j->data_threshold);
-		if (r < 0)
-			return r;
+// 		r = decompress_blob(compression, o->data.payload, l,
+// 			&f->compress_buffer, &f->compress_buffer_size, &rsize,
+// 			j->data_threshold);
+// 		if (r < 0)
+// 			return r;
 
-		*data = f->compress_buffer;
-		*size = (size_t)rsize;
-#else
-		return -EPROTONOSUPPORT;
-#endif
-	} else {
-		*data = o->data.payload;
-		*size = t;
-	}
+// 		*data = f->compress_buffer;
+// 		*size = (size_t)rsize;
+// #else
+// 		return -EPROTONOSUPPORT;
+// #endif
+// 	} else {
+// 		*data = o->data.payload;
+// 		*size = t;
+// 	}
 
-	return 0;
-}
+// 	return 0;
+// }
 
-_public_ int
-sd_journal_enumerate_data(sd_journal *j, const void **data, size_t *size)
-{
-	JournalFile *f;
-	uint64_t p, n;
-	le64_t le_hash;
-	int r;
-	Object *o;
+_public_ int sd_journal_enumerate_data(sd_journal *j, const void **data, size_t *size) {
+        JournalFile *f;
+        Object *o;
+        int r;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
-	assert_return(data, -EINVAL);
-	assert_return(size, -EINVAL);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(data, -EINVAL);
+        assert_return(size, -EINVAL);
 
-	f = j->current_file;
-	if (!f)
-		return -EADDRNOTAVAIL;
+        f = j->current_file;
+        if (!f)
+                return -EADDRNOTAVAIL;
 
-	if (f->current_offset <= 0)
-		return -EADDRNOTAVAIL;
+        if (f->current_offset <= 0)
+                return -EADDRNOTAVAIL;
 
-	r = journal_file_move_to_object(f, OBJECT_ENTRY, f->current_offset, &o);
-	if (r < 0)
-		return r;
+        r = journal_file_move_to_object(f, OBJECT_ENTRY, f->current_offset, &o);
+        if (r < 0)
+                return r;
 
-	n = journal_file_entry_n_items(o);
-	if (j->current_field >= n)
-		return 0;
+        for (uint64_t n = journal_file_entry_n_items(f, o); j->current_field < n; j->current_field++) {
+                uint64_t p;
+                void *d;
+                size_t l;
 
-	p = le64toh(o->entry.items[j->current_field].object_offset);
-	le_hash = o->entry.items[j->current_field].hash;
-	r = journal_file_move_to_object(f, OBJECT_DATA, p, &o);
-	if (r < 0)
-		return r;
+                p = journal_file_entry_item_object_offset(f, o, j->current_field);
+                r = journal_file_data_payload(f, NULL, p, NULL, 0, j->data_threshold, &d, &l);
+                if (IN_SET(r, -EADDRNOTAVAIL, -EBADMSG)) {
+                        log_debug_errno(r, "Entry item %"PRIu64" data object is bad, skipping over it: %m", j->current_field);
+                        continue;
+                }
+                if (r < 0)
+                        return r;
+                assert(r > 0);
 
-	if (le_hash != o->data.hash)
-		return -EBADMSG;
+                *data = d;
+                *size = l;
 
-	r = return_data(j, f, o, data, size);
-	if (r < 0)
-		return r;
+                j->current_field++;
 
-	j->current_field++;
+                return 1;
+        }
 
-	return 1;
+        return 0;
 }
 
 _public_ void
@@ -2363,171 +2753,158 @@ reiterate_all_paths(sd_journal *j)
 	return add_search_paths(j);
 }
 
-_public_ int
-sd_journal_get_fd(sd_journal *j)
-{
-	int r;
+_public_ int sd_journal_get_fd(sd_journal *j) {
+        int r;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(!FLAGS_SET(j->flags, SD_JOURNAL_ASSUME_IMMUTABLE), -EUNATCH);
 
-	if (j->inotify_fd >= 0)
-		return j->inotify_fd;
+        if (j->no_inotify)
+                return -EMEDIUMTYPE;
 
-	r = allocate_inotify(j);
-	if (r < 0)
-		return r;
+        if (j->inotify_fd >= 0)
+                return j->inotify_fd;
 
-	log_debug("Reiterating files to get inotify watches established.");
+        r = allocate_inotify(j);
+        if (r < 0)
+                return r;
 
-	/* Iterate through all dirs again, to add them to the inotify */
-	r = reiterate_all_paths(j);
-	if (r < 0)
-		return r;
+        log_debug("Reiterating files to get inotify watches established.");
 
-	return j->inotify_fd;
+        /* Iterate through all dirs again, to add them to the inotify */
+        r = reiterate_all_paths(j);
+        if (r < 0)
+                return r;
+
+        return j->inotify_fd;
 }
 
-_public_ int
-sd_journal_get_events(sd_journal *j)
-{
-	int fd;
+_public_ int sd_journal_get_events(sd_journal *j) {
+        int fd;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(!FLAGS_SET(j->flags, SD_JOURNAL_ASSUME_IMMUTABLE), -EUNATCH);
 
-	fd = sd_journal_get_fd(j);
-	if (fd < 0)
-		return fd;
+        fd = sd_journal_get_fd(j);
+        if (fd < 0)
+                return fd;
 
-	return POLLIN;
+        return POLLIN;
 }
 
-_public_ int
-sd_journal_get_timeout(sd_journal *j, uint64_t *timeout_usec)
-{
-	int fd;
+_public_ int sd_journal_get_timeout(sd_journal *j, uint64_t *timeout_usec) {
+        int fd;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
-	assert_return(timeout_usec, -EINVAL);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(!FLAGS_SET(j->flags, SD_JOURNAL_ASSUME_IMMUTABLE), -EUNATCH);
+        assert_return(timeout_usec, -EINVAL);
 
-	fd = sd_journal_get_fd(j);
-	if (fd < 0)
-		return fd;
+        fd = sd_journal_get_fd(j);
+        if (fd < 0)
+                return fd;
 
-	if (!j->on_network) {
-		*timeout_usec = (uint64_t)-1;
-		return 0;
-	}
+        if (!j->on_network) {
+                *timeout_usec = UINT64_MAX;
+                return 0;
+        }
 
-	/* If we are on the network we need to regularly check for
+        /* If we are on the network we need to regularly check for
          * changes manually */
 
-	*timeout_usec = j->last_process_usec + JOURNAL_FILES_RECHECK_USEC;
-	return 1;
+        *timeout_usec = j->last_process_usec + JOURNAL_FILES_RECHECK_USEC;
+        return 1;
 }
 
-static void
-process_q_overflow(sd_journal *j)
-{
-	JournalFile *f;
-	Directory *m;
-	Iterator i;
+static void process_q_overflow(sd_journal *j) {
+        JournalFile *f;
+        Directory *m;
 
-	assert(j);
+        assert(j);
 
-	/* When the inotify queue overruns we need to enumerate and re-validate all journal files to bring our list
+        /* When the inotify queue overruns we need to enumerate and re-validate all journal files to bring our list
          * back in sync with what's on disk. For this we pick a new generation counter value. It'll be assigned to all
          * journal files we encounter. All journal files and all directories that don't carry it after reenumeration
          * are subject for unloading. */
 
-	log_debug("Inotify queue overrun, reiterating everything.");
+        log_debug("Inotify queue overrun, reiterating everything.");
 
-	j->generation++;
-	(void)reiterate_all_paths(j);
+        j->generation++;
+        (void) reiterate_all_paths(j);
 
-	ORDERED_HASHMAP_FOREACH (f, j->files, i) {
-		if (f->last_seen_generation == j->generation)
-			continue;
+        ORDERED_HASHMAP_FOREACH(f, j->files) {
 
-		log_debug(
-			"File '%s' hasn't been seen in this enumeration, removing.",
-			f->path);
-		remove_file_real(j, f);
-	}
+                if (f->last_seen_generation == j->generation)
+                        continue;
 
-	HASHMAP_FOREACH (m, j->directories_by_path, i) {
-		if (m->last_seen_generation == j->generation)
-			continue;
+                log_debug("File '%s' hasn't been seen in this enumeration, removing.", f->path);
+                remove_file_real(j, f);
+        }
 
-		if (m->is_root) /* Never GC root directories */
-			continue;
+        HASHMAP_FOREACH(m, j->directories_by_path) {
 
-		log_debug(
-			"Directory '%s' hasn't been seen in this enumeration, removing.",
-			f->path);
-		remove_directory(j, m);
-	}
+                if (m->last_seen_generation == j->generation)
+                        continue;
 
-	log_debug("Reiteration complete.");
+                if (m->is_root) /* Never GC root directories */
+                        continue;
+
+                log_debug("Directory '%s' hasn't been seen in this enumeration, removing.", f->path);
+                directory_free(m);
+        }
+
+        log_debug("Reiteration complete.");
 }
 
-static void
-process_inotify_event(sd_journal *j, struct inotify_event *e)
-{
-	Directory *d;
+static void process_inotify_event(sd_journal *j, const struct inotify_event *e) {
+        Directory *d;
 
-	assert(j);
-	assert(e);
+        assert(j);
+        assert(e);
 
-	if (e->mask & IN_Q_OVERFLOW) {
-		process_q_overflow(j);
-		return;
-	}
+        if (e->mask & IN_Q_OVERFLOW) {
+                process_q_overflow(j);
+                return;
+        }
 
-	/* Is this a subdirectory we watch? */
-	d = hashmap_get(j->directories_by_wd, INT_TO_PTR(e->wd));
-	if (d) {
-		sd_id128_t id;
+        /* Is this a subdirectory we watch? */
+        d = hashmap_get(j->directories_by_wd, INT_TO_PTR(e->wd));
+        if (d) {
+                if (!(e->mask & IN_ISDIR) && e->len > 0 &&
+                    (endswith(e->name, ".journal") ||
+                     endswith(e->name, ".journal~"))) {
 
-		if (!(e->mask & IN_ISDIR) && e->len > 0 &&
-			(endswith(e->name, ".journal") ||
-				endswith(e->name, ".journal~"))) {
-			/* Event for a journal file */
+                        /* Event for a journal file */
 
-			if (e->mask &
-				(IN_CREATE | IN_MOVED_TO | IN_MODIFY |
-					IN_ATTRIB))
-				(void)add_file(j, d->path, e->name);
-			else if (e->mask &
-				(IN_DELETE | IN_MOVED_FROM | IN_UNMOUNT))
-				remove_file(j, d->path, e->name);
+                        if (e->mask & (IN_CREATE|IN_MOVED_TO|IN_MODIFY|IN_ATTRIB))
+                                (void) add_file_by_name(j, d->path, e->name);
+                        else if (e->mask & (IN_DELETE|IN_MOVED_FROM|IN_UNMOUNT))
+                                (void) remove_file_by_name(j, d->path, e->name);
 
-		} else if (!d->is_root && e->len == 0) {
-			/* Event for a subdirectory */
+                } else if (!d->is_root && e->len == 0) {
 
-			if (e->mask &
-				(IN_DELETE_SELF | IN_MOVE_SELF | IN_UNMOUNT))
-				remove_directory(j, d);
+                        /* Event for a subdirectory */
 
-		} else if (d->is_root && (e->mask & IN_ISDIR) && e->len > 0 &&
-			sd_id128_from_string(e->name, &id) >= 0) {
-			/* Event for root directory */
+                        if (e->mask & (IN_DELETE_SELF|IN_MOVE_SELF|IN_UNMOUNT))
+                                directory_free(d);
 
-			if (e->mask &
-				(IN_CREATE | IN_MOVED_TO | IN_MODIFY |
-					IN_ATTRIB))
-				(void)add_directory(j, d->path, e->name);
-		}
+                } else if (d->is_root && (e->mask & IN_ISDIR) && e->len > 0 && id128_is_valid(e->name)) {
 
-		return;
-	}
+                        /* Event for root directory */
 
-	if (e->mask & IN_IGNORED)
-		return;
+                        if (e->mask & (IN_CREATE|IN_MOVED_TO|IN_MODIFY|IN_ATTRIB))
+                                (void) add_directory(j, d->path, e->name);
+                }
 
-	log_debug("Unknown inotify event.");
+                return;
+        }
+
+        if (e->mask & IN_IGNORED)
+                return;
+
+        log_debug("Unexpected inotify event.");
 }
 
 static int
@@ -2543,393 +2920,358 @@ determine_change(sd_journal *j)
 	return b ? SD_JOURNAL_INVALIDATE : SD_JOURNAL_APPEND;
 }
 
-_public_ int
-sd_journal_process(sd_journal *j)
-{
-	bool got_something = false;
+_public_ int sd_journal_process(sd_journal *j) {
+        bool got_something = false;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
 
-	if (j->inotify_fd <
-		0) /* We have no inotify fd yet? Then there's noting to process. */
-		return 0;
+        if (j->inotify_fd < 0) /* We have no inotify fd yet? Then there's noting to process. */
+                return 0;
 
-	j->last_process_usec = now(CLOCK_MONOTONIC);
-	j->last_invalidate_counter = j->current_invalidate_counter;
+        assert_return(!FLAGS_SET(j->flags, SD_JOURNAL_ASSUME_IMMUTABLE), -EUNATCH);
 
-	for (;;) {
-		union inotify_event_buffer buffer;
-		struct inotify_event *e;
-		ssize_t l;
+        j->last_process_usec = now(CLOCK_MONOTONIC);
+        j->last_invalidate_counter = j->current_invalidate_counter;
 
-		l = read(j->inotify_fd, &buffer, sizeof(buffer));
-		if (l < 0) {
-			if (errno == EAGAIN || errno == EINTR)
-				return got_something ? determine_change(j) :
-							     SD_JOURNAL_NOP;
+        for (;;) {
+                union inotify_event_buffer buffer;
+                ssize_t l;
 
-			return -errno;
-		}
+                l = read(j->inotify_fd, &buffer, sizeof(buffer));
+                if (l < 0) {
+                        if (ERRNO_IS_TRANSIENT(errno))
+                                return got_something ? determine_change(j) : SD_JOURNAL_NOP;
 
-		got_something = true;
+                        return -errno;
+                }
 
-		FOREACH_INOTIFY_EVENT (e, buffer, l)
-			process_inotify_event(j, e);
-	}
+                got_something = true;
+
+                FOREACH_INOTIFY_EVENT(e, buffer, l)
+                        process_inotify_event(j, e);
+        }
 }
 
-_public_ int
-sd_journal_wait(sd_journal *j, uint64_t timeout_usec)
-{
-	int r;
-	uint64_t t;
+_public_ int sd_journal_wait(sd_journal *j, uint64_t timeout_usec) {
+        int r;
+        uint64_t t;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(!FLAGS_SET(j->flags, SD_JOURNAL_ASSUME_IMMUTABLE), -EUNATCH);
 
-	if (j->inotify_fd < 0) {
-		Iterator i;
-		JournalFile *f;
+        if (j->inotify_fd < 0) {
+                JournalFile *f;
 
-		/* This is the first invocation, hence create the
-                 * inotify watch */
-		r = sd_journal_get_fd(j);
-		if (r < 0)
-			return r;
+                /* This is the first invocation, hence create the inotify watch */
+                r = sd_journal_get_fd(j);
+                if (r < 0)
+                        return r;
 
-		/* Server might have done some vacuuming while we weren't watching.
-                   Get rid of the deleted files now so they don't stay around indefinitely. */
-		ORDERED_HASHMAP_FOREACH (f, j->files, i) {
-			r = journal_file_fstat(f);
-			if (r == -EIDRM)
-				remove_file_real(j, f);
-			else if (r < 0) {
-				log_error(
-					"Failed to fstat() journal file '%s' : %m",
-					f->path);
-				continue;
-			}
-		}
+                /* Server might have done some vacuuming while we weren't watching. Get rid of the deleted
+                 * files now so they don't stay around indefinitely. */
+                ORDERED_HASHMAP_FOREACH(f, j->files) {
+                        r = journal_file_fstat(f);
+                        if (r == -EIDRM)
+                                remove_file_real(j, f);
+                        else if (r < 0)
+                                log_debug_errno(r, "Failed to fstat() journal file '%s', ignoring: %m", f->path);
+                }
 
-		/* The journal might have changed since the context
-                 * object was created and we weren't watching before,
-                 * hence don't wait for anything, and return
-                 * immediately. */
-		return determine_change(j);
-	}
+                /* The journal might have changed since the context object was created and we weren't
+                 * watching before, hence don't wait for anything, and return immediately. */
+                return determine_change(j);
+        }
 
-	r = sd_journal_get_timeout(j, &t);
-	if (r < 0)
-		return r;
+        r = sd_journal_get_timeout(j, &t);
+        if (r < 0)
+                return r;
 
-	if (t != (uint64_t)-1) {
-		usec_t n;
+        if (t != UINT64_MAX) {
+                t = usec_sub_unsigned(t, now(CLOCK_MONOTONIC));
 
-		n = now(CLOCK_MONOTONIC);
-		t = t > n ? t - n : 0;
+                if (timeout_usec == UINT64_MAX || timeout_usec > t)
+                        timeout_usec = t;
+        }
 
-		if (timeout_usec == (uint64_t)-1 || timeout_usec > t)
-			timeout_usec = t;
-	}
+        do {
+                r = fd_wait_for_event(j->inotify_fd, POLLIN, timeout_usec);
+        } while (r == -EINTR);
 
-	do {
-		r = fd_wait_for_event(j->inotify_fd, POLLIN, timeout_usec);
-	} while (r == -EINTR);
+        if (r < 0)
+                return r;
 
-	if (r < 0)
-		return r;
-
-	return sd_journal_process(j);
+        return sd_journal_process(j);
 }
 
-_public_ int
-sd_journal_get_cutoff_realtime_usec(sd_journal *j, uint64_t *from, uint64_t *to)
-{
-	Iterator i;
-	JournalFile *f;
-	bool first = true;
-	uint64_t fmin = 0, tmax = 0;
-	int r;
+_public_ int sd_journal_get_cutoff_realtime_usec(sd_journal *j, uint64_t *from, uint64_t *to) {
+        JournalFile *f;
+        bool first = true;
+        uint64_t fmin = 0, tmax = 0;
+        int r;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
-	assert_return(from || to, -EINVAL);
-	assert_return(from != to, -EINVAL);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(from || to, -EINVAL);
+        assert_return(from != to, -EINVAL);
 
-	ORDERED_HASHMAP_FOREACH (f, j->files, i) {
-		usec_t fr, t;
+        ORDERED_HASHMAP_FOREACH(f, j->files) {
+                usec_t fr, t;
 
-		r = journal_file_get_cutoff_realtime_usec(f, &fr, &t);
-		if (r == -ENOENT)
-			continue;
-		if (r < 0)
-			return r;
-		if (r == 0)
-			continue;
+                r = journal_file_get_cutoff_realtime_usec(f, &fr, &t);
+                if (r == -ENOENT)
+                        continue;
+                if (r < 0)
+                        return r;
+                if (r == 0)
+                        continue;
 
-		if (first) {
-			fmin = fr;
-			tmax = t;
-			first = false;
-		} else {
-			fmin = MIN(fr, fmin);
-			tmax = MAX(t, tmax);
-		}
-	}
+                if (first) {
+                        fmin = fr;
+                        tmax = t;
+                        first = false;
+                } else {
+                        fmin = MIN(fr, fmin);
+                        tmax = MAX(t, tmax);
+                }
+        }
 
-	if (from)
-		*from = fmin;
-	if (to)
-		*to = tmax;
+        if (from)
+                *from = fmin;
+        if (to)
+                *to = tmax;
 
-	return first ? 0 : 1;
+        return first ? 0 : 1;
 }
 
-_public_ int
-sd_journal_get_cutoff_monotonic_usec(sd_journal *j, sd_id128_t boot_id,
-	uint64_t *from, uint64_t *to)
-{
-	Iterator i;
-	JournalFile *f;
-	bool found = false;
-	int r;
+_public_ int sd_journal_get_cutoff_monotonic_usec(
+                sd_journal *j,
+                sd_id128_t boot_id,
+                uint64_t *ret_from,
+                uint64_t *ret_to) {
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
-	assert_return(from || to, -EINVAL);
-	assert_return(from != to, -EINVAL);
+        uint64_t from = UINT64_MAX, to = UINT64_MAX;
+        bool found = false;
+        JournalFile *f;
+        int r;
 
-	ORDERED_HASHMAP_FOREACH (f, j->files, i) {
-		usec_t fr, t;
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(ret_from != ret_to, -EINVAL);
 
-		r = journal_file_get_cutoff_monotonic_usec(f, boot_id, &fr, &t);
-		if (r == -ENOENT)
-			continue;
-		if (r < 0)
-			return r;
-		if (r == 0)
-			continue;
+        ORDERED_HASHMAP_FOREACH(f, j->files) {
+                usec_t ff, tt;
 
-		if (found) {
-			if (from)
-				*from = MIN(fr, *from);
-			if (to)
-				*to = MAX(t, *to);
-		} else {
-			if (from)
-				*from = fr;
-			if (to)
-				*to = t;
-			found = true;
-		}
-	}
+                r = journal_file_get_cutoff_monotonic_usec(f, boot_id, &ff, &tt);
+                if (r == -ENOENT)
+                        continue;
+                if (r < 0)
+                        return r;
+                if (r == 0)
+                        continue;
 
-	return found;
+                if (found) {
+                        from = MIN(ff, from);
+                        to = MAX(tt, to);
+                } else {
+                        from = ff;
+                        to = tt;
+                        found = true;
+                }
+        }
+
+        if (ret_from)
+                *ret_from = from;
+        if (ret_to)
+                *ret_to = to;
+
+        return found;
 }
 
-void
-journal_print_header(sd_journal *j)
-{
-	Iterator i;
-	JournalFile *f;
-	bool newline = false;
+void journal_print_header(sd_journal *j) {
+        JournalFile *f;
+        bool newline = false;
 
-	assert(j);
+        assert(j);
 
-	ORDERED_HASHMAP_FOREACH (f, j->files, i) {
-		if (newline)
-			putchar('\n');
-		else
-			newline = true;
+        ORDERED_HASHMAP_FOREACH(f, j->files) {
+                if (newline)
+                        putchar('\n');
+                else
+                        newline = true;
 
-		journal_file_print_header(f);
-	}
+                journal_file_print_header(f);
+        }
 }
 
-_public_ int
-sd_journal_get_usage(sd_journal *j, uint64_t *bytes)
-{
-	Iterator i;
-	JournalFile *f;
-	uint64_t sum = 0;
+_public_ int sd_journal_get_usage(sd_journal *j, uint64_t *ret) {
+        JournalFile *f;
+        uint64_t sum = 0;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
-	assert_return(bytes, -EINVAL);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(ret, -EINVAL);
 
-	ORDERED_HASHMAP_FOREACH (f, j->files, i) {
-		struct stat st;
+        ORDERED_HASHMAP_FOREACH(f, j->files) {
+                struct stat st;
+                uint64_t b;
 
-		if (fstat(f->fd, &st) < 0)
-			return -errno;
+                if (fstat(f->fd, &st) < 0)
+                        return -errno;
 
-		sum += (uint64_t)st.st_blocks * 512ULL;
-	}
+                b = (uint64_t) st.st_blocks;
+                if (b > UINT64_MAX / 512)
+                        return -EOVERFLOW;
+                b *= 512;
 
-	*bytes = sum;
-	return 0;
+                if (sum > UINT64_MAX - b)
+                        return -EOVERFLOW;
+                sum += b;
+        }
+
+        *ret = sum;
+        return 0;
 }
 
-_public_ int
-sd_journal_query_unique(sd_journal *j, const char *field)
-{
-	char *f;
+_public_ int sd_journal_query_unique(sd_journal *j, const char *field) {
+        int r;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
-	assert_return(!isempty(field), -EINVAL);
-	assert_return(field_is_valid(field), -EINVAL);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
 
-	f = strdup(field);
-	if (!f)
-		return -ENOMEM;
+        if (!field_is_valid(field))
+                return -EINVAL;
 
-	free(j->unique_field);
-	j->unique_field = f;
-	j->unique_file = NULL;
-	j->unique_offset = 0;
-	j->unique_file_lost = false;
+        r = free_and_strdup(&j->unique_field, field);
+        if (r < 0)
+                return r;
 
-	return 0;
+        j->unique_file = NULL;
+        j->unique_offset = 0;
+        j->unique_file_lost = false;
+
+        return 0;
 }
 
-_public_ int
-sd_journal_enumerate_unique(sd_journal *j, const void **data, size_t *l)
-{
-	size_t k;
+_public_ int sd_journal_enumerate_unique(
+                sd_journal *j,
+                const void **ret_data,
+                size_t *ret_size) {
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
-	assert_return(data, -EINVAL);
-	assert_return(l, -EINVAL);
-	assert_return(j->unique_field, -EINVAL);
+        size_t k;
 
-	k = strlen(j->unique_field);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(j->unique_field, -EINVAL);
 
-	if (!j->unique_file) {
-		if (j->unique_file_lost)
-			return 0;
+        k = strlen(j->unique_field);
 
-		j->unique_file = ordered_hashmap_first(j->files);
-		if (!j->unique_file)
-			return 0;
+        if (!j->unique_file) {
+                if (j->unique_file_lost)
+                        return 0;
 
-		j->unique_offset = 0;
-	}
+                j->unique_file = ordered_hashmap_first(j->files);
+                if (!j->unique_file)
+                        return 0;
 
-	for (;;) {
-		JournalFile *of;
-		Iterator i;
-		Object *o;
-		const void *odata;
-		size_t ol;
-		bool found;
-		int r;
+                j->unique_offset = 0;
+        }
 
-		/* Proceed to next data object in the field's linked list */
-		if (j->unique_offset == 0) {
-			r = journal_file_find_field_object(j->unique_file,
-				j->unique_field, k, &o, NULL);
-			if (r < 0)
-				return r;
+        for (;;) {
+                JournalFile *of;
+                Object *o;
+                void *odata;
+                size_t ol;
+                bool found;
+                int r;
 
-			j->unique_offset =
-				r > 0 ? le64toh(o->field.head_data_offset) : 0;
-		} else {
-			r = journal_file_move_to_object(j->unique_file,
-				OBJECT_DATA, j->unique_offset, &o);
-			if (r < 0)
-				return r;
+                /* Proceed to next data object in the field's linked list */
+                if (j->unique_offset == 0) {
+                        r = journal_file_find_field_object(j->unique_file, j->unique_field, k, &o, NULL);
+                        if (r < 0)
+                                return r;
 
-			j->unique_offset = le64toh(o->data.next_field_offset);
-		}
+                        j->unique_offset = r > 0 ? le64toh(o->field.head_data_offset) : 0;
+                } else {
+                        r = journal_file_move_to_object(j->unique_file, OBJECT_DATA, j->unique_offset, &o);
+                        if (r < 0)
+                                return r;
 
-		/* We reached the end of the list? Then start again, with the next file */
-		if (j->unique_offset == 0) {
-			j->unique_file = ordered_hashmap_next(j->files,
-				j->unique_file->path);
-			if (!j->unique_file)
-				return 0;
+                        j->unique_offset = le64toh(o->data.next_field_offset);
+                }
 
-			continue;
-		}
+                /* We reached the end of the list? Then start again, with the next file */
+                if (j->unique_offset == 0) {
+                        j->unique_file = ordered_hashmap_next(j->files, j->unique_file->path);
+                        if (!j->unique_file)
+                                return 0;
 
-		/* We do not use OBJECT_DATA context here, but OBJECT_UNUSED
-                 * instead, so that we can look at this data object at the same
-                 * time as one on another file */
-		r = journal_file_move_to_object(j->unique_file, OBJECT_UNUSED,
-			j->unique_offset, &o);
-		if (r < 0)
-			return r;
+                        continue;
+                }
 
-		/* Let's do the type check by hand, since we used 0 context above. */
-		if (o->object.type != OBJECT_DATA) {
-			log_debug("%s:offset " OFSfmt
-				  ": object has type %d, expected %d",
-				j->unique_file->path, j->unique_offset,
-				o->object.type, OBJECT_DATA);
-			return -EBADMSG;
-		}
+                r = journal_file_move_to_object(j->unique_file, OBJECT_DATA, j->unique_offset, &o);
+                if (r < 0)
+                        return r;
 
-		r = return_data(j, j->unique_file, o, &odata, &ol);
-		if (r < 0)
-			return r;
+                /* Let's pin the data object, so we can look at it at the same time as one on another file. */
+                r = journal_file_pin_object(j->unique_file, o);
+                if (r < 0)
+                        return r;
 
-		/* Check if we have at least the field name and "=". */
-		if (ol <= k) {
-			log_debug(
-				"%s:offset " OFSfmt
-				": object has size %zu, expected at least %zu",
-				j->unique_file->path, j->unique_offset, ol,
-				k + 1);
-			return -EBADMSG;
-		}
+                r = journal_file_data_payload(j->unique_file, o, j->unique_offset, NULL, 0,
+                                              j->data_threshold, &odata, &ol);
+                if (r < 0)
+                        return r;
 
-		if (memcmp(odata, j->unique_field, k) ||
-			((const char *)odata)[k] != '=') {
-			log_debug("%s:offset " OFSfmt
-				  ": object does not start with \"%s=\"",
-				j->unique_file->path, j->unique_offset,
-				j->unique_field);
-			return -EBADMSG;
-		}
+                /* Check if we have at least the field name and "=". */
+                if (ol <= k)
+                        return log_debug_errno(SYNTHETIC_ERRNO(EBADMSG),
+                                               "%s:offset " OFSfmt ": object has size %zu, expected at least %zu",
+                                               j->unique_file->path,
+                                               j->unique_offset, ol, k + 1);
 
-		/* OK, now let's see if we already returned this data
-                 * object by checking if it exists in the earlier
-                 * traversed files. */
-		found = false;
-		ORDERED_HASHMAP_FOREACH (of, j->files, i) {
-			Object *oo;
-			uint64_t op;
+                if (memcmp(odata, j->unique_field, k) != 0 || ((const char*) odata)[k] != '=')
+                        return log_debug_errno(SYNTHETIC_ERRNO(EBADMSG),
+                                               "%s:offset " OFSfmt ": object does not start with \"%s=\"",
+                                               j->unique_file->path,
+                                               j->unique_offset,
+                                               j->unique_field);
 
-			if (of == j->unique_file)
-				break;
+                /* OK, now let's see if we already returned this data object by checking if it exists in the
+                 * earlier traversed files. */
+                found = false;
+                ORDERED_HASHMAP_FOREACH(of, j->files) {
+                        if (of == j->unique_file)
+                                break;
 
-			/* Skip this file it didn't have any fields
-                         * indexed */
-			if (JOURNAL_HEADER_CONTAINS(of->header, n_fields) &&
-				le64toh(of->header->n_fields) <= 0)
-				continue;
+                        /* Skip this file it didn't have any fields indexed */
+                        if (JOURNAL_HEADER_CONTAINS(of->header, n_fields) && le64toh(of->header->n_fields) <= 0)
+                                continue;
 
-			r = journal_file_find_data_object_with_hash(of, odata,
-				ol, le64toh(o->data.hash), &oo, &op);
-			if (r < 0)
-				return r;
+                        /* We can reuse the hash from our current file only on old-style journal files
+                         * without keyed hashes. On new-style files we have to calculate the hash anew, to
+                         * take the per-file hash seed into consideration. */
+                        if (!JOURNAL_HEADER_KEYED_HASH(j->unique_file->header) && !JOURNAL_HEADER_KEYED_HASH(of->header))
+                                r = journal_file_find_data_object_with_hash(of, odata, ol, le64toh(o->data.hash), NULL, NULL);
+                        else
+                                r = journal_file_find_data_object(of, odata, ol, NULL, NULL);
+                        if (r < 0)
+                                return r;
+                        if (r > 0) {
+                                found = true;
+                                break;
+                        }
+                }
 
-			if (r > 0)
-				found = true;
-		}
+                if (found)
+                        continue;
 
-		if (found)
-			continue;
+                *ret_data = odata;
+                *ret_size = ol;
 
-		r = return_data(j, j->unique_file, o, data, l);
-		if (r < 0)
-			return r;
-
-		return 1;
-	}
+                return 1;
+        }
 }
 
 _public_ void
@@ -2943,13 +3285,11 @@ sd_journal_restart_unique(sd_journal *j)
 	j->unique_file_lost = false;
 }
 
-_public_ int
-sd_journal_reliable_fd(sd_journal *j)
-{
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
+_public_ int sd_journal_reliable_fd(sd_journal *j) {
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
 
-	return !j->on_network;
+        return !j->on_network;
 }
 
 static char *
@@ -2972,42 +3312,40 @@ lookup_field(const char *field, void *userdata)
 	return strndup((const char *)data + d, size - d);
 }
 
-_public_ int
-sd_journal_get_catalog(sd_journal *j, char **ret)
-{
-	const void *data;
-	size_t size;
-	sd_id128_t id;
-	_cleanup_free_ char *text = NULL, *cid = NULL;
-	char *t;
-	int r;
+_public_ int sd_journal_get_catalog(sd_journal *j, char **ret) {
+        const void *data;
+        size_t size;
+        sd_id128_t id;
+        _cleanup_free_ char *text = NULL, *cid = NULL;
+        char *t;
+        int r;
 
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
-	assert_return(ret, -EINVAL);
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(ret, -EINVAL);
 
-	r = sd_journal_get_data(j, "MESSAGE_ID", &data, &size);
-	if (r < 0)
-		return r;
+        r = sd_journal_get_data(j, "MESSAGE_ID", &data, &size);
+        if (r < 0)
+                return r;
 
-	cid = strndup((const char *)data + 11, size - 11);
-	if (!cid)
-		return -ENOMEM;
+        cid = strndup((const char*) data + 11, size - 11);
+        if (!cid)
+                return -ENOMEM;
 
-	r = sd_id128_from_string(cid, &id);
-	if (r < 0)
-		return r;
+        r = sd_id128_from_string(cid, &id);
+        if (r < 0)
+                return r;
 
-	r = catalog_get(CATALOG_DATABASE, id, &text);
-	if (r < 0)
-		return r;
+        r = catalog_get(secure_getenv("SYSTEMD_CATALOG") ?: CATALOG_DATABASE, id, &text);
+        if (r < 0)
+                return r;
 
-	t = replace_var(text, lookup_field, j);
-	if (!t)
-		return -ENOMEM;
+        t = replace_var(text, lookup_field, j);
+        if (!t)
+                return -ENOMEM;
 
-	*ret = t;
-	return 0;
+        *ret = t;
+        return 0;
 }
 
 _public_ int
@@ -3018,25 +3356,21 @@ sd_journal_get_catalog_for_message_id(sd_id128_t id, char **ret)
 	return catalog_get(CATALOG_DATABASE, id, ret);
 }
 
-_public_ int
-sd_journal_set_data_threshold(sd_journal *j, size_t sz)
-{
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
+_public_ int sd_journal_set_data_threshold(sd_journal *j, size_t sz) {
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
 
-	j->data_threshold = sz;
-	return 0;
+        j->data_threshold = sz;
+        return 0;
 }
 
-_public_ int
-sd_journal_get_data_threshold(sd_journal *j, size_t *sz)
-{
-	assert_return(j, -EINVAL);
-	assert_return(!journal_pid_changed(j), -ECHILD);
-	assert_return(sz, -EINVAL);
+_public_ int sd_journal_get_data_threshold(sd_journal *j, size_t *sz) {
+        assert_return(j, -EINVAL);
+        assert_return(!journal_origin_changed(j), -ECHILD);
+        assert_return(sz, -EINVAL);
 
-	*sz = j->data_threshold;
-	return 0;
+        *sz = j->data_threshold;
+        return 0;
 }
 
 _public_ int

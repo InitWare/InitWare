@@ -23,6 +23,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "fileio.h"
 #include "hostname-setup.h"
 #include "log.h"

@@ -23,7 +23,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "bsdxattr.h"
+#include "format-util.h"
 #include "journal-def.h"
 #include "journal-file.h"
 #include "journal-vacuum.h"
@@ -154,7 +156,6 @@ journal_directory_vacuum(const char *directory, uint64_t max_use,
 	int r = 0;
 	struct vacuum_info *list = NULL;
 	unsigned n_list = 0, i;
-	size_t n_allocated = 0;
 	uint64_t sum = 0, freed = 0;
 	usec_t retention_limit = 0;
 	char sbytes[FORMAT_BYTES_MAX];
@@ -291,7 +292,7 @@ journal_directory_vacuum(const char *directory, uint64_t max_use,
 
 		patch_realtime(directory, p, &st, &realtime);
 
-		if (!GREEDY_REALLOC(list, n_allocated, n_list + 1)) {
+		if (!GREEDY_REALLOC(list, n_list + 1)) {
 			free(p);
 			r = -ENOMEM;
 			goto finish;

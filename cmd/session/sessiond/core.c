@@ -24,6 +24,7 @@
 #include <pwd.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "audit.h"
 #include "bus-error.h"
 #include "bus-util.h"

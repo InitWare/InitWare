@@ -22,6 +22,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "audit.h"
 #include "bsdcapability.h"
 #include "bsdsignal.h"

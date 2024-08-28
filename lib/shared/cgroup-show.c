@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "alloc-util.h"
 #include "cgroup-show.h"
 #include "cgroup-util.h"
 #include "macro.h"
@@ -112,7 +113,7 @@ show_cgroup_one_by_path(const char *path, const char *prefix,
 		if (!kernel_threads && is_kernel_thread(pid) > 0)
 			continue;
 
-		if (!GREEDY_REALLOC(pids, n_allocated, n + 1))
+		if (!GREEDY_REALLOC(pids, n + 1))
 			return -ENOMEM;
 
 		assert(n < n_allocated);

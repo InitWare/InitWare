@@ -163,6 +163,7 @@ int cg_path_get_unit(const char *path, char **unit);
 int cg_path_get_user_unit(const char *path, char **unit);
 int cg_path_get_machine_name(const char *path, char **machine);
 int cg_path_get_slice(const char *path, char **slice);
+int cg_path_get_user_slice(const char *path, char **ret_slice);
 
 int cg_shift_path(const char *cgroup, const char *cached_root,
 	const char **shifted);
@@ -211,6 +212,9 @@ int cg_kernel_controllers(Set *controllers);
 int cg_cpu_shares_parse(const char *s, uint64_t *ret);
 int cg_blkio_weight_parse(const char *s, uint64_t *ret);
 
+bool cg_ns_supported(void);
+
+int cg_all_unified(void);
 int cg_unified(void);
 void cg_unified_flush(void);
 

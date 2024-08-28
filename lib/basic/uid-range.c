@@ -17,6 +17,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include "errno-util.h"
 #include "uid-range.h"
 #include "util.h"
 
@@ -214,4 +215,28 @@ uid_range_contains(const UidRange *p, unsigned n, uid_t uid)
 			return true;
 
 	return false;
+}
+
+int uid_map_read_one(FILE *f, uid_t *ret_base, uid_t *ret_shift, uid_t *ret_range) {
+        uid_t uid_base, uid_shift, uid_range;
+        int r;
+
+        assert(f);
+        assert(ret_base);
+        assert(ret_shift);
+        assert(ret_range);
+
+        errno = 0;
+        r = fscanf(f, UID_FMT " " UID_FMT " " UID_FMT "\n", &uid_base, &uid_shift, &uid_range);
+        if (r == EOF)
+                return errno_or_else(ENOMSG);
+        assert(r >= 0);
+        if (r != 3)
+                return -EBADMSG;
+
+        *ret_base = uid_base;
+        *ret_shift = uid_shift;
+        *ret_range = uid_range;
+
+        return 0;
 }

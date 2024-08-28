@@ -72,20 +72,20 @@ typedef struct Condition {
 
 	char *parameter;
 
-	IWLIST_FIELDS(struct Condition, conditions);
+	LIST_FIELDS(struct Condition, conditions);
 } Condition;
+
+typedef const char* (*condition_to_string_t)(ConditionType t) _const_;
 
 Condition *condition_new(ConditionType type, const char *parameter,
 	bool trigger, bool negate);
 void condition_free(Condition *c);
-Condition *condition_free_list(Condition *c);
+Condition* condition_free_list_type(Condition *head, ConditionType type);
 
 int condition_test(Condition *c);
 
-void condition_dump(Condition *c, FILE *f, const char *prefix,
-	const char *(*to_string)(ConditionType t));
-void condition_dump_list(Condition *c, FILE *f, const char *prefix,
-	const char *(*to_string)(ConditionType t));
+void condition_dump(Condition *c, FILE *f, const char *prefix, condition_to_string_t to_string);
+void condition_dump_list(Condition *first, FILE *f, const char *prefix, condition_to_string_t to_string);
 
 const char *condition_type_to_string(ConditionType t) _const_;
 ConditionType condition_type_from_string(const char *s) _pure_;

@@ -38,12 +38,19 @@ int write_drop_in_format(const char *dir, const char *unit, unsigned level,
  *
  * If return value is negative, loop will be aborted.
  */
-typedef int (*dependency_consumer_t)(UnitDependency dependency,
-	const char *entry, const char *filepath, void *arg);
+// typedef int (*dependency_consumer_t)(UnitDependency dependency,
+// 	const char *entry, const char *filepath, void *arg);
 
-int unit_file_process_dir(Set *unit_path_cache, const char *unit_path,
-	const char *name, const char *suffix, UnitDependency dependency,
-	dependency_consumer_t consumer, void *arg, char ***strv);
+// int unit_file_process_dir(Set *unit_path_cache, const char *unit_path,
+// 	const char *name, const char *suffix, UnitDependency dependency,
+// 	dependency_consumer_t consumer, void *arg, char ***strv);
 
-int unit_file_find_dropin_paths(char **lookup_path, Set *unit_path_cache,
-	Set *names, char ***paths);
+int unit_file_find_dropin_paths(
+                const char *original_root,
+                char **lookup_path,
+                Set *unit_path_cache,
+                const char *dir_suffix,
+                const char *file_suffix,
+                const char *name,
+                const Set *aliases,
+                char ***paths);

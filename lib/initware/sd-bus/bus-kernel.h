@@ -2,8 +2,28 @@
 
 #include "sd-bus.h"
 
+#define MEMFD_CACHE_MAX 32
+
+/* When we cache a memfd block for reuse, we will truncate blocks
+ * longer than this in order not to keep too much data around. */
+#define MEMFD_CACHE_ITEM_SIZE_MAX (128*1024)
+
+/* This determines at which minimum size we prefer sending memfds over
+ * sending vectors */
+#define MEMFD_MIN_SIZE (512*1024)
+
+struct memfd_cache {
+        int fd;
+        void *address;
+        size_t mapped;
+        size_t allocated;
+};
+
 uint64_t request_name_flags_to_kdbus(uint64_t sd_bus_flags);
 uint64_t attach_flags_to_kdbus(uint64_t sd_bus_flags);
+
+void close_and_munmap(int fd, void *address, size_t size);
+void bus_flush_memfd(sd_bus *bus);
 
 #if 0
 #pragma once

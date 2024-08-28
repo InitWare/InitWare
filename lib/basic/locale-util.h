@@ -19,6 +19,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <libintl.h>
 #include <stdbool.h>
 
 #include "macro.h"
@@ -47,6 +48,9 @@ typedef enum LocaleVariable {
 
 int get_locales(char ***l);
 bool locale_is_valid(const char *name);
+
+#define _(String) dgettext(GETTEXT_PACKAGE, String)
+#define N_(String) String
 
 const char *locale_variable_to_string(LocaleVariable i) _const_;
 LocaleVariable locale_variable_from_string(const char *s) _pure_;

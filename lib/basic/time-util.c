@@ -21,7 +21,9 @@
 #include <string.h>
 #include <time.h>
 
+#include "alloc-util.h"
 #include "bsdglibc.h"
+#include "stdio-util.h"
 #include "strv.h"
 #include "time-util.h"
 #include "util.h"
@@ -53,6 +55,32 @@ dual_timestamp_get(dual_timestamp *ts)
 	ts->monotonic = now(CLOCK_MONOTONIC);
 
 	return ts;
+}
+
+dual_timestamp* dual_timestamp_now(dual_timestamp *ts) {
+        assert(ts);
+
+        ts->realtime = now(CLOCK_REALTIME);
+        ts->monotonic = now(CLOCK_MONOTONIC);
+
+        return ts;
+}
+
+triple_timestamp* triple_timestamp_now(triple_timestamp *ts) {
+        assert(ts);
+
+        ts->realtime = now(CLOCK_REALTIME);
+        ts->monotonic = now(CLOCK_MONOTONIC);
+        ts->boottime = now(CLOCK_BOOTTIME);
+
+        return ts;
+}
+
+struct tm *localtime_or_gmtime_r(const time_t *t, struct tm *tm, bool utc) {
+        assert(t);
+        assert(tm);
+
+        return utc ? gmtime_r(t, tm) : localtime_r(t, tm);
 }
 
 dual_timestamp *
@@ -100,6 +128,27 @@ dual_timestamp_from_monotonic(dual_timestamp *ts, usec_t u)
 		ts->realtime = 0;
 
 	return ts;
+}
+
+usec_t triple_timestamp_by_clock(triple_timestamp *ts, clockid_t clock) {
+        assert(ts);
+
+        switch (clock) {
+
+        case CLOCK_REALTIME:
+        case CLOCK_REALTIME_ALARM:
+                return ts->realtime;
+
+        case CLOCK_MONOTONIC:
+                return ts->monotonic;
+
+        case CLOCK_BOOTTIME:
+        case CLOCK_BOOTTIME_ALARM:
+                return ts->boottime;
+
+        default:
+                return USEC_INFINITY;
+        }
 }
 
 usec_t
@@ -189,10 +238,216 @@ format_timestamp_internal(char *buf, size_t l, usec_t t, bool utc)
 	return buf;
 }
 
-char *
-format_timestamp(char *buf, size_t l, usec_t t)
-{
-	return format_timestamp_internal(buf, l, t, false);
+char *format_timestamp_style(
+                char *buf,
+                size_t l,
+                usec_t t,
+                TimestampStyle style) {
+
+        /* The weekdays in non-localized (English) form. We use this instead of the localized form, so that
+         * our generated timestamps may be parsed with parse_timestamp(), and always read the same. */
+        static const char * const weekdays[] = {
+                [0] = "Sun",
+                [1] = "Mon",
+                [2] = "Tue",
+                [3] = "Wed",
+                [4] = "Thu",
+                [5] = "Fri",
+                [6] = "Sat",
+        };
+
+        struct tm tm;
+        bool utc, us;
+        time_t sec;
+        size_t n;
+
+        assert(buf);
+        assert(style >= 0);
+        assert(style < _TIMESTAMP_STYLE_MAX);
+
+        if (!timestamp_is_set(t))
+                return NULL; /* Timestamp is unset */
+
+        if (style == TIMESTAMP_UNIX) {
+                if (l < (size_t) (1 + 1 + 1))
+                        return NULL; /* not enough space for even the shortest of forms */
+
+                return snprintf_ok(buf, l, "@" USEC_FMT, t / USEC_PER_SEC);  /* round down μs → s */
+        }
+
+        utc = IN_SET(style, TIMESTAMP_UTC, TIMESTAMP_US_UTC, TIMESTAMP_DATE);
+        us = IN_SET(style, TIMESTAMP_US, TIMESTAMP_US_UTC);
+
+        if (l < (size_t) (3 +                   /* week day */
+                          1 + 10 +              /* space and date */
+                          style == TIMESTAMP_DATE ? 0 :
+                          (1 + 8 +              /* space and time */
+                           (us ? 1 + 6 : 0) +   /* "." and microsecond part */
+                           1 + (utc ? 3 : 1)) + /* space and shortest possible zone */
+                          1))
+                return NULL; /* Not enough space even for the shortest form. */
+
+        /* Let's not format times with years > 9999 */
+        if (t > USEC_TIMESTAMP_FORMATTABLE_MAX) {
+                static const char* const xxx[_TIMESTAMP_STYLE_MAX] = {
+                        [TIMESTAMP_PRETTY] = "--- XXXX-XX-XX XX:XX:XX",
+                        [TIMESTAMP_US]     = "--- XXXX-XX-XX XX:XX:XX.XXXXXX",
+                        [TIMESTAMP_UTC]    = "--- XXXX-XX-XX XX:XX:XX UTC",
+                        [TIMESTAMP_US_UTC] = "--- XXXX-XX-XX XX:XX:XX.XXXXXX UTC",
+                        [TIMESTAMP_DATE]   = "--- XXXX-XX-XX",
+                };
+
+                assert(l >= strlen(xxx[style]) + 1);
+                return strcpy(buf, xxx[style]);
+        }
+
+        sec = (time_t) (t / USEC_PER_SEC); /* Round down */
+
+        if (!localtime_or_gmtime_r(&sec, &tm, utc))
+                return NULL;
+
+        /* Start with the week day */
+        assert((size_t) tm.tm_wday < ELEMENTSOF(weekdays));
+        memcpy(buf, weekdays[tm.tm_wday], 4);
+
+        if (style == TIMESTAMP_DATE) {
+                /* Special format string if only date should be shown. */
+                if (strftime(buf + 3, l - 3, " %Y-%m-%d", &tm) <= 0)
+                        return NULL; /* Doesn't fit */
+
+                return buf;
+        }
+
+        /* Add the main components */
+        if (strftime(buf + 3, l - 3, " %Y-%m-%d %H:%M:%S", &tm) <= 0)
+                return NULL; /* Doesn't fit */
+
+        /* Append the microseconds part, if that's requested */
+        if (us) {
+                n = strlen(buf);
+                if (n + 8 > l)
+                        return NULL; /* Microseconds part doesn't fit. */
+
+                sprintf(buf + n, ".%06"PRI_USEC, t % USEC_PER_SEC);
+        }
+
+        /* Append the timezone */
+        n = strlen(buf);
+        if (utc) {
+                /* If this is UTC then let's explicitly use the "UTC" string here, because gmtime_r()
+                 * normally uses the obsolete "GMT" instead. */
+                if (n + 5 > l)
+                        return NULL; /* "UTC" doesn't fit. */
+
+                strcpy(buf + n, " UTC");
+
+        } else if (!isempty(tm.tm_zone)) {
+                size_t tn;
+
+                /* An explicit timezone is specified, let's use it, if it fits */
+                tn = strlen(tm.tm_zone);
+                if (n + 1 + tn + 1 > l) {
+                        /* The full time zone does not fit in. Yuck. */
+
+                        if (n + 1 + _POSIX_TZNAME_MAX + 1 > l)
+                                return NULL; /* Not even enough space for the POSIX minimum (of 6)? In that
+                                              * case, complain that it doesn't fit. */
+
+                        /* So the time zone doesn't fit in fully, but the caller passed enough space for the
+                         * POSIX minimum time zone length. In this case suppress the timezone entirely, in
+                         * order not to dump an overly long, hard to read string on the user. This should be
+                         * safe, because the user will assume the local timezone anyway if none is shown. And
+                         * so does parse_timestamp(). */
+                } else {
+                        buf[n++] = ' ';
+                        strcpy(buf + n, tm.tm_zone);
+                }
+        }
+
+        return buf;
+}
+
+char* format_timestamp_relative_full(char *buf, size_t l, usec_t t, clockid_t clock, bool implicit_left) {
+        const char *s;
+        usec_t n, d;
+
+        assert(buf);
+
+        if (!timestamp_is_set(t))
+                return NULL;
+
+        n = now(clock);
+        if (n > t) {
+                d = n - t;
+                s = " ago";
+        } else {
+                d = t - n;
+                s = implicit_left ? "" : " left";
+        }
+
+        if (d >= USEC_PER_YEAR) {
+                usec_t years = d / USEC_PER_YEAR;
+                usec_t months = (d % USEC_PER_YEAR) / USEC_PER_MONTH;
+
+                (void) snprintf(buf, l, USEC_FMT " %s " USEC_FMT " %s%s",
+                                years,
+                                years == 1 ? "year" : "years",
+                                months,
+                                months == 1 ? "month" : "months",
+                                s);
+        } else if (d >= USEC_PER_MONTH) {
+                usec_t months = d / USEC_PER_MONTH;
+                usec_t days = (d % USEC_PER_MONTH) / USEC_PER_DAY;
+
+                (void) snprintf(buf, l, USEC_FMT " %s " USEC_FMT " %s%s",
+                                months,
+                                months == 1 ? "month" : "months",
+                                days,
+                                days == 1 ? "day" : "days",
+                                s);
+        } else if (d >= USEC_PER_WEEK) {
+                usec_t weeks = d / USEC_PER_WEEK;
+                usec_t days = (d % USEC_PER_WEEK) / USEC_PER_DAY;
+
+                (void) snprintf(buf, l, USEC_FMT " %s " USEC_FMT " %s%s",
+                                weeks,
+                                weeks == 1 ? "week" : "weeks",
+                                days,
+                                days == 1 ? "day" : "days",
+                                s);
+        } else if (d >= 2*USEC_PER_DAY)
+                (void) snprintf(buf, l, USEC_FMT " days%s", d / USEC_PER_DAY,s);
+        else if (d >= 25*USEC_PER_HOUR)
+                (void) snprintf(buf, l, "1 day " USEC_FMT "h%s",
+                                (d - USEC_PER_DAY) / USEC_PER_HOUR, s);
+        else if (d >= 6*USEC_PER_HOUR)
+                (void) snprintf(buf, l, USEC_FMT "h%s",
+                                d / USEC_PER_HOUR, s);
+        else if (d >= USEC_PER_HOUR)
+                (void) snprintf(buf, l, USEC_FMT "h " USEC_FMT "min%s",
+                                d / USEC_PER_HOUR,
+                                (d % USEC_PER_HOUR) / USEC_PER_MINUTE, s);
+        else if (d >= 5*USEC_PER_MINUTE)
+                (void) snprintf(buf, l, USEC_FMT "min%s",
+                                d / USEC_PER_MINUTE, s);
+        else if (d >= USEC_PER_MINUTE)
+                (void) snprintf(buf, l, USEC_FMT "min " USEC_FMT "s%s",
+                                d / USEC_PER_MINUTE,
+                                (d % USEC_PER_MINUTE) / USEC_PER_SEC, s);
+        else if (d >= USEC_PER_SEC)
+                (void) snprintf(buf, l, USEC_FMT "s%s",
+                                d / USEC_PER_SEC, s);
+        else if (d >= USEC_PER_MSEC)
+                (void) snprintf(buf, l, USEC_FMT "ms%s",
+                                d / USEC_PER_MSEC, s);
+        else if (d > 0)
+                (void) snprintf(buf, l, USEC_FMT"us%s",
+                                d, s);
+        else
+                (void) snprintf(buf, l, "now");
+
+        buf[l-1] = 0;
+        return buf;
 }
 
 char *
@@ -239,66 +494,6 @@ char *
 format_timestamp_us_utc(char *buf, size_t l, usec_t t)
 {
 	return format_timestamp_internal_us(buf, l, t, true);
-}
-
-char *
-format_timestamp_relative(char *buf, size_t l, usec_t t)
-{
-	const char *s;
-	usec_t n, d;
-
-	if (t <= 0 || t == USEC_INFINITY)
-		return NULL;
-
-	n = now(CLOCK_REALTIME);
-	if (n > t) {
-		d = n - t;
-		s = "ago";
-	} else {
-		d = t - n;
-		s = "left";
-	}
-
-	if (d >= USEC_PER_YEAR)
-		snprintf(buf, l, USEC_FMT " years " USEC_FMT " months %s",
-			d / USEC_PER_YEAR, (d % USEC_PER_YEAR) / USEC_PER_MONTH,
-			s);
-	else if (d >= USEC_PER_MONTH)
-		snprintf(buf, l, USEC_FMT " months " USEC_FMT " days %s",
-			d / USEC_PER_MONTH, (d % USEC_PER_MONTH) / USEC_PER_DAY,
-			s);
-	else if (d >= USEC_PER_WEEK)
-		snprintf(buf, l, USEC_FMT " weeks " USEC_FMT " days %s",
-			d / USEC_PER_WEEK, (d % USEC_PER_WEEK) / USEC_PER_DAY,
-			s);
-	else if (d >= 2 * USEC_PER_DAY)
-		snprintf(buf, l, USEC_FMT " days %s", d / USEC_PER_DAY, s);
-	else if (d >= 25 * USEC_PER_HOUR)
-		snprintf(buf, l, "1 day " USEC_FMT "h %s",
-			(d - USEC_PER_DAY) / USEC_PER_HOUR, s);
-	else if (d >= 6 * USEC_PER_HOUR)
-		snprintf(buf, l, USEC_FMT "h %s", d / USEC_PER_HOUR, s);
-	else if (d >= USEC_PER_HOUR)
-		snprintf(buf, l, USEC_FMT "h " USEC_FMT "min %s",
-			d / USEC_PER_HOUR,
-			(d % USEC_PER_HOUR) / USEC_PER_MINUTE, s);
-	else if (d >= 5 * USEC_PER_MINUTE)
-		snprintf(buf, l, USEC_FMT "min %s", d / USEC_PER_MINUTE, s);
-	else if (d >= USEC_PER_MINUTE)
-		snprintf(buf, l, USEC_FMT "min " USEC_FMT "s %s",
-			d / USEC_PER_MINUTE,
-			(d % USEC_PER_MINUTE) / USEC_PER_SEC, s);
-	else if (d >= USEC_PER_SEC)
-		snprintf(buf, l, USEC_FMT "s %s", d / USEC_PER_SEC, s);
-	else if (d >= USEC_PER_MSEC)
-		snprintf(buf, l, USEC_FMT "ms %s", d / USEC_PER_MSEC, s);
-	else if (d > 0)
-		snprintf(buf, l, USEC_FMT "us %s", d, s);
-	else
-		snprintf(buf, l, "now");
-
-	buf[l - 1] = 0;
-	return buf;
 }
 
 char *
@@ -904,12 +1099,29 @@ ntp_synced(void)
 #endif
 }
 
+bool clock_supported(clockid_t clock) {
+        struct timespec ts;
+
+        switch (clock) {
+
+        case CLOCK_MONOTONIC:
+        case CLOCK_REALTIME:
+        case CLOCK_BOOTTIME:
+                /* These three are always available in our baseline, and work in timerfd, as of kernel 3.15 */
+                return true;
+
+        default:
+                /* For everything else, check properly */
+                return clock_gettime(clock, &ts) >= 0;
+        }
+}
+
 int
 get_timezones(char ***ret)
 {
 	_cleanup_fclose_ FILE *f = NULL;
 	_cleanup_strv_free_ char **zones = NULL;
-	size_t n_zones = 0, n_allocated = 0;
+	size_t n_zones = 0;
 
 	assert(ret);
 
@@ -917,7 +1129,6 @@ get_timezones(char ***ret)
 	if (!zones)
 		return -ENOMEM;
 
-	n_allocated = 2;
 	n_zones = 1;
 
 	f = fopen("/usr/share/zoneinfo/zone.tab", "re");
@@ -951,7 +1162,7 @@ get_timezones(char ***ret)
 			if (!w)
 				return -ENOMEM;
 
-			if (!GREEDY_REALLOC(zones, n_allocated, n_zones + 2)) {
+			if (!GREEDY_REALLOC(zones, n_zones + 2)) {
 				free(w);
 				return -ENOMEM;
 			}

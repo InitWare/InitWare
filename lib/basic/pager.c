@@ -25,6 +25,7 @@
 
 #include "macro.h"
 #include "pager.h"
+#include "string-util.h"
 #include "util.h"
 
 #ifdef SVC_HAVE_sys_prctl_h

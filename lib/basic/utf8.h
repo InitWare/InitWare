@@ -20,14 +20,19 @@
 ***/
 
 #include <stdbool.h>
+#include <uchar.h>
 
 #include "macro.h"
 
 #define UTF8_REPLACEMENT_CHARACTER "\xef\xbf\xbd"
 #define UTF8_BYTE_ORDER_MARK "\xef\xbb\xbf"
 
-const char *utf8_is_valid(const char *s) _pure_;
+char *utf8_is_valid_n(const char *str, size_t len_bytes) _pure_;
+static inline char *utf8_is_valid(const char *s) {
+        return utf8_is_valid_n(s, SIZE_MAX);
+}
 char *ascii_is_valid(const char *s) _pure_;
+char *ascii_is_valid_n(const char *str, size_t len);
 
 bool utf8_is_printable_newline(const char *str, size_t length,
 	bool newline) _pure_;
@@ -35,13 +40,18 @@ bool utf8_is_printable_newline(const char *str, size_t length,
 	utf8_is_printable_newline(str, length, true)
 
 char *utf8_escape_invalid(const char *s);
-char *utf8_escape_non_printable(const char *str);
+char *utf8_escape_non_printable_full(const char *str, size_t console_width, bool force_ellipsis);
+static inline char *utf8_escape_non_printable(const char *str) {
+        return utf8_escape_non_printable_full(str, SIZE_MAX, false);
+}
 
 size_t utf8_encode_unichar(char *out_utf8, uint32_t g);
 char *utf16_to_utf8(const void *s, size_t length);
 
-int utf8_encoded_valid_unichar(const char *str);
-int utf8_encoded_to_unichar(const char *str);
+int utf8_encoded_valid_unichar(const char *str, size_t length);
+int utf8_encoded_to_unichar(const char *str, char32_t *ret_unichar);
+
+bool unichar_is_valid(int32_t ch);
 
 static inline bool
 utf16_is_surrogate(uint16_t c)
@@ -60,3 +70,5 @@ utf16_surrogate_pair_to_unichar(uint16_t lead, uint16_t trail)
 {
 	return ((lead - 0xd800) << 10) + (trail - 0xdc00) + 0x10000;
 }
+
+size_t utf8_console_width(const char *str);

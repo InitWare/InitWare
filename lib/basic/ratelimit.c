@@ -54,3 +54,27 @@ good:
 	r->num++;
 	return true;
 }
+
+bool ratelimit_below(RateLimit *r) {
+        usec_t ts;
+
+        assert(r);
+
+        if (!ratelimit_configured(r))
+                return true;
+
+        ts = now(CLOCK_MONOTONIC);
+
+        if (r->begin <= 0 ||
+            usec_sub_unsigned(ts, r->begin) > r->interval) {
+                r->begin = ts;  /* Start a new time window */
+                r->num = 1;     /* Reset counter */
+                return true;
+        }
+
+        if (_unlikely_(r->num == UINT_MAX))
+                return false;
+
+        r->num++;
+        return r->num <= r->burst;
+}

@@ -51,7 +51,7 @@ typedef struct PathSpec {
 
 	sd_event_source *event_source;
 
-	IWLIST_FIELDS(struct PathSpec, spec);
+	LIST_FIELDS(struct PathSpec, spec);
 
 	PathType type;
 	int inotify_fd;
@@ -81,7 +81,7 @@ typedef enum PathResult {
 struct Path {
 	Unit meta;
 
-	IWLIST_HEAD(PathSpec, specs);
+	LIST_HEAD(PathSpec, specs);
 
 	PathState state, deserialized_state;
 

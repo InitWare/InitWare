@@ -20,6 +20,7 @@
 #include <stddef.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "systemd/sd-messages.h"
 #include "console.h"
 #include "kmsg.h"

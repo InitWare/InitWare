@@ -21,7 +21,13 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "chase.h"
+#include "hexdecoct.h"
+#include "id128-util.h"
+#include "io-util.h"
 #include "macro.h"
+#include "path-util.h"
+#include "random-util.h"
 #include "sd-id128.h"
 #include "util.h"
 
@@ -40,6 +46,28 @@ sd_id128_to_string(sd_id128_t id, char s[33])
 	s[32] = 0;
 
 	return s;
+}
+
+_public_ char *sd_id128_to_uuid_string(sd_id128_t id, char s[SD_ID128_UUID_STRING_MAX]) {
+        size_t k = 0;
+
+        assert_return(s, NULL);
+
+        /* Similar to sd_id128_to_string() but formats the result as UUID instead of plain hex chars */
+
+        for (size_t n = 0; n < sizeof(sd_id128_t); n++) {
+
+                if (IN_SET(n, 4, 6, 8, 10))
+                        s[k++] = '-';
+
+                s[k++] = hexchar(id.bytes[n] >> 4);
+                s[k++] = hexchar(id.bytes[n] & 0xF);
+        }
+
+        assert(k == SD_ID128_UUID_STRING_MAX - 1);
+        s[k] = 0;
+
+        return s;
 }
 
 _public_ int
@@ -92,70 +120,32 @@ sd_id128_from_string(const char s[], sd_id128_t *ret)
 	return 0;
 }
 
-static sd_id128_t
-make_v4_uuid(sd_id128_t id)
-{
-	/* Stolen from generate_random_uuid() of drivers/char/random.c
-         * in the kernel sources */
+_public_ int sd_id128_get_machine(sd_id128_t *ret) {
+        static thread_local sd_id128_t saved_machine_id = {};
+        int r;
 
-	/* Set UUID version to 4 --- truly random generation */
-	id.bytes[6] = (id.bytes[6] & 0x0F) | 0x40;
+        if (sd_id128_is_null(saved_machine_id)) {
+                r = id128_read("/etc/machine-id", ID128_FORMAT_PLAIN | ID128_REFUSE_NULL, &saved_machine_id);
+                if (r < 0)
+                        return r;
+        }
 
-	/* Set the UUID variant to DCE */
-	id.bytes[8] = (id.bytes[8] & 0x3F) | 0x80;
-
-	return id;
+        if (ret)
+                *ret = saved_machine_id;
+        return 0;
 }
 
-_public_ int
-sd_id128_get_machine(sd_id128_t *ret)
-{
-	static thread_local sd_id128_t saved_machine_id;
-	static thread_local bool saved_machine_id_valid = false;
-	_cleanup_close_ int fd = -1;
-	char buf[33];
-	ssize_t k;
-	unsigned j;
-	sd_id128_t t;
+int id128_get_machine(const char *root, sd_id128_t *ret) {
+        _cleanup_close_ int fd = -EBADF;
 
-	assert_return(ret, -EINVAL);
+        if (empty_or_root(root))
+                return sd_id128_get_machine(ret);
 
-	if (saved_machine_id_valid) {
-		*ret = saved_machine_id;
-		return 0;
-	}
+        fd = chase_and_open("/etc/machine-id", root, CHASE_PREFIX_ROOT, O_RDONLY|O_CLOEXEC|O_NOCTTY, NULL);
+        if (fd < 0)
+                return fd;
 
-	fd = open("/etc/machine-id", O_RDONLY | O_CLOEXEC | O_NOCTTY);
-	if (fd < 0)
-		return -errno;
-
-	k = loop_read(fd, buf, 33, false);
-	if (k < 0)
-		return (int)k;
-
-	if (k != 33)
-		return -EIO;
-
-	if (buf[32] != '\n')
-		return -EIO;
-
-	for (j = 0; j < 16; j++) {
-		int a, b;
-
-		a = unhexchar(buf[j * 2]);
-		b = unhexchar(buf[j * 2 + 1]);
-
-		if (a < 0 || b < 0)
-			return -EIO;
-
-		t.bytes[j] = a << 4 | b;
-	}
-
-	saved_machine_id = t;
-	saved_machine_id_valid = true;
-
-	*ret = t;
-	return 0;
+        return id128_read_fd(fd, ID128_FORMAT_PLAIN | ID128_REFUSE_NULL, ret);
 }
 
 _public_ int
@@ -223,22 +213,17 @@ sd_id128_get_boot(sd_id128_t *ret)
 	return 0;
 }
 
-_public_ int
-sd_id128_randomize(sd_id128_t *ret)
-{
-	sd_id128_t t;
-	int r;
+_public_ int sd_id128_randomize(sd_id128_t *ret) {
+        sd_id128_t t;
 
-	assert_return(ret, -EINVAL);
+        assert_return(ret, -EINVAL);
 
-	r = dev_urandom(&t, sizeof(t));
-	if (r < 0)
-		return r;
+        random_bytes(&t, sizeof(t));
 
-	/* Turn this into a valid v4 UUID, to be nice. Note that we
+        /* Turn this into a valid v4 UUID, to be nice. Note that we
          * only guarantee this for newly generated UUIDs, not for
          * pre-existing ones. */
 
-	*ret = make_v4_uuid(t);
-	return 0;
+        *ret = id128_make_v4_uuid(t);
+        return 0;
 }

@@ -19,6 +19,7 @@
 
 #include <string.h>
 
+#include "string-util.h"
 #include "util.h"
 #include "xml.h"
 
@@ -249,5 +250,5 @@ xml_tokenize(const char **p, char **name, void **state, unsigned *line)
 		}
 	}
 
-	assert_not_reached("Bad state");
+	assert_not_reached();
 }

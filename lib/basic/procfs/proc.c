@@ -5,7 +5,9 @@
 
 #include <ctype.h>
 
+#include "alloc-util.h"
 #include "fileio.h"
+#include "string-util.h"
 #include "util.h"
 
 int
@@ -121,7 +123,7 @@ get_process_cmdline(pid_t pid, size_t max_length, bool comm_fallback,
 		size_t len = 0, allocated = 0;
 
 		while ((c = getc(f)) != EOF) {
-			if (!GREEDY_REALLOC(r, allocated, len + 2)) {
+			if (!GREEDY_REALLOC(r, len + 2)) {
 				free(r);
 				return -ENOMEM;
 			}

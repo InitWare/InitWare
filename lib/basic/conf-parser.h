@@ -21,8 +21,30 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
+#include "hashmap.h"
 #include "macro.h"
+
+typedef enum ConfigParseFlags {
+        CONFIG_PARSE_RELAXED       = 1 << 0, /* Do not warn about unknown non-extension fields */
+        CONFIG_PARSE_WARN          = 1 << 1, /* Emit non-debug messages */
+} ConfigParseFlags;
+
+/* Argument list for parsers of specific configuration settings. */
+#define CONFIG_PARSER_ARGUMENTS                 \
+        const char *unit,                       \
+        const char *filename,                   \
+        unsigned line,                          \
+        const char *section,                    \
+        unsigned section_line,                  \
+        const char *lvalue,                     \
+        int ltype,                              \
+        const char *rvalue,                     \
+        void *data,                             \
+        void *userdata
+
+#define CONFIG_PARSER_PROTOTYPE(name) int name(CONFIG_PARSER_ARGUMENTS)
 
 /* An abstract parser for simple, line based, shallow configuration
  * files consisting of variable assignments only. */
@@ -59,9 +81,14 @@ typedef const ConfigPerfItem *(*ConfigPerfItemLookup)(
 	const char *section_and_lvalue, register size_t length);
 
 /* Prototype for a generic high-level lookup function */
-typedef int (*ConfigItemLookup)(const void *table, const char *section,
-	const char *lvalue, ConfigParserCallback *func, int *ltype, void **data,
-	void *userdata);
+typedef int (*ConfigItemLookup)(
+                const void *table,
+                const char *section,
+                const char *lvalue,
+                ConfigParserCallback *ret_func,
+                int *ret_ltype,
+                void **ret_data,
+                void *userdata);
 
 /* Linear table search implementation of ConfigItemLookup, based on
  * ConfigTableItem arrays */
@@ -75,16 +102,61 @@ int config_item_perf_lookup(const void *table, const char *section,
 	const char *lvalue, ConfigParserCallback *func, int *ltype, void **data,
 	void *userdata);
 
-int config_parse(const char *unit, const char *filename, FILE *f,
-	const char *sections, /* nulstr */
-	ConfigItemLookup lookup, const void *table, bool relaxed,
-	bool allow_include, bool warn, void *userdata);
+int config_parse(
+                const char *unit,
+                const char *filename,
+                FILE *f,
+                const char *sections,       /* nulstr */
+                ConfigItemLookup lookup,
+                const void *table,
+                ConfigParseFlags flags,
+                void *userdata,
+                struct stat *ret_stat);     /* possibly NULL */
 
-int config_parse_many(const char *conf_file, /* possibly NULL */
-	const char *conf_file_dirs, /* nulstr */
-	const char *sections, /* nulstr */
-	ConfigItemLookup lookup, const void *table, bool relaxed,
-	void *userdata);
+int config_parse_many(
+                const char* const* conf_files,  /* possibly empty */
+                const char* const* conf_file_dirs,
+                const char *dropin_dirname,
+                const char *root,
+                const char *sections,         /* nulstr */
+                ConfigItemLookup lookup,
+                const void *table,
+                ConfigParseFlags flags,
+                void *userdata,
+                Hashmap **ret_stats_by_path,  /* possibly NULL */
+                char ***ret_drop_in_files);   /* possibly NULL */
+
+int config_parse_standard_file_with_dropins_full(
+                const char *root,
+                const char *main_file,        /* A path like "systemd/frobnicator.conf" */
+                const char *sections,
+                ConfigItemLookup lookup,
+                const void *table,
+                ConfigParseFlags flags,
+                void *userdata,
+                Hashmap **ret_stats_by_path,  /* possibly NULL */
+                char ***ret_dropin_files);    /* possibly NULL */
+
+static inline int config_parse_standard_file_with_dropins(
+                const char *main_file,        /* A path like "systemd/frobnicator.conf" */
+                const char *sections,         /* nulstr */
+                ConfigItemLookup lookup,
+                const void *table,
+                ConfigParseFlags flags,
+                void *userdata) {
+        return config_parse_standard_file_with_dropins_full(
+                        /* root= */ NULL,
+                        main_file,
+                        sections,
+                        lookup,
+                        table,
+                        flags,
+                        userdata,
+                        /* ret_stats_by_path= */ NULL,
+                        /* ret_dropin_files= */ NULL);
+}
+
+int hashmap_put_stats_by_path(Hashmap **stats_by_path, const char *path, const struct stat *st);
 
 /* Generic parsers */
 int config_parse_int(const char *unit, const char *filename, unsigned line,
@@ -114,15 +186,11 @@ int config_parse_iec_off(const char *unit, const char *filename, unsigned line,
 int config_parse_bool(const char *unit, const char *filename, unsigned line,
 	const char *section, unsigned section_line, const char *lvalue,
 	int ltype, const char *rvalue, void *data, void *userdata);
-int config_parse_string(const char *unit, const char *filename, unsigned line,
-	const char *section, unsigned section_line, const char *lvalue,
-	int ltype, const char *rvalue, void *data, void *userdata);
-int config_parse_path(const char *unit, const char *filename, unsigned line,
-	const char *section, unsigned section_line, const char *lvalue,
-	int ltype, const char *rvalue, void *data, void *userdata);
-int config_parse_strv(const char *unit, const char *filename, unsigned line,
-	const char *section, unsigned section_line, const char *lvalue,
-	int ltype, const char *rvalue, void *data, void *userdata);
+CONFIG_PARSER_PROTOTYPE(config_parse_tristate);
+CONFIG_PARSER_PROTOTYPE(config_parse_string);
+CONFIG_PARSER_PROTOTYPE(config_parse_path);
+CONFIG_PARSER_PROTOTYPE(config_parse_strv);
+CONFIG_PARSER_PROTOTYPE(config_parse_warn_compat);
 int config_parse_sec(const char *unit, const char *filename, unsigned line,
 	const char *section, unsigned section_line, const char *lvalue,
 	int ltype, const char *rvalue, void *data, void *userdata);
@@ -141,21 +209,18 @@ int config_parse_log_level(const char *unit, const char *filename,
 	const char *lvalue, int ltype, const char *rvalue, void *data,
 	void *userdata);
 
-int log_syntax_internal(const char *unit, int level, const char *file, int line,
-	const char *func, const char *config_file, unsigned config_line,
-	int error, const char *format, ...) _printf_(9, 10);
+typedef enum Disabled {
+        DISABLED_CONFIGURATION,
+        DISABLED_LEGACY,
+        DISABLED_EXPERIMENTAL,
+} Disabled;
 
-#define log_syntax(unit, level, config_file, config_line, error, ...)          \
-	log_syntax_internal(unit, level, __FILE__, __LINE__, __func__,         \
-		config_file, config_line, error, __VA_ARGS__)
+typedef enum ConfigParseStringFlags {
+        CONFIG_PARSE_STRING_SAFE  = 1 << 0,
+        CONFIG_PARSE_STRING_ASCII = 1 << 1,
 
-#define log_invalid_utf8(unit, level, config_file, config_line, error, rvalue) \
-	do {                                                                   \
-		_cleanup_free_ char *_p = utf8_escape_invalid(rvalue);         \
-		log_syntax(unit, level, config_file, config_line, error,       \
-			"String is not UTF-8 clean, ignoring assignment: %s",  \
-			strna(_p));                                            \
-	} while (false)
+        CONFIG_PARSE_STRING_SAFE_AND_ASCII = CONFIG_PARSE_STRING_SAFE | CONFIG_PARSE_STRING_ASCII,
+} ConfigParseStringFlags;
 
 #define DEFINE_CONFIG_PARSE_ENUM(function, name, type, msg)                    \
 	int function(const char *unit, const char *filename, unsigned line,    \
