@@ -176,6 +176,8 @@ int sd_bus_negotiate_creds(sd_bus *bus, int b, uint64_t creds_mask);
 int sd_bus_get_creds_mask(sd_bus *bus, uint64_t *creds_mask);
 int sd_bus_set_watch_bind(sd_bus *bus, int b);
 int sd_bus_get_watch_bind(sd_bus *bus);
+int sd_bus_set_sender(sd_bus *bus, const char *sender);
+int sd_bus_get_sender(sd_bus *bus, const char **ret);
 
 int sd_bus_start(sd_bus *ret);
 
@@ -374,6 +376,7 @@ int sd_bus_message_dump(sd_bus_message *m, FILE *f, uint64_t flags);
 
 int sd_bus_get_unique_name(sd_bus *bus, const char **unique);
 int sd_bus_request_name(sd_bus *bus, const char *name, uint64_t flags);
+int sd_bus_request_name_async(sd_bus *bus, sd_bus_slot **ret_slot, const char *name, uint64_t flags, sd_bus_message_handler_t callback, void *userdata);
 int sd_bus_release_name(sd_bus *bus, const char *name);
 int sd_bus_list_names(sd_bus *bus, char ***acquired,
 	char ***activatable); /* free the results */
@@ -445,6 +448,8 @@ int sd_bus_emit_interfaces_removed(sd_bus *bus, const char *path,
 int sd_bus_query_sender_creds(sd_bus_message *call, uint64_t mask,
 	sd_bus_creds **creds);
 int sd_bus_query_sender_privilege(sd_bus_message *call, int capability);
+
+int sd_bus_match_signal_async(sd_bus *bus, sd_bus_slot **ret, const char *sender, const char *path, const char *interface, const char *member, sd_bus_message_handler_t match_callback, sd_bus_message_handler_t add_callback, void *userdata);
 
 /* Credential handling */
 

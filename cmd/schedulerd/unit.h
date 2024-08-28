@@ -132,10 +132,18 @@ struct Unit {
 	/* JOB_NOP jobs are special and can be installed without disturbing the real job. */
 	Job *nop_job;
 
+	/* The slot used for watching NameOwnerChanged signals */
+  sd_bus_slot *match_bus_slot;
+	sd_bus_slot *get_name_owner_slot;
+
 	/* Job timeout and action to take */
 	usec_t job_timeout;
 	EmergencyAction job_timeout_action;
 	char *job_timeout_reboot_arg;
+
+	/* References to this unit from clients */
+  sd_bus_track *bus_track;
+	char **deserialized_refs;
 
 	/* References to this */
 	LIST_HEAD(UnitRef, refs_by_target);
@@ -266,6 +274,9 @@ struct Unit {
 	bool cgroup_realized: 1;
 	bool cgroup_members_mask_valid: 1;
 	bool cgroup_subtree_mask_valid: 1;
+
+	/* For transient units: whether to add a bus track reference after creating the unit */
+  bool bus_track_add:1;
 };
 
 struct UnitStatusMessageFormats {
@@ -274,10 +285,33 @@ struct UnitStatusMessageFormats {
 	const char *finished_stop_job[_JOB_RESULT_MAX];
 };
 
+typedef enum UnitWriteFlags {
+        /* Write a runtime unit file or drop-in (i.e. one below /run) */
+        UNIT_RUNTIME                = 1 << 0,
+
+        /* Write a persistent drop-in (i.e. one below /etc) */
+        UNIT_PERSISTENT             = 1 << 1,
+
+        /* Place this item in the per-unit-type private section, instead of [Unit] */
+        UNIT_PRIVATE                = 1 << 2,
+
+        /* Apply specifier escaping */
+        UNIT_ESCAPE_SPECIFIERS      = 1 << 3,
+
+        /* Escape elements of ExecStart= syntax, incl. prevention of variable expansion */
+        UNIT_ESCAPE_EXEC_SYNTAX_ENV = 1 << 4,
+
+        /* Escape elements of ExecStart=: syntax (no variable expansion) */
+        UNIT_ESCAPE_EXEC_SYNTAX     = 1 << 5,
+
+        /* Apply C escaping before writing */
+        UNIT_ESCAPE_C               = 1 << 6,
+} UnitWriteFlags;
+
 typedef enum UnitSetPropertiesMode {
 	UNIT_CHECK = 0,
-	UNIT_RUNTIME = 1,
-	UNIT_PERSISTENT = 2,
+	UNIT_RUNTIME_OLD = 1,
+	UNIT_PERSISTENT_OLD = 2,
 } UnitSetPropertiesMode;
 
 typedef struct ActivationDetails {
@@ -285,6 +319,8 @@ typedef struct ActivationDetails {
         UnitType trigger_unit_type;
         char *trigger_unit_name;
 } ActivationDetails;
+
+int activation_details_append_pair(ActivationDetails *info, char ***strv);
 
 #ifdef SVC_USE_Automount
 #include "automount.h"
@@ -593,7 +629,7 @@ int unit_start(Unit *u);
 int unit_stop(Unit *u);
 int unit_reload(Unit *u);
 
-int unit_kill(Unit *u, KillWho w, int signo, sd_bus_error *error);
+int unit_kill(Unit *u, KillWho w, int signo, int code, int value, sd_bus_error *ret_error);
 int unit_kill_common(Unit *u, KillWho who, int signo, pid_t main_pid,
 	pid_t control_pid, sd_bus_error *error);
 
@@ -607,6 +643,7 @@ void unit_unwatch_all_pids(Unit *u);
 
 void unit_tidy_watch_pids(Unit *u, pid_t except1, pid_t except2);
 
+int unit_install_bus_match(Unit *u, sd_bus *bus, const char *name);
 int unit_watch_bus_name(Unit *u, const char *name);
 void unit_unwatch_bus_name(Unit *u, const char *name);
 

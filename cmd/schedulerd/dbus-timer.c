@@ -46,7 +46,7 @@ property_get_monotonic_timers(sd_bus *bus, const char *path,
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH (value, v, t->values) {
+	LIST_FOREACH (value, v, t->values) {
 		_cleanup_free_ char *buf = NULL;
 		const char *s;
 		size_t l;
@@ -92,7 +92,7 @@ property_get_calendar_timers(sd_bus *bus, const char *path,
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH (value, v, t->values) {
+	LIST_FOREACH (value, v, t->values) {
 		_cleanup_free_ char *buf = NULL;
 
 		if (v->base != TIMER_CALENDAR)
@@ -227,7 +227,7 @@ bus_timer_set_transient_property(Timer *t, const char *name,
 			v->base = b;
 			v->value = u;
 
-			IWLIST_PREPEND(value, t->values, v);
+			LIST_PREPEND(value, t->values, v);
 		}
 
 		return 1;
@@ -259,7 +259,7 @@ bus_timer_set_transient_property(Timer *t, const char *name,
 			v->base = TIMER_CALENDAR;
 			v->calendar_spec = c;
 
-			IWLIST_PREPEND(value, t->values, v);
+			LIST_PREPEND(value, t->values, v);
 		}
 
 		return 1;

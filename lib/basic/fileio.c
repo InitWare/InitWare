@@ -1185,3 +1185,73 @@ FILE* open_memstream_unlocked(char **ptr, size_t *sizeloc) {
 
         return f;
 }
+
+/**
+ * Retrieve one field from a file like /proc/self/status.  pattern
+ * should not include whitespace or the delimiter (':'). pattern matches only
+ * the beginning of a line. Whitespace before ':' is skipped. Whitespace and
+ * zeros after the ':' will be skipped. field must be freed afterwards.
+ * terminator specifies the terminating characters of the field value (not
+ * included in the value).
+ */
+int get_proc_field(const char *filename, const char *pattern, const char *terminator, char **field) {
+        _cleanup_free_ char *status = NULL;
+        char *t, *f;
+        int r;
+
+        assert(terminator);
+        assert(filename);
+        assert(pattern);
+        assert(field);
+
+        r = read_full_virtual_file(filename, &status, NULL);
+        if (r < 0)
+                return r;
+
+        t = status;
+
+        do {
+                bool pattern_ok;
+
+                do {
+                        t = strstr(t, pattern);
+                        if (!t)
+                                return -ENOENT;
+
+                        /* Check that pattern occurs in beginning of line. */
+                        pattern_ok = (t == status || t[-1] == '\n');
+
+                        t += strlen(pattern);
+
+                } while (!pattern_ok);
+
+                t += strspn(t, " \t");
+                if (!*t)
+                        return -ENOENT;
+
+        } while (*t != ':');
+
+        t++;
+
+        if (*t) {
+                t += strspn(t, " \t");
+
+                /* Also skip zeros, because when this is used for
+                 * capabilities, we don't want the zeros. This way the
+                 * same capability set always maps to the same string,
+                 * irrespective of the total capability set size. For
+                 * other numbers it shouldn't matter. */
+                t += strspn(t, "0");
+                /* Back off one char if there's nothing but whitespace
+                   and zeros */
+                if (!*t || isspace(*t))
+                        t--;
+        }
+
+        f = strdupcspn(t, terminator);
+        if (!f)
+                return -ENOMEM;
+
+        *field = f;
+        return 0;
+}

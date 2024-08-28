@@ -19,6 +19,7 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 ***/
 
+#include <stdio.h>
 #include <sys/types.h>
 #include <stdbool.h>
 
@@ -31,3 +32,5 @@ int uid_range_add_str(UidRange **p, unsigned *n, const char *s);
 
 int uid_range_next_lower(const UidRange *p, unsigned n, uid_t *uid);
 bool uid_range_contains(const UidRange *p, unsigned n, uid_t uid);
+
+int uid_map_read_one(FILE *f, uid_t *ret_base, uid_t *ret_shift, uid_t *ret_range);

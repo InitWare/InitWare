@@ -260,7 +260,7 @@ bus_service_set_transient_property(Service *s, const char *name,
 
 			fputs("ExecStart=\n", f);
 
-			IWLIST_FOREACH (command, c,
+			LIST_FOREACH (command, c,
 				s->exec_command[SERVICE_EXEC_START]) {
 				_cleanup_free_ char *a;
 

@@ -28,6 +28,7 @@
 #include "bus-common-errors.h"
 #include "chase.h"
 #include "clock-util.h"
+#include "data-fd-util.h"
 #include "dbus-execute.h"
 #include "dbus-job.h"
 #include "dbus-manager.h"
@@ -79,19 +80,30 @@ property_get_features(sd_bus *bus, const char *path, const char *interface,
 	return sd_bus_message_append(reply, "s", SYSTEMD_FEATURES);
 }
 
-static int
-property_get_virtualization(sd_bus *bus, const char *path,
-	const char *interface, const char *property, sd_bus_message *reply,
-	void *userdata, sd_bus_error *error)
-{
-	const char *id = NULL;
+static int property_get_virtualization(
+                sd_bus *bus,
+                const char *path,
+                const char *interface,
+                const char *property,
+                sd_bus_message *reply,
+                void *userdata,
+                sd_bus_error *error) {
 
-	assert(bus);
-	assert(reply);
+        Virtualization v;
 
-	detect_virtualization(&id);
+        assert(bus);
+        assert(reply);
 
-	return sd_bus_message_append(reply, "s", id);
+        v = detect_virtualization();
+
+        /* Make sure to return the empty string when we detect no virtualization, as that is the API.
+         *
+         * https://github.com/systemd/systemd/issues/1423
+         */
+
+        return sd_bus_message_append(
+                        reply, "s",
+                        v == VIRTUALIZATION_NONE ? NULL : virtualization_to_string(v));
 }
 
 static int
@@ -309,6 +321,68 @@ property_set_runtime_watchdog(sd_bus *bus, const char *path,
 		return r;
 
 	return watchdog_set_timeout(t);
+}
+
+static int bus_get_unit_by_name(Manager *m, sd_bus_message *message, const char *name, Unit **ret_unit, sd_bus_error *error) {
+        Unit *u;
+        int r;
+
+        assert(m);
+        assert(message);
+        assert(ret_unit);
+
+        /* More or less a wrapper around manager_get_unit() that generates nice errors and has one trick up
+         * its sleeve: if the name is specified empty we use the client's unit. */
+
+        if (isempty(name)) {
+                _cleanup_(pidref_done) PidRef pidref = PIDREF_NULL;
+
+                r = bus_query_sender_pidref(message, &pidref);
+                if (r < 0)
+                        return r;
+
+                u = manager_get_unit_by_pidref(m, &pidref);
+                if (!u)
+                        return sd_bus_error_set(error, BUS_ERROR_NO_SUCH_UNIT, "Client not member of any unit.");
+        } else {
+                u = manager_get_unit(m, name);
+                if (!u)
+                        return sd_bus_error_setf(error, BUS_ERROR_NO_SUCH_UNIT, "Unit %s not loaded.", name);
+        }
+
+        *ret_unit = u;
+        return 0;
+}
+
+static int bus_load_unit_by_name(Manager *m, sd_bus_message *message, const char *name, Unit **ret_unit, sd_bus_error *error) {
+        assert(m);
+        assert(message);
+        assert(ret_unit);
+
+        /* Pretty much the same as bus_get_unit_by_name(), but we also load the unit if necessary. */
+
+        if (isempty(name))
+                return bus_get_unit_by_name(m, message, name, ret_unit, error);
+
+        return manager_load_unit(m, name, NULL, error, ret_unit);
+}
+
+static int reply_unit_path(Unit *u, sd_bus_message *message, sd_bus_error *error) {
+        _cleanup_free_ char *path = NULL;
+        int r;
+
+        assert(u);
+        assert(message);
+
+        r = mac_selinux_unit_access_check(u, message, "status", error);
+        if (r < 0)
+                return r;
+
+        path = unit_dbus_path(u);
+        if (!path)
+                return log_oom();
+
+        return sd_bus_reply_method_return(message, "o", path);
 }
 
 static int method_get_unit(sd_bus_message *message, void *userdata, sd_bus_error *error) {

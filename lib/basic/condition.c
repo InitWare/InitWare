@@ -137,38 +137,35 @@ condition_test_kernel_command_line(Condition *c)
 	return false;
 }
 
-static int
-condition_test_virtualization(Condition *c)
-{
-	int b, v;
-	const char *id;
+static int condition_test_virtualization(Condition *c) {
+        Virtualization v;
+        int b;
 
-	assert(c);
-	assert(c->parameter);
-	assert(c->type == CONDITION_VIRTUALIZATION);
+        assert(c);
+        assert(c->parameter);
+        assert(c->type == CONDITION_VIRTUALIZATION);
 
-	v = detect_virtualization(&id);
-	if (v < 0)
-		return v;
+        if (streq(c->parameter, "private-users"))
+                return running_in_userns();
 
-	/* First, compare with yes/no */
-	b = parse_boolean(c->parameter);
+        v = detect_virtualization();
+        if (v < 0)
+                return v;
 
-	if (v > 0 && b > 0)
-		return true;
+        /* First, compare with yes/no */
+        b = parse_boolean(c->parameter);
+        if (b >= 0)
+                return b == (v != VIRTUALIZATION_NONE);
 
-	if (v == 0 && b == 0)
-		return true;
+        /* Then, compare categorization */
+        if (streq(c->parameter, "vm"))
+                return VIRTUALIZATION_IS_VM(v);
 
-	/* Then, compare categorization */
-	if (v == VIRTUALIZATION_VM && streq(c->parameter, "vm"))
-		return true;
+        if (streq(c->parameter, "container"))
+                return VIRTUALIZATION_IS_CONTAINER(v);
 
-	if (v == VIRTUALIZATION_CONTAINER && streq(c->parameter, "container"))
-		return true;
-
-	/* Finally compare id */
-	return v > 0 && streq(c->parameter, id);
+        /* Finally compare id */
+        return v != VIRTUALIZATION_NONE && streq(c->parameter, virtualization_to_string(v));
 }
 
 static int

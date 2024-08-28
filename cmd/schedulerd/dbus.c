@@ -33,6 +33,7 @@
 #include "dbus-manager.h"
 #include "dbus-unit.h"
 #include "dbus.h"
+#include "fd-util.h"
 #include "log.h"
 #include "missing.h"
 #include "mkdir.h"
@@ -47,31 +48,31 @@
 
 static void destroy_bus(Manager *m, sd_bus **bus);
 
-int
-bus_send_queued_message(Manager *m)
-{
-	int r;
+// int
+// bus_send_queued_message(Manager *m)
+// {
+// 	int r;
 
-	assert(m);
+// 	assert(m);
 
-	if (!m->queued_message)
-		return 0;
+// 	if (!m->queued_message)
+// 		return 0;
 
-	assert(m->queued_message_bus);
+// 	assert(m->queued_message_bus);
 
-	/* If we cannot get rid of this message we won't dispatch any
-         * D-Bus messages, so that we won't end up wanting to queue
-         * another message. */
+// 	/* If we cannot get rid of this message we won't dispatch any
+//          * D-Bus messages, so that we won't end up wanting to queue
+//          * another message. */
 
-	r = sd_bus_send(m->queued_message_bus, m->queued_message, NULL);
-	if (r < 0)
-		log_warning_errno(r, "Failed to send queued message: %m");
+// 	r = sd_bus_send(m->queued_message_bus, m->queued_message, NULL);
+// 	if (r < 0)
+// 		log_warning_errno(r, "Failed to send queued message: %m");
 
-	m->queued_message = sd_bus_message_unref(m->queued_message);
-	m->queued_message_bus = sd_bus_unref(m->queued_message_bus);
+// 	m->queued_message = sd_bus_message_unref(m->queued_message);
+// 	m->queued_message_bus = sd_bus_unref(m->queued_message_bus);
 
-	return 0;
-}
+// 	return 0;
+// }
 
 int
 bus_forward_agent_released(Manager *m, const char *path)
@@ -99,147 +100,141 @@ bus_forward_agent_released(Manager *m, const char *path)
 	return 1;
 }
 
-static int
-signal_agent_released(sd_bus *bus, sd_bus_message *message, void *userdata,
-	sd_bus_error *error)
-{
-	Manager *m = userdata;
-	const char *cgroup;
-	int r;
+static int signal_agent_released(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        _cleanup_(sd_bus_creds_unrefp) sd_bus_creds *creds = NULL;
+        Manager *m = ASSERT_PTR(userdata);
+        const char *cgroup;
+        uid_t sender_uid;
+        int r;
 
-	assert(message);
-	assert(m);
+        assert(message);
 
-	r = sd_bus_message_read(message, "s", &cgroup);
-	if (r < 0) {
-		bus_log_parse_error(r);
-		return 0;
-	}
+        /* only accept org.freedesktop.systemd1.Agent from UID=0 */
+        r = sd_bus_query_sender_creds(message, SD_BUS_CREDS_EUID, &creds);
+        if (r < 0)
+                return r;
 
-	manager_notify_cgroup_empty(m, cgroup);
-	return 0;
+        r = sd_bus_creds_get_euid(creds, &sender_uid);
+        if (r < 0 || sender_uid != 0)
+                return 0;
+
+        /* parse 'cgroup-empty' notification */
+        r = sd_bus_message_read(message, "s", &cgroup);
+        if (r < 0) {
+                bus_log_parse_error(r);
+                return 0;
+        }
+
+        manager_notify_cgroup_empty(m, cgroup);
+        return 0;
 }
 
-static int
-signal_disconnected(sd_bus *bus, sd_bus_message *message, void *userdata,
-	sd_bus_error *error)
-{
-	Manager *m = userdata;
+static int signal_disconnected(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        Manager *m = ASSERT_PTR(userdata);
+        sd_bus *bus;
 
-	assert(bus);
-	assert(message);
-	assert(m);
+        assert(message);
+        assert_se(bus = sd_bus_message_get_bus(message));
 
-	if (bus == m->api_bus)
-		destroy_bus(m, &m->api_bus);
-	if (bus == m->system_bus)
-		destroy_bus(m, &m->system_bus);
-	if (set_remove(m->private_buses, bus)) {
-		log_debug("Got disconnect on private connection.");
-		destroy_bus(m, &bus);
-	}
+        if (bus == m->api_bus)
+                bus_done_api(m);
+        if (bus == m->system_bus)
+                bus_done_system(m);
 
-	return 0;
+        if (set_remove(m->private_buses, bus)) {
+                log_debug("Got disconnect on private connection.");
+                destroy_bus(m, &bus);
+        }
+
+        return 0;
 }
 
-static int
-signal_name_owner_changed(sd_bus *bus, sd_bus_message *message, void *userdata,
-	sd_bus_error *error)
-{
-	const char *name, *old_owner, *new_owner;
-	Manager *m = userdata;
-	int r;
+// static int
+// signal_name_owner_changed(sd_bus *bus, sd_bus_message *message, void *userdata,
+// 	sd_bus_error *error)
+// {
+// 	const char *name, *old_owner, *new_owner;
+// 	Manager *m = userdata;
+// 	int r;
 
-	assert(bus);
-	assert(message);
-	assert(m);
+// 	assert(bus);
+// 	assert(message);
+// 	assert(m);
 
-	r = sd_bus_message_read(message, "sss", &name, &old_owner, &new_owner);
-	if (r < 0) {
-		bus_log_parse_error(r);
-		return 0;
-	}
+// 	r = sd_bus_message_read(message, "sss", &name, &old_owner, &new_owner);
+// 	if (r < 0) {
+// 		bus_log_parse_error(r);
+// 		return 0;
+// 	}
 
-	manager_dispatch_bus_name_owner_changed(m, name,
-		isempty(old_owner) ? NULL : old_owner,
-		isempty(new_owner) ? NULL : new_owner);
+// 	manager_dispatch_bus_name_owner_changed(m, name,
+// 		isempty(old_owner) ? NULL : old_owner,
+// 		isempty(new_owner) ? NULL : new_owner);
 
-	return 0;
-}
+// 	return 0;
+// }
 
-static int
-signal_activation_request(sd_bus *bus, sd_bus_message *message, void *userdata,
-	sd_bus_error *ret_error)
-{
-	_cleanup_bus_error_free_ sd_bus_error error = SD_BUS_ERROR_NULL;
-	_cleanup_bus_message_unref_ sd_bus_message *reply = NULL;
-	Manager *m = userdata;
-	const char *name;
-	Unit *u;
-	int r;
+static int signal_activation_request(sd_bus_message *message, void *userdata, sd_bus_error *ret_error) {
+        _cleanup_(sd_bus_error_free) sd_bus_error error = SD_BUS_ERROR_NULL;
+        _cleanup_(sd_bus_message_unrefp) sd_bus_message *reply = NULL;
+        Manager *m = ASSERT_PTR(userdata);
+        const char *name;
+        Unit *u;
+        int r;
 
-	assert(bus);
-	assert(message);
-	assert(m);
+        assert(message);
 
-	r = sd_bus_message_read(message, "s", &name);
-	if (r < 0) {
-		bus_log_parse_error(r);
-		return 0;
-	}
+        r = sd_bus_message_read(message, "s", &name);
+        if (r < 0) {
+                bus_log_parse_error(r);
+                return 0;
+        }
 
-	if (manager_unit_inactive_or_pending(m, SPECIAL_DBUS_SERVICE) ||
-		manager_unit_inactive_or_pending(m, SPECIAL_DBUS_SOCKET)) {
-		r = sd_bus_error_setf(&error, BUS_ERROR_SHUTTING_DOWN,
-			"Refusing activation, D-Bus is shutting down.");
-		goto failed;
-	}
+        if (manager_unit_inactive_or_pending(m, SPECIAL_DBUS_SOCKET) ||
+            manager_unit_inactive_or_pending(m, SPECIAL_DBUS_SERVICE)) {
+                r = sd_bus_error_set(&error, BUS_ERROR_SHUTTING_DOWN, "Refusing activation, D-Bus is shutting down.");
+                goto failed;
+        }
 
-	r = manager_load_unit(m, name, NULL, &error, &u);
-	if (r < 0)
-		goto failed;
+        r = manager_load_unit(m, name, NULL, &error, &u);
+        if (r < 0)
+                goto failed;
 
-	if (u->refuse_manual_start) {
-		r = sd_bus_error_setf(&error, BUS_ERROR_ONLY_BY_DEPENDENCY,
-			"Operation refused, %s may be requested by dependency only (it is configured to refuse manual start/stop).",
-			u->id);
-		goto failed;
-	}
+        if (u->refuse_manual_start) {
+                r = sd_bus_error_setf(&error, BUS_ERROR_ONLY_BY_DEPENDENCY, "Operation refused, %s may be requested by dependency only (it is configured to refuse manual start/stop).", u->id);
+                goto failed;
+        }
 
-	r = manager_add_job(m, JOB_START, u, JOB_REPLACE, true, &error, NULL);
-	if (r < 0)
-		goto failed;
+        r = manager_add_job(m, JOB_START, u, JOB_REPLACE, NULL, &error, NULL);
+        if (r < 0)
+                goto failed;
 
-	/* Successfully queued, that's it for us */
-	return 0;
+        /* Successfully queued, that's it for us */
+        return 0;
 
 failed:
-	if (!sd_bus_error_is_set(&error))
-		sd_bus_error_set_errno(&error, r);
+        if (!sd_bus_error_is_set(&error))
+                sd_bus_error_set_errno(&error, r);
 
-	log_debug("D-Bus activation failed for %s: %s", name,
-		bus_error_message(&error, r));
+        log_debug("D-Bus activation failed for %s: %s", name, bus_error_message(&error, r));
 
-	r = sd_bus_message_new_signal(bus, &reply, "/org/freedesktop/systemd1",
-		SVC_DBUS_INTERFACE ".Activator", "ActivationFailure");
-	if (r < 0) {
-		bus_log_create_error(r);
-		return 0;
-	}
+        r = sd_bus_message_new_signal(sd_bus_message_get_bus(message), &reply, "/org/freedesktop/systemd1", SVC_DBUS_INTERFACE ".Activator", "ActivationFailure");
+        if (r < 0) {
+                bus_log_create_error(r);
+                return 0;
+        }
 
-	r = sd_bus_message_append(reply, "sss", name, error.name,
-		error.message);
-	if (r < 0) {
-		bus_log_create_error(r);
-		return 0;
-	}
+        r = sd_bus_message_append(reply, "sss", name, error.name, error.message);
+        if (r < 0) {
+                bus_log_create_error(r);
+                return 0;
+        }
 
-	r = sd_bus_send_to(bus, reply, "org.freedesktop.DBus", NULL);
-	if (r < 0)
-		return log_error_errno(r,
-			"Failed to respond with to bus activation request: %m");
+        r = sd_bus_send_to(NULL, reply, "org.freedesktop.DBus", NULL);
+        if (r < 0)
+                return log_error_errno(r, "Failed to respond with to bus activation request: %m");
 
-	return 0;
+        return 0;
 }
 
 #ifdef HAVE_SELINUX
@@ -340,47 +335,38 @@ bus_job_find(sd_bus *bus, const char *path, const char *interface,
 	return 1;
 }
 
-static int
-find_unit(Manager *m, sd_bus *bus, const char *path, Unit **unit,
-	sd_bus_error *error)
-{
-	Unit *u;
-	int r;
+static int find_unit(Manager *m, sd_bus *bus, const char *path, Unit **unit, sd_bus_error *error) {
+        Unit *u = NULL;  /* just to appease gcc, initialization is not really necessary */
+        int r;
 
-	assert(m);
-	assert(bus);
-	assert(path);
+        assert(m);
+        assert(bus);
+        assert(path);
 
-	if (streq_ptr(path, "/org/freedesktop/systemd1/unit/self")) {
-		_cleanup_bus_creds_unref_ sd_bus_creds *creds = NULL;
-		sd_bus_message *message;
-		pid_t pid;
+        if (streq(path, "/org/freedesktop/systemd1/unit/self")) {
+                _cleanup_(pidref_done) PidRef pidref = PIDREF_NULL;
+                sd_bus_message *message;
 
-		message = sd_bus_get_current_message(bus);
-		if (!message)
-			return 0;
+                message = sd_bus_get_current_message(bus);
+                if (!message)
+                        return 0;
 
-		r = sd_bus_query_sender_creds(message, SD_BUS_CREDS_PID,
-			&creds);
-		if (r < 0)
-			return r;
+                r = bus_query_sender_pidref(message, &pidref);
+                if (r < 0)
+                        return r;
 
-		r = sd_bus_creds_get_pid(creds, &pid);
-		if (r < 0)
-			return r;
+                u = manager_get_unit_by_pidref(m, &pidref);
+                if (!u)
+                        return 0;
+        } else {
+                r = manager_load_unit_from_dbus_path(m, path, error, &u);
+                if (r < 0)
+                        return 0;
+                assert(u);
+        }
 
-		u = manager_get_unit_by_pid(m, pid);
-	} else {
-		r = manager_load_unit_from_dbus_path(m, path, error, &u);
-		if (r < 0)
-			return 0;
-	}
-
-	if (!u)
-		return 0;
-
-	*unit = u;
-	return 1;
+        *unit = u;
+        return 1;
 }
 
 static int
@@ -555,7 +541,7 @@ bus_job_enumerate(sd_bus *bus, const char *path, void *userdata, char ***nodes,
 	if (!l)
 		return -ENOMEM;
 
-	HASHMAP_FOREACH (j, m->jobs, i) {
+	HASHMAP_FOREACH (j, m->jobs) {
 		l[k] = job_dbus_path(j);
 		if (!l[k])
 			return -ENOMEM;
@@ -585,7 +571,7 @@ bus_unit_enumerate(sd_bus *bus, const char *path, void *userdata, char ***nodes,
 	if (!l)
 		return -ENOMEM;
 
-	HASHMAP_FOREACH (u, m->units, i) {
+	HASHMAP_FOREACH (u, m->units) {
 		l[k] = unit_dbus_path(u);
 		if (!l[k])
 			return -ENOMEM;
@@ -723,106 +709,136 @@ bus_setup_disconnected_match(Manager *m, sd_bus *bus)
 	return 0;
 }
 
-static int
-bus_on_connection(sd_event_source *s, int fd, uint32_t revents, void *userdata)
-{
-	_cleanup_bus_unref_ sd_bus *bus = NULL;
-	_cleanup_close_ int nfd = -1;
-	Manager *m = userdata;
-	sd_id128_t id;
-	int r;
+static int bus_on_connection(sd_event_source *s, int fd, uint32_t revents, void *userdata) {
+        _cleanup_(sd_bus_close_unrefp) sd_bus *bus = NULL;
+        _cleanup_close_ int nfd = -EBADF;
+        Manager *m = ASSERT_PTR(userdata);
+        sd_id128_t id;
+        int r;
 
-	assert(s);
-	assert(m);
+        assert(s);
 
-	nfd = accept4(fd, NULL, NULL, SOCK_NONBLOCK | SOCK_CLOEXEC);
-	if (nfd < 0) {
-		log_warning_errno(errno,
-			"Failed to accept private connection, ignoring: %m");
-		return 0;
-	}
+        nfd = accept4(fd, NULL, NULL, SOCK_NONBLOCK|SOCK_CLOEXEC);
+        if (nfd < 0) {
+                if (ERRNO_IS_ACCEPT_AGAIN(errno))
+                        return 0;
 
-	if (set_size(m->private_buses) >= CONNECTIONS_MAX) {
-		log_warning("Too many concurrent connections, refusing");
-		return 0;
-	}
+                log_warning_errno(errno, "Failed to accept private connection, ignoring: %m");
+                return 0;
+        }
 
-	r = set_ensure_allocated(&m->private_buses, NULL);
-	if (r < 0) {
-		log_oom();
-		return 0;
-	}
+        if (set_size(m->private_buses) >= CONNECTIONS_MAX) {
+                log_warning("Too many concurrent connections, refusing");
+                return 0;
+        }
 
-	r = sd_bus_new(&bus);
-	if (r < 0) {
-		log_warning_errno(r,
-			"Failed to allocate new private connection bus: %m");
-		return 0;
-	}
+        r = sd_bus_new(&bus);
+        if (r < 0) {
+                log_warning_errno(r, "Failed to allocate new private connection bus: %m");
+                return 0;
+        }
 
-	asprintf(&bus->description, "Manager Private Bus %d", nfd);
+        (void) sd_bus_set_description(bus, "private-bus-connection");
 
-	r = sd_bus_set_fd(bus, nfd, nfd);
-	if (r < 0) {
-		log_warning_errno(r,
-			"Failed to set fd on new connection bus: %m");
-		return 0;
-	}
+        r = sd_bus_set_fd(bus, nfd, nfd);
+        if (r < 0) {
+                log_warning_errno(r, "Failed to set fd on new connection bus: %m");
+                return 0;
+        }
 
-	nfd = -1;
+        TAKE_FD(nfd);
 
-	r = bus_check_peercred(bus);
-	if (r < 0) {
-		log_warning_errno(r,
-			"Incoming private connection from unprivileged client, refusing: %m");
-		return 0;
-	}
+        r = bus_check_peercred(bus);
+        if (r < 0) {
+                log_warning_errno(r, "Incoming private connection from unprivileged client, refusing: %m");
+                return 0;
+        }
 
-	assert_se(sd_id128_randomize(&id) >= 0);
+        assert_se(sd_id128_randomize(&id) >= 0);
 
-	r = sd_bus_set_server(bus, 1, id);
-	if (r < 0) {
-		log_warning_errno(r,
-			"Failed to enable server support for new connection bus: %m");
-		return 0;
-	}
+        r = sd_bus_set_server(bus, 1, id);
+        if (r < 0) {
+                log_warning_errno(r, "Failed to enable server support for new connection bus: %m");
+                return 0;
+        }
 
-	r = sd_bus_start(bus);
-	if (r < 0) {
-		log_warning_errno(r, "Failed to start new connection bus: %m");
-		return 0;
-	}
+        r = sd_bus_negotiate_creds(bus, 1,
+                                   SD_BUS_CREDS_PID|SD_BUS_CREDS_UID|
+                                   SD_BUS_CREDS_EUID|SD_BUS_CREDS_EFFECTIVE_CAPS|
+                                   SD_BUS_CREDS_SELINUX_CONTEXT|
+                                   SD_BUS_CREDS_COMM|SD_BUS_CREDS_DESCRIPTION);
+        if (r < 0) {
+                log_warning_errno(r, "Failed to enable credentials for new connection: %m");
+                return 0;
+        }
 
-	r = sd_bus_attach_event(bus, m->event, SD_EVENT_PRIORITY_NORMAL);
-	if (r < 0) {
-		log_warning_errno(r,
-			"Failed to attach new connection bus to event loop: %m");
-		return 0;
-	}
+        r = sd_bus_set_sender(bus, "org.freedesktop.systemd1");
+        if (r < 0) {
+                log_warning_errno(r, "Failed to set direct connection sender: %m");
+                return 0;
+        }
 
-	r = bus_setup_disconnected_match(m, bus);
-	if (r < 0)
-		return 0;
+        r = sd_bus_start(bus);
+        if (r < 0) {
+                log_warning_errno(r, "Failed to start new connection bus: %m");
+                return 0;
+        }
 
-	r = bus_setup_api_vtables(m, bus);
-	if (r < 0) {
-		log_warning_errno(r,
-			"Failed to set up API vtables on new connection bus: %m");
-		return 0;
-	}
+// HACK!
+#if 0
+        if (DEBUG_LOGGING) {
+                _cleanup_(sd_bus_creds_unrefp) sd_bus_creds *c = NULL;
+                const char *comm = NULL, *description = NULL;
+                pid_t pid = 0;
 
-	r = set_put(m->private_buses, bus);
-	if (r < 0) {
-		log_warning_errno(r,
-			"Failed to add new conenction bus to set: %m");
-		return 0;
-	}
+                r = sd_bus_get_owner_creds(bus, SD_BUS_CREDS_PID|SD_BUS_CREDS_COMM|SD_BUS_CREDS_DESCRIPTION, &c);
+                if (r < 0)
+                        log_warning_errno(r, "Failed to get peer creds, ignoring: %m");
+                else {
+                        (void) sd_bus_creds_get_pid(c, &pid);
+                        (void) sd_bus_creds_get_comm(c, &comm);
+                        (void) sd_bus_creds_get_description(c, &description);
+                }
 
-	bus = NULL;
+                log_debug("Accepting direct incoming connection from " PID_FMT " (%s) [%s]", pid, strna(comm), strna(description));
+        }
+#endif
 
-	log_debug("Accepted new private connection.");
+        r = sd_bus_attach_event(bus, m->event, EVENT_PRIORITY_IPC);
+        if (r < 0) {
+                log_warning_errno(r, "Failed to attach new connection bus to event loop: %m");
+                return 0;
+        }
 
-	return 0;
+        r = bus_setup_disconnected_match(m, bus);
+        if (r < 0)
+                return 0;
+
+        r = bus_setup_api_vtables(m, bus);
+        if (r < 0) {
+                log_warning_errno(r, "Failed to set up API vtables on new connection bus: %m");
+                return 0;
+        }
+
+        r = bus_register_malloc_status(bus, "org.freedesktop.systemd1");
+        if (r < 0)
+                log_warning_errno(r, "Failed to register MemoryAllocation1, ignoring: %m");
+
+        r = set_ensure_put(&m->private_buses, NULL, bus);
+        if (r == -ENOMEM) {
+                log_oom();
+                return 0;
+        }
+        if (r < 0) {
+                log_warning_errno(r, "Failed to add new connection bus to set: %m");
+                return 0;
+        }
+
+        TAKE_PTR(bus);
+
+        log_debug("Accepted new private connection.");
+
+        return 0;
 }
 
 static int
@@ -849,106 +865,93 @@ bus_list_names(Manager *m, sd_bus *bus)
 	return 0;
 }
 
-static int
-bus_setup_api(Manager *m, sd_bus *bus)
-{
-	int r;
+static int bus_setup_api(Manager *m, sd_bus *bus) {
+        char *name;
+        Unit *u;
+        int r;
 
-	assert(m);
-	assert(bus);
+        assert(m);
+        assert(bus);
 
-	/* Let's make sure we have enough credential bits so that we can make security and selinux decisions */
-	r = sd_bus_negotiate_creds(bus, 1,
-		SD_BUS_CREDS_PID | SD_BUS_CREDS_UID | SD_BUS_CREDS_EUID |
-			SD_BUS_CREDS_EFFECTIVE_CAPS |
-			SD_BUS_CREDS_SELINUX_CONTEXT);
-	if (r < 0)
-		log_warning_errno(r,
-			"Failed to enable credential passing, ignoring: %m");
+        /* Let's make sure we have enough credential bits so that we can make security and selinux decisions */
+        r = sd_bus_negotiate_creds(bus, 1,
+                                   SD_BUS_CREDS_PID|SD_BUS_CREDS_UID|
+                                   SD_BUS_CREDS_EUID|SD_BUS_CREDS_EFFECTIVE_CAPS|
+                                   SD_BUS_CREDS_SELINUX_CONTEXT);
+        if (r < 0)
+                log_warning_errno(r, "Failed to enable credential passing, ignoring: %m");
 
-	r = bus_setup_api_vtables(m, bus);
-	if (r < 0)
-		return r;
+        r = bus_setup_api_vtables(m, bus);
+        if (r < 0)
+                return r;
 
-	r = sd_bus_add_match(bus, NULL,
-		"type='signal',"
-		"sender='org.freedesktop.DBus',"
-		"path='/org/freedesktop/DBus',"
-		"interface='org.freedesktop.DBus',"
-		"member='NameOwnerChanged'",
-		signal_name_owner_changed, m);
-	if (r < 0)
-		log_warning_errno(r,
-			"Failed to subscribe to NameOwnerChanged signal: %m");
+        HASHMAP_FOREACH_KEY(u, name, m->watch_bus) {
+                r = unit_install_bus_match(u, bus, name);
+                if (r < 0)
+                        log_error_errno(r, "Failed to subscribe to NameOwnerChanged signal for '%s': %m", name);
+        }
 
-	r = sd_bus_add_match(bus, NULL,
-		"type='signal',"
-		"sender='org.freedesktop.DBus',"
-		"path='/org/freedesktop/DBus',"
-		"interface='" SVC_DBUS_INTERFACE ".Activator',"
-		"member='ActivationRequest'",
-		signal_activation_request, m);
-	if (r < 0)
-		log_warning_errno(r,
-			"Failed to subscribe to activation signal: %m");
+        r = sd_bus_match_signal_async(
+                        bus,
+                        NULL,
+                        "org.freedesktop.DBus",
+                        "/org/freedesktop/DBus",
+                        SVC_DBUS_BUSNAME ".Activator",
+                        "ActivationRequest",
+                        signal_activation_request, NULL, m);
+        if (r < 0)
+                log_warning_errno(r, "Failed to subscribe to activation signal: %m");
 
-	/* Allow replacing of our name, to ease implementation of
-         * reexecution, where we keep the old connection open until
-         * after the new connection is set up and the name installed
-         * to allow clients to synchronously wait for reexecution to
-         * finish */
-	r = sd_bus_request_name(bus, SVC_DBUS_BUSNAME,
-		SD_BUS_NAME_REPLACE_EXISTING | SD_BUS_NAME_ALLOW_REPLACEMENT);
-	if (r < 0)
-		return log_error_errno(r, "Failed to register name: %m");
+        /* Allow replacing of our name, to ease implementation of reexecution, where we keep the old connection open
+         * until after the new connection is set up and the name installed to allow clients to synchronously wait for
+         * reexecution to finish */
+        r = sd_bus_request_name_async(bus, NULL, SVC_DBUS_BUSNAME, SD_BUS_NAME_REPLACE_EXISTING|SD_BUS_NAME_ALLOW_REPLACEMENT, NULL, NULL);
+        if (r < 0)
+                return log_error_errno(r, "Failed to request name: %m");
 
-	bus_list_names(m, bus);
+        r = bus_register_malloc_status(bus, SVC_DBUS_BUSNAME);
+        if (r < 0)
+                log_warning_errno(r, "Failed to register MemoryAllocation1, ignoring: %m");
 
-	log_debug("Successfully connected to API bus.");
-	return 0;
+        log_debug("Successfully connected to API bus.");
+
+        return 0;
 }
 
-static int
-bus_init_api(Manager *m)
-{
-	_cleanup_bus_unref_ sd_bus *bus = NULL;
-	int r;
+int bus_init_api(Manager *m) {
+        _cleanup_(sd_bus_close_unrefp) sd_bus *bus = NULL;
+        int r;
 
-	if (m->api_bus)
-		return 0;
+        if (m->api_bus)
+                return 0;
 
-	/* The API and system bus is the same if we are running in system mode */
-	if (m->running_as == SYSTEMD_SYSTEM && m->system_bus)
-		bus = sd_bus_ref(m->system_bus);
-	else {
-		if (m->running_as == SYSTEMD_SYSTEM)
-			r = sd_bus_open_system(&bus);
-		else
-			r = sd_bus_open_user(&bus);
+        /* The API and system bus is the same if we are running in system mode */
+        if (MANAGER_IS_SYSTEM(m) && m->system_bus)
+                bus = sd_bus_ref(m->system_bus);
+        else {
+                if (MANAGER_IS_SYSTEM(m))
+                        r = sd_bus_open_system_with_description(&bus, "bus-api-system");
+                else
+                        r = sd_bus_open_user_with_description(&bus, "bus-api-user");
+                if (r < 0)
+                        return log_error_errno(r, "Failed to connect to API bus: %m");
 
-		if (r < 0)
-			return log_error_errno(r,
-				"Failed to connect to API bus: %m");
+                r = sd_bus_attach_event(bus, m->event, EVENT_PRIORITY_IPC);
+                if (r < 0)
+                        return log_error_errno(r, "Failed to attach API bus to event loop: %m");
 
-		r = sd_bus_attach_event(bus, m->event,
-			SD_EVENT_PRIORITY_NORMAL);
-		if (r < 0)
-			return log_error_errno(r,
-				"Failed to attach API bus to event loop: %m");
+                r = bus_setup_disconnected_match(m, bus);
+                if (r < 0)
+                        return r;
+        }
 
-		r = bus_setup_disconnected_match(m, bus);
-		if (r < 0)
-			return r;
-	}
+        r = bus_setup_api(m, bus);
+        if (r < 0)
+                return log_error_errno(r, "Failed to set up API bus: %m");
 
-	r = bus_setup_api(m, bus);
-	if (r < 0)
-		return log_error_errno(r, "Failed to set up API bus: %m");
+        m->api_bus = TAKE_PTR(bus);
 
-	m->api_bus = bus;
-	bus = NULL;
-
-	return 0;
+        return 0;
 }
 
 static int
@@ -979,43 +982,37 @@ bus_setup_system(Manager *m, sd_bus *bus)
 	return 0;
 }
 
-static int
-bus_init_system(Manager *m)
-{
-	_cleanup_bus_unref_ sd_bus *bus = NULL;
-	int r;
+int bus_init_system(Manager *m) {
+        _cleanup_(sd_bus_close_unrefp) sd_bus *bus = NULL;
+        int r;
 
-	if (m->system_bus)
-		return 0;
+        if (m->system_bus)
+                return 0;
 
-	/* The API and system bus is the same if we are running in system mode */
-	if (m->running_as == SYSTEMD_SYSTEM && m->api_bus) {
-		m->system_bus = sd_bus_ref(m->api_bus);
-		return 0;
-	}
+        /* The API and system bus is the same if we are running in system mode */
+        if (MANAGER_IS_SYSTEM(m) && m->api_bus)
+                bus = sd_bus_ref(m->api_bus);
+        else {
+                r = sd_bus_open_system_with_description(&bus, "bus-system");
+                if (r < 0)
+                        return log_error_errno(r, "Failed to connect to system bus: %m");
 
-	r = sd_bus_open_system(&bus);
-	if (r < 0)
-		return log_error_errno(r,
-			"Failed to connect to system bus: %m");
+                r = sd_bus_attach_event(bus, m->event, EVENT_PRIORITY_IPC);
+                if (r < 0)
+                        return log_error_errno(r, "Failed to attach system bus to event loop: %m");
 
-	r = bus_setup_disconnected_match(m, bus);
-	if (r < 0)
-		return r;
+                r = bus_setup_disconnected_match(m, bus);
+                if (r < 0)
+                        return r;
+        }
 
-	r = sd_bus_attach_event(bus, m->event, SD_EVENT_PRIORITY_NORMAL);
-	if (r < 0)
-		return log_error_errno(r,
-			"Failed to attach system bus to event loop: %m");
+        r = bus_setup_system(m, bus);
+        if (r < 0)
+                return log_error_errno(r, "Failed to set up system bus: %m");
 
-	r = bus_setup_system(m, bus);
-	if (r < 0)
-		return log_error_errno(r, "Failed to set up system bus: %m");
+        m->system_bus = TAKE_PTR(bus);
 
-	m->system_bus = bus;
-	bus = NULL;
-
-	return 0;
+        return 0;
 }
 
 static int
@@ -1116,43 +1113,53 @@ bus_init(Manager *m, bool try_bus_connect)
 	return 0;
 }
 
-static void
-destroy_bus(Manager *m, sd_bus **bus)
-{
-	Iterator i;
-	Job *j;
+static void destroy_bus(Manager *m, sd_bus **bus) {
+        Unit *u;
+        Job *j;
 
-	assert(m);
-	assert(bus);
+        assert(m);
+        assert(bus);
 
-	if (!*bus)
-		return;
+        if (!*bus)
+                return;
 
-	/* Get rid of tracked clients on this bus */
-	if (m->subscribed && sd_bus_track_get_bus(m->subscribed) == *bus)
-		m->subscribed = sd_bus_track_unref(m->subscribed);
+        /* Make sure all bus slots watching names are released. */
+        HASHMAP_FOREACH(u, m->watch_bus) {
+                if (u->match_bus_slot && sd_bus_slot_get_bus(u->match_bus_slot) == *bus)
+                        u->match_bus_slot = sd_bus_slot_unref(u->match_bus_slot);
+                if (u->get_name_owner_slot && sd_bus_slot_get_bus(u->get_name_owner_slot) == *bus)
+                        u->get_name_owner_slot = sd_bus_slot_unref(u->get_name_owner_slot);
+        }
 
-	HASHMAP_FOREACH (j, m->jobs, i)
-		if (j->clients && sd_bus_track_get_bus(j->clients) == *bus)
-			j->clients = sd_bus_track_unref(j->clients);
+        /* Get rid of tracked clients on this bus */
+        if (m->subscribed && sd_bus_track_get_bus(m->subscribed) == *bus)
+                m->subscribed = sd_bus_track_unref(m->subscribed);
 
-	/* Get rid of queued message on this bus */
-	if (m->queued_message_bus == *bus) {
-		m->queued_message_bus = sd_bus_unref(m->queued_message_bus);
+        HASHMAP_FOREACH(j, m->jobs)
+                if (j->bus_track && sd_bus_track_get_bus(j->bus_track) == *bus)
+                        j->bus_track = sd_bus_track_unref(j->bus_track);
 
-		if (m->queued_message)
-			m->queued_message =
-				sd_bus_message_unref(m->queued_message);
-	}
+        HASHMAP_FOREACH(u, m->units) {
+                if (u->bus_track && sd_bus_track_get_bus(u->bus_track) == *bus)
+                        u->bus_track = sd_bus_track_unref(u->bus_track);
 
-	/* Possibly flush unwritten data, but only if we are
+                // HACK!
+                // /* Get rid of pending freezer messages on this bus */
+                // if (u->pending_freezer_invocation && sd_bus_message_get_bus(u->pending_freezer_invocation) == *bus)
+                //         u->pending_freezer_invocation = sd_bus_message_unref(u->pending_freezer_invocation);
+        }
+
+        /* Get rid of queued message on this bus */
+        if (m->pending_reload_message && sd_bus_message_get_bus(m->pending_reload_message) == *bus)
+                m->pending_reload_message = sd_bus_message_unref(m->pending_reload_message);
+
+        /* Possibly flush unwritten data, but only if we are
          * unprivileged, since we don't want to sync here */
-	if (m->running_as != SYSTEMD_SYSTEM)
-		sd_bus_flush(*bus);
+        if (!MANAGER_IS_SYSTEM(m))
+                sd_bus_flush(*bus);
 
-	/* And destroy the object */
-	sd_bus_close(*bus);
-	*bus = sd_bus_unref(*bus);
+        /* And destroy the object */
+        *bus = sd_bus_close_unref(*bus);
 }
 
 void
@@ -1211,7 +1218,7 @@ bus_fdset_add_all(Manager *m, FDSet *fds)
 		}
 	}
 
-	SET_FOREACH (b, m->private_buses, i) {
+	SET_FOREACH (b, m->private_buses) {
 		fd = sd_bus_get_fd(b);
 		if (fd >= 0) {
 			fd = fdset_put_dup(fds, fd);
@@ -1236,7 +1243,7 @@ bus_foreach_bus(Manager *m, sd_bus_track *subscribed2,
 	int r, ret = 0;
 
 	/* Send to all direct busses, unconditionally */
-	SET_FOREACH (b, m->private_buses, i) {
+	SET_FOREACH (b, m->private_buses) {
 		r = send_message(b, userdata);
 		if (r < 0)
 			ret = r;
@@ -1318,47 +1325,46 @@ bus_track_coldplug(Manager *m, sd_bus_track **t, char ***l)
 	return r;
 }
 
-int
-bus_verify_manage_unit_async(Manager *m, sd_bus_message *call,
-	sd_bus_error *error)
-{
-	return bus_verify_polkit_async(call, CAP_SYS_ADMIN,
-		SVC_DBUS_INTERFACE ".manage-units", false, &m->polkit_registry,
-		error);
+int bus_verify_manage_unit_async(Manager *m, sd_bus_message *call, sd_bus_error *error) {
+        return bus_verify_polkit_async(
+                        call,
+                        SVC_DBUS_INTERFACE ".manage-units",
+                        /* details= */ NULL,
+                        &m->polkit_registry,
+                        error);
 }
 
 /* Same as bus_verify_manage_unit_async(), but checks for CAP_KILL instead of CAP_SYS_ADMIN */
-int
-bus_verify_manage_unit_async_for_kill(Manager *m, sd_bus_message *call,
-	sd_bus_error *error)
-{
-	return bus_verify_polkit_async(call, CAP_KILL,
-		SVC_DBUS_INTERFACE ".manage-units", false, &m->polkit_registry,
-		error);
+// int
+// bus_verify_manage_unit_async_for_kill(Manager *m, sd_bus_message *call,
+// 	sd_bus_error *error)
+// {
+// 	return bus_verify_polkit_async(call, CAP_KILL,
+// 		SVC_DBUS_INTERFACE ".manage-units", false, &m->polkit_registry,
+// 		error);
+// }
+
+int bus_verify_manage_unit_files_async(Manager *m, sd_bus_message *call, sd_bus_error *error) {
+        return bus_verify_polkit_async(
+                        call,
+                        SVC_DBUS_INTERFACE ".manage-unit-files",
+                        /* details= */ NULL,
+                        &m->polkit_registry,
+                        error);
 }
 
-int
-bus_verify_manage_unit_files_async(Manager *m, sd_bus_message *call,
-	sd_bus_error *error)
-{
-	return bus_verify_polkit_async(call, CAP_SYS_ADMIN,
-		SVC_DBUS_INTERFACE ".manage-unit-files", false,
-		&m->polkit_registry, error);
-}
-
-int
-bus_verify_reload_daemon_async(Manager *m, sd_bus_message *call,
-	sd_bus_error *error)
-{
-	return bus_verify_polkit_async(call, CAP_SYS_ADMIN,
-		SVC_DBUS_INTERFACE ".reload-daemon", false, &m->polkit_registry,
-		error);
+int bus_verify_reload_daemon_async(Manager *m, sd_bus_message *call, sd_bus_error *error) {
+        return bus_verify_polkit_async(
+                        call,
+                        SVC_DBUS_INTERFACE ".reload-daemon",
+                        /* details= */ NULL,
+                        &m->polkit_registry, error);
 }
 
 int bus_verify_manage_units_async(Manager *m, sd_bus_message *call, sd_bus_error *error) {
         return bus_verify_polkit_async(
                         call,
-                        "org.freedesktop.systemd1.manage-units",
+                        SVC_DBUS_INTERFACE ".manage-units",
                         /* details= */ NULL,
                         &m->polkit_registry,
                         error);

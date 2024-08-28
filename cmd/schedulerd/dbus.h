@@ -21,7 +21,13 @@
 
 #include "manager.h"
 
-int bus_send_queued_message(Manager *m);
+// int bus_send_queued_message(Manager *m);
+
+int bus_init_api(Manager *m);
+int bus_init_system(Manager *m);
+
+void bus_done_api(Manager *m);
+void bus_done_system(Manager *m);
 
 int bus_init(Manager *m, bool try_bus_connect);
 void bus_done(Manager *m);
@@ -37,8 +43,8 @@ int bus_foreach_bus(Manager *m, sd_bus_track *subscribed2,
 
 int bus_verify_manage_unit_async(Manager *m, sd_bus_message *call,
 	sd_bus_error *error);
-int bus_verify_manage_unit_async_for_kill(Manager *m, sd_bus_message *call,
-	sd_bus_error *error);
+// int bus_verify_manage_unit_async_for_kill(Manager *m, sd_bus_message *call,
+// 	sd_bus_error *error);
 int bus_verify_manage_unit_files_async(Manager *m, sd_bus_message *call,
 	sd_bus_error *error);
 int bus_verify_reload_daemon_async(Manager *m, sd_bus_message *call,

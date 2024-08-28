@@ -212,6 +212,9 @@ int cg_kernel_controllers(Set *controllers);
 int cg_cpu_shares_parse(const char *s, uint64_t *ret);
 int cg_blkio_weight_parse(const char *s, uint64_t *ret);
 
+bool cg_ns_supported(void);
+
+int cg_all_unified(void);
 int cg_unified(void);
 void cg_unified_flush(void);
 

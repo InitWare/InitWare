@@ -22,6 +22,7 @@
 #include <stdbool.h>
 
 #include "list.h"
+#include "pidref.h"
 #include "time-util.h"
 
 typedef struct CGroupContext CGroupContext;
@@ -126,6 +127,7 @@ void manager_shutdown_cgroup(Manager *m, bool delete);
 unsigned manager_dispatch_cgroup_queue(Manager *m);
 
 Unit *manager_get_unit_by_cgroup(Manager *m, const char *cgroup);
+Unit* manager_get_unit_by_pidref(Manager *m, const PidRef *pid);
 Unit *manager_get_unit_by_pid(Manager *m, pid_t pid);
 
 pid_t unit_search_main_pid(Unit *u);

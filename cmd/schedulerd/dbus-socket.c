@@ -49,7 +49,7 @@ property_get_listen(sd_bus *bus, const char *path, const char *interface,
 	if (r < 0)
 		return r;
 
-	IWLIST_FOREACH (port, p, s->ports) {
+	LIST_FOREACH (port, p, s->ports) {
 		_cleanup_free_ char *address = NULL;
 		const char *a;
 

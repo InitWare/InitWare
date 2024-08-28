@@ -29,3 +29,5 @@ int bus_scope_set_property(Unit *u, const char *name, sd_bus_message *i,
 int bus_scope_commit_properties(Unit *u);
 
 int bus_scope_send_request_stop(Scope *s);
+
+int bus_scope_method_abandon(sd_bus_message *message, void *userdata, sd_bus_error *error);

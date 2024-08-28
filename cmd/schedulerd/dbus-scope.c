@@ -27,35 +27,32 @@
 #include "dbus-unit.h"
 #include "dbus.h"
 #include "scope.h"
+#include "selinux-access.h"
 #include "unit.h"
 
-static int
-bus_scope_abandon(sd_bus *bus, sd_bus_message *message, void *userdata,
-	sd_bus_error *error)
-{
-	Scope *s = userdata;
-	int r;
+int bus_scope_method_abandon(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        Scope *s = ASSERT_PTR(userdata);
+        int r;
 
-	assert(bus);
-	assert(message);
-	assert(s);
+        assert(message);
 
-	r = bus_verify_manage_unit_async(UNIT(s)->manager, message, error);
-	if (r < 0)
-		return r;
-	if (r == 0)
-		return 1; /* No authorization for now, but the async polkit stuff will call us again when it has it */
+        r = mac_selinux_unit_access_check(UNIT(s), message, "stop", error);
+        if (r < 0)
+                return r;
 
-	r = scope_abandon(s);
-	if (sd_bus_error_is_set(error))
-		return r;
+        r = bus_verify_manage_units_async(UNIT(s)->manager, message, error);
+        if (r < 0)
+                return r;
+        if (r == 0)
+                return 1; /* No authorization for now, but the async polkit stuff will call us again when it has it */
 
-	if (r == -ESTALE)
-		return sd_bus_error_setf(error, BUS_ERROR_SCOPE_NOT_RUNNING,
-			"Scope %s is not running, cannot abandon.",
-			UNIT(s)->id);
+        r = scope_abandon(s);
+        if (r == -ESTALE)
+                return sd_bus_error_setf(error, BUS_ERROR_SCOPE_NOT_RUNNING, "Scope %s is not running, cannot abandon.", UNIT(s)->id);
+        if (r < 0)
+                return r;
 
-	return sd_bus_reply_method_return(message, NULL);
+        return sd_bus_reply_method_return(message, NULL);
 }
 
 static BUS_DEFINE_PROPERTY_GET_ENUM(property_get_result, scope_result,
@@ -70,7 +67,7 @@ const sd_bus_vtable bus_scope_vtable[] = { SD_BUS_VTABLE_START(0),
 	SD_BUS_PROPERTY("Result", "s", property_get_result,
 		offsetof(Scope, result), SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
 	SD_BUS_SIGNAL("RequestStop", NULL, 0),
-	SD_BUS_METHOD("Abandon", NULL, NULL, bus_scope_abandon, 0),
+	SD_BUS_METHOD("Abandon", NULL, NULL, bus_scope_method_abandon, 0),
 	SD_BUS_VTABLE_END };
 
 static int
@@ -211,27 +208,28 @@ bus_scope_commit_properties(Unit *u)
 	return 0;
 }
 
-int
-bus_scope_send_request_stop(Scope *s)
-{
-	_cleanup_bus_message_unref_ sd_bus_message *m = NULL;
-	_cleanup_free_ char *p = NULL;
-	int r;
+int bus_scope_send_request_stop(Scope *s) {
+        _cleanup_(sd_bus_message_unrefp) sd_bus_message *m = NULL;
+        _cleanup_free_ char *p = NULL;
+        int r;
 
-	assert(s);
+        assert(s);
 
-	if (!s->controller)
-		return 0;
+        if (!s->controller)
+                return 0;
 
-	p = unit_dbus_path(UNIT(s));
-	if (!p)
-		return -ENOMEM;
+        p = unit_dbus_path(UNIT(s));
+        if (!p)
+                return -ENOMEM;
 
-	r = sd_bus_message_new_signal(UNIT(s)->manager->api_bus, &m, p,
-		SVC_DBUS_INTERFACE ".Scope", "RequestStop");
-	if (r < 0)
-		return r;
+        r = sd_bus_message_new_signal(
+                        UNIT(s)->manager->api_bus,
+                        &m,
+                        p,
+                        SVC_DBUS_INTERFACE ".Scope",
+                        "RequestStop");
+        if (r < 0)
+                return r;
 
-	return sd_bus_send_to(UNIT(s)->manager->api_bus, m,
-		/* s->controller */ NULL, NULL);
+        return sd_bus_send_to(UNIT(s)->manager->api_bus, m, s->controller, NULL);
 }

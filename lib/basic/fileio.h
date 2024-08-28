@@ -48,6 +48,8 @@ int executable_is_script(const char *path, char **interpreter);
 
 int get_status_field(const char *filename, const char *pattern, char **field);
 
+int get_proc_field(const char *filename, const char *pattern, const char *terminator, char **field);
+
 int fdopen_independent(int fd, const char *mode, FILE **ret);
 
 static inline bool file_offset_beyond_memory_size(off_t x) {

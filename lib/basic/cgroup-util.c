@@ -2063,6 +2063,22 @@ cg_mask_supported(CGroupMask *ret)
 	return 0;
 }
 
+bool cg_ns_supported(void) {
+        static thread_local int enabled = -1;
+
+        if (enabled >= 0)
+                return enabled;
+
+        if (access("/proc/self/ns/cgroup", F_OK) < 0) {
+                if (errno != ENOENT)
+                        log_debug_errno(errno, "Failed to check whether /proc/self/ns/cgroup is available, assuming not: %m");
+                enabled = false;
+        } else
+                enabled = true;
+
+        return enabled;
+}
+
 int
 cg_kernel_controllers(Set *controllers)
 {
@@ -2178,3 +2194,7 @@ static const char *cgroup_controller_table[_CGROUP_CONTROLLER_MAX] = {
 };
 
 DEFINE_STRING_TABLE_LOOKUP(cgroup_controller, CGroupController);
+
+int cg_all_unified(void) {
+		return cg_unified();
+}

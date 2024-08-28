@@ -21,6 +21,7 @@
 
 #include "hashmap.h"
 #include "install.h"
+#include "pidref.h"
 #include "sd-bus.h"
 #include "sd-event.h"
 #include "time-util.h"
@@ -71,9 +72,17 @@ int bus_set_address_capsule_bus(sd_bus *bus, const char *capsule, int *ret_pin_f
 int bus_verify_polkit(sd_bus_message *call, int capability, const char *action,
 	bool interactive, bool *_challenge, sd_bus_error *e);
 
-int bus_verify_polkit_async(sd_bus_message *call, int capability,
-	const char *action, bool interactive, Hashmap **registry,
-	sd_bus_error *error);
+typedef enum PolkitFLags {
+        POLKIT_ALLOW_INTERACTIVE = 1 << 0, /* Allow interactive auth (typically not required, because can be derived from bus message/link automatically) */
+        POLKIT_ALWAYS_QUERY      = 1 << 1, /* Query polkit even if client is privileged */
+        POLKIT_DEFAULT_ALLOW     = 1 << 2, /* If polkit is not around, assume "allow" rather than the usual "deny" */
+        POLKIT_DONT_REPLY        = 1 << 3, /* Varlink: don't immediately propagate polkit error to the Varlink client */
+} PolkitFlags;
+
+int bus_verify_polkit_async_full(sd_bus_message *call, const char *action, const char **details, uid_t good_user, PolkitFlags flags, Hashmap **registry, sd_bus_error *error);
+static inline int bus_verify_polkit_async(sd_bus_message *call, const char *action, const char **details, Hashmap **registry, sd_bus_error *error) {
+        return bus_verify_polkit_async_full(call, action, details, UID_INVALID, 0, registry, error);
+}
 void bus_verify_polkit_async_registry_free(Hashmap *registry);
 
 // int bus_open_system_systemd(sd_bus **_bus);
@@ -217,3 +226,8 @@ int bus_wait_for_jobs(BusWaitForJobs *d, bool quiet);
 int bus_property_get_rlimit(sd_bus *bus, const char *path,
 	const char *interface, const char *property, sd_bus_message *reply,
 	void *userdata, sd_bus_error *error);
+
+/* Listen to GetMallocInfo() calls to 'destination' and return malloc_info() via FD */
+int bus_register_malloc_status(sd_bus *bus, const char *destination);
+
+int bus_query_sender_pidref(sd_bus_message *m, PidRef *ret);
