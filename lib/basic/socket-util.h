@@ -26,11 +26,13 @@
 #include "macro.h"
 #include "util.h"
 
-#ifdef SVC_PLATFORM_Linux
+#if defined(SVC_PLATFORM_Linux)
 #include <asm/types.h>
 #include <linux/if_packet.h>
 #include <linux/netlink.h>
 #include <netinet/ether.h>
+#elif defined(SVC_PLATFORM_FreeBSD)
+#include <netlink/netlink.h>
 #endif
 
 #if defined(SVC_PLATFORM_Linux)

@@ -299,7 +299,7 @@ json_parse_number(const char **p, union json_value *ret)
 
 	if (is_double) {
 		ret->real = ((negative ? -1.0 : 1.0) * (x + (y / shift))) *
-			exp10((exponent_negative ? -1.0 : 1.0) * exponent);
+			pow((exponent_negative ? -1.0 : 1.0) * exponent, 10.0);
 		return JSON_REAL;
 	} else {
 		ret->integer = negative ? -i : i;

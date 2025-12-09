@@ -314,7 +314,7 @@ socket_address_print(const SocketAddress *a, char **ret)
 	if (r < 0)
 		return r;
 
-#ifdef AF_NETLINK
+#ifdef SVC_PLATFORM_Linux
 	if (socket_address_family(a) == AF_NETLINK) {
 		_cleanup_free_ char *sfamily = NULL;
 
@@ -403,7 +403,7 @@ socket_address_equal(const SocketAddress *a, const SocketAddress *b)
 
 		break;
 
-#ifdef AF_NETLINK
+#ifdef SVC_PLATFORM_Linux
 	case AF_NETLINK:
 		if (a->protocol != b->protocol)
 			return false;
@@ -441,7 +441,7 @@ socket_address_is(const SocketAddress *a, const char *s, int type)
 bool
 socket_address_is_netlink(const SocketAddress *a, const char *s)
 {
-#ifdef AF_NETLINK
+#ifdef SVC_PLATFORM_Linux
 	struct SocketAddress b;
 
 	assert(a);
@@ -779,10 +779,12 @@ socket_address_unlink(SocketAddress *a)
 }
 
 #ifdef AF_NETLINK
-static const char *const netlink_family_table[] = {
+static const char *const netlink_family_table[32] = {
 	[NETLINK_ROUTE] = "route",
 	[NETLINK_FIREWALL] = "firewall",
+#ifdef NETLINK_INET_DIAG
 	[NETLINK_INET_DIAG] = "inet-diag",
+#endif
 	[NETLINK_NFLOG] = "nflog",
 	[NETLINK_XFRM] = "xfrm",
 	[NETLINK_SELINUX] = "selinux",
@@ -795,9 +797,15 @@ static const char *const netlink_family_table[] = {
 	[NETLINK_DNRTMSG] = "dnrtmsg",
 	[NETLINK_KOBJECT_UEVENT] = "kobject-uevent",
 	[NETLINK_GENERIC] = "generic",
+#ifdef NETLINK_SCSITRANSPORT
 	[NETLINK_SCSITRANSPORT] = "scsitransport",
+#endif
+#ifdef NETLINK_ECRYPTFS
 	[NETLINK_ECRYPTFS] = "ecryptfs",
+#endif
+#ifdef NETLINK_RDMA
 	[NETLINK_RDMA] = "rdma",
+#endif
 };
 
 DEFINE_STRING_TABLE_LOOKUP_WITH_FALLBACK(netlink_family, int, INT_MAX);
